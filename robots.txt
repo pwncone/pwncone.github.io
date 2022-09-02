@@ -1,0 +1,5 @@
+# ---- d[o_0]b -----
+# *beep boop* no robots here *beep boop*
+
+User-agent: *
+Disallow: /
