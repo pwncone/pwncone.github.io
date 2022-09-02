@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>DOS Header</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h2>DOS Header</h2></strong><br />The MS-DOS Header is at the start of every PE file.<br />It identifies the file as a DOS file.<br /><br /><a href="https://www.nirsoft.net/kernel_struct/vista/IMAGE_DOS_HEADER.html">https://www.nirsoft.net/kernel_struct/vista/IMAGE_DOS_HEADER.html</a><br /><br /><a href=""><img src="images/863-1.png" alt="images/863-1.png" /></a><br /><br /><div class="codebox"><div class="codebox">PIMAGE_DOS_HEADER&nbsp;dos_header&nbsp;=&nbsp;NULL;<br />dos_header&nbsp;=&nbsp;file_buffer;<br /><br />printf(&quot;DOS&nbsp;header&nbsp;@&nbsp;0x%p&nbsp;\n&quot;,&nbsp;dos_header);<br />printf(&quot;\t&nbsp;e_magic:&nbsp;0x%x&nbsp;\n&quot;,&nbsp;dos_header-&gt;e_magic);<br />printf(&quot;\t&nbsp;e_lfanew:&nbsp;0x%x&nbsp;\n&quot;,&nbsp;dos_header-&gt;e_lfanew);</div></div><br /><br /><strong><h3>## Values of Interest</h3></strong><br /><strong>e_magic</strong><br />   ◇ identifies the file as a DOS file<br />   ◇ should be 0x5a4d - ASCII for MZ - Mark Zbikowski - the original architect of MS-DOS<br />   ◇ IMAGE_DOS_SIGNATURE stores this constant<br /><br /><strong>e_lfanew </strong><br />   ◇ contains the offset to the PE header-  the IMAGE_NT_HEADERS struct<br /></div>
+</body>
+</html>

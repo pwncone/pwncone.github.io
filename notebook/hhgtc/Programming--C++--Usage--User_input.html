@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>User input</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#User input</h1></strong><br />User input is taken using the <code>&lt;iostream&gt;</code> standard library, the <code>cin</code> method takes user input<br />You save it into a variable (declare the variable first)<br /><br /><strong>Taking numbers</strong><br />Use <code>cin</code><br /><div class="codebox"><div class="codebox">#include&nbsp;&lt;iostream&gt;<br />using&nbsp;namespace&nbsp;std;<br /><br />int&nbsp;main()&nbsp;<span style="color:#000000;font-weight:400">{</span><br />&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;age;<br />&nbsp;&nbsp;&nbsp;&nbsp;cout&nbsp;&lt;&lt;&nbsp;&quot;Enter&nbsp;your&nbsp;age:&nbsp;&quot;;<br />&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;take&nbsp;user&nbsp;input,&nbsp;store&nbsp;in&nbsp;age&nbsp;variable<br />&nbsp;&nbsp;&nbsp;&nbsp;cin&nbsp;&gt;&gt;&nbsp;age;<br /><br />&nbsp;&nbsp;&nbsp;&nbsp;cout&nbsp;&lt;&lt;&nbsp;&quot;You&nbsp;are&nbsp;&quot;&nbsp;&lt;&lt;&nbsp;age&nbsp;&lt;&lt;&nbsp;&quot;&nbsp;years&nbsp;old!&quot;&nbsp;&lt;&lt;&nbsp;endl;<br /><br />&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;0;<br /><span style="color:#000000;font-weight:400">}</span></div></div><br /><br /><strong>Taking strings</strong><br />When taking strings, use getline() function (because <code>cin &gt;&gt;</code> will only take the first word, ignoring whitespace)<br /><code>getline(cin, &lt;variable&gt;);</code><br /><div class="codebox"><div class="codebox">#include&nbsp;&lt;iostream&gt;<br />#include&nbsp;&lt;string&gt;<br />using&nbsp;namespace&nbsp;std;<br /><br />int&nbsp;main()&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;cout&nbsp;&lt;&lt;&nbsp;“What&#39;s&nbsp;your&nbsp;name?&nbsp;”;<br />&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;name;<br />&nbsp;&nbsp;&nbsp;&nbsp;getline(cin,&nbsp;name);<br />&nbsp;&nbsp;&nbsp;&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;cout&nbsp;&lt;&lt;&nbsp;“Your&nbsp;name&nbsp;is&nbsp;”&nbsp;&lt;&lt;&nbsp;name&nbsp;&lt;&lt;&nbsp;endl;<br /><br />&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;0;<br />}<br /></div></div><br /></div>
+</body>
+</html>

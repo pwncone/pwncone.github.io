@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Phantom-Evasion</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Antivirus Evasion - Phantom-Evasion</h1></strong><br /><a href="https://github.com/oddcod3/Phantom-Evasion">https://github.com/oddcod3/Phantom-Evasion</a><br /><br />No idea what techniques it&#39;s using without reading the source.<br /><br /><strong><h2>## Observations</h2></strong><br /><strong><h3>### 4th May 2020 </h3></strong><br />As of 4th May 2020, against Windows 1809.<br />• Don&#39;t use any default values to avoid detection<br />• Avoids detection on disk.<br />• But payload execution fails?<br />• Uses a ton of CPU - close to 50% (because it spawns decoy processes)<br /><br /><strong><h2>## Install</h2></strong><br /><code>git clone</code><br /><code>python3 phantom-evasion.py --setup</code><br /><br /><strong><h2>## Usage</h2></strong><br /><code>python3 phantom-evasion.py</code><br /><br /><strong>Modules</strong><br /><code>reverse_tcp/http/https</code> designed to be used with msfconsole or cobalt strike beacon.<br /><br /><strong><h2>## Tips</h2></strong><br />• Modify everything from the default values<br />• If signing the binary, don&#39;t use the default info</div>
+</body>
+</html>

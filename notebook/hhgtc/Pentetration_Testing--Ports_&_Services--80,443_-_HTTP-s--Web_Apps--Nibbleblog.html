@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Nibbleblog</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Nibbleblog</h1></strong><br />Nibbleblog is a “blog system” written by Diego Najar.<br />It&#39;s vulnerable.<br /><br /><strong><h2>## URLs</h2></strong><br />• <code>/README</code> will identify the Nibbleblog version<br />• <code>/admin.php</code> is the admin panel login page.<br />• <code>/admin</code>, <code>/content</code>, <code>/languages</code>, <code>/plugins</code>, <code>/themes</code> are all (potentially open) directory listings, which you can browse.<br />   ◇ If enabled, might be able to find username in <code>/content/private/users.xml</code><br /><br /><strong><h2>## Tips</h2></strong><br /><strong><h3>### Gobuster</h3></strong><br />If you gobuster the site, brute-force for .php and .txt extensions as well.<br />You&#39;ll get more results.<br /><code>gobuster -e -u http://10.10.10.75/nibbleblog/ -w /usr/share/seclists/Discovery/Web-Content/big.txt -x .php,.txt</code><br /></div>
+</body>
+</html>

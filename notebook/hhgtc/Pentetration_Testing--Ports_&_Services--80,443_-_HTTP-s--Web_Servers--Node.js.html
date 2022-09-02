@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Node.js</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Node.js</h1></strong><br />Node.js can also spawn web servers.<br /><br />The webserver lives on port <code>80</code>.<br />The debugger lives on port <code>9229</code>.<br /><br /><strong><h2>## Tips</h2></strong><br />• Proxy your traffic through Burp and watch the requests when browsing to a page<br />   ◇ You might see <code>/api</code> requests or something similar - this is where the data is being retrieved from<br />   ◇ Used in <em>hackthebox Node</em><br /><br /><strong><h2>## Recon</h2></strong><br /><div class="codebox"><div class="codebox">#&nbsp;Find&nbsp;main&nbsp;app&nbsp;file&nbsp;used&nbsp;by&nbsp;the&nbsp;Node.js&nbsp;server<br />curl&nbsp;http://$ip:9229/json/list<br /><br />#&nbsp;Connect&nbsp;to&nbsp;debug&nbsp;console<br />node-inspect&nbsp;$ip:9229<br />&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;List&nbsp;the&nbsp;number&nbsp;of&nbsp;scripts&nbsp;loaded&nbsp;(including&nbsp;node-internals)<br />&nbsp;&nbsp;&nbsp;&nbsp;debug&gt;&nbsp;scripts(true)</div></div></div>
+</body>
+</html>

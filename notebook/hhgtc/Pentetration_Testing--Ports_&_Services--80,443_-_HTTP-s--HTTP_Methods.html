@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>HTTP Methods</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># HTTP Methods</h1></strong><br />You can check what HTTP methods a web page allows by sending an <code>OPTIONS</code> request.<br />Sometimes you get interesting results, like being able to <code>PUT</code> a file.<br /><br /><strong><h2>## Testing &amp; Finding Methods</h2></strong><br /><strong><h3>### curl</h3></strong><br /><code>curl -X OPTIONS </code><a href="http://192.168.1.177/test">http://192.168.1.177/test</a><code> -i</code><br /><br /><code>-i</code> - include http header<br /><code>-X</code> - request to make (<code>GET</code>, <code>PUT</code>, etc.)<br /><br /><strong><h3>### Nmap</h3></strong><br /><code>nmap -p 80 --script http-methods 192.168.1.177</code><br /><br /><code>nmap -p 80 --script http-methods --script-args http-methods.url-path=&#39;/test&#39; 192.168.1.177</code><br /><br /><strong><h2>## HTTP Methods</h2></strong><br /><strong><h3>### PUT and DELETE</h3></strong><br /><code>PUT</code> can upload files.<br /><code>DELETE</code> can delete files.<br /><br /><strong>#### PUT with Nmap</strong><br /><a href="https://nmap.org/nsedoc/scripts/http-put.html">https://nmap.org/nsedoc/scripts/http-put.html</a><br /><code>nmap -p 80 &lt;ip&gt; --script http-put --script-args http-put.url=&#39;/uploads/rootme.php&#39;,http-put.file=&#39;/tmp/rootme.php&#39;</code><br /><br /><strong>#### PUT with Metasploit</strong><br />Use the <code>http_put</code> module.</div>
+</body>
+</html>

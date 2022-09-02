@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Error Handling</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Error Handling</h1></strong><br />C doesn&#39;t have built-in support for error handling.<br /><br />Most functions return <code>-1</code> or <code>NULL</code> (different from <code>0</code>) when a function fails.<br />To handle errors, you check the return values of functions.<br /><br /><code>perror()</code> - Print custom message to user + error message<br /><code>fprintf(stderr, &quot;[error] something went wrong :/&quot;);</code> - Print custom message to stderr without error message<br /><br /><code>#include &lt;stdlib.h&gt;</code> - for exit() and EXIT_FAILURE / EXIT_SUCCESS<br /><br /><strong><h3>Need to store the return value from the function?</h3></strong><br />Handle errors like this:<br /><div class="codebox"><div class="codebox">int&nbsp;sock_fd&nbsp;=&nbsp;socket(AF_INET,&nbsp;SOCK_STREAM,&nbsp;0);<br />if&nbsp;(sock_fd&nbsp;==&nbsp;-1)<br /><span style="color:#000000;font-weight:400">{</span><br />&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;[error]&nbsp;socket()&nbsp;failed.&nbsp;&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);<br /><span style="color:#000000;font-weight:400">}</span></div></div><br /><br />• This method is easier to read<br />   ◇ but you don&#39;t want to be creating unecessary variables where you don&#39;t need them<br /><br /><strong><h3>Don&#39;t need to store return value from the function?</h3></strong><br />Handle errors like this:<br /><div class="codebox"><div class="codebox">if&nbsp;(send(sock_fd,&nbsp;get_request,&nbsp;strlen(get_request),&nbsp;0)&nbsp;==&nbsp;-1)<br /><span style="color:#000000;font-weight:400">{</span><br />&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;[error]&nbsp;send()&nbsp;failed&nbsp;&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);<br /><span style="color:#000000;font-weight:400">}</span></div></div><br /><br />• Slightly difficult to follow in code<br />   ◇ but aren&#39;t creating unecessary variables</div>
+</body>
+</html>

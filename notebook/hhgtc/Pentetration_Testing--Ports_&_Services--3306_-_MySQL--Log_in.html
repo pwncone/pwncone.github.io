@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Log in</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h2>## Log In</h2></strong><br />Always test:<br />	username: root<br />	password: root<br /><br />Different ways of logging in:<br /><code>mysql -u root</code><br /><code>mysql -u root -p</code><br /><code>mysql -h &lt;target ip&gt; -u root</code><br /><code>mysql -h &lt;target ip&gt; -u root -p</code><br /><code>mysql -h &lt;target ip&gt; -u root@localhost</code><br /><code>mysql -h &lt;target ip&gt; -u &quot;&quot;@localhost</code><br />		<br /><code>telnet 192.168.0.1 3306</code><br />		<br />You&#39;ll probably get this message a lot:<br /><code>ERROR 1130 (HY000): Host &#39;192.168.0.101&#39; is not allowed to connect</code><br />happens because root is configured so it can only login from 127.0.0.1/localhost</div>
+</body>
+</html>

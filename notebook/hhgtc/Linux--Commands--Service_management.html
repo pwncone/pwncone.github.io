@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Service management</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Commands - Service management</h1></strong><br /><br /><strong><h2>## Sys V</h2></strong><br /><code>service --status-all</code> - list services<br /><code>sudo service networking start</code> - start a service<br /><code>sudo service networking stop</code> - stop a service<br /><code>sudo service networking restart</code> - restart a service<br /><br /><strong><h2>## Upstart</h2></strong><br /><code>initctl list</code> - view upstart jobs<br />    Output syntax = <code>&lt;job name&gt; &lt;job goal&gt;/&lt;job status&gt;</code><br /><br /><code>initctl status networking</code> - view specific job<br /><br /><code>sudo initctl start networking</code> - manually start a job<br /><code>sudo initctl stop networking</code> - manually stop a job<br /><code>sudo initctl restart networking</code> - manually restart a job<br /><code>sudo initctl emit some_event</code> - manually emit an event<br /><br /><strong><h2>## Systemd</h2></strong><br /><code>systemctl list-units</code> - List units<br /><code>systemctl status networking.service</code> - View status of unit<br /><code>sudo systemctl start networking.service</code> - Start a service<br /><code>sudo systemctl stop networking.service</code> - Stop a service<br /><code>sudo systemctl restart networking.service</code> - Restart a service<br /><code>sudo systemctl enable networking.service</code> - Enable a unit<br /><code>sudo systemctl disable networking.service</code> - Disable a unit</div>
+</body>
+</html>

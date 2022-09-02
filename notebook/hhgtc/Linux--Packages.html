@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Packages</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Packages</h1></strong><br />• Linux systems are comprised of many packages<br />   ◇ internet browsers<br />   ◇ text editors<br />   ◇ media players<br />   ◇ etc.<br />• Packages are simply lots of files that have been compiled into 1<br />• Packages are managed via package managers, which install and maintain the software on your system<br /><br /><strong><h2>## Package Repositories</h2></strong><br />• Package Repositories are just a central storage location for packages<br />• There are tons of package repositories all over the internet (which contain different packages)<br />• A list of package repositories is stored in your system&#39;s <code>/etc/apt/sources.list</code><br />   ◇ This file tells your machine which repositories to look in for software<br /><br /><strong><h2>## dpkg</h2></strong><br />• Used in to install .deb files<br />• Will install the package, but not its dependencies<br /><br /><code>dpkg -i some_deb_package.deb</code> - install a package<br /><code>dpkg -r some_deb_package.deb</code> - remove a package<br /><code>dpkg -l</code> - list install packages<br /><br /><strong><h2>## apt</h2></strong><br /><code>apt install package_name</code> - install a package<br /><code>apt remove package_name</code> - remove a package<br /><code>apt update; apt upgrade</code> - find updates for packages and install them<br /><code>apt show package_name</code> - show info about installed package<br /><br /></div>
+</body>
+</html>

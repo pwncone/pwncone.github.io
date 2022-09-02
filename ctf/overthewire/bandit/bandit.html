@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>overthewire - bandit</strong></h1>
+        <a href="http://overthewire.org/wargames/bandit/">http://overthewire.org/wargames/bandit/</a><br>
+        <br>
+        Bandit is a great place to start, but I think the hints they offer are weak and some solutions to their levels really aren't beneficial to helping you learn the command line.<br>
+        It's a great game, but not as great as people say it is for beginners. Regardless, let's go!<br>
+        <br>
+        *Note* If you want to 'level up' to the next level without having to exit ssh and log back in, just use ssh banditN@localhost. Replace N with the level<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>#Level 0</strong></h2><br>
+        <code>ssh bandit0@bandit.labs.overthewire.org -p 2220</code><br>
+        Fails without -p, port is important because their wargame isn't running on the ssh default port of 22<br>
+        <code>ls</code><br>
+        <code>cat readme</code><br>
+        <br>
+        Password for next level:<br>
+        boJ9jbbUNNfktd78OOpsqOltutMc3MY1<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>#Level 1</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in a file called - located in the home directory<br>
+        <br>
+        <code>ls</code><br>
+        <code>cat ./-</code><br>
+        <br>
+        ./ refers to the current directory<br>
+        - is normally used for arguments in commands e.g. <code>ls -a</code><br>
+        The terminal is going to get confused if we just type 'cat -', the 'cat' command will be expecting an argument.<br>
+        You could also do <code>cat “-�</code><br>
+        <br>
+        Password for next level:<br>
+        CV1DtqXWVFXTvM2F0k09SHz0YwRINYA9<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>#Level 2</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in a file called spaces in this filename located in the home directory<br>
+        <br>
+        When specifying files with spaces in their name, we need to wrap the filename in quotes (effectively making it a string)<br>
+        <code>cat "spaces in this filename"</code><br>
+        Apostrophes work too- ''<br>
+        <br>
+        Password for next level:<br>
+        UmHadQclWmgdLOKQ3YNgjWxGoRMb5luK<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>#Level 3</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in a hidden file in the inhere directory.<br>
+        <br>
+        <code>cd inhere</code><br>
+        <code>ls -a</code><br>
+        <code>cat .hidden</code><br>
+        <br>
+        <code>ls -a</code> stands for list all- it will show hidden files.<br>
+        Hidden files are files starting with . (but . and .. in the directory are normal)<br>
+        <br>
+        Password for next level:<br>
+        pIwrPrtPN36QITSp3EQaw936yaFoFgAB<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>#Level 4</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in the only human-readable file in the inhere directory. Tip: if your terminal is messed up, try the “reset� command.<br>
+        <br>
+        The 'file' command lets you check what type of file you have, follwing the syntax: <code>file &lt;filename&gt;</code><br>
+        All of our files start with - so we need to use ./- (as learned previously)<br>
+        * can be used to specify anything/everthing, so the line:<br>
+        <code>file ./-*</code><br>
+        reads as "check what filetype every file in this document is starting with -"<br>
+        You could try and cat each of the files all individually until you found the password if you wanted though.<br>
+        <br>
+        <code>cd inhere</code><br>
+        <code>ls</code><br>
+        <code>file ./-*</code><br>
+        ./-file07: ASCII text<br>
+        <code>cat ./-file07</code><br>
+        <br>
+        Password for next level:<br>
+        koReBOKuIDDepwhWk7jZC0RTdopnAYKh<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>#Level 5</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in a file somewhere under the inhere directory and has all of the following properties:<br>
+        <br>
+        human-readable<br>
+        1033 bytes in size<br>
+        not executable<br>
+        <br>
+        <code>cd inhere</code><br>
+        <code>ls</code><br>
+        Okay... Use 'find' and specify the properties of the file laid out in the description<br>
+        <br>
+        <code>-readable</code> (for human-readable files)<br>
+        <code>-size NUMBERc</code> (c means bytes)<br>
+        <code>! -executable</code> (! means not)<br>
+        <br>
+        <code>find -readable -size 1033c ! -executeable</code><br>
+        <code>cat ./maybehere07/.file2</code><br>
+        <br>
+        Password for the next level:<br>
+        DXjZPULLxYr17uwoI01bNLQbtFemEgo7<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>#Level 6</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored somewhere on the server<br>
+        <br>
+        Another 'find the file' game. Properties from the description:<br>
+        <br>
+        owned by user bandit7<br>
+        owned by group bandit6<br>
+        33 bytes in size<br>
+        <br>
+        <code>find / -user bandit7 -group bandit6 -size 33c</code><br>
+        <br>
+        <code>/</code> (search from the root of the filesytem i.e. search everywhere)<br>
+        <code>-user</code> (specify the user that owns the file)<br>
+        <code>-group</code> (specify the group that owns the file)<br>
+        <code>-size NUMBERc</code> (specify size of file in bytes- c)<br>
+        <br>
+        We got a lot of results and most of them are errors/permission denied.<br>
+        Instead of having to sift through all of them to find our file, redirect all the errors to /dev/null (which basically means that they won't be printed to the screen)<br>
+        <br>
+        <code>find / -user bandit7 -group bandit6 -size 33c 2&gt;/dev/null</code><br>
+        <code>cat ./var/lib/dpkg/info/bandit7.password</code><br>
+        <br>
+        Password for the next level:<br>
+        HKBPTKQnIay4Fw76bEy8PVxKEDQRKTzs<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>#Level 7</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in the file data.txt next to the word millionth<br>
+        <br>
+        The 'grep' command will search through text for you:<br>
+        <code>grep "millionth" data.txt</code><br>
+        <br>
+        Password for the next level:<br>
+        cvX2JJa4CFALtqS87jk27qwqGhBM9plV<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>#Level 8</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in the file data.txt and is the only line of text that occurs only once.<br>
+        <br>
+        We can use <code>uniq</code> for this<br>
+        uniq doesn't detect repeated lines unless they are adjacent<br>
+        Therefore, use <code>sort -d</code> to orgnaise the file content into dictionary-order and then pipe the sorted file to uniq with <code>|</code> (<code>-u</code> argument means 'uniq' will print only unique lines)<br>
+        <code>sort data.txt -d | uniq -u</code><br>
+        <br>
+        Password for the next level:<br>
+        UsvVyFSfZZWbi6wgC7dAFyFuR6jQQUhR<br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>#Level 9</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in the file data.txt in one of the few human-readable strings, beginning with several ‘=’ characters.<br>
+        <br>
+        This is all about pipes again, and making use of 2 commands to find our key. We can't use <code>cat</code> to read the file here because it's a binary. Instead, we use <code>strings</code><br>
+        Run <code>strings</code> on your file and then pipe the output (with <code>|</code>) to grep:<br>
+        <code>strings data.txt | grep ==</code><br>
+        <br>
+        Password for the next level:<br>
+        truKLdjsbJ5g7yyJ2X2R0o3a5HQJFuLk<br>
+        <br>
+        <a id="h2-11" name="h2-11"></a><strong></strong>
+        <h2><strong>#Level 10</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in the file data.txt, which contains base64 encoded data<br>
+        <br>
+        <code>base64 -d data.txt</code><br>
+        <br>
+        Password for the next level:<br>
+        IFukwKGsFW8MOq3IRFqrxE1hxTNEbUPR<br>
+        <br>
+        <a id="h2-12" name="h2-12"></a><strong></strong>
+        <h2><strong>#Level 11</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in the file data.txt, where all lowercase (a-z) and uppercase (A-Z) letters have been rotated by 13 positions<br>
+        <br>
+        This is a rot13 cipher.<br>
+        The <code>tr</code> command can translate characters. And it doesn't take files.<br>
+        So, we read the file (data.txt) and then pipe the outout to 'tr' to get translated<br>
+        I tried:<br>
+        <code>cat data.txt | tr '[A-MN-Za-mn-z]' '[A-Za-z]'</code><br>
+        but the output you get looks like rot13 and I don't fully know why. So instead, change around what 'tr' is translating:<br>
+        <code>cat data.txt | tr '[N-ZA-Mn-za-m]' '[A-Za-z]'</code><br>
+        <br>
+        Password for the next level:<br>
+        5Te8Y4drgCRfCx8ugdwuEX8KFC6k2EUu<br>
+        <br>
+        <a id="h2-13" name="h2-13"></a><strong></strong>
+        <h2><strong>#Level 12</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in the file data.txt, which is a hexdump of a file that has been repeatedly compressed. For this level it may be useful to create a directory under /tmp in which you can work using mkdir.<br>
+        <br>
+        Follow along as the level goal suggets:<br>
+        <code>mkdir /tmp/kittens</code><br>
+        <code>cp data.txt /tmp/kittens</code><br>
+        <code>cd /tmp/kittnes</code><br>
+        <br>
+        It's a hex file, so first reverse the hexdump:<br>
+        <code>xxd -r data.txt &gt; reverse.txt</code><br>
+        <code>file reverse.txt</code><br>
+        <br>
+        It's a gzip file. If we don't rename the file first we're going to get an 'unknown suffix' error:<br>
+        <code>mv reverse.txt reverse.gz</code><br>
+        Now decompress:<br>
+        <code>gzip -d reverse.gz</code><br>
+        <code>file reverse.gz</code><br>
+        <br>
+        Now we have a bzip2 file:<br>
+        <code>bzip2 -d reverse</code><br>
+        "bzip2: Can't guess original name for reverse -- using reverse.out" - That's okay<br>
+        <code>file reverse.out</code><br>
+        <br>
+        gzip compressed data again:<br>
+        <code>mv reverse.out reverse.gz</code><br>
+        gzip -d reverse.gz<br>
+        <code>file reverse</code><br>
+        <br>
+        A tar archive now:<br>
+        <code>tar -xf reverse</code><br>
+        <code>file data5.bin</code><br>
+        <br>
+        tar again:<br>
+        <code>tar -xf data5.bin</code><br>
+        <code>file data6.bin</code><br>
+        <br>
+        bzip2:<br>
+        <code>bzip2 -d data6.bin</code><br>
+        "bzip2: Can't guess original name for data6.bin -- using data6.bin.out" - All good<br>
+        <code>file data6.bin.out</code><br>
+        <br>
+        tar once again:<br>
+        <code>tar -xf data6.bin.out</code><br>
+        <code>file data8.bin</code><br>
+        <br>
+        gzip:<br>
+        <code>mv data8.bin data8.gz</code><br>
+        <code>gzip -d data8.bin</code><br>
+        <code>file data8</code><br>
+        <br>
+        FINALLY, our file is ASCII text<br>
+        <code>cat data8</code><br>
+        <br>
+        Password for the next level:<br>
+        8ZjyCRiBWFYkneahHwxCv3wb2a1ORpYL<br>
+        <br>
+        <a id="h2-14" name="h2-14"></a><strong></strong>
+        <h2><strong>#Level 13</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in /etc/bandit_pass/bandit14 and can only be read by user bandit14. For this level, you don’t get the next password, but you get a private SSH key that can be used to log into the next level.<br>
+        <br>
+        This is teaching you how to use keys with ssh (instead of passwords)<br>
+        <code>-i</code> stands for 'identity_file'<br>
+        Basically it means your private key (your private key is unique to you and something that only you should you have, it's your 'identity' that you pass to public key authentication)<br>
+        <br>
+        <code>ssh bandit14@localhost -i sshkey.private</code><br>
+        <br>
+        <a id="h2-15" name="h2-15"></a><strong></strong>
+        <h2><strong>#Level 14</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level can be retrieved by submitting the password of the current level to port 30000 on localhost.<br>
+        <br>
+        We can use netcat (nc) to connect port 30000 on localhost:<br>
+        <code>nc localhost 30000</code><br>
+        <br>
+        And then send over the password to the current level as the level goal said:<br>
+        <code>4wcYUJFw0k0XLShlDzztnTBHiqxU3b3e</code><br>
+        <em>Correct!</em><br>
+        <br>
+        Password for the next level:<br>
+        BfMYroe26WYalil77FoDi9qh59eK5xNr<br>
+        <br>
+        <a id="h2-16" name="h2-16"></a><strong></strong>
+        <h2><strong>#Level 15</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level can be retrieved by submitting the password of the current level to port 30001 on localhost using SSL encryption.<br>
+        <br>
+        I first tried using ncat (a modern version of nc with ssl encryption), but that didn't work. Just got "Ncat: Connection reset by peer" after submitting the password.<br>
+        <br>
+        Instead, the commands under "Commands you may need to solve this level" helped me here- specifically openssl and s_client. We can <code>openssl s_client</code> to set up an ssl connection to a remote host (but in this case we want localhost and port 30001)<br>
+        <br>
+        <code>openssl s_client -connect localhost:30001</code><br>
+        You'll get a big scary block of text showing the ssl session being created. Hand over the password:<br>
+        <code>BfMYroe26WYalil77FoDi9qh59eK5xNr</code><br>
+        <em>Correct!</em><br>
+        <br>
+        Password for the next level:<br>
+        cluFn7wTiGryunymYOu4RcffSxQluehd<br>
+        <br>
+        <a id="h2-17" name="h2-17"></a><strong></strong>
+        <h2><strong>#Level 16</strong></h2><br>
+        Level Goal:<br>
+        The credentials for the next level can be retrieved by submitting the password of the current level to a port on localhost in the range 31000 to 32000. First find out which of these ports have a server listening on them. Then find out which of those speak SSL and which don’t. There is only 1 server that will give the next credentials, the others will simply send back to you whatever you send to it.<br>
+        <br>
+        The summary of this level goal is that we need to use a port scanner to find a port using ssl between 31,000 and 32,000 that will give us the credentials to the next level. nmap it is.<br>
+        <br>
+        <code>-sV</code> enumerates the port to determine the service running on it<br>
+        <code>-p</code> specifies a port range<br>
+        <br>
+        <code>nmap -sV -p 31000-32000 localhost</code><br>
+        <br>
+        Be patient...<br>
+        Results:<br>
+        <em>PORT STATE SERVICE VERSION<br>
+        31518/tcp open ssl/echo<br>
+        31790/tcp open ssl/unknown</em><br>
+        <br>
+        We see that the service on 31518 is ssl/echo; we can take a wild guess that this port will just spit back out anything we send it.<br>
+        Instead, try 31790:<br>
+        <code>openssl s_client -connect localhost:31790</code><br>
+        <code>cluFn7wTiGryunymYOu4RcffSxQluehd</code><br>
+        <em>Correct!</em><br>
+        <br>
+        You get a private key. Make a directory in /tmp, copy/paste it into a file and save it:<br>
+        <code>mkdir /tmp/fractals</code><br>
+        <code>nano /tmp/fractals/rsa.private</code><br>
+        <br>
+        This looks like our ticket to the next level.<br>
+        If we use the keyfile straight away without chaging the permissions we'll get a 'bad permissoins' error. Use <code>chmod</code> to change the permissions- ssh keys are normally 600 (meaning we're giving read/write permissions to only the owner, no one else)<br>
+        <code>chmod 600 /tmp/fractals/rsa.private</code><br>
+        <br>
+        Now connect:<br>
+        <code>ssh bandit17@localhost -i /tmp/fractals/rsa.private</code><br>
+        <br>
+        <a id="h2-18" name="h2-18"></a><strong></strong>
+        <h2><strong>#Level 17</strong></h2><br>
+        Level Goal:<br>
+        There are 2 files in the homedirectory: passwords.old and passwords.new. The password for the next level is in passwords.new and is the only line that has been changed between passwords.old and passwords.new<br>
+        <br>
+        Back to file challenges again. Use <code>diff</code> to find the difference between files:<br>
+        <code>diff passwords.old passwords.new</code><br>
+        <br>
+        "&lt; hlbSBPAWJmL6WFDb06gpTx1pPButblOA" is the line that's been changed between passwords.old and passwords.new<br>
+        "&gt; kfBf3eYk5BPBRzwjqutbbfE887SVc5Yd" is what the line has been changed to in passwods.new<br>
+        <br>
+        Password for the next level:<br>
+        kfBf3eYk5BPBRzwjqutbbfE887SVc5Yd<br>
+        <br>
+        <a id="h2-19" name="h2-19"></a><strong></strong>
+        <h2><strong>#Level 18</strong></h2><br>
+        Level Goal:<br>
+        The password for the next level is stored in a file readme in the homedirectory. Unfortunately, someone has modified .bashrc to log you out when you log in with SSH.<br>
+        <br>
+        .bashrc is a settings file for your bash terminal<br>
+        There are multiple ways to do this level.<br>
+        <br>
+        1) Send a command along with ssh so that we get to read the file before getting kicked out<br>
+        <code>ssh bandit18@localhost cat readme</code><br>
+        <br>
+        2) Use a different shell that isn't bash (that way we don't come into contact with the .bashrc which configures bash)<br>
+        <code>-t</code> forces a pseudo terminal to open (and you specify which shell to use)<br>
+        <code>ssh bandit18@localhost -t /bin/sh</code><br>
+        kfBf3eYk5BPBRzwjqutbbfE887SVc5Yd<br>
+        <code>cat readme</code><br>
+        <br>
+        Password for the next level:<br>
+        IueksS7Ubh8G3DCwVzrTd8rAVOwq3M5x<br>
+        <br>
+        <a id="h2-20" name="h2-20"></a><strong></strong>
+        <h2><strong>#Level 19</strong></h2><br>
+        Level Goal:<br>
+        To gain access to the next level, you should use the setuid binary in the homedirectory. Execute it without arguments to find out how to use it. The password for this level can be found in the usual place (/etc/bandit_pass), after you have used the setuid binary.<br>
+        <br>
+        A setuid binary lets you run a command as another user.<br>
+        <code>./bandit20-do id</code><br>
+        If you look at the euid (effective user id?) you can see that this binary runs as bandit20, meaning that we can read the password stored in /etc/bandit_pass/bandit20<br>
+        <code>./bandit20-do cat /etc/bandit_pass/bandit20</code><br>
+        <br>
+        Password for the next level:<br>
+        GbKksEFF4yrVs6il55v6gwY5aVje5f0j<br>
+        <br>
+        <a id="h2-21" name="h2-21"></a><strong></strong>
+        <h2><strong>#Level 20</strong></h2><br>
+        Level Goal:<br>
+        There is a setuid binary in the homedirectory that does the following: it makes a connection to localhost on the port you specify as a commandline argument. It then reads a line of text from the connection and compares it to the password in the previous level (bandit20). If the password is correct, it will transmit the password for the next level (bandit21).<br>
+        <br>
+        This level goal description is a bit cryptic. I dumped a ton of time into trying to figure out where to connect to with suconnect only to realise that this challenge is about job control. It wants you to start your own listener and have it running in the background, and then use the suconnect binary to connect to it and hop back and forth...<br>
+        <br>
+        Start a netcat listener. Ampersand (&amp;) puts the job in the background<br>
+        <code>-l</code> for listen<br>
+        <code>-v</code> for verbose (print what the program's doing)<br>
+        <code>-n</code> for no dns lookups<br>
+        <code>-p</code> for port<br>
+        <code>nc -lvnp 5000 &amp;</code><br>
+        <br>
+        Run 'suconnect' and connect to port 5000 (or whatever you set your listener to)<br>
+        <code>./suconnect 5000 &amp;</code><br>
+        <br>
+        Bring your netcat listener to the foreground (%1 refers to the job number- this might be different for you. Check with the command <code>jobs</code>)<br>
+        <code>fg %1</code><br>
+        <br>
+        Send password for the current level to suconnect:<br>
+        <code>GbKksEFF4yrVs6il55v6gwY5aVje5f0j</code><br>
+        You should receive the password for next level on the netcat listener<br>
+        <br>
+        Password for the next level:<br>
+        gE269g2h3mw3pwgrj0Ha9Uoqen1c9DGr<br>
+        <br>
+        <a id="h2-22" name="h2-22"></a><strong></strong>
+        <h2><strong>#Level 21</strong></h2><br>
+        Level Goal:<br>
+        A program is running automatically at regular intervals from cron, the time-based job scheduler. Look in /etc/cron.d/ for the configuration and see what command is being executed.<br>
+        <br>
+        Have a look at the cronjobs<br>
+        <code>cd /etc/cron.d/</code><br>
+        <code>cat cronjob_bandit22</code><br>
+        <code>cat /usr/bin/cronjob_bandit22.sh</code><br>
+        <br>
+        The output here says that /etc/bandit_pass/bandit22 (what we want) is being read into /tmp/t7O6lds9S0RqQh9aMcz6ShpAoZKF7fgv<br>
+        <br>
+        <code>cat /tmp/t7O6lds9S0RqQh9aMcz6ShpAoZKF7fgv</code><br>
+        <br>
+        Password for the next level:<br>
+        Yk7owGAcWjwMVRwrTesJEwB7WVOiILLI<br>
+        <br>
+        <a id="h2-23" name="h2-23"></a><strong></strong>
+        <h2><strong>#Level 22</strong></h2><br>
+        Level Goal:<br>
+        A program is running automatically at regular intervals from cron, the time-based job scheduler. Look in /etc/cron.d/ for the configuration and see what command is being executed.<br>
+        <br>
+        Read the cronjob:<br>
+        <code>cd /etc/cron.d/<br>
+        cat cronjob_bandit23<br>
+        cat /usr/bin/cronjob_bandit23.sh</code><br>
+        <br>
+        Reading this file it looks like:<br>
+        An md5 sum of "I am user &lt;whoami&gt;" is used as to create the name of a file in /tmp<br>
+        Then, /etc/bandit_pass/&lt;whoami&gt; gets read into the that file<br>
+        <br>
+        We don't have to write permissions to the file (<code>ls -l</code> to check) so we can't modify the 'myname' variable.<br>
+        However, since this is a cronjob we can assume that this script has alredy been run which means that the file in /tmp must already exist (the md5sum file containing /etc/bandit_pass/bandit23)<br>
+        We already know the logic that the script is using to define the filename in /tmp, so let's just copy it and use it in the console to find our filename:<br>
+        <code>echo I am user bandit23 | md5sum | cut -d ' ' -f 1</code><br>
+        <code>cat /tmp/8ca319486bfbbc3663ea0fbe81326349</code><br>
+        <br>
+        Password for the next level:<br>
+        jc1udXuA1tiHqjIsL8yaapX5XIAI6i0n<br>
+        <br>
+        <a id="h2-24" name="h2-24"></a><strong></strong>
+        <h2><strong>#Level 23</strong></h2><br>
+        Level Goal:<br>
+        A program is running automatically at regular intervals from cron, the time-based job scheduler. Look in /etc/cron.d/ for the configuration and see what command is being executed.<br>
+        <br>
+        NOTE 2: Keep in mind that your shell script is removed once executed, so you may want to keep a copy around…<br>
+        <br>
+        Read the cronjob:<br>
+        <code>cd /etc/cron.d</code><br>
+        <code>cat cronjob_bandit24.sh</code><br>
+        <code>cat /usr/bin/cronjob_bandit24.sh</code><br>
+        <br>
+        You don't even need understand the code in this file, it clearly states what it's doing in the echo command- "Executing and deleting all scripts in /var/spool/$myname:"<br>
+        <br>
+        Have a look in /var/spool<br>
+        <code>ls -l /var/spool</code><br>
+        There's a 'bandit24' directory that we have read/write and execute permissions to.<br>
+        If we put a script in here, it will get executed as bandit24 (meaning that we have the permissions to read /etc/bandit_pass/bandit24)<br>
+        Write your script in /tmp so we that we have copy that won't get deleted:<br>
+        <code>mkdir /tmp/lumos</code><br>
+        <code>nano /tmp/lumos/passpls.sh</code><br>
+        <br>
+        In nano:<br>
+        <code>#!/bin/bash<br>
+        cat /etc/bandit_pass/bandit24 &gt; /tmp/lumos/passpls.txt</code><br>
+        <br>
+        Change the permissions of the script so that bandit24 can execute it as well as our tmp folder so that bandit24 can write to it:<br>
+        <code>chmod 777 /tmp/lumos/passpls.sh<br>
+        chmod 777 /tmp/lumos</code><br>
+        Now copy the script in /var/spool/bandit24 and wait...<br>
+        <code>cp /tmp/lumos/passpls.sh /var/spool/bandit24/</code><br>
+        <br>
+        <code>cat /tmp/lumos/passpls.txt</code><br>
+        <br>
+        Password for the next level:<br>
+        UoMYTrfrBFHyQXmg6gzctqAwOmw1IohZ<br>
+        <br>
+        <a id="h2-25" name="h2-25"></a><strong></strong>
+        <h2><strong>#Level 24</strong></h2><br>
+        Level Goal:<br>
+        A daemon is listening on port 30002 and will give you the password for bandit25 if given the password for bandit24 and a secret numeric 4-digit pincode. There is no way to retrieve the pincode except by going through all of the 10000 combinations, called brute-forcing.<br>
+        <br>
+        We can write a bash script to try every possible value from 0000 to 9999 (all 10,000 values)<br>
+        Connect to the daemon to check what's going on:<br>
+        <code>nc localhost 30002</code><br>
+        It wants the password for bandit24 and the secret pincode on the same line separated by a space<br>
+        <br>
+        Make a directory in tmp to work in:<br>
+        <code>mkdir /tmp/trials</code><br>
+        For ease of use, copy the password from /etc/bandit_pass/bandit24 instead of typing it:<br>
+        <code>cat /etc/bandit_pass/bandit24 &gt; /tmp/trials/script.sh</code><br>
+        Now we can write our script:<br>
+        <code>nano /tmp/trials/bruteforce.sh</code><br>
+        <br>
+        <code>#!/bin/bash<br>
+        <br>
+        for number in {0000..9999}<br>
+        do<br>
+        requirements="UoMYTrfrBFHyQXmg6gzctqAwOmw1IohZ $number"<br>
+        echo $requirements &gt; /tmp/trials/pass-pin.txt<br>
+        nc -w 1 localhost 30002 &lt; /tmp/trials/pass-pin.txt &gt;&gt; /tmp/trials/result.txt<br>
+        done<br>
+        echo "Your answer should be somewhere smile"</code><br>
+        <br>
+        Change the permissions of the script for it to run and execute:<br>
+        <code>chmod 700 /tmp/trials/bruteforce.sh</code><br>
+        <code>/bruteforce.sh</code><br>
+        <br>
+        Whilst I was fairly confident this would work (I still don't know), it was also going to take fecking ages.<br>
+        If there's 10,000 possible combinations and netcat is trying 1 a second, that'll take about 2 hours 45 to get our answer.<br>
+        <br>
+        Instead, I went to have a look at the daemon again.<br>
+        <code>nc localhost 30002</code><br>
+        "I am the pincode checker for user bandit25. Please enter the password for user bandit24 and the secret pincode on a single line, separated by a space."<br>
+        Since it's asking for both of those things on the same line, will it take multiple inputs on separate lines?<br>
+        <code>mkdir /tmp/twotimes</code><br>
+        <code>nano /tmp/twotimes/2lines.txt</code><br>
+        <br>
+        <em>password pincode<br>
+        password2 pincod2</em><br>
+        <br>
+        Test it:<br>
+        <code>nc localhost 30002 &lt; /tmp/twotimes/2lines.txt</code><br>
+        <br>
+        I am the pincode checker for user bandit25. Please enter the password for user bandit24 and the secret pincode on a single line, separated by a space.<br>
+        Wrong! Please enter the correct current password. Try again.<br>
+        Wrong! Please enter the correct current password. Try again.<br>
+        <br>
+        It does!<br>
+        Nice, this means we can make a list of all bandit24pass + pincode combinations and send them to the server all at once (alhtough hopefully 10,000 results doesn't crash this daemon I'm not sure)<br>
+        <br>
+        <code>nano /tmp/twotimes/combinations.sh</code><br>
+        <br>
+        <code>#!/bin/bash<br>
+        <br>
+        for number in {0000..9999}<br>
+        do<br>
+        requirements="UoMYTrfrBFHyQXmg6gzctqAwOmw1IohZ $number"<br>
+        echo $requirements &gt;&gt; /tmp/twotimes/all-combinations.txt<br>
+        done<br>
+        echo "Have fun with your list :)"</code><br>
+        <br>
+        Change permissions and execute it:<br>
+        <code>chmod 700 /tmp/twotimes/combinations.sh</code><br>
+        <code>./combinations.sh</code><br>
+        <br>
+        Check that all our combinations are there:<br>
+        <code>tail /tmp/twotimes/all-combinations.txt</code><br>
+        <br>
+        Good! Now send them over to that daeomon.<br>
+        (grep's -v argument inverts the pattern matching i.e. it will select all lines that don't have 'Wrong' in them, which is exactly what we want. I grepped for Correct! at first but it didn't give me the password since it's on another line)<br>
+        <code>nc localhost 30002 &lt; all-combinations.txt | grep -v Wrong</code><br>
+        <br>
+        <em>I am the pincode checker for user bandit25. Please enter the password for user bandit24 and the secret pincode on a single line, separated by a space.<br>
+        Correct!<br>
+        The password of user bandit25 is uNG9O58gUE7snukf3bvZ0rxhtnjzSGzG</em><br>
+        <br>
+        Success!<br>
+        <br>
+        Password for the next level:<br>
+        uNG9O58gUE7snukf3bvZ0rxhtnjzSGzG<br>
+        <br>
+        <a id="h2-26" name="h2-26"></a><strong></strong>
+        <h2><strong>#Level 25</strong></h2><br>
+        Level Goal:<br>
+        Logging in to bandit26 from bandit25 should be fairly easy… The shell for user bandit26 is not /bin/bash, but something else. Find out what it is, how it works and how to break out of it.<br>
+        <br>
+        There's an sshkey for bandit26 in our home directory:<br>
+        <code>ls ~</code><br>
+        <code>ssh bandit26.sshkey</code><br>
+        <br>
+        Let's find the login shell for bandit26. Login shells for users can be read from /etc/passwd<br>
+        <code>cat /etc/passwd | grep bandit26</code><br>
+        <code>bandit26:x:11026:11026:bandit level 26:/home/bandit26:/usr/bin/showtext</code><br>
+        The shell for bandit26 is /usr/bin/showtext... ?<br>
+        <code>cat /usr/bin/showtext</code><br>
+        This "shell" just reads a text file from bandit26's home directory and then exits<br>
+        <br>
+        We can't write to /usr/bin/showtext, only read and execute<br>
+        Specifying a different shell like in level 18 doesn't work<br>
+        <code>ssh bandit26@loalhost -i bandit26.sshkey -t /bin/bash</code><br>
+        (nor /bin/zsh or anything)<br>
+        <br>
+        Executing commands doesn't work (it just hangs)<br>
+        <code>ssh bandit26@localhost -i bandit26.sshkey cat /etc/bandit_pass/bandit26</code><br>
+        <br>
+        There's no bash scripts to write<br>
+        <br>
+        Apparently the key part in that /usr/bin/showtext file is the <code>more</code> command. I never figured this level out and ultimately read other people's write-ups to find the solution. Whilst highly creative, it definitely wasn't friendly to someone who's just trying to learn linux<br>
+        <br>
+        In order to escape to shell, we need to make use of <code>more</code>. The 'more' command will print out just enough of the file to fill your terminal window, at which point you press enter to see the next line of text. If we resize our terminal window to the smallest size possible, this 'bandit26' ASCII art won't we able to fit completely into the terminal window meaning that we'll have to press enter to see the next line. As a result, we don't get immediately logged out...<br>
+        <br>
+        Whilst in 'more', we can open vi editor<br>
+        Using vi is a classic way to escape out of restricted shells<br>
+        <br>
+        Resize your terminal to the smallest height possible, and go forth:<br>
+        <br>
+        <code>ssh bandit26@localhost -i bandit26.sshkey</code><br>
+        Whilst in more, press <code>v</code> (this will bring you into vi)<br>
+        <code>:set shell=/bin/bash</code><br>
+        <code>:shell</code><br>
+        <br>
+        Now you have a fully functioning bash shell!<br>
+        <code>cat /etc/bandit_pass/bandit26</code><br>
+        <br>
+        Password for the next level:<br>
+        5czgV9L3Xx8JPOyRbXh6lQbmIOWvPT6Z<br>
+        <br>
+        <br>
+        And at this point I stopped. It looked like the rest of the challenges were git challenges and I didn't feel like doing them at this moment in time. I'll learn git later, and probably not through overthewire- although they might be good challenges I'm not sure.<br>
+        <br>
+    </writeup>
+</section>
+</body>
+</html>

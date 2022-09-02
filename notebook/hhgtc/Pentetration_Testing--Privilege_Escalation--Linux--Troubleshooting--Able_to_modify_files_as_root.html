@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Able to modify files as root?</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Able to modify files as root?</h1></strong><br />If you&#39;re able to modify files as root (but not execute), you have a few options.<br /><br /><strong><h2>## Modify /etc/shadow</h2></strong><br />1. Get a copy of the original <code>/etc/shadow</code><br />2. Read the root hash:<br />    $6$RIgrVboA$HDaB29xvtkw6U/Mzq4qOHH2KHB1kIR0ezFyjL75DszasVFwznrsWcc1Tu5E2K4FA7/Nv8oje0c.bljjnn6FMF1<br /><br />    The format of the hashes in /etc/shadow is:<br />    $ID$SALT$ENCRYPTEDPASS<br /><br />    $1 = md5<br />    $5 = sha-256<br />    $6 = sha-512<br />    <br />    Take note of the number of characters in the salt (up to 16)<br />    <br />3. Now make a new password in the same format as the hash<br />   1) <code>mkpasswd -m sha-512 -S saltsalt -s</code><br />      Password: <code>smile</code><br />4. Replace root&#39;s original hash with the new hash you&#39;ve just generated in your copy of /etc/shadow<br />5. Write your modified version of /etc/shadow to the system (somehow :))<br />6. Now log in as root :)<br /><br /><strong><h2>## Modify /etc/sudoers</h2></strong><br />Give the user who you&#39;ve got access to sudo privileges<br />Then you can just <code>sudo su</code> to get root</div>
+</body>
+</html>

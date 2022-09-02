@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>File Uploads</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># File Uploads</h1></strong><br />• <a href="https://www.tutorialspoint.com/php/php_file_uploading.htm">https://www.tutorialspoint.com/php/php_file_uploading.htm</a><br />• <a href="https://www.w3schools.com/php/php_file_upload.asp">https://www.w3schools.com/php/php_file_upload.asp</a><br />• <a href="https://github.com/digininja/DVWA/blob/master/vulnerabilities/upload/source/impossible.phphttps://stackoverflow.com/questions/5516002/file-upload-not-in-tmp">https://github.com/digininja/DVWA/blob/master/vulnerabilities/upload/source/impossible.phphttps://stackoverflow.com/questions/5516002/file-upload-not-in-tmp</a><br /><br />The idea of a file upload is:<br />• user uploads a file to your scripts<br />• that file gets stored in a temporary location (like <code>/tmp</code>) with a tmp name<br />• your script checks the file is good<br />• if good, your script moves the file to permanent storage with <code>move_uploaded_file()</code><br />• once your script has finsihed, the temp file will atuomatically be deleted<br /><br /><code>php.ini</code><br />    <code>upload_tmp_dir</code><br />    <code>upload_max_filesize</code><br />    <br /><code>$_FILES</code> is an associative double dimension array.<br />It stores all the info related to the uploaded file<br />• <code>$_FILES[&#39;file&#39;][&#39;tmp_name&#39;]</code> − the uploaded file in the temporary directory on the web server<br />• <code>$_FILES[&#39;file&#39;][&#39;name&#39;]</code> − the actual name of the uploaded file<br />• <code>$_FILES[&#39;file&#39;][&#39;size&#39;]</code> − the size in bytes of the uploaded file<br />• <code>$_FILES[&#39;file&#39;][&#39;type&#39;]</code> − the MIME type of the uploaded file<br />• <code>$_FILES[&#39;file&#39;][&#39;error&#39;]</code> − the error code associated with this file upload<br /></div>
+</body>
+</html>

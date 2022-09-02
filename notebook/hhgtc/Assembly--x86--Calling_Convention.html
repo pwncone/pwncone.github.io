@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Calling Convention</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># x86 Function Calling Convention</h1></strong><br /><a href="https://en.wikipedia.org/wiki/X86_calling_conventions">https://en.wikipedia.org/wiki/X86_calling_conventions</a><br /><a href="https://wiki.osdev.org/Calling_Conventions">https://wiki.osdev.org/Calling_Conventions</a><br /><br />Here is a nice cheat sheet of calling conventions from the OSDEV Wiki.<br /><a href=""><img src="images/570-1.png" alt="images/570-1.png" /></a><br /><br /><strong><h2>## Function Arguments</h2></strong><br />As outlined in the Stack section of the <a href="Assembly--x86--Memory_Layout.html">Memory Layout</a> node<br />on x86 the function arguments all get pushed onto the stack in reverse order.<br /><br />This calling convention is called <code>cdecl</code><br /><br /><a href=""><img src="images/570-2.png" alt="images/570-2.png" /></a><br /><br /><strong><h2>## Return Value</h2></strong><br />On x86, return values are stored in <code>EAX</code> (and sometimes EDX).<br /><br /><strong><h2>## Stack Alignment</h2></strong><br /><a href="https://stackoverflow.com/questions/4175281/what-does-it-mean-to-align-the-stack">https://stackoverflow.com/questions/4175281/what-does-it-mean-to-align-the-stack</a><br /><a href="https://stackoverflow.com/questions/40307193/responsibility-of-stack-alignment-in-32-bit-x86-assembly">https://stackoverflow.com/questions/40307193/responsibility-of-stack-alignment-in-32-bit-x86-assembly</a><br /><br />None<br /><br />There are some <code>SIMD</code> - <code>Single Instruction, Multiple Data</code> - instructions <br />(also known in x86-land as <code>SSE</code> - <code>Streaming SIMD Extensions</code>)<br />which can perform parallel operations on multiple words in memory.<br />These SIMD instructions require those multiple words to start a memory address which is a multiple of 16 bytes,<br />but the compiler can&#39;t assume that offsets from ESP will be a multple of 16 bytes.<br /><br />Instead, the stack is deliberately aligned to 16 bytes.<br />By doing this, the compiler always knows that any 16 bytes added to ESP will be a memory address that is a multiple of 16 bytes.<br /><br /></div>
+</body>
+</html>

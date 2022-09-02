@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Authentication</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Authentication</h1></strong><br />You can try testing the Authentication mechanism on the website.<br /><br /><strong><h2>## Cookies</h2></strong><br />Log in / register  and inspect at the cookie you receive when logged in (via Burp or browser tools or whatever)<br /><br />• Try changing the cookie&#39;s value<br />   ◇ Example - from <code>Cookie: auth=billy</code> to <code>Cookie: auth=admin</code><br />• Google the cookie<br />• Try to crack the cookie<br />   ◇ Example #1<br />      ▪ Log in as user1<br />      ▪ Receive <code>Cookie: auth=24c9e15e52afc47c225b757e7bee1f9d</code><br />      ▪ <code>24c9e15e52afc47c225b757e7bee1f9d</code> is md5 hash of user1<br />      ▪ md5 hash &quot;admin&quot; and submit as cookie -&gt; might get logged in as admin</div>
+</body>
+</html>

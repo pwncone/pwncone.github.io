@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Access Control</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Active Directory - Access Control</h1></strong><br />Access Control (clue is in the name) defines who has access to stuff.<br /><br />Active Directory is made up of objects.<br />Each Active Directory Object has a Security Descriptor - a SID.<br /><br />Each SID contains:<br />• Owner - who owns this Active Directory Object<br />• A SACL - System ACL - which logs success/failure messages when this object is accessed<br />• A DACL - Discretionary ACL - which is a list of Access Control Entries - ACEs<br />   ◇ ACE #1<br />   ◇ ACE #2<br />   ◇ ACE #3<br />   ◇ etc.<br /><br />Each ACE - Access Control Entry - contains:<br />• Permission Type - usually Allow or Disallow<br />• Principal - who has these permissions (Administrators, SYSTEM, Everyone, etc.)<br />• Access - what access they have (Special, Full Control, etc.)<br />• Object - what object these users have the set permissions on (usually this/the current object)<br /><br /><a href=""><img src="images/427-1.png" alt="images/427-1.png" /></a></div>
+</body>
+</html>

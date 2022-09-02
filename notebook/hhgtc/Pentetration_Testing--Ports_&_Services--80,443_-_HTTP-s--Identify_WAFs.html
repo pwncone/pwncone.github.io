@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Identify WAFs</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Identify WAFs</h1></strong><br />Web App Firewalls - WAFs - parse HTTP traffic and block both ingress queries and egress responses that match known signatures (e.g., SQL injection and XSS strings).<br /><br />WAFs can be<br />• built into a web server (e.g. Apache&#39;s <em>mod_security</em> module)<br />• a dedicated appliance<br />• run as a cloud service<br /><br /><strong><h2>## Identify WAFs</h2></strong><br /><strong><h3>### wafw00f</h3></strong><br /><code>wafw00f http://website.com</code><br /><br /><strong><h3>### Nmap</h3></strong><br /><code>nmap -p 80 --script http-waf-fingerprint www.website.com</code><br /><br /><strong><h2>## Avoiding WAFs</h2></strong><br /><a href="http://securityidiots.com/Web-Pentest/WAF-Bypass/waf-bypass-guide-part-1.html">http://securityidiots.com/Web-Pentest/WAF-Bypass/waf-bypass-guide-part-1.html</a><br /><br />An effective WAF avoidance tactic is to route HTTP requests around the security mechanism.<br />Modify your local <code>/etc/hosts</code> file and evaluate each HTTP/S endpoint to identify routes that bypass the WAF.</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>6667 - IRC</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 6667 - IRC</h1></strong><br />IANA originally assigned IRC to port 194/TCP.<br />However, the de-facto standard has always been to run IRC on 6667/TCP and/or nearby port numbers (for example TCP ports 6660–6669, 7000) to avoid having to run the IRCd software with root privileges, which port 194 would require.<br /><br /><strong><h2>## Checklist</h2></strong><br />• Find &amp; scan IRC services<br />   ◇ <code>nmap -sV --script irc-botnet-channels,irc-info,irc-unrealircd-backdoor -p 194,6660-7000 10.2.20.52</code><br />• Connect<br />   ◇ HexChat - <code>apt update &amp;&amp; apt install -y hexchat</code> - add a new network<br />• Grab version<br />   ◇ You might be able to grab the IRC daemon version by connecting to a server<br />• Check version for exploits<br />   ◇ UnrealIRCd - 3.2.8.1 -  RCE Exploit<br /><br /><strong><h2>## Connect to IRC with HexChat</h2></strong><br /><code>apt update &amp;&amp; apt install -y hexchat</code><br /><br />Open HexChat.<br /><code>Add</code> a new Network.<br />Click <code>Edit</code> on your new network.<br />Configure the IP and port to that of your target.<br /><a href=""><img src="images/139-1.png" alt="images/139-1.png" /></a><br />Click <code>Close</code>.<br /><code>Connect</code><br /><br /><strong><h2>## Find Version Number</h2></strong><br /><strong><h3>### Connect</h3></strong><br />You might be able to see the version number of the IRC server/daemon by connecting to the server.<br /><a href=""><img src="images/139-2.png" alt="images/139-2.png" /></a></div>
+</body>
+</html>

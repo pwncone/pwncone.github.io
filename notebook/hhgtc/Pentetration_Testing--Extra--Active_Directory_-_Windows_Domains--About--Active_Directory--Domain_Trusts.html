@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Domain Trusts</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Active Directory - Domain Trusts</h1></strong><br />• A <code>trust</code> is where users of 1 domain/1 forest can access the resources another domain/forest<br />   ◇ Automatic trust = parent-child within the same forest<br />   ◇ Establishled trust = 2 separate forests<br /><br />TDOs - Trusted Domain Objects - represent the <code>trusts</code> within a domain. <br /><br /><strong><h2>## Transitive Trusts</h2></strong><br /><code>Domain A</code> can access <code>Domain B</code><br /><code>Domain B</code> can access <code>Domain C</code><br /><br />This means that <code>Domain A</code> can access <code>Domain C</code><br />This is a transitive trust.<br /><br /><code>Domain A</code> -&gt; <code>Domain B</code> -&gt; <code>Domain C</code><br /><br /><strong><h2>## Types of Trusts</h2></strong><br /><strong><h3>### Parent -&gt; Child Trust</h3></strong><br />• Created automatically when a new sub-domain is created<br />   ◇ Always a 2-way transitive trust<br />• e.g. <code>moneycorp.local</code> -&gt; <code>dollarcorp.moneycorp.local</code><br /><br /><strong><h3>### Tree -&gt; Root Trust</h3></strong><br />• Created automatically when a a new domain is addest to a forest<br />   ◇ Always a 2-way transitive trust<br /><br /><a href=""><img src="images/428-1.png" alt="images/428-1.png" /></a><br /><br /><strong><h3>### Shortcut Trust</h3></strong><br />• Complex/long trust sequences means access times slow down<br />• Can solve this with shortcut trusts<br /><br /><a href=""><img src="images/428-2.png" alt="images/428-2.png" /></a><br /><br /><strong><h3>### External Trusts</h3></strong><br />• A trust between 2 domains in different forests when the forests don&#39;t have a trust relationship<br />   ◇ Can be 1-way or 2-way<br />   ◇ Always non-transitive<br /><br /><a href=""><img src="images/428-3.png" alt="images/428-3.png" /></a><br /><br /><strong><h3>### Forest Trust</h3></strong><br />• A trust between forest root domains<br />   ◇ Can be 1-way or 2-way<br />   ◇ Can be transitive and non-transitive<br /><br /><a href=""><img src="images/428-4.png" alt="images/428-4.png" /></a></div>
+</body>
+</html>

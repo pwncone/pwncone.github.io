@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>PLT and GOT Vulnerabilities</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - ELF - Dynamic Linking - Pwning GOT</h1></strong><br /><a href="https://systemoverlord.com/2017/03/19/got-and-plt-for-pwning.html">https://systemoverlord.com/2017/03/19/got-and-plt-for-pwning.html</a><br /><br /><strong><h2>## Pwning Relocations / The GOT Table</h2></strong><br />You can overwrite an entry in the GOT table to point a function of your choice.<br />Instead of <code>printf()</code> pointing to printf(), it points to <code>system()</code>.<br />So, the next time printf() is called, system() will be run instead.<br /><br /><strong><h2>## Bypassing ASLR using GOT</h2></strong><br /><a href="https://blog.techorganic.com/2016/03/18/64-bit-linux-stack-smashing-tutorial-part-3/">https://blog.techorganic.com/2016/03/18/64-bit-linux-stack-smashing-tutorial-part-3/</a><br /><br />If we can leak the address of a libc function from the GOT table, we can subtract its offset from the address we leak to find libc&#39;s base address.<br />        <br /><em><strong>Example</strong></em><br />We leak the address of system() from the GOT - <code>0x0000454443424199</code><br />We&#39;ve read libc on the target system and know that the offset to system() from libc&#39;s base address is <code>0x99</code><br />Therefore, to find libc&#39;s base address:<br />• leaked address - offset = libc&#39;s base address<br />• <code>0x0000454443424199</code> - <code>0x99</code> = <code>0x0000454443424100</code><br />• <code>0x0000454443424100</code> is libc&#39;s base addres</div>
+</body>
+</html>

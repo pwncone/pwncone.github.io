@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Concat char* strings</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><code>strcat</code> needs a null terminated string.<br />My solution was to copy both strings into a new string.<br /><div class="codebox"><div class="codebox">#include&nbsp;&lt;stdio.h&gt;<br />#include&nbsp;&lt;Windows.h&gt;<br /><br />int&nbsp;main()<br /><span style="color:#000000;font-weight:400">{</span><br />	//&nbsp;strings&nbsp;to&nbsp;concatenate<br />	char*&nbsp;whoami&nbsp;=&nbsp;&quot;bob\\bob-dev&quot;;<br />	char*&nbsp;administrator&nbsp;=&nbsp;&quot;_ADMINISTRATOR&quot;;<br /><br />	printf(&quot;%s&nbsp;\n&quot;,&nbsp;whoami);<br />	printf(&quot;%s&nbsp;\n&quot;,&nbsp;administrator);<br /><br />	//&nbsp;concate&nbsp;into&nbsp;final&nbsp;string<br />	char&nbsp;final[121]&nbsp;=&nbsp;{0};<br />	strcat_s(final,&nbsp;121,&nbsp;whoami);<br />	strcat_s(final,&nbsp;121,&nbsp;administrator);<br /><br />	printf(&quot;%s&nbsp;\n&quot;,&nbsp;final);<br />	<br />	return&nbsp;0;<br /><span style="color:#000000;font-weight:400">}</span></div></div></div>
+</body>
+</html>

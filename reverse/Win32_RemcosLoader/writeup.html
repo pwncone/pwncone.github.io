@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+<h1 id="win32-remcos-loader-lab05-exe">Win32.Remcos.Loader / lab05.exe</h1>
+<p>27th June 2022</p>
+<p>This is an analysis of <code>lab05.exe</code> from a Malware Analysis CTF run by @Bowflexin91 and @HBRH_314:<br><a href="https://cet.ctfd.io/cet.ctfd.io/readme">https://cet.ctfd.io/cet.ctfd.io/readme</a></p>
+<pre><code><span class="hljs-symbol">md5:</span> a7983d32e7bd7228197e6dcf1c71ed66
+<span class="hljs-symbol">sha1:</span> <span class="hljs-number">52</span>f930dcce70cd3c6c4fcab5b9089d892fb20239
+<span class="hljs-symbol">sha256:</span> c8a4462c6b8f5d8728d5374adc98def5a5c38dd97d70a1c3859c876bfbe3fbd0
+</code></pre><h2 id="overview">Overview</h2>
+<p>lab05.exe is a self-extracting RAR archive that contains a compiled AutoIt script which is a loader for Remcos malware. lab05.exe extracts the AutoIt script, the AutoIt script unpacks and maps Remcos malware (here: <a href="https://breakingsecurity.net/remcos/">https://breakingsecurity.net/remcos/</a>) into RegSvcs.exe, and Remcos performs keylogging functionality and reports back to a C2.</p>
+<h3 id="network-indicators">Network Indicators</h3>
+<p>Data sent back to C2 at:<br><code>shahzad73.casacam.net</code> / <code>192.210.78.136</code>.</p>
+<h3 id="host-indicators">Host Indicators</h3>
+<h4 id="processes">Processes</h4>
+<p>If executing, eopllrk.pif will be running and have spawned a RegSvcs.exe subprocess.</p>
+<h4 id="filesystem">Filesystem</h4>
+<p>RAR archive is extracted to <code>C:\33333365</code><br>Keylogged data is stored at <code>C:\Users\Bob\AppData\Roaming\remcos\logs.dat</code>  </p>
+<h4 id="registry">Registry</h4>
+<p>Remcos installation is written to:<br><code>HKCU\Software\Remcos-7D9QA5</code> with keys <code>exepath</code> and <code>license</code>.</p>
+<p>Persistence is installed as a Run key:  </p>
+<pre><code>HKCU<span class="hljs-symbol">\S</span>OFTWARE<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion<span class="hljs-symbol">\R</span>un
+WindowsUpdate: c:<span class="hljs-symbol">\3</span>3333365<span class="hljs-symbol">\e</span>opllrk.pif c:<span class="hljs-symbol">\3</span>3333365<span class="hljs-symbol">\i</span>fohmuif.pju
+</code></pre><h2 id="static-analysis-of-lab05-exe-initial-exe-">Static Analysis of lab05.exe (initial .exe)</h2>
+<h3 id="pe">PE</h3>
+<pre><code><span class="hljs-attribute">filetype</span>: PE32
+<span class="hljs-attribute">arch</span>: I386
+<span class="hljs-attribute">mode</span>: 32
+<span class="hljs-attribute">endianess</span>: LE
+<span class="hljs-attribute">type</span>: GUI
+  <span class="hljs-attribute">sfx</span>: WinRAR(-)[-]
+  <span class="hljs-attribute">compiler</span>: EP:Microsoft Visual C/C++(2013-2017)[EXE32]
+  <span class="hljs-attribute">compiler</span>: Microsoft Visual C/C++(2015 v.14.0)[-]
+  <span class="hljs-attribute">linker</span>: Microsoft Linker(14.0, Visual Studio 2015 14.0*)[GUI32]
+  <span class="hljs-attribute">overlay</span>: RAR archive(-)[-]
+  <span class="hljs-attribute">archive</span>: RAR(5)[-]
+
+<span class="css"><span class="hljs-selector-tag">TimeDateStamp</span>    5<span class="hljs-selector-tag">E7C7DC7</span>    <span class="hljs-selector-tag">Thu</span>, 26 <span class="hljs-selector-tag">Mar</span> 2020 10<span class="hljs-selector-pseudo">:02</span><span class="hljs-selector-pseudo">:47</span> <span class="hljs-selector-tag">UTC</span> (823 <span class="hljs-selector-tag">days</span>, 0<span class="hljs-selector-class">.07</span> <span class="hljs-selector-tag">hours</span> <span class="hljs-selector-tag">ago</span>)</span>
+</code></pre><pre><code>λ trid lab05<span class="hljs-selector-class">.exe</span>
+...
+Collecting data from file: lab05<span class="hljs-selector-class">.exe</span>
+ <span class="hljs-number">91.0%</span> (.EXE) WinRAR Self Extracting archive (<span class="hljs-number">4</span><span class="hljs-selector-class">.x-5</span><span class="hljs-selector-class">.x</span>) (<span class="hljs-number">265042</span>/<span class="hljs-number">9</span>/<span class="hljs-number">39</span>)
+</code></pre><p>The initial PE is a 32bit self-extracting RAR archive.<br>The compile time suggests this isn&#39;t a new file (2020). </p>
+<p><img src="img/pe_sections.png" alt="img"></p>
+<p>.data looks compressed. A RawSize of 0x1200 is significantly smaller than a VirtualSize of 0x238b0. This fits with the PE being a compressed RAR archive.</p>
+<h3 id="strings">Strings</h3>
+<pre><code># PDB
+D:<span class="hljs-symbol">\P</span>rojects<span class="hljs-symbol">\W</span>inRAR<span class="hljs-symbol">\s</span>fx<span class="hljs-symbol">\b</span>uild<span class="hljs-symbol">\s</span>fxrar32<span class="hljs-symbol">\R</span>elease<span class="hljs-symbol">\s</span>fxrar.pdb
+
+# Run key for persistence?
+Software<span class="hljs-symbol">\M</span>icrosoft<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\C</span>urrentVersion
+
+# Lots of weird filename strings:
+otnhrcj.txt
+jwcksci.xls
+dtgkwno.txt
+nmsuehlk.pdf
+ifohmuif.pju
+eopllrk.pif
+jhdkjdgehr.pdf
+haucij.jpg
+kqknrprtrg.dat
+Setup=eopllrk.pif ifohmuif.pju
+inxsqt.pdf
+</code></pre><h3 id="pe-overlay">PE Overlay</h3>
+<p><code>pestudio</code> identifies there&#39;s an overlay.  </p>
+<pre><code>overlay (RAR) 
+md5,A6E55CDA2AA76305F0CC2A4B0C972012 
+sha1,<span class="hljs-number">3</span>AE6AC7FA0D4F4B9F3677170FBCE7003908A48C6 
+sha256,EAEB71EB354CED3DC8E6B7CF0C8CB3039CCE2050C7EFD5DD2F4D553CFB5825B2 
+entropy,<span class="hljs-number">7.998</span> 
+file-offset,<span class="hljs-number">0x00043C00</span> 
+size,<span class="hljs-number">643278</span> (bytes)
+</code></pre><p>This overlay is the rar archive containing the files to extract.<br>PEstudio says the file offset to the ovleray is at offset 0x00043C00, so extract it with HxD and save to disk.<br><img src="img/overlay_hxd.png" alt="img"><br><img src="img/overlay_rar.png" alt="img">  </p>
+<p>Unrar it to extract the rar contents.<br><img src="img/overlay_contents.png" alt="img">  </p>
+<p>These filenames are the strings we saw earlier. There&#39;s a lot of junk here, but:  </p>
+<ul>
+<li><code>eopllrk.pif</code> is a PE file </li>
+<li><code>ifohmuif.pju</code> looks to be encrypted and/or compressed data. </li>
+<li><code>kqknrptrg.dat</code> is potentially a key </li>
+</ul>
+<h2 id="static-analysis-of-eopllrk-pif-initial-exe-">Static Analysis of eopllrk.pif (initial .exe)</h2>
+<p>Now we&#39;re looking at the PE file extracted from the rar overlay above. Originally it&#39;s named <code>eopllrk.pif</code>. Rename it from a shortcut to .exe so that it&#39;s easier to work with:<br><code>λ mv eopllrk.pif eopllrk.exe</code></p>
+<h3 id="pe">PE</h3>
+<pre><code><span class="hljs-attribute">md5</span>: 3A662807345100A9670E710C8616D1B5
+<span class="hljs-attribute">sha1</span>: 0F3B3F0F0A877D9F1EE410AB0A52BCBE0B64356D
+<span class="hljs-attribute">sha256</span>: 78D69D13A0B072D4F89AD34F4EF07D84917585A5B1D921FB011D8F650FFB88D4
+
+<span class="dts">λ diec eopllrk.exe
+<span class="hljs-symbol">filetype:</span> PE32
+<span class="hljs-symbol">arch:</span> I386
+<span class="hljs-symbol">mode:</span> <span class="hljs-number">32</span>
+<span class="hljs-symbol">endianess:</span> LE
+<span class="hljs-symbol">type:</span> GUI
+<span class="hljs-symbol">  compiler:</span> Microsoft Visual C/C++(<span class="hljs-number">2010</span>)[libcmt]
+<span class="hljs-symbol">  linker:</span> Microsoft Linker(<span class="hljs-number">10.0</span>)[GUI32,signed]
+
+TimeDateStamp    <span class="hljs-number">4F</span>25BAEC    Sun, <span class="hljs-number">29</span> Jan <span class="hljs-number">2012</span> <span class="hljs-number">21</span>:<span class="hljs-number">32</span>:<span class="hljs-number">28</span> UTC (<span class="hljs-number">3802</span> days, <span class="hljs-number">13.41</span> hours ago)</span>
+</code></pre><h4 id="sections">Sections</h4>
+<p>.data looks to be compressed.<br>A RawSize of 0x6800 is significantly smaller than a VirtualSize of 0x1A758.<br><img src="img/eo_sections.png" alt="img">  </p>
+<h4 id="imports">Imports</h4>
+<p>There&#39;s lot sof internet capabilities in this PE&#39;s imports:  </p>
+<pre><code>wsock32.dll
+<span class="hljs-number">8000000</span>D    <span class="hljs-number">8000000</span>D    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">0000000</span>D (listen)   
+<span class="hljs-number">80000073</span>    <span class="hljs-number">80000073</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000073</span> (WSAStartup)   
+<span class="hljs-number">80000002</span>    <span class="hljs-number">80000002</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000002</span> (bind)   
+<span class="hljs-number">80000003</span>    <span class="hljs-number">80000003</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000003</span> (closesocket)   
+<span class="hljs-number">80000004</span>    <span class="hljs-number">80000004</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000004</span> (connect)   
+<span class="hljs-number">80000017</span>    <span class="hljs-number">80000017</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000017</span> (socket)   
+<span class="hljs-number">80000013</span>    <span class="hljs-number">80000013</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000013</span> (send)   
+<span class="hljs-number">80000001</span>    <span class="hljs-number">80000001</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000001</span> (accept)   
+<span class="hljs-number">80000010</span>    <span class="hljs-number">80000010</span>    N/<span class="hljs-keyword">A</span>    N/<span class="hljs-keyword">A</span>    <span class="hljs-number">00000010</span> (recv)   
+
+wininet.dll
+<span class="hljs-number">0008</span>E08A    <span class="hljs-number">0008</span>E08A    <span class="hljs-number">009</span>F    InternetReadFile       
+<span class="hljs-number">0008</span>DFB4    <span class="hljs-number">0008</span>DFB4    <span class="hljs-number">009</span><span class="hljs-keyword">A</span>    InternetOpenW       
+<span class="hljs-number">0008E018</span>    <span class="hljs-number">0008E018</span>    <span class="hljs-number">0072</span>    InternetConnectW       
+<span class="hljs-number">0008</span>E02C    <span class="hljs-number">0008</span>E02C    <span class="hljs-number">0058</span>    HttpOpenRequestW       
+<span class="hljs-number">0008E076</span>    <span class="hljs-number">0008E076</span>    <span class="hljs-number">0099</span>    InternetOpenUrlW  
+
+psapi.dll
+<span class="hljs-number">0008E0C8</span>    <span class="hljs-number">0008E0C8</span>    <span class="hljs-number">0006</span>    EnumProcesses        
+`
+</code></pre><h4 id="version-info">Version Info</h4>
+<p>The original OriginalFilename is set to EXPLORER.EXE, potentially tyring to be covert and appear as a legitimate binary.</p>
+<p><img src="img/eo_versioninfo.png" alt="img"></p>
+<h4 id="strings">Strings</h4>
+<p>A few strings suggest this is an AutoIt script:  </p>
+<pre><code>AutoIt:
+<span class="hljs-number">00083768</span>    /AutoIt3OutputDebug   
+<span class="hljs-number">00083790</span>    /AutoIt3ExecuteLine   
+<span class="hljs-number">000837B8</span>    /AutoIt3ExecuteScript
+</code></pre><p>And these look like keylogger strings:  </p>
+<pre><code><span class="hljs-number">000</span>F294C    UNICODE    EXPLORER.EXE    
+<span class="hljs-number">0008</span>A2BB    UNICODE    KEYPRESSED    
+<span class="hljs-number">00087</span>F37    UNICODE    KEYSET   
+<span class="hljs-number">000844</span>C0    ALTUP   
+<span class="hljs-number">000844</span>CC    ALTDOWN   
+<span class="hljs-number">000844D</span>C    CTRLUP   
+<span class="hljs-number">000844E</span>C    CTRLDOWN   
+<span class="hljs-symbol">00084500 </span>   MOUSE_XBUTTON2   
+<span class="hljs-symbol">00084520 </span>   MOUSE_XBUTTON1   
+<span class="hljs-symbol">00084540 </span>   MOUSE_MBUTTON   
+<span class="hljs-number">0008455</span>C    MOUSE_RBUTTON   
+<span class="hljs-symbol">00084578 </span>   MOUSE_LBUTTON   
+<span class="hljs-symbol">00084594 </span>   LAUNCH_APP2   
+<span class="hljs-number">000845</span>AC    LAUNCH_APP1   
+<span class="hljs-number">000845</span>C4    LAUNCH_MEDIA   
+<span class="hljs-number">000845E0</span>    LAUNCH_MAIL   
+<span class="hljs-number">000845</span>F8    MEDIA_PLAY_PAUSE   
+<span class="hljs-number">0008461</span>C    MEDIA_STOP   
+<span class="hljs-symbol">00084634 </span>   MEDIA_PREV   
+<span class="hljs-number">0008464</span>C    MEDIA_NEXT   
+<span class="hljs-symbol">00084664 </span>   VOLUME_UP   
+<span class="hljs-symbol">00084678 </span>   VOLUME_DOWN   
+<span class="hljs-symbol">00084690 </span>   VOLUME_MUTE   
+<span class="hljs-number">000846</span>A8    BROWSER_HOME   
+<span class="hljs-number">000846</span>C4    BROWSER_FAVORTIES   
+<span class="hljs-number">000846E8</span>    BROWSER_SEARCH   
+<span class="hljs-symbol">00084708 </span>   BROWSER_STOP   
+<span class="hljs-symbol">00084724 </span>   BROWSER_REFRESH   
+<span class="hljs-symbol">00084744 </span>   BROWSER_FORWARD   
+<span class="hljs-symbol">00084764 </span>   BROWSER_BACK   
+<span class="hljs-symbol">00084780 </span>   NUMPADENTER   
+<span class="hljs-symbol">00084798 </span>   SLEEP   
+<span class="hljs-number">000847</span>A4    RSHIFT   
+<span class="hljs-number">000847</span>B4    LSHIFT   
+<span class="hljs-number">000847</span>C4    RALT   
+<span class="hljs-number">000847D0</span>    LALT   
+<span class="hljs-number">000847D</span>C    RCTRL   
+<span class="hljs-number">000847E8</span>    LCTRL   
+<span class="hljs-number">000847</span>F4    APPSKEY   
+<span class="hljs-symbol">00084804 </span>   NUMPADDIV   
+<span class="hljs-symbol">00084818 </span>   NUMPADDOT   
+<span class="hljs-number">0008482</span>C    NUMPADSUB   
+<span class="hljs-symbol">00084840 </span>   NUMPADADD   
+<span class="hljs-symbol">00084854 </span>   NUMPADMULT   
+<span class="hljs-number">0008486</span>C    NUMPAD9   
+<span class="hljs-number">0008487</span>C    NUMPAD8   
+<span class="hljs-number">0008488</span>C    NUMPAD7   
+<span class="hljs-number">0008489</span>C    NUMPAD6   
+<span class="hljs-number">000848</span>AC    NUMPAD5   
+<span class="hljs-number">000848</span>BC    NUMPAD4   
+<span class="hljs-number">000848</span>CC    NUMPAD3   
+<span class="hljs-number">000848D</span>C    NUMPAD2   
+<span class="hljs-number">000848E</span>C    NUMPAD1   
+<span class="hljs-number">000848</span>FC    NUMPAD0   
+<span class="hljs-number">0008490</span>C    CAPSLOCK   
+<span class="hljs-symbol">00084920 </span>   PAUSE   
+<span class="hljs-number">0008492</span>C    BREAK   
+<span class="hljs-symbol">00084938 </span>   NUMLOCK   
+<span class="hljs-symbol">00084948 </span>   SCROLLLOCK   
+<span class="hljs-symbol">00084960 </span>   RWIN   
+<span class="hljs-number">0008496</span>C    LWIN   
+<span class="hljs-symbol">00084978 </span>   PRINTSCREEN   
+<span class="hljs-number">000849</span>A0    SPACE   
+<span class="hljs-number">000849</span>AC    RIGHT   
+<span class="hljs-number">000849</span>B8    PGUP   
+<span class="hljs-number">000849</span>C4    PGDN   
+<span class="hljs-number">000849D0</span>    LEFT   
+<span class="hljs-number">000849D</span>C    INSERT   
+<span class="hljs-number">000849</span>F4    HOME   
+<span class="hljs-number">00084</span>A60    ESCAPE   
+<span class="hljs-number">00084</span>A78    ENTER   
+<span class="hljs-number">00084</span>A8C    DOWN   
+<span class="hljs-number">00084</span>A98    <span class="hljs-keyword">DELETE</span>   
+<span class="hljs-number">00084</span>AB8    BACKSPACE
+</code></pre><h2 id="dynamic-analysis-of-lab05-exe-initial-exe-">Dynamic Analysis of lab05.exe (initial .exe)</h2>
+<p>After running the initial .exe (<code>lab05.exe</code>) we can see <code>eopllrk.pif</code> and <code>RegSvcs.exe</code> executing.<br><code>eopllrk.pif</code> spawns <code>RegSvcs.exe</code>, and <code>RegSvcs.exe</code> contains the bulk of the logic and is connected to a listening server.</p>
+<p><img src="img/lab05_dyn_ph.png" alt="img"></p>
+<p><img src="img/regsvcs_net.png" alt="img"></p>
+<p>In Wireshark you&#39;ll see a for <code>shahzad73.casacam.net</code>, which is what <code>192.210.78.136</code> resolves to.<br><img src="img/wireshark.png" alt="img"></p>
+<p><code>lab05.exe</code> extracts the contents of the .rar archive to <code>C:\33333365</code>.<br><img src="img/eo_rar_extract.png" alt="img"></p>
+<p>And via procmon we can see that <code>lab05.exe</code> spawns <code>eopllrk.pif</code> with the cmdline: <code>&quot;C:\33333365\eopllrk.pif&quot; ifohmuif.pju</code>.<br><img src="img/procmon_eo_spawn.png" alt="img"></p>
+<h2 id="dynamic-analysis-of-eopllrk-pif">Dynamic Analysis of eopllrk.pif</h2>
+<p><code>eopllrik.pif</code> performs a bunch of reads on <code>ifohmuif.pju</code> and then drops an modified version of <code>kqknrprtrg.dat</code> to <code>C:\Users\Bob\temp\kqknrprtrg.dat</code></p>
+<p><img src="img/kqknrprtg_procmon.png" alt="img">  </p>
+<p><img src="img/kqknrprtg_temp.png" alt="img">  </p>
+<p>Based on static analysis this looks like the Run key persistence that gets installed.<br><img src="img/kqknrprtg.png" alt="img">  </p>
+<p><code>eopllrik.pif</code> installs persistence:<br><img src="img/eo_persistence.png" alt="img">  </p>
+<p><img src="img/reg_persistence.png" alt="img">  </p>
+<p>Lastly it copies <code>RegSvcs.exe</code> to a local temp folder: <code>AppData\Local\Temp\RegSvcs.exe</code>, spawns it, and injects into it.<br><img src="img/regsvcs_copy.png" alt="img">  </p>
+<p><img src="img/regsvcs_spawn.png" alt="img">  </p>
+<h2 id="regsvcs-exe">RegSvcs.exe</h2>
+<p>RegSvcs.exe appears to execute Remcos, a remote control software by BreakingSecurity.net. It&#39;s a malware RAT that the company is attempting to brand as legitimate software.</p>
+<p><a href="https://breakingsecurity.net/remcos/">https://breakingsecurity.net/remcos/</a></p>
+<p><img src="img/remcos_website.png" alt="img">  </p>
+<p>It writes two keys to the registry: &quot;exexpath&quot; and &quot;license&quot;.<br><img src="img/remcos_registry.png" alt="img">  </p>
+<p>And it writes all of its keylogged inputs to <code>C:\Users\Bob\AppData\Roaming\remcos\logs.dat</code>.<br><img src="img/remcos_logs.png" alt="img">  </p>
+<p>If you examine the memory of RegSvcs.exe you&#39;ll find a RWX section.<br>This is the manually mapped remcos malware which you can dump for further analysis.<br><img src="img/remcos_rwx.png" alt="img">  </p>
+
+</html>

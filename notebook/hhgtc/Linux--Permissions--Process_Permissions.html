@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Process Permissions</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Permissions - Process Permissions</h1></strong><br />• There are three UIDs associated with every process<br />   ◇ <strong>effective user ID</strong> - has the same permissions as the user or group that started the process<br />      ▪ used to grant access rights to a process<br />   ◇ <strong>real user ID</strong> - the ID of the user that launched the process<br />      ▪ used to track down who the user who launched the process<br />   ◇ <strong>saved user ID</strong> - allows a process to switch between the effective UID and real UID<br />      ▪ useful because we don&#39;t want our process to run with elevated privileges all the time<br /><br /><strong><h2>## Example</h2></strong><br />Your real user ID is 500.<br />Your effective UID is the same as your user ID - 500.<br /><br />Sally&#39;s user ID is 600.<br /><br />You run <code>passwd</code>.<br /><br />The <code>passwd</code> binary has a SUID bit on it, which means that when you run it, your effective user ID is 0 (root).<br />User ID = 500<br />Effective UID = 0<br /><br />You try to modify Sally&#39;s password.<br />Your real user ID prevents you from changing Sally&#39;s password, because <code>passwd</code> knows (by reading your real user ID), that you&#39;re not Sally.<br /><br /></div>
+</body>
+</html>

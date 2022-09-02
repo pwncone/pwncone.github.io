@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>CherryPy</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># CherryPy</h1></strong><br />• <a href="https://docs.cherrypy.org/en/latest/tutorials.html">https://docs.cherrypy.org</a><br />• <a href="https://docs.cherrypy.org/en/latest/tutorials.html">https://docs.cherrypy.org/en/latest/tutorials.html</a><br /><br />A simple HTTP framework.<br />These are just my notes from using it.<br /><br />CherryPy comes with tutorials in the installation folder.<br /><br /><strong><h2>## GET and POST Data</h2></strong><br />Good example in <code>tut03_get_and_post.py</code><br />CherryPy abstracts GET and POST data away.<br />You set the parameters you want in the page definition, e.g:<br /><code>def recon(self, os=None, arch=64, comp_name=None):</code><br /><br />And can then grab the parameters from GET or POST requests, it doesn&#39;t matter.<br /><br />e.g. GET<br /><code>http://127.0.0.1:8080/recon?os=Windows10</code><br /><br />e.g. Barebones POST<br /><div class="codebox"><div class="codebox">Host:&nbsp;127.0.0.1:8080<br />User-Agent:&nbsp;Mozilla/5.0&nbsp;(Windows&nbsp;NT&nbsp;10.0;&nbsp;Win64;&nbsp;x64;&nbsp;rv:85.0)&nbsp;Gecko/20100101&nbsp;Firefox/85.0<br />Content-Type:&nbsp;application/x-www-form-urlencoded<br /><br />os=Windows10Pro&amp;arch=32</div></div></div>
+</body>
+</html>

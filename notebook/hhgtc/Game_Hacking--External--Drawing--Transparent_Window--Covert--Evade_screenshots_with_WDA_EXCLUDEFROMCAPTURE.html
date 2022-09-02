@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Evade screenshots with WDA_EXCLUDEFROMCAPTURE</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><h1># Evade screenshots with WDA_EXCLUDEFROMCAPTURE</h1><br />You can use <code>WDA_EXCLUDEFROMCAPTURE</code> to hide your cheat overlay from screenshots.<br />Set it using <code>SetWindowDisplayAffinity</code> and a handle to your overlay window.<br /><br /><div class="codebox"><div class="codebox">HWND&nbsp;overlay_window&nbsp;=&nbsp;CreateWindowExA(...)<br />SetWindowDisplayAffinity(overlay_window,&nbsp;WDA_EXCLUDEFROMCAPTURE);</div></div><br /><br />If you draw an overlay on top of a game/window and then try to take a screenshot<br />with the Windows 10 screenshot tool, you&#39;ll see the cheat overlay disappear.<br /><br />Refer to Evade WS_EX_TOPMOST Detection for an example</div>
+</body>
+</html>

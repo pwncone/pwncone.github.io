@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Windows Data Types</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Windows API - Windows Data Types</h1></strong><br /><a href="https://docs.microsoft.com/en-us/windows/win32/winprog/windows-data-types">https://docs.microsoft.com/en-us/windows/win32/winprog/windows-data-types</a><br /><br />Windows has some different types you&#39;ll have to get used to.<br />Very good introduction here:<br /><a href="https://en.wikibooks.org/wiki/Windows_Programming/Handles_and_Data_Types">https://en.wikibooks.org/wiki/Windows_Programming/Handles_and_Data_Types</a><br /><br />If the data type is something weird,<br />usually it&#39;s just a memory address e.g. a HANDLE<br /><br /><strong><h2>## DWORD</h2></strong><br />32-bit unsigned integer<br />Range is 0 through 4294967295<br /><br /><strong><h2>## LPVOID</h2></strong><br />It&#39;s just a <code>void*</code><br />a pointer to a <code>void</code> data type.<br />I don&#39;t know why they&#39;ve made a new data type.<br /><br /><strong><h2>## TCHAR</h2></strong><br /><a href="https://www.codeproject.com/Articles/76252/What-are-TCHAR-WCHAR-LPSTR-LPWSTR-LPCTSTR-etc">https://www.codeproject.com/Articles/76252/What-are-TCHAR-WCHAR-LPSTR-LPWSTR-LPCTSTR-etc</a><br />A TCHAR is a generic data type.<br />It can hold either standard 1 byte ASCII characters - a <code>char</code><br />or 2-byte Unicode characters - a <code>wchar_t</code><br /><br />Windows uses UNICODE by default.<br />If you want your code to be independent of character encoding -&gt; use generic data types.<br />Instead of <code>char</code> or <code>wchar_t</code>, use <br /><code>TCHAR</code><br /><br />BUT DON&#39;T DO THIS. JUST USE CHAR OR WCHAR_T.<br /><br />This setting in Visual Studio defines what charcter set is used for compilation:<br /><a href=""><img src="images/1497-1.png" alt="images/1497-1.png" /></a><br /><br /><br /><br /></div>
+</body>
+</html>

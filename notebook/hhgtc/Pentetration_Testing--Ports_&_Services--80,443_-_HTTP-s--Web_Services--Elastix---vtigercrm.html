@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>/vtigercrm</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Elastix - /vtigercrm</h1></strong><br />vitger CRM is another management portal (for what I don&#39;t know).<br />There&#39;s a bunch of exploits available for it - <code>searchsploit vtiger CRM</code><br /><br /><strong><h2>## Exploits</h2></strong><br /><strong><h3>### vtiger CRM 5.1 LFI</h3></strong><br /><a href="https://www.exploit-db.com/exploits/18770">https://www.exploit-db.com/exploits/18770</a><br /><strong>Examples</strong><br />• Used in <em>hackthebox Beep</em><br /><br /><strong><h3>### vtiger CRM &lt;= 6.3 - Authenticated PHP Code Execution</h3></strong><br /><a href="https://www.exploit-db.com/exploits/38345">https://www.exploit-db.com/exploits/38345</a><br /><a href="https://b.fl7.de/2015/09/vtiger-crm-authenticated-rce-cve-2015-6000.html">https://b.fl7.de/2015/09/vtiger-crm-authenticated-rce-cve-2015-6000.html</a> - Good description here<br /><br /><strong>Examples</strong><br />• Tested on <em>hackthebox Beep</em><br /><br />Uploaded company logos only check MIME type, not file extension or file contents.<br />So you can upload a <code>.php</code> file with <code>.php</code> code inside, as long as you don&#39;t modify the MIME type, and get code execution.<br /><br />Log in.<br />Navigate to <code>Settings &gt; Company Details &gt; Edit</code><br />Upload a new logo, and capture the POST request in Burp.<br /><a href=""><img src="images/272-1.png" alt="images/272-1.png" /></a><br /><br />You should see your newly uploaded image in <code>&lt;vtiger URL&gt;/test/logo</code><br />Send the upload image request to Burp Repeater<br /><br />Find the image data, replace the image data with php code, and change the filename to php<br /><a href=""><img src="images/272-2.png" alt="images/272-2.png" /></a><br /><br />Upload the “image”, you should see the php file in <code>/test/logo</code><br /><a href=""><img src="images/272-3.png" alt="images/272-3.png" /></a><br /><br />Run the code by browsing to it.<br />You should receive a shell!</div>
+</body>
+</html>

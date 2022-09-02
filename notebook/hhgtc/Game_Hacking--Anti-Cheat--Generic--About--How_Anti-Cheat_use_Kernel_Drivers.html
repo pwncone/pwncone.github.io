@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>How Anti-Cheat use Kernel Drivers</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># How Anti-Cheat use Kernel Drivers</h1></strong><br />• <a href="https://www.unknowncheats.me/forum/anti-cheat-bypass/271733-driver-aka-kernel-mode.html">https://www.unknowncheats.me/forum/anti-cheat-bypass/271733-driver-aka-kernel-mode.html</a><br /><br /><strong><h2>## ObRegisterCallback</h2></strong><br />Anti-Cheat uses <code>ObRegisterCallback</code> - which allows them to monitor Handle creations<br />They have 2 actions against handle creation: pre &amp; post handle creation.<br /><br /><strong>Pre:</strong><br />They strip handle permissions to their game:<br />• they replace any requested handle permissions with <code>PROCESS_QUERY_LIMITED_INFORMATION</code> and <code>SYNCHRONIZE</code><br />   ◇ this prevents programs from reading &amp; writing memory to their game<br /><br /><strong>Post:</strong><br />They log what happened, then fix.<br /><br />Certain programs are whitelisted and can request all permissions to the game (because they need to):<br />• lsass.exe (supposed to crash if handles are stripped)<br />• csrss.exe<br />• the game itself<br />• the current process<br /><br /><strong><h3>#### Bypassing ObRegisterCallbacks</h3></strong><br />• Unregister the callback<br />   ◇ Anti-Cheat can check for unregister by registering the callback again. 2 things can happen:<br />      ▪ <code>STATUS_FLT_INSTANCE_ALTITUDE_COLLISION</code> - collision indicates callback is still in place<br />      ▪ Return SUCCESS - means callback was unregistered -&gt; Anti-Cheat proceeds to fix<br />• Abuse whitelisted programs<br />   ◇ Some Anti-Cheat monitor their whitelisted programs (e.g. Battleye)</div>
+</body>
+</html>

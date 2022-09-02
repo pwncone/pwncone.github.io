@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>9255 - AChat</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 9255 - AChat</h1></strong><br />• <a href="https://github.com/Avidanborisov/AChat">https://github.com/Avidanborisov/AChat</a><br />AChat, according to the author, is a “simple multi-user chat server/client”.<br />The commits on the github page are 7 years old (it&#39;s vulnerable).<br /><br /><strong><h2>## Exploits</h2></strong><br /><strong><h3>### Achat 0.150 beta7 - Remote Buffer Overflow </h3></strong><br /><strong>Examples</strong><br />• hackthebox Chatterbox<br /><br /><strong>Metasploit</strong><br />The metasploit module produces encoding errors, and no matter what shellcode or encoding I tried I couldn&#39;t get past that error.<br /><br /><strong>Python Script by KAhara MAnhara</strong><br /><em>KAhara MAnhara</em>&#39;s python script works depending on the payload you use.<br />• A meterpreter payload - <code>windows/meterpreter/reverse_tcp</code> - dies immediately after the exploit finishes.<br />• But with a standard <code>cmd</code> shell, the connection stays alive - <code>windows/shell/reverse_tcp</code>.<br /><br />Pop a shell on the system with <em>KAhara MAnhara</em>&#39;s exploit script.<br /><a href="https://www.exploit-db.com/exploits/36025">https://www.exploit-db.com/exploits/36025</a></div>
+</body>
+</html>

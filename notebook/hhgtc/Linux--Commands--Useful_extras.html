@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Useful extras</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Commands - Useful extra commands</h1></strong><br />A list of generally useful stuff that I can&#39;t fit anywhere else<br /><br /><strong><h2>## watch</h2></strong><br />watch a file for changes<br /><code>watch -n 5 cat file.txt</code> - run <code>cat file.txt</code> every 5 seconds and watch for changes<br /><br /><strong><h2>## xxd</h2></strong><br />make or reverse a hexdump<br />Make a hexdump of a file: <code>xxd &lt;file&gt; &lt;save as&gt;</code><br />Reverse a hexdump into a file: <code>xxd -r &lt;hexdump&gt; &lt;save as&gt;</code><br /><br /><strong><h2>## mount a .vhd file on linux</h2></strong><br /><a href="https://xo.tc/how-to-mount-a-vhd-file-on-linux.html">https://xo.tc/how-to-mount-a-vhd-file-on-linux.html</a><br />install libguestfs-tools - <code>apt install libguestfs-tools</code><br />make mount point - <code>mkdir /mnt/vhd1</code><br />mount using guestmount - <code>guestmount --add harddisk.vhd --ro /mnt/vhd1/ -m /dev/sda1</code><br />    • <code>--add</code> option is for the image you want to access<br />    • <code>--ro</code> sets to read only, alternatively you could use <code>--rw</code> for read / write<br />    • <code>/mnt/vhd</code> the path where you want to mount the drive<br />    • <code>-m /dev/sda1</code> specify which partition within the .vhd file you want to mount<br /><br /><strong><h2>## extract 7zip archives</h2></strong><br /><code>7za e backup.7z</code></div>
+</body>
+</html>

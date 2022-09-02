@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Memory</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Memory</h1></strong><br /><code>#include &lt;stdlib.h&gt;</code><br /><code>#include &lt;malloc.h&gt;</code> - for malloc_usable_size() function<br /><br /><code>malloc()</code> or <code>calloc()</code> - Allocate memory on the heap<br />   ◇ Argument = number of bytes to allocate<br />      ▪ best practice is to use <code>sizeof()</code> operator in case of data type variation<br />   ◇ Return Value = a pointer to the beginning of the allocated memory block<br />   <br />   ◇ <code>calloc()</code> clears all memory in the block to 0<br />   ◇ <code>malloc()</code> leaves whatever values are already there<br /><br />Determine the size of a dynamically allocated memory block:<br />• Windows - <code>_msize()</code><br />• Linux - <code>malloc_usable_size()</code><br /><br /><div class="codebox"><div class="codebox">#include&nbsp;&lt;stdio.h&gt;<br />#include&nbsp;&lt;stdlib.h&gt;<br />#include&nbsp;&lt;malloc.h&gt;<br /><br />int&nbsp;main()&nbsp;<span style="color:#000000;font-weight:400">{</span><br />&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;*memory&nbsp;=&nbsp;malloc(4&nbsp;*&nbsp;sizeof(int));<br />&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;&nbsp;memory_size&nbsp;=&nbsp;malloc_usable_size(memory);<br />&nbsp;&nbsp;&nbsp;&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;error&nbsp;handle&nbsp;memory&nbsp;assignment<br />&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(memory&nbsp;==&nbsp;NULL)&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;malloc()&nbsp;failed&nbsp;:/&nbsp;\n&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);<br />&nbsp;&nbsp;&nbsp;&nbsp;}<br /><br />&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Memory&nbsp;allocated&nbsp;at:&nbsp;%p&nbsp;\n&quot;,&nbsp;memory);<br />&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;Amount&nbsp;of&nbsp;memory&nbsp;allocated:&nbsp;%d&nbsp;bytes&nbsp;\n&quot;,&nbsp;memory_size);<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;free(memory);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;free&nbsp;memory&nbsp;after&nbsp;use<br />&nbsp;&nbsp;&nbsp;&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;0;<br /><span style="color:#000000;font-weight:400">}</span></div></div></div>
+</body>
+</html>

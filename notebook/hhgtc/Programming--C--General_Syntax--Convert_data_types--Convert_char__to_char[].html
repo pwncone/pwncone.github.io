@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Convert char * to char[]</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'>Use <code>strncpy()</code><br /><a href="http://man7.org/linux/man-pages/man3/strcpy.3.html">http://man7.org/linux/man-pages/man3/strcpy.3.html</a><br /><br />• char[] arrays need a size when declared<br />   ◇ -&gt; so can use <code>strlen()</code> of source string to declare the size<br /><br /><div class="codebox"><div class="codebox">char&nbsp;*arg_first&nbsp;=&nbsp;&quot;timmy&quot;;<br />char&nbsp;arg_first_array[strlen(arg_first)];&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br /><br />strncpy(arg_first_array,&nbsp;arg_first,&nbsp;strlen(arg_first));</div></div></div>
+</body>
+</html>

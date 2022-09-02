@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>/etc/sudoers</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - User Management - /etc/sudoers</h1></strong><br /><code>/etc/sudoers</code> lists all the users that can <code>sudo</code>, and which commands they can run with it.<br />Usually only the root user can look at this file.<br />The safe way to edit /etc/sudoers is with <code>visudo</code><br /><br />Good explanation - <a href="https://www.garron.me/en/linux/visudo-command-sudoers-file-sudo-default-editor.html">https://www.garron.me/en/linux/visudo-command-sudoers-file-sudo-default-editor.html</a><br /><br /><strong><h2>## Explanation of the /etc/sudoers file</h2></strong><br />This is what /etc/sudoers might look like:<br /><div class="codebox"><div class="codebox">#&nbsp;/etc/sudoers<br />#<br />#&nbsp;This&nbsp;file&nbsp;MUST&nbsp;be&nbsp;edited&nbsp;with&nbsp;the&nbsp;&#39;visudo&#39;&nbsp;command&nbsp;as&nbsp;root.<br />#<br />#&nbsp;See&nbsp;the&nbsp;man&nbsp;page&nbsp;for&nbsp;details&nbsp;on&nbsp;how&nbsp;to&nbsp;write&nbsp;a&nbsp;sudoers&nbsp;file.<br />#<br /><br />Defaults&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;env_reset<br /><br />#&nbsp;Host&nbsp;alias&nbsp;specification<br /><br />#&nbsp;User&nbsp;alias&nbsp;specification<br /><br />#&nbsp;Cmnd&nbsp;alias&nbsp;specification<br /><br />#&nbsp;User&nbsp;privilege&nbsp;specification<br />holly&nbsp;ALL=NOPASSWD:cat</div></div><code><br /></code><br />Almost all lines are commented out. <br /><br />The line that matters in this sudoers file example is:<br /><code>holly ALL=NOPASSWD:/usr/bin/vi /var/www/html/*</code><br />This line means:<br /><em>holly can run the </em><em><code>cat</code></em><em> binary with </em><em><code>sudo</code></em><em> from </em><em><code>ALL</code></em><em> terminals without providing a password</em><br /></div>
+</body>
+</html>

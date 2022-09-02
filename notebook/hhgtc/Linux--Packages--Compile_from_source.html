@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Compile from source</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Packages - Compile from Source</h1></strong><br />Sometimes you&#39;ll need to compile code from source :/<br /><br />1. <code>sudo apt install build-essential</code> - install the tools for compiling from source<br />2. <code>tar -xzvf package.tar.gz</code> - extract the contents of the package file (most likely a .tar.gz file)<br />3. Look at the README or INSTALL file inside the package - there might be specific installation instructions<br />4. Inside the package contents will be a configure script - this script checks for dependencies on your system - <code>./configure</code><br />5. Instead of using <em>make</em> to compile the code (leaves a bunch of junk on your comp), use checkinstall - <code>sudo checkinstall</code><br />   1) This builds a .deb package and installs it - this makes it easier to remove the package later</div>
+</body>
+</html>

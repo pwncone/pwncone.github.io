@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>COFF Header</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h2>COFF Header</h2></strong><br />The COFF header contains info about the PE file: the computer architecture, the number of sections, time/date it was compiled, etc.<br /><br />The Windows API refers to the COFF Header as <code>File Header</code><br />However, the original PE format specification calls this the COFF header.<br /><br /><a href="https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_file_header">https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_file_header</a><br /><br /><a href=""><img src="images/866-1.png" alt="images/866-1.png" /></a><br /><br /><div class="codebox"><div class="codebox">PIMAGE_DOS_HEADER&nbsp;dos_header&nbsp;=&nbsp;NULL;<br />PIMAGE_NT_HEADERS&nbsp;pe_header&nbsp;=&nbsp;NULL;<br />PIMAGE_FILE_HEADER&nbsp;coff_header&nbsp;=&nbsp;NULL;<br /><br />dos_header&nbsp;=&nbsp;file_buffer;<br />pe_header&nbsp;=&nbsp;(PIMAGE_NT_HEADERS)((DWORD_PTR)dos_header&nbsp;+&nbsp;(DWORD_PTR)dos_header-&gt;e_lfanew);<br />coff_header&nbsp;=&nbsp;&amp;pe_header-&gt;FileHeader;<br /><br />printf(&quot;COFF&nbsp;header&nbsp;@&nbsp;0x%p&nbsp;\n&quot;,&nbsp;&amp;pe_header-&gt;FileHeader);<br />printf(&quot;\t&nbsp;computer&nbsp;arch&nbsp;0x%x&nbsp;\n&quot;,&nbsp;pe_header-&gt;FileHeader.Machine);<br />printf(&quot;\t&nbsp;no.&nbsp;of&nbsp;sections:&nbsp;%d&nbsp;\n&quot;,&nbsp;pe_header-&gt;FileHeader.NumberOfSections);<br />printf(&quot;\t&nbsp;time&nbsp;created:&nbsp;%x&nbsp;\n&quot;,&nbsp;pe_header-&gt;FileHeader.TimeDateStamp);</div></div><br /><br /><strong><h3>### Values of Interest</h3></strong><br /><strong>Machine</strong><br />   ◇ identifies the architecture of the computer<br />   ◇ 0x014c = x86 0x8664 = x64<br /><strong>NumberOfSections</strong><br />   ◇ defines the number of sections in the binary<br /></div>
+</body>
+</html>

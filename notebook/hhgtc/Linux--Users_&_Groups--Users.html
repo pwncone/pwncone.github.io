@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Users</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - User Management - Users</h1></strong><br />Every userland process has an owner (whomever started the process) and the process runs with the permissions of that owner. <br />Users can edit and modify their own processes, but can&#39;t tamper with other users&#39; processes.<br /><br /><strong><h2>## 3 Types of Users</h2></strong><br /><strong><h3>### superusers </h3></strong><br />   ◇ i.e. <code>root</code><br />   ◇ <em>root</em> is the classic superuser<br />   ◇ root can edit/modify/run anything it wants - it&#39;s basically the adminstrator account.<br /><strong><h3>### system services</h3></strong><br />   ◇ apache, mysql, fail2ban, tcpdump<br />   ◇ these are accounts for services and system daemons<br />   ◇ creating a user for a service helps manage their permissions <br />      ▪ e.g. Apache needs privileged access for some functionality - like opening privileged ports 80 and 443<br />      ▪ but shouldn&#39;t run as root because that would be a security issue<br />      ▪ creating a specific user for the service helps manage permissions/security<br /><strong><h3>### human users</h3></strong><br />   ◇ accounts that everyday users/humans will use - Bob, Jane, Harry etc.<br />   ◇ these accounts will (almost) all have their own home directory where they can store files - <code>/home/&lt;username&gt;</code><br /><br /><strong><h2>## UIDs - User IDs</h2></strong><br />• All users have a UID - <em>User ID</em> - assosciated with them, which is what the kernel uses to manages users<br />   ◇ Bob = 1001, Jane = 1002 etc.<br />• UIDs below 500 are reserved for root and system services<br /><br /><br /><br /><br /><br /><br /></div>
+</body>
+</html>

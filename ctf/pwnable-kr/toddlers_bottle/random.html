@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="random">random</h1>
+<p>2nd April 2022</p>
+<p>Read the random.c source:</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>{
+        <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> random;
+        random = rand();        <span class="hljs-comment">// random value!</span>
+
+        <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> key=<span class="hljs-number">0</span>;
+        <span class="hljs-built_in">scanf</span>(<span class="hljs-string">"%d"</span>, &amp;key);
+
+        <span class="hljs-keyword">if</span>( (key ^ random) == <span class="hljs-number">0xdeadbeef</span> ){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Good!\n"</span>);
+                system(<span class="hljs-string">"/bin/cat flag"</span>);
+                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        }
+
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Wrong, maybe you should try 2^32 cases.\n"</span>);
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<p><code>rand()</code> won&#39;t be random because it hasn&#39;t been seeded.<br>I didn&#39;t know that rand() will produce the same value on all systems so I debugged the binary in gdb to find the &quot;random&quot; value, which is <code>1804289383</code> / <code>0x6b8b4567</code>.<br>Every time you run the binary, the <code>random</code> var will be that value above.</p>
+<pre><code><span class="hljs-keyword">random</span>@pwnable:~$ gdb -q <span class="hljs-keyword">random</span>
+Reading symbols <span class="hljs-keyword">from</span> <span class="hljs-keyword">random</span>...(no debugging symbols found)...done.
+(gdb) disass main
+Dump of assembler code <span class="hljs-keyword">for</span> function main:
+   <span class="hljs-number">0</span>x00000000004005f4 <span class="hljs-variable">&lt;+0&gt;</span>:     push   %rbp
+   <span class="hljs-number">0</span>x00000000004005f5 <span class="hljs-variable">&lt;+1&gt;</span>:     mov    %rsp,%rbp
+   <span class="hljs-number">0</span>x00000000004005f8 <span class="hljs-variable">&lt;+4&gt;</span>:     sub    <span class="hljs-variable">$0x10</span>,%rsp
+   <span class="hljs-number">0</span>x00000000004005fc <span class="hljs-variable">&lt;+8&gt;</span>:     mov    <span class="hljs-variable">$0x0</span>,%eax
+   <span class="hljs-number">0</span>x0000000000400601 <span class="hljs-variable">&lt;+13&gt;</span>:    callq  <span class="hljs-number">0</span>x400500 <span class="hljs-variable">&lt;rand@plt&gt;</span>
+   <span class="hljs-number">0</span>x0000000000400606 <span class="hljs-variable">&lt;+18&gt;</span>:    mov    %eax,-<span class="hljs-number">0</span>x4(%rbp)
+[...]
+(gdb) break *<span class="hljs-number">0</span>x0000000000400606
+Breakpoint <span class="hljs-number">1</span> at <span class="hljs-number">0</span>x400606
+(gdb) run
+Starting program: /home/<span class="hljs-keyword">random</span>/<span class="hljs-keyword">random</span> 
+
+Breakpoint <span class="hljs-number">1</span>, <span class="hljs-number">0</span>x0000000000400606 <span class="hljs-keyword">in</span> main ()
+(gdb) info registers
+rax            <span class="hljs-number">0</span>x6b8b4567       <span class="hljs-number">1804289383</span>
+rbx            <span class="hljs-number">0</span>x0      <span class="hljs-number">0</span>
+[...]
+</code></pre><p>Now you have to find the xor key to produce <code>0xdeadbeef</code>.
+XOR just swaps bits, so can do <code>1804289383 ^ 0xdeadbeef</code> to find the xor key.</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pwnable</span>.<span class="hljs-keyword">kr</span>/<span class="hljs-keyword">toddlers_bottle</span>/<span class="hljs-keyword">random</span>]
+└─$ python3 -c <span class="hljs-string">'key = 1804289383 ^ 0xdeadbeef; print(key)'</span>               
+<span class="hljs-number">3039230856</span>
+</code></pre><pre><code><span class="hljs-built_in">random</span><span class="hljs-symbol">@pwnable</span>:~$ ./<span class="hljs-built_in">random</span>
+<span class="hljs-number">3039230856</span>
+Good!
+Mommy, I thought libc <span class="hljs-built_in">random</span> is unpredictable...
+</code></pre>

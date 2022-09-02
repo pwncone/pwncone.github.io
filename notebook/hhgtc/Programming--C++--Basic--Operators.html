@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Operators</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Operators</h1></strong><br />Operators are how you manipulate things (like maths)<br /><br /><strong><h2>Arithmetic operators</h2></strong><br /><code>+</code>       Add<br /><code>-</code>       Subtract<br /><code>*</code>       Multiply<br /><code>/</code>       Divide<br /><code>%</code>       Modulus<br /><code>++</code>      Increment<br /><code>--</code>      Decrement<br /><br /><strong><h2>Comparison operators</h2></strong><br /><code>==</code>      Check if equal<br /><code>!=</code>      Not equal<br /><code>&gt;</code>        Greater than<br /><code>&lt;</code>        Less than<br /><code>&gt;=</code>      Greater than or equal to<br /><code>&lt;=</code>      Less than or equal to<br /><br /><strong><h2>Logical operators</h2></strong><br /><code>&amp;&amp;</code>      Logical AND<br /><code>||</code>      Logical OR<br /><code>!</code>        Logical NOT<br /><br />Logical AND will return true if both of the compared operands are true<br />Logical OR will return true if one of the compared operands is true<br />Logical NOT will switch the boolean value of the operand e.g. a = true, !a, a now equals false<br /><br />The term “boolean” refers to a system of thought developed by the English mathmetician George Boole (1815-1864)<br /><br /><strong><h2>Ternary operator</h2></strong><br /><code>?</code><br />This operator first evaluates an expression for a <strong>true</strong> or <strong>false</strong> condition, then returns one of two specified values depending on the result of the evaluation<br /><br /><code>(test-expression) ? if-true-return-this : if-false-return-this ;</code><br /><br /><div class="codebox"><div class="codebox">int&nbsp;a&nbsp;=&nbsp;2;<br />int&nbsp;b&nbsp;=&nbsp;5;<br />int&nbsp;c&nbsp;=&nbsp;4<br />int&nbsp;d&nbsp;=&nbsp;(a&nbsp;==&nbsp;2)&nbsp;?&nbsp;c:b;</div></div><br />This will check if a is equal to 2.<br />Because a == 2, c gets returned. <br />If a didn&#39;t equal 2, b would get returned.<br /><br />A common use of the ternary operator, using the % modulus operator, is to determine whether a value is odd or even<br /><code>(var %2 != 0) ? if-true(odd)-do-this : if-false(even)-do-this ;</code></div>
+</body>
+</html>

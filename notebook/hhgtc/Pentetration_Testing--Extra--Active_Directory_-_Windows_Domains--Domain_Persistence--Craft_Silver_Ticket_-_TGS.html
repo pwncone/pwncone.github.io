@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Craft Silver Ticket - TGS</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kerberos Silver Ticket</h1></strong><br />Budget Willy Wonka.<br /><br /><strong><h2>## About</h2></strong><br />A silver ticket is a forged <em>Ticket Granting Service</em> - a TGS.<br />The TGS can be used to access a specific service on the domain.<br /><br />To forge a TGS/silver ticket, you need:<br />• the password hash of the target service account or computer account<br /><br /><strong>Option #1 - Service hash</strong><br />TGSs are encrypted with the password hash of the account running the target service - e.g. SVC_MSSQL<br />If you can grab the password hash of the account running the target service account, you can craft a silver ticket - a TGS - to access that service.<br /><br /><strong>Option #2 - Computer Account hash on Current Host</strong><br />Alternatively, you could grab the password hash of the Computer Account on the current system.<br />This would allow you to access WMI, PowerShell Remoting, WinRM, etc. as Admin on the target system.<br /><br /><strong>Option #3 - Computer Account hash on Domain Controller</strong><br />If you grab the Computer Account hash on the Domain Controller, you could access WMI, PowerShell Remoting, WinRM, etc. on any machine within the Domain.<br /><br /><table class="table"><tr><th>Computer Account Service</th><th>SPN</th></tr><tr><td>WMI</td><td>HOST
+RPCSS</td></tr><tr><td>PowerShell Remoting</td><td>HOST
+HTTP
+Depending on OS version may also need: WSMAN &amp; RPCSS</td></tr><tr><td>WinRM</td><td>HOST
+HTTP</td></tr><tr><td>Scheduled Tasks</td><td>HOST</td></tr><tr><td>Windows File Share (CIFS)</td><td>CIFS</td></tr><tr><td>LDAP operations including Mimikatz DCSync</td><td>LDAP</td></tr><tr><td>Windows Remote Server Administration Tools</td><td>RPCSS
+LDAP
+CIFS</td></tr></table><br /><br /><br /><strong><h3>### Persistence Length?</h3></strong><br />Persistence length is as long as the the password hash of the account running the target service doesn&#39;t change.<br /><br /><strong><h2>## Exploit Process</h2></strong><br />1. Grab password hash of service/computer account<br />2. Craft your own TGS<br />3. Access service</div>
+</body>
+</html>

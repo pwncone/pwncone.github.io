@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Casting pointers</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Casting pointers</h1></strong><br /><a href="https://stackoverflow.com/questions/17260527/what-are-the-rules-for-casting-pointers-in-c/17260931">https://stackoverflow.com/questions/17260527/what-are-the-rules-for-casting-pointers-in-c/17260931</a> - fairly decent explanation<br /><br />Define a character array - <code>char* passcode = ‘aaaabbbb’</code><br />Cast the char* pointer to an int* pointer - <code>int* integerPasscode = (int*) passcode;</code> <br />   → <code>(int*) passcode</code> will retrieve the data pointed to by <code>passcode</code> and treat it as an integer<br /><br /><strong>Explanation:</strong><br />      ◇ <code>passcode</code> is a char pointer - it points the start of our string (e.g passocde = ‘aaaabbbb’, <code>p</code> points to ‘a’)<br />      ◇ <code>(int*) passcode</code> will retrieve the data pointed to by <code>passcode</code> and treat it as an integer<br />         ▪ e.g. passcode = ‘aaaabbbb’, <code>(int*) passcode</code> will retrieve that data as 61616162626262 (not ‘aaaabbbb’)<br />         ▪ 61 hex = 97 decimal = &#39;a&#39; in ascii, 62 hex = 98 decimal = &#39;b&#39; in ascii<br />      <br />      ◇ <code>int* integerPasscode</code> is an integer pointer<br />         ▪ which means that <code>int* integerPasscode = (int*) passcode</code> points to &#39;6161616162626262&#39;<br />      ◇ but because integers are 4 bytes long, <code>int* integerPasscode</code> only points to 4 bytes at a time<br />         ▪ e.g <code>integerPasscode[0]</code> points to the first 4 bytes - 61616161, <code>integerPasscode[1]</code> points to the second 4 bytes - 62626262</div>
+</body>
+</html>

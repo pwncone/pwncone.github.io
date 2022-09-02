@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Windows Principles</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><h2>Windows Principles</h2><br />• System resources are represented as a kernel object identified and referenced by a handle<br />• Kernel objects must be manipulated by Windows APIs<br />• Objects include<br />   ◇ files<br />   ◇ processes<br />   ◇ threads<br />   ◇ pipes for interprocesses communication<br />   ◇ memory mapping<br />   ◇ events<br />• Objects have secuirty attributes<br />• Windows contains many functions that perform the same or similar operations (e.g. for convenience e.g. CopyFile is lots of functions packaged together<br />• A given function often has numerous parameters and flags, but you can normally ignore most of them<br />• The Windows thread is the basic unit of execution. A process can contain one or more threads.<br />• The names for predefined data types, required by the API, are in uppercase and are also descriptive<br />   ◇ BOOL (defined as a 32bit object for storing a single logical value)<br />   ◇ HANDLE (a handle for a kernel object)<br />   ◇ DWORD (the ubiquitous 32bit unsigned integer)<br />   ◇ LPTSTR (a string pointer)<br />   ◇ LPSECURITY_ATTRIBUTES<br />• Variable names, at least in function prototypes, also have conventions. <br />   ◇ For example, lpszFileName is a “long pointer to a zero-terminated string” representing a file name. <br />   ◇ This is the so-called Hungarian notation<br /><br /><h2>Windows API vs C library</h2><br />• There&#39;s no real answer as to when to use the Windows API vs standard C library<br />• Windows file processing features not available with the C library include:<br />   ◇ file locking<br />   ◇ memory mapping<br />   ◇ asynchronous I/O<br />   ◇ rand access to very long files (more than 4GB in length)<br />   ◇ interprocess communication<br />• With the C library, it is possible to write portable applications without learning Windows, but options are limited<br />   ◇ For example, Chapter 5 exploits memory-mapped files for performance and programming convenience, and this functionality is not included in the C library</div>
+</body>
+</html>

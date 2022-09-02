@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Environment Variables</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Environment Variables</h1></strong><br />Environement variables are system-wide (technically incorrect, but it helps me understand it) variables containing information like the user&#39;s home directory, their current working directory, their username, the paths to their binaries etc. <br />Users can set their own environment variables if they want.<br /><br /><code>env</code> - view your environment variables<br /><code>echo $HOME</code> - view path of your home directory<br /><code>echo $USER</code> - view your username<br /><code>echo $PATH</code> - view the paths your system searches for binaries<br /><br /><strong><h2>## PATH Environment Variable</h2></strong><br />One particularly important variable is the <code>PATH</code> Variable.<br />The <code>PATH</code> variable stores an ordered, colon-separated list of the paths your system searches for binaries/commands.<br /><br /><code>$ echo $PATH<br />/usr/local/sbin:/usr/local/bin:/usr/sbin:/bin</code><br /><br />In the PATH example above, if you type in <code>cat</code>, your system will :<br />- first search <code>/usr/local/sbin</code> for cat,<br />- then <code>/usr/local/bin</code>, <br />- then <code>/usr/sbin</code> <br />- etc.</div>
+</body>
+</html>

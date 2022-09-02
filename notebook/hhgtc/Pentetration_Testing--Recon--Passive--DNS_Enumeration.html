@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>DNS Enumeration</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># DNS Enumeration</h1></strong><br />DNS enumeration can give you IPs, server names, server functionality etc. <br /><br />• A forward lookup is where you send a hostname and get back and IP<br />• A reverse lookup is where you send an IP and get back a hostname<br /><br /><strong>Tools</strong><br />• <code>host<br /></code>• <code>dig<br /></code>• <code>nslookup</code><br /><br /><code>host </code><a href="http://www.megacorpone.com">www.megacorpone.com</a> - Returns the IP address of the site/server<br /><code>host -t ns megacorpone.com</code> - Returns a list of DNS servers that serve that domain<br /><code>host -mx megacorpone.com</code> - Mail servers<br />	<br /><code>dig @10.10.10.123 friendzone.red</code> - <code>@</code> specifies a DNS server to query<br />	<br /><strong><h2>## Forward Lookup Brute Force</h2></strong><br />A forward lookup is where you send a hostname and get back and IP.<br />You create a list of likely subdomains and use <code>host</code> to brute force and try them all.<br /><br /><div class="codebox"><div class="codebox">echo&nbsp;ftp&nbsp;&gt;&gt;&nbsp;list.txt<br />echo&nbsp;mail&nbsp;&gt;&gt;&nbsp;list.txt<br />for&nbsp;subdomain&nbsp;in&nbsp;$(cat&nbsp;list.txt);&nbsp;do&nbsp;host&nbsp;$subdomain.megacorpone.com;&nbsp;done</div></div><br />	<br /><strong><h2>## Reverse Lookup Brute Force</h2></strong><br />A reverse lookup is where you send an IP and get back a hostname.<br />A reverse lookup only works when a PTR record - a pointer record - is set up.<br />PTR records resolve an IP address to a hostname.<br /><br />If a PTR record is configured PTR record for the domain,<br />you can send a bunch of reverse lookups to their IP ranage and hopefully receive a bunch of hostnames and subdomains.<br /><br /><div class="codebox"><div class="codebox">for&nbsp;num&nbsp;in&nbsp;$(seq&nbsp;155&nbsp;190);&nbsp;do&nbsp;host&nbsp;127.0.5.$num;&nbsp;done&nbsp;|&nbsp;grep&nbsp;-v&nbsp;&quot;not&nbsp;found&quot;</div></div></div>
+</body>
+</html>

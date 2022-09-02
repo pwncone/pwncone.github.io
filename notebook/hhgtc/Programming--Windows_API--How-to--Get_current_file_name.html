@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Get current file name</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'>Use <code>GetModuleFileName</code> with the <code>NULL</code> parameter to get the full path of the current file name.<br /><a href="https://docs.microsoft.com/en-gb/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamew">https://docs.microsoft.com/en-gb/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamew</a><br /><br /><div class="codebox"><div class="codebox">//&nbsp;get&nbsp;full&nbsp;path&nbsp;of&nbsp;current&nbsp;file&nbsp;name<br />wchar_t&nbsp;filename[MAX_PATH];<br />GetModuleFileNameW(NULL,&nbsp;filename,&nbsp;MAX_PATH);<br />printf(&quot;filename:&nbsp;%S&nbsp;\n&quot;,&nbsp;filename);</div></div></div>
+</body>
+</html>

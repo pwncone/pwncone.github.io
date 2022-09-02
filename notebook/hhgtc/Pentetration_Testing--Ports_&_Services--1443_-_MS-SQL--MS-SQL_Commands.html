@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>MS-SQL Commands</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h2>## MS-SQL Commands</h2></strong><br /><strong>travisaltman</strong><br /><a href="http://travisaltman.com/pen-test-and-hack-microsoft-sql-server-mssql/">http://travisaltman.com/pen-test-and-hack-microsoft-sql-server-mssql/</a><br /><br />Find database version<br /><code>select @@version;</code><br />Determine the current user<br /><code>select suser_sname();</code><br />Create user “travis” with password “secret”<br /><code>exec master..sp_addlogin travis, secret</code><br />Or another way<br /><code>create login travis with password=&#39;secret&#39;;</code><br />Create a table named pwned<br /><code>create table pwned (owned int not null default 1337);</code><br />Determine current database<br /><code>SELECT DB_NAME();</code><br />List all databases<br /><code>SELECT name FROM master..sysdatabases;</code><br />Determine host name of PC the database is installed on<br /><code>SELECT HOST_NAME();</code><br />Determine users with sysadmin rights<br /><code>select loginname from syslogins where sysadmin = 1</code><br />Add user travis to the sysadmin role<br /><code>exec sp_addsrvrolemember &#39;travis&#39;, &#39;sysadmin&#39;</code><br />Extract username and password hashes<br /><code>select name, password_hash FROM master.sys.sql_logins</code><br /><br /><strong>pentestmonkey</strong><br /><a href="http://pentestmonkey.net/cheat-sheet/sql-injection/mssql-sql-injection-cheat-sheet">http://pentestmonkey.net/cheat-sheet/sql-injection/mssql-sql-injection-cheat-sheet</a><br /><br />List Users 	<br /><code>SELECT name FROM master..syslogins</code><br />List password hashes - mssql 2000<br /><code>SELECT name, password FROM master..sysxlogins</code></div>
+</body>
+</html>

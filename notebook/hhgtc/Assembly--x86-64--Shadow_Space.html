@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Shadow Space</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># x64 Shadow Space</h1></strong><br />Also called <code>Spill Space</code> and <code>Home Space</code><br /><br /><a href="https://stackoverflow.com/questions/30190132/what-is-the-shadow-space-in-x64-assembly">https://stackoverflow.com/questions/30190132/what-is-the-shadow-space-in-x64-assembly</a><br /><a href="https://en.wikipedia.org/wiki/Shadow_stack">https://en.wikipedia.org/wiki/Shadow_stack</a><br /><br />The shadow space exists to make x64 debugging easier.<br />In x64, the first 4 arguments of a function are passed into registers.<br />Therfore, when debugging your code, you won&#39;t be able to check the first 4 of your function arguments after you&#39;ve stepped through the code.<br /><br />This where the shadow space is used.<br />The compiler leaves a copy of the register values in the shadow space so that they&#39;re later visible when debugging.<br /><br />The shadow space always 32bits in size,<br />and is reserved before a function <code>call</code>.</div>
+</body>
+</html>

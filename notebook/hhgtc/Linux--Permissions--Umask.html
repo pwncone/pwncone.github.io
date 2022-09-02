@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Umask</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Permissions - Umask</h1></strong><br />• Every file that gets created comes with a default set of permissions.<br />• You can change the default set of permissions with the <code>umask</code> command<br />• umask <strong>takes away permissions</strong>, starting from 777<br />• If you run umask, it will change the default set of permissions of new files you create for the current session<br />• If you want to change your umask change to be perisistent, you have to modify your startup file - <code>.profile</code><br /><br />The default umask on most distributions is 022<br />   ◇ users have 7 - read/write/execute<br />   ◇ groups have 5 - read/execute<br />   ◇ others have 5 - read/execute<br /><br /><code>$ umask 021</code><br /><br /><br /></div>
+</body>
+</html>

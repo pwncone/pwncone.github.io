@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>How-to</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># CSGO How-to</h1></strong><br />Tidbits.<br />Mostly stuff I&#39;ve written or yoinked and tweaked.<br /><br /><strong><h2>## Bones</h2></strong><br />WARNING:<br />The bones are different for each model in the game.<br />The only bone that stays consistent is 8 - the head bone.<br />If you&#39;re creating a bone ESP, the only solution is to loop through entire list of bones <br />and draw a line between every bone.<br /><br />Bone IDs:<br />• 8 - head bone (stays the same on every character model)<br /><br /><div class="codebox"><div class="codebox">/*<br />Each&nbsp;bone&nbsp;is&nbsp;0x30&nbsp;bytes&nbsp;long&nbsp;<br />and&nbsp;there&#39;s&nbsp;0x10&nbsp;bytes&nbsp;of&nbsp;padding&nbsp;between&nbsp;each&nbsp;of&nbsp;the&nbsp;coordinates&nbsp;for&nbsp;the&nbsp;bone&nbsp;(starting&nbsp;at&nbsp;0x0c).<br />*/<br />vec3&nbsp;GetBoneCoordinates(Entity*&nbsp;entity,&nbsp;int&nbsp;bone_id)<br /><span style="color:#000000;font-weight:400">{</span><br />	uintptr_t&nbsp;bone_base&nbsp;=&nbsp;entity-&gt;bone_matrix;<br />	vec3&nbsp;bone_position&nbsp;=&nbsp;{&nbsp;0&nbsp;};<br />	bone_position.x&nbsp;=&nbsp;*(float*)(bone_base&nbsp;+&nbsp;0x30&nbsp;*&nbsp;bone_id&nbsp;+&nbsp;0x0c);<br />	bone_position.y&nbsp;=&nbsp;*(float*)(bone_base&nbsp;+&nbsp;0x30&nbsp;*&nbsp;bone_id&nbsp;+&nbsp;0x1c);<br />	bone_position.z&nbsp;=&nbsp;*(float*)(bone_base&nbsp;+&nbsp;0x30&nbsp;*&nbsp;bone_id&nbsp;+&nbsp;0x2c);<br /><br />	return&nbsp;bone_position;<br /><span style="color:#000000;font-weight:400">}</span></div></div></div>
+</body>
+</html>

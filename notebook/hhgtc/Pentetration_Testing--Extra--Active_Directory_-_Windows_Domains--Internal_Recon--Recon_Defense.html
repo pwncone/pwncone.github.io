@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Recon Defense</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Defense Against Internal Recon</h1></strong><br /><br /><strong><h2>## Detection</h2></strong><br />• Look for spikes in traffic (queries to all domains, etc.)<br />• Look <code>4264 Logon Events</code> happening on multiple machines (which is PowerView checking for Admin access)<br /><br /><strong><h2>## Mitigation</h2></strong><br /><strong><h3>### NetCease.ps1 - Mitigate User Hunting</h3></strong><br /><code>NetCease.ps1</code> is a script that removes permission for Authenticated Users group to run the NetSessionEnum method. i.e. prevents PowerView&#39;s <code>Get-NetSession</code> from running<br /><br />This kills an attacker&#39;s session enumeration capabilities.<br />With verbose output, an attacker will see <code>VERBOSE: Error: Access is denied.</code><br /><br />However, it can break stuff.<br />Be careful running NetCease in a real environment.<br /><br /><strong><h3>### SAMRi10</h3></strong><br /><a href="https://gallery.technet.microsoft.com/SAMRi10-Hardening-Remote-48d94b5b">https://gallery.technet.microsoft.com/SAMRi10-Hardening-Remote-48d94b5b</a><br />SAMRi10 hardens Windows 10 and Server 2016 with the SAMR protocol.</div>
+</body>
+</html>

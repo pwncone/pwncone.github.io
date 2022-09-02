@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Useful bits of bash</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Useful bits</h1></strong><br />Useful bits of bash command-line fu(ckery)<br /><br /><strong><h2>rot13 in bash</h2></strong><h2> (or reverse it)</h2><br /><code>echo &quot;mVGZ3O3omkJLmy2pcuTq&quot; | tr &#39;A-Za-z&#39; &#39;N-ZA-Mn-za-m&#39; &gt; norot13.txt</code><br /><br /><strong><h2>reverse a string</h2></strong><br /><code>echo &quot;hey&quot; | rev</code><br /><br /><strong><h2>base64 encode / decode</h2></strong><br />encode - <code>echo &quot;hey&quot; | base64</code><br />decode - <code>echo &quot;aGV5Cg==&quot; | base64 -d</code><br /><br /><code>cat hello.txt.b64 | base64 -d &gt; hello.txt<br />cat hello.txt | base64 &gt; hello.txt.b64</code><br /><br /><strong><h2>remove duplicates from a file</h2></strong><br /><code>sort -u input.txt</code><br /><code>sort</code> sorts the file alphabetically<br /><code>-u</code> will print only unique strings<br /><br /><strong><h2>submit bytes to a binary</h2></strong><br /><code>./col $&#39;\xc8\xce\xc5\x06\xc8\xce\xc5\x06\xc8\xce\xc5\x06\xc8\xce\xc5\x06\xcc\xce\xc5\x06&#39;</code><br /><br /><strong><h2>grab all file extensions - </h2></strong><strong><code><h2>.&lt;characters&gt;</h2></code></strong><strong><h2> strings - from a web page</h2></strong><br /><code>curl --silent &quot;</code><a href="https://docs.microsoft.com/en-us/previous-versions/2wawkw1c(v=vs.140)"">https://docs.microsoft.com/en-us/previous-versions/2wawkw1c(v=vs.140)&quot;</a><code> | grep -i -E -o &quot;\.{1}\w*&quot; | sort -u</code><br /><br /><strong><h2>for loop through wordlist</h2></strong><br /><code>for i in `cat /usr/share/metasploit-framework/data/wordlists/directory.txt`; do echo $i; curl http://$ip$i; done</code></div>
+</body>
+</html>

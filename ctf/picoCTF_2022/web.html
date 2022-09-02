@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+<h1 id="picoctf-2022-web-exploitation">picoCTF 2022 - Web Exploitation</h1>
+<p>March 15th-29th</p>
+<h2 id="includes">Includes</h2>
+<p>Right click &gt; View Source.<br><code>Includes</code> is a hint, so check the included <code>style.css</code> and <code>script.js</code> to find the flag.</p>
+<h2 id="inspect-html">Inspect HTML</h2>
+<p>Right click &gt; View Source.<br>And the flag is in the HTML comments.</p>
+<h2 id="local-authority">Local Authority</h2>
+<p>It&#39;s a login form.<br>Right click &gt; View Source.<br>Ah, we can read the <code>login.php</code> page.<br>In login.php there&#39;s a <code>checkPassword</code> function but no reference to it in the code.<br>It must be included elsewhere. Check <code>secure.js</code>, and you&#39;ll find the login credentials.</p>
+<h2 id="search-source">Search source</h2>
+<p>Recursively download all pages on the site and grep for the flag.  </p>
+<pre><code>┌──(horace<span class="hljs-meta">@kali</span>)-[<span class="hljs-regexp">~/ctf/</span>pico22/search-source]
+└─$ wget -r -m -nv <span class="hljs-string">http:</span><span class="hljs-comment">//saturn.picoctf.net:56849 </span>
+┌──(horace<span class="hljs-meta">@kali</span>)-[<span class="hljs-regexp">~/ctf/</span>pico22<span class="hljs-regexp">/search-source/</span>saturn.picoctf.<span class="hljs-string">net:</span><span class="hljs-number">56849</span>]
+└─$ grep -r <span class="hljs-string">"pico"</span> *
+css<span class="hljs-regexp">/style.css:/</span>** banner_main picoCTF{<span class="hljs-number">1</span>nsp3ti0n_0f_w3bpag3s_74784981} **/
+</code></pre>

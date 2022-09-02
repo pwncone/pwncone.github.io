@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>System V</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Init - System V</h1></strong><br />• System V init or Sys V (pronounced as &#39;System Five&#39;), is the classic version of init<br />• If you have an <code>/etc/inittab</code> file, you are most likely running Sys V<br />• Sys V starts and stops processes sequentially<br />   ◇ e.g. For service Foo-B to work, service Foo-A needs to be running<br />   ◇ This makes it relatively easy to solve service dependencies<br />      ▪  because you know Foo-A must be running for Foo-B to work<br />• However, this makes performance slow<br />      ▪ because only 1 service is starting or stopping at a time<br /><br /><strong>System V is old</strong><br />• System V is slowly getting replaced<br />• However, you may see runlevels come up in other init implementations<br />   ◇ This is to support services that are only started or stopped using System V init scripts<br /><br /><strong><h2>## Sys V Runlevels</h2></strong><br />• Sys V defines the state of machine by runlevels - from 0 to 6<br />   ◇ 0: Shutdown<br />   ◇ 1: Single User Mode<br />   ◇ 2: Multiuser mode without networking<br />   ◇ 3: Multiuser mode with networking<br />   ◇ 4: Unused<br />   ◇ 5: Multiuser mode with networking and GUI<br />   ◇ 6: Reboot<br /><br />• When your system starts up, it looks to see what runlevel you are in and executes scripts located inside that runlevel <br />• The scripts for each runlevel are located in <code>/etc/rc.d/rc[runlevel number].d/</code> or <code>/etc/init.d</code><br />• Scripts that start with<br />   ◇ S(start) - run on startup<br />   ◇ K(kill) - run at shutdown <br />• The numbers next to S or K are the sequence they run in<br /><br />• <code>/etc/inittab</code> will show the default runlevel your system boots into<br /><br /><strong><h2>## Sys V Commands</h2></strong><br /><code>service --status-all</code> - list services<br /><code>sudo service networking start</code> - start a service<br /><code>sudo service networking stop</code> - stop a service<br /><code>sudo service networking restart</code> - restart a service</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Aggressive Mode IKE Group Enumeration</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Aggressive Mode IKE Group Enumeration</h1></strong><br />Many IPsec implementations support aggressive mode IKE and PSK authentication.<br /><code>ike-scan</code> can enumerate a valid identity (known as a <em>group</em>) based on the server response.<br /><br /><code>-A</code> = aggressive mode<br /><br />You can try just <code>-A</code>, which will sometimes return an aggressive handshake<br /><div class="codebox"><div class="codebox">root@gotham:~/ctf/conceal#&nbsp;ike-scan&nbsp;-M&nbsp;-A&nbsp;10.10.10.116<br />Starting&nbsp;ike-scan&nbsp;1.9.4&nbsp;with&nbsp;1&nbsp;hosts&nbsp;(http://www.nta-monitor.com/tools/ike-scan/)<br /><br />Ending&nbsp;ike-scan&nbsp;1.9.4:&nbsp;1&nbsp;hosts&nbsp;scanned&nbsp;in&nbsp;2.455&nbsp;seconds&nbsp;(0.41&nbsp;hosts/sec).&nbsp;&nbsp;0&nbsp;returned&nbsp;handshake;&nbsp;0&nbsp;returned&nbsp;notify</div></div><br /><br /><strong><h3>## Aggressive mode IKE group brute-force</h3></strong><br />If not, you can brute-force for IKE groups using Spider Lab&#39;s <code>ikeforce.py</code><br />Usage - <a href="https://github.com/SpiderLabs/ikeforce">https://github.com/SpiderLabs/ikeforce</a><br /><br />Install:<br /><code>pip install pyip<br />pip install pycrypto<br />pip install pyopenssl<br />git clone </code><a href="https://github.com/SpiderLabs/ikeforce.git">https://github.com/SpiderLabs/ikeforce.git</a><code><br />cd ikeforce/</code><br /><br />Will probably get AttributeError<br /><code>    randomBytes = OpenSSL.rand.bytes(bytes)<br />AttributeError: ‘module’ object has no attribute ‘rand’</code><br />Fix provided here by modifying ikeclient.py - <a href="https://github.com/SpiderLabs/ikeforce/pull/11">https://github.com/SpiderLabs/ikeforce/pull/11</a><br /><br /><code>-e</code> - enumeration mode<br /><br /><code>./ikeforce.py 10.10.10.116 –e –w wordlists/groupnames.dic</code></div>
+</body>
+</html>

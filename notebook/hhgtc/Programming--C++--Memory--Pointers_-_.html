@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Pointers - *</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Pointers</h1></strong><br />Pointers are variables that store the memory addresses of other variables (pointers point to the location of other variables)<br /><br /><strong><h3>Declaring/Initialising Pointers</h3></strong><br />To delcare a variable as a pointer, use <code>*</code> after the data type - <code>int*</code><br />You then initialise the pointer by assinging it the memory address of another variable - <code>&amp;a</code><br /><br />*NOTE* You must use the same data type for you pointer as you did the variable<br />e.g. your variable is an <code>int</code>, your pointer must be an <code>int</code>. your variable is a <code>string</code>, your pointer must be a <code>string</code><br /><div class="codebox"><div class="codebox">int&nbsp;a&nbsp;=&nbsp;7;<br />int*&nbsp;firstPointer&nbsp;=&nbsp;&amp;a;<br /><br />string&nbsp;word&nbsp;=&nbsp;&quot;moon&quot;;<br />string*&nbsp;secondPointer&nbsp;=&nbsp;&amp;word;</div></div><br /><br /><strong>Retrieve the address of the pointers</strong><br /><div class="codebox"><div class="codebox">cout&nbsp;&lt;&lt;&nbsp;&amp;firstPointer&nbsp;&lt;&lt;&nbsp;endl;<br />cout&nbsp;&lt;&lt;&nbsp;&amp;secondPointer&nbsp;&lt;&nbsp;endl;</div></div><br /><br /><strong>Retrieve the values in the pointers </strong><br />i.e. the memory address of the variable you&#39;re pointing to<br /><div class="codebox"><div class="codebox">cout&nbsp;&lt;&lt;&nbsp;firstPointer&nbsp;&lt;&lt;&nbsp;endl;<br />cout&nbsp;&lt;&lt;&nbsp;secondPointer&nbsp;&lt;&lt;&nbsp;endl;</div></div><br /><br /><strong>Retrieve the data from the variables you&#39;re pointing to</strong><br /><div class="codebox"><div class="codebox">cout&nbsp;&lt;&lt;&nbsp;*firstPointer&nbsp;&lt;&lt;&nbsp;endl;<br />cout&nbsp;&lt;&lt;&nbsp;*secondPointer&nbsp;&lt;&lt;&nbsp;endl;</div></div><br /></div>
+</body>
+</html>

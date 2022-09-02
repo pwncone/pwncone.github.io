@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+<h1 id="analysis-of-skengdoo-be-eac-injector">Analysis of Skengdoo/be-eac-injector</h1>
+<p>6th August 2022</p>
+<p>Everyone is after a public, undetected kernel injector within the game hacking scene at the moment. This project is available on github and promises a lot: works for every game, undetected, and EAC and BattlEye emulation.<br><a href="https://github.com/Skengdoo/be-eac-injector">https://github.com/Skengdoo/be-eac-injector</a></p>
+<p><img src="img/github_page.png" alt="img"></p>
+<p>This seems like an overpromise to me and highly suspicious so I decided to reverse it for malware. The injector works but it&#39;s certainly not undetected and there&#39;s definitely no anticheat emulation. There has since been an errata on the README from when I started reversing stating that the anticheat emulation isn&#39;t available in the public release.</p>
+<p><img src="img/readme_errata.png" alt="img"></p>
+<h2 id="summary">Summary</h2>
+<p>It&#39;s not malicious. The compiled <code>injector.exe</code> contains an embedded exe which it drops to disk, executes, and then deletes. The dropped .exe contains two embedded Windows <code>.sys</code> drivers: Intel&#39;s <code>iqvw64e.sys</code> driver which can be exploited for kernel read/write from userland (<a href="https://www.exploit-db.com/exploits/36392">https://www.exploit-db.com/exploits/36392</a>) and a custom driver (named <code>\\\\.\\PUSSY</code> by the developer). The dropped .exe exploits the intel driver to map the custom <code>PUSSY</code> driver. This functionality is exactly how <code>kdmapper</code> works: <a href="https://github.com/TheCruZ/kdmapper">https://github.com/TheCruZ/kdmapper</a>. With the custom driver mapped, the original <code>injector.exe</code> writes your DLL to inject into the target process along with some shellcode to call the Dll&#39;s entry point, and executes the shellcode in the target process from userland via SetWindowsHookEx.</p>
+<h2 id="injector-exe">injector.exe</h2>
+<p>This is the initial file you execute.</p>
+<p>It starts with a fake &quot;loading&quot; prompt and then loads the driver (via the embedded .exe). 
+<img src="img/bogus_loading.png" alt="img"><br><img src="img/open_driver.png" alt="img">  </p>
+<h3 id="opendriver">OpenDriver</h3>
+<p>There&#39;s lots of stack strings all over the place but they don&#39;t do anything for obfuscating the text. I imagine it&#39;s a mistake by the developer when implementing the obfuscation, I can&#39;t tell.<br><img src="img/stackstrings.png" alt="img">  </p>
+<p>Here it writes the embedded .exe to disk at <code>C:\Windows\SoftwareDistribution\Download</code>, executes it, and deletes it.<br><img src="img/write_and_exec_embedded_exe.png" alt="img"><br><img src="img/write_embedded_exe_to_disk.png" alt="img">  </p>
+<p><code>sub_1400036C0</code> builds the filepath:<br><img src="img/exe_filepath.png" alt="img">  </p>
+<p>Execution is performed using <code>runas</code> with ShellExecuteW.<br><img src="img/runas_execution.png" alt="img">  </p>
+<p>After the embedded .exe has run (and loaded the intel driver and custom driver) it opens a handle to the custom driver.<br><img src="img/open_pussy_driver.png" alt="img">  </p>
+<h2 id="embedded-exe">Embedded .exe</h2>
+<p>Now we&#39;re looking at the embedded .exe which loads the intel driver and the developer&#39;s custom driver.<br><img src="img/embedded_exe_main.png" alt="img">  </p>
+<p>It writes the embedded Intel iqvw64e.sys driver to disk at <code>C:\Users\username\AppData\Local\Temp</code> with a random name (I think) and then loads it via NtLoadDriver and opens a handle to it.<br><img src="img/write_iqvw64e_to_disk_and_load.png" alt="img">  </p>
+<p>To load via NtLoadDriver it needs to create a registry entry for the driver at <code>SYSTEM\\CurrentControlSet\Services</code> with an <code>ImagePath</code> and <code>Type</code> value.<br><img src="img/create_registry_entry.png" alt="img"><br><img src="img/registry_entry.png" alt="img">  </p>
+<p>At this point the intel driver is loaded.</p>
+<p>It then grabs the base address of the currently loaded <code>ntoskrnl.exe</code> via <code>NtQuerySystemInformation</code> for use in pattern scanning later.<br><img src="img/grab_ntoskrnl_base.png" alt="img">  </p>
+<p><img src="img/loop_modules.png" alt="img">  </p>
+<p>And proceeds to clear traces of the intel driver having been loaded and then delete the dropped driver from disk. The functions that clear traces are basically the exact same as how <code>kdmapper</code> does it.<br><img src="img/clear_traces.png" alt="img">  </p>
+<ul>
+<li><code>ClearPiDDBCacheTable</code> - <a href="https://github.com/TheCruZ/kdmapper/blob/3a21e3a5a8955633d6b8fb159ae605420e44802e/kdmapper/intel_driver.cpp#L618">https://github.com/TheCruZ/kdmapper/blob/3a21e3a5a8955633d6b8fb159ae605420e44802e/kdmapper/intel_driver.cpp#L618</a></li>
+<li><code>ClearKernelHashBucketList</code> - <a href="https://github.com/TheCruZ/kdmapper/blob/3a21e3a5a8955633d6b8fb159ae605420e44802e/kdmapper/intel_driver.cpp#L769">https://github.com/TheCruZ/kdmapper/blob/3a21e3a5a8955633d6b8fb159ae605420e44802e/kdmapper/intel_driver.cpp#L769</a></li>
+<li><code>ClearMmUnloadedDrivers</code> - <a href="https://github.com/TheCruZ/kdmapper/blob/3a21e3a5a8955633d6b8fb159ae605420e44802e/kdmapper/intel_driver.cpp#L437">https://github.com/TheCruZ/kdmapper/blob/3a21e3a5a8955633d6b8fb159ae605420e44802e/kdmapper/intel_driver.cpp#L437</a></li>
+</ul>
+<p>These are the patterns it uses</p>
+<ul>
+<li>for grabbing PiDDBCacheTable: <code>66 03 D2 48 8D 0D</code> + 0x06</li>
+<li>for grabbing PiDDBLock: <code>81 FB 6C 03 00 C0 0F 84 ?? ?? ?? ?? 48 8D 0D</code> + 0x0F</li>
+</ul>
+<p><img src="img/piddb_resolve.png" alt="img">  </p>
+<p>Lastly it exploits the intel driver to call ExAllocatePoolWithTag and allocate memory in the kernel for the custom driver (verifies the DOS header etc.).<br><img src="img/alloc_kernel_mem_for_driver_0.png" alt="img">  </p>
+<p><img src="img/alloc_kernel_mem_for_driver.png" alt="img">  </p>
+<h2 id="custom-driver">Custom Driver</h2>
+<p><img src="img/pussy_DriverInit.png" alt="img">  </p>
+<p>This driver implements 4 functions: allocate memory, free memory, protect memory (change page protections), and read/write to memory.</p>
+<p>It creates a driver object and symbolic name: <code>\\\\.\\PUSSY</code> and <code>\\DosDevices\\Pussy</code>.<br><img src="img/device_symboliclink.png" alt="img">  </p>
+<p>Here&#39;s the major functions. Everything is inside <code>IRP_MJ_DEVICE_CONTROL</code>.<br><img src="img/majorfunctions.png" alt="img">  </p>
+<h3 id="-irp_mj_device_control-"><code>IRP_MJ_DEVICE_CONTROL</code></h3>
+<p><img src="img/mj_device_control_switch.png" alt="img">  </p>
+<ul>
+<li>Case <code>0x3009CE20</code> is read/write to memory (with standard <code>MmCopyVirtualMemory</code>)</li>
+<li>Case <code>0x3009D0E0</code> changes memory protection (<code>KeAttachProcess</code> and <code>ZwProtectVirtualMemory</code>)</li>
+<li>Case <code>0x3009D220</code> allocates memory (<code>KeAttachProcess</code> and <code>ZwAllocateVirtualMemory</code>)</li>
+<li>Case <code>0x3009D4E0</code> frees memory (<code>KeAttachProcess</code> and <code>ZwFreeVirtualMemory</code>)</li>
+</ul>
+<h2 id="injector-exe-injectdll">injector.exe - InjectDLL</h2>
+<p>Now that the custom driver has been loaded by exploiting the Intel driver we&#39;re back to the original <code>injector.exe</code>. All that&#39;s left for the injector to do is write the DLL into the target process and execute it.</p>
+<p><img src="img/injectdll.png" alt="img">  </p>
+<p>It finds the process to inject into via the window class name (taken from user input):<br><img src="img/findwindow.png" alt="img">  </p>
+<p>Instead of emulating the anticheat in any way it prints a fake log implying that it has. Presumably the developer has removed this functionality.<br><img src="img/emu_1.png" alt="img"><br><img src="img/emu_2.png" alt="img">  </p>
+<p>It allocates memory for the driver in the target process, performs base relocations, and resolves imports.<br><img src="img/allocmem.png" alt="img">  </p>
+<p><img src="img/baserelocations.png" alt="img">  </p>
+<p><img src="img/resolveimports.png" alt="img">  </p>
+<p>Maps the DLL section&#39;s (interestingly it doesn&#39;t write the DLL&#39;s PE header).<br><img src="img/map_sections.png" alt="img">  </p>
+<p>And calls the DLL.<br><img src="img/calldll.png" alt="img">  </p>
+<h3 id="calldllmain">CallDllMain</h3>
+<p>Here it builds the shellcode to call the DLL&#39;s entry point (remember that <code>0x3009D220</code> allocates memory and <code>0x3009CE20</code> writes memory).<br><img src="img/build_shellcode.png" alt="img">  </p>
+<p>It then calls the shellcode in the target process via <code>SetWindowsHookEx</code> and <code>PostThreadMessageA</code> with <code>WM_NULL</code>, removes the hook, and frees the shellcode afterwards.<br><img src="img/exec_shellcode.png" alt="img">  </p>
+<p>Here&#39;s a copy of the shellcode after it&#39;s been built. It simply calls the Dll&#39;s entry point.
+<img src="img/shellcode.png" alt="img">  </p>
+<h2 id="conclusion">Conclusion</h2>
+<p>It&#39;s <code>kdmapper</code> with a custom driver to read, write, and allocate memory and uses SetWindowsHookEx to execute shellcode in the target process which calls DllMain. It&#39;s a bog standard DLL injector. There&#39;s no anticheat emulation. Without the anitcheat emulation the injected DLL will be detected (it&#39;s a RWX region not backed by a loaded, signed module). If there really is anticheat emulation then how you map the DLL doesn&#39;t matter because the anticheat won&#39;t be doing anything. It&#39;s not malicious but without the anticheat emulation it&#39;s not a useful kernel injector either.</p>
+</html>

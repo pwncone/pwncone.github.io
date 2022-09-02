@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Sniffing</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Sniffing</h1></strong><br />Got a shell on the system? Think authentication is being sent across the network? <br />Try sniffing for some credentials. You might get some interesting results too.<br /><br /><strong><h2>## tcpdump</h2></strong><br /><a href="https://www.rationallyparanoid.com/articles/tcpdump.html">https://www.rationallyparanoid.com/articles/tcpdump.html</a><br /><a href="https://hackertarget.com/tcpdump-examples/">https://hackertarget.com/tcpdump-examples/</a><br /><br /><code>tcpdump -v -i any -s0 -w tcpdump.pcap</code><br /><code>tcpdump port 389 and src 10.10.10.119 and dst 10.10.10.119 -v -i any -s0 -w tcpdump2.pcap</code></div>
+</body>
+</html>

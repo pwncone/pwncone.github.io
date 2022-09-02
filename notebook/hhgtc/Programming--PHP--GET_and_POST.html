@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>GET and POST</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># GET and POST</h1></strong><br />• before the browser sends info, the URL gets encoded<br />   ◇ spaces are replaced with <code>+</code><br />   ◇ non-alphanumeric characters are replaced with hex values<br />• the page &amp; encoded information are separated by a <code>?</code><br /><br /><strong><h2>## GET</h2></strong><br />GET sends the URL encoded data appended to the end of the page request<br /><code>http://test.com/index.html?name1=john&amp;name2=bob</code><br /><br />Access the GET data using <code>QUERY_STRING</code> environment variable<br />Use <code>$_GET</code> associate array to access all sent the info in the GET request<br /><br />• NOT GOOD FOR PASSWORDS OR SENSITIVE INFORMATION<br />• produces a long string that appears in your server logs &amp; <code>Location:</code> header<br />• limited to 1024 characters<br />• can&#39;t send binary data<br /><br /><strong><h2>## POST</h2></strong><br />POST sends data via HTTP headers.<br /><br />Access data using <code>QUERY_STRING</code> environment variable<br />Use <code>$_POST</code> associative array to access all data sent via POST<br /><br />• no restriction on size of data<br />• can send ASCII &amp; binary data<br /><br />Because data goes through HTTP headers, the security depends on HTTP / HTTPS<br /><br /><strong><h2>## The $_REQUEST Variable</h2></strong><br /><code>$_REQUEST</code> stores the contents of <code>$_GET</code>, <code>$_POST</code>, and <code>$_COOKIE</code><br />If you want both GET and POST data, use <code>$_REQUEST</code><br /><br /><div class="codebox"><div class="codebox"><span style="color:#000000;font-weight:400">&lt;</span>?php<br />&nbsp;&nbsp;&nbsp;if(&nbsp;$_REQUEST[&quot;name&quot;]&nbsp;||&nbsp;$_REQUEST[&quot;age&quot;]&nbsp;)&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;&quot;Welcome&nbsp;&quot;.&nbsp;$_REQUEST[&#39;name&#39;].&nbsp;&quot;&lt;br&nbsp;/&gt;&quot;;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;&quot;You&nbsp;are&nbsp;&quot;.&nbsp;$_REQUEST[&#39;age&#39;].&nbsp;&quot;&nbsp;years&nbsp;old.&quot;;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit();<br />&nbsp;&nbsp;&nbsp;}<br />?<span style="color:#000000;font-weight:400">&gt;</span></div></div><br /><br /></div>
+</body>
+</html>

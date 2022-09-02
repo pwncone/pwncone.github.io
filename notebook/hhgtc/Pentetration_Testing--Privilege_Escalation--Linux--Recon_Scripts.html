@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Recon Scripts</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Recon Scripts</h1></strong><br />There are scripts that will automate the information gathering process for you. <br />This is a huge saver of both time and effort.<br /><br />Do note that using scripts will probably generate a lot of noise. <br /><br /><strong><h2>## lse.sh</h2></strong><br /><a href="https://github.com/diego-treitos/linux-smart-enumeration">https://github.com/diego-treitos/linux-smart-enumeration</a><br /><br />A very pretty and thorough enumeration script.<br />It&#39;s pretty much LinEnum.sh but improved.<br /><br /><strong><h2>## linuxprivchecker.py</h2></strong><br /><a href="https://github.com/sleventyeleven/Linuxprivchecker">https://github.com/sleventyeleven/Linuxprivchecker</a><br />This requires python to be installed on the system (because it&#39;s a python script).<br /><br />NOTE: <br />You might have to point to script to your python install. Try running it first, if it doesn&#39;t work follow this:<br /><br /><code>locate python | grep bin</code> - take note of where the python install is<br /><code>nano linuxprivchecker.py</code><br />modify <code>#!/usr/env python</code> to <code>#!&lt;location of python install&gt;</code> e.g. <code>#!usr/bin/python</code><br /><br /><strong><h2>## LinEnum.sh</h2></strong><br /><a href="https://github.com/rebootuser/LinEnum">https://github.com/rebootuser/LinEnum</a><br /><br /><code>./LinEnum.sh -s -r lin-enum.txt -e &lt;output location&gt; -t</code><br /><code>-s</code> supply current user password<br /><code>-r</code> enter report name<br /><code>-e</code> export location<br /><code>-t</code> include thorough (lengthy) tests<br /><br /><strong><h2>## unix-privesc-check</h2></strong><br />Available in Kali: <code>/usr/bin/unix-privesc-check</code><br />Serve the file to your victim somehow and run it.<br /><br />You can <code>grep</code> the output for WARNING<br /><code>./unix-privesc-check standard/detailed &gt; upc.txt<br />grep WARNING upc.txt</code><br /><br />This program relies on the <code>strings</code> binary.<br />If it fails, it&#39;s probably because <code>strings</code> isnt&#39; available.<br /><br /><br /><br /></div>
+</body>
+</html>

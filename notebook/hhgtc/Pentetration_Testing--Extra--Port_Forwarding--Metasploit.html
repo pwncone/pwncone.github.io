@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Metasploit</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port Forwarding - Metasploit</h1></strong><br /><br /><strong><h2>## portfwd Examples</h2></strong><br /><code>portfwd list</code> - List active port forwards<br /><code>portfwd flush</code> - Delete all port forwards<br /><br />Forward 3389 (RDP) to 3389 on the compromised machine running the Meterpreter shell<br /><code>portfwd add –l 3389 –p 3389 –r target-host<br />portfwd delete –l 3389 –p 3389 –r target-host<br /><br />portfwd add -l 88 -p 88 -r 127.0.0.1<br />portfwd add -L 0.0.0.0 -l 445 -r 192.168.57.102 -p 445</code><br /><br /><strong><h2>## Meterpreter&#39;s autoroute</h2></strong><br /><code>route</code> - View available networks the compromised host can access<br /><code>run autoroute -p</code> - List all active routes<br /><code>route flush</code> - Delete all routes<br /><br />Use Meterpreters autoroute script to add the route for specified subnet 192.168.15.0<br /><code>run autoroute -s 192.168.15.0/24 </code><br /><code>use auxiliary/server/socks4a</code><br /><br />Add route for 192.168.14.0/24 via Session number.<br /><code>route add 192.168.14.0 255.255.255.0 3 </code><br />Delete route for 192.168.14.0/24 via Session number<br /><code>route delete 192.168.14.0 255.255.255.0 3 </code></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Why use Unicode</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong>Always use Unicode</strong><br />• Improves execution performance &amp; uses less memory<br />   ◇ Windows internally does everything with Unicode characters and strings, so when you pass an ANSI character or string, Windows must allocate memory and convert the ANSI character or string to its Unicode equivalent<br />• Your application will support multiple languages<br />• Helps when interoperating with COM and .NET framework<br /><br /><strong>Windows uses UTF-16</strong><br />• UTF-16 encodes each charctaer as 2 bytes (16 bits)<br />• Characters from most languages can be represented via a 16bit value<br />• The .NET framework always encodes characters &amp; strings in UTF-16<br />   ◇ so using UTF-16 in your Windows application will improve performance and reduce memory consumption if you need to pass characters or strings between native and managed code</div>
+</body>
+</html>

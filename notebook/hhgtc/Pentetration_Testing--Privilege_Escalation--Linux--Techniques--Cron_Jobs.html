@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Cron Jobs</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Cron Jobs</h1></strong><br />Cron jobs schedule and run jobs on the system.<br />There&#39;s always cron jobs on a system.<br /><br />Cron jobs usually run as root.<br />If you can tamper with the job itself, or a binary that the cron job uses, you might be able to execute commands as root.<br /><br />Make sure to searchsploit/google any suspicious/interesting cronjobs you find, <br />there might be vulnerable versions.<br /><br /><strong>Links</strong><br />• <a href="https://payatu.com/guide-linux-privilege-escalation/">https://payatu.com/guide-linux-privilege-escalation/</a> ← read cronjob section<br /><br /><strong><h2>## Check cronjobs</h2></strong><br /><code>cat /etc/crontab</code> - system wide crontab (i think)<br /><code>crontab -l</code> - check if your current user has their own crontab<br /><code>ls -alh /etc/cron*</code> - overview of scheduled jobs (monthly, daily, hourly etc.)<br /><br /><code>crontab -l &lt;username&gt;</code> - jobs for a specific user<br /><code>top</code> - currently running tasks<br /><br /><code>ls -aRl /etc/cron* | awk &#39;$1 ~ /w.$/&#39; 2&gt;/dev/null</code> - what can ‘others’ write in /etc/cron* directories<br /><code>find / -perm -2 type f 2&gt;/dev/null | grep &lt;file in cron.d&gt;</code> - check whether file is world-writable</div>
+</body>
+</html>

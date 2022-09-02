@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Vector Arrays</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Vector Arrays</h1></strong><br />A vector array is an alterntive to a regular array, and has the advantage that its size can be changed as the program requires.<br /><br /><strong><h2>Vectory library</h2></strong><br />In order to use vectors in your C++ program, you have include the vector library<br /><div class="codebox"><div class="codebox">#include&nbsp;<span style="color:#000000;font-weight:400">&lt;</span>vector<span style="color:#000000;font-weight:400">&gt;</span></div></div><br /><br />These are the predefined functions in the vector library:<br /><code>at(position)</code>             Gets the value contained in the specified element number<br /><code>front()</code>                       Gets the value in the first element<br /><code>back()</code>                         Gets the value in the final element<br /><code>clear()</code>                       Removes all vector elements<br /><code>empty()</code>                       Returns true (1) if the vectory is empty, and returns false (0) otherwise<br /><code>size() </code>                       Gets the number of elements in the vectory<br /><code>pop_back()</code>                 Removes the final element<br /><code>push_back(value)</code>     Adds an element to the end of the vector (the value you specify)<br /><br /><strong><h2>Declaring a vector</h2></strong><br /><code>vector &lt;data-type&gt; vector-name (size) </code><br />e.g.<br /><div class="codebox"><div class="codebox">vector&nbsp;&lt;int&gt;&nbsp;myVector1(3);</div></div><br /><br />An <strong>int</strong> vector will, by default, have each element automatically initialised with a 0 value<br />Alternatively, you can specify a different initial value:<br /><code>vector &lt;data-type&gt; vector-name (size, initial-value) </code><br />e.g.<br /><div class="codebox"><div class="codebox">vector&nbsp;&lt;int&gt;&nbsp;myVector2(3,&nbsp;100);</div></div><br />This will declare and initialise a vector array of 3 elements each with a value of 100<br /><br /></div>
+</body>
+</html>

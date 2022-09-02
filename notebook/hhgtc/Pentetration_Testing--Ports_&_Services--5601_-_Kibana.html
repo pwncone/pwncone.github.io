@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>5601 - Kibana</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 5601 - Kibana</h1></strong><br />Kibana is part of the ELK stack (refer to the 9200/elasticsearch node for more info).<br />Kibana (usually) runs LOCALLY on port 5601 - <a href="https://www.elastic.co/guide/en/kibana/current/settings.html">https://www.elastic.co/guide/en/kibana/current/settings.html</a><br /><br /><strong><h2>## Port Forward Kibana out to You</h2></strong><br />If you have ssh access, you could port-forward the kibana web app out to your attacking machine so that you can browse it locally<br /><div class="codebox"><div class="codebox">root@gotham:~/ctf/haystack#&nbsp;ssh&nbsp;security@10.10.10.115&nbsp;-L&nbsp;5601:127.0.0.1:5601&nbsp;-nNT<br />security@10.10.10.115&#39;s&nbsp;password:&nbsp;spanish.is.key<br />...</div></div><br /><br /><code>ssh</code> should hang.<br />You can now browse to the kibana web app on your attacking machine by visiting <code>http://127.0.0.1:5601</code><br /><a href=""><img src="images/138-1.png" alt="images/138-1.png" /></a></div>
+</body>
+</html>

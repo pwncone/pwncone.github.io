@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Firefox</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Firefox</h1></strong><br />Everybody&#39;s favourite web browser.<br /><br /><strong><h2># Locations</h2></strong><br /><strong><h3>### User Profiles</h3></strong><br />On Windows, Firefox stores user data in profiles in 1 or both (often both) of these locations<br />• <code>C:\Users\Chase\AppData\Roaming\Mozilla\Firefox\Profiles\&lt;profile&gt;.default</code><br />• <code>C:\Users\Chase\AppData\Local\Mozilla\Firefox\Profiles\&lt;profile&gt;.default</code><br /><br /><strong><h2>## Extract Cookies &amp; Logins from a Backup User Session</h2></strong><br />• <a href="https://stackoverflow.com/questions/19486161/is-there-a-way-to-extract-cookies-from-the-firefox-cookies-file">https://stackoverflow.com/questions/19486161/is-there-a-way-to-extract-cookies-from-the-firefox-cookies-file</a><br /><br /><strong>Examples</strong><br />• hackthebox Heist<br /><br />Whilst you browse, Firefox keeps a recovery file storing your cookies, tabs, etc. of your current browsing session.<br />If a user&#39;s browsing session crashes, this file is used to restore what user&#39;s session.<br /><br />The file is called <code>recovery.jsonlz4</code> and is stored in the user&#39;s Firefox profile in a <code>sessionstore-backups</code> folder.<br /><br /><code>C:\Users\bob\AppData\Roaming\Mozilla\Firefox\Profiles\77nc64t5.default\sessionstore-backups\recovery.jsonlz4</code><br /><br />If you read the recovery file, you can potentially find some passwords or other interesting information.<br /><div class="codebox"><div class="codebox">PS&nbsp;supportdesk\chase@SUPPORTDESK&nbsp;sessionstore-backups&gt;&nbsp;cat&nbsp;recovery.jsonlz4<br />mozLz40<br />....<br />_ìœò=admin@support.htb&amp;!ò<br />password=4dD!5}x/re8]FBuZ&nbsp;n<br />...</div></div><br /><br /></div>
+</body>
+</html>

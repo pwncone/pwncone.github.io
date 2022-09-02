@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>of the Domain</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Internal Recon - of the Domain</h1></strong><br />Tool sheets to recon the domain are in the sub-nodes.<br /><br /><strong><h2>## Look for</h2></strong><br />Interesting things to look for include:<br /><br /><strong><h3>### User Properties</h3></strong><br />Can help you identify which users to attack.<br /><br />• <code>pwdlastset</code><br />   ◇ A password last set years ago is probably a honeypot user<br />• <code>badpwdcount</code> - how many times they input their password incorrectly<br />   ◇ Real users will always fat-finger their passwords<br />   ◇ A <code>badpwdcount</code> of 0 is probably a honeypot user<br />• <code>logoncount</code><br />   ◇ Low logon = probably a honeypot user (or just a low users)<br />   ◇ High logon count = probably a real user<br /><br /><strong><h3>### User attributes/descriptions</h3></strong><br />• People (service desk users etc.) sometimes to write their passwords in the user description field<br />   ◇ when theres a shift change, the next employee can log on</div>
+</body>
+</html>

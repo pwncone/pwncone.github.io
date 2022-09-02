@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>UnrealIRCd</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># UnrealIRCd</h1></strong><br /><code>UnrealIRCd</code> is one of the more popular/widespread IRC servers/daemons (I think?).<br /><br /><strong><h2>## 3.2.8.1 UnrealIRCd RCE Exploit</h2></strong><br />This exploit requires modification (the variables are swapped around) - <a href="https://www.exploit-db.com/exploits/13853">https://www.exploit-db.com/exploits/13853</a><br />Instead, use either the Metasploit module or <a href="https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor">https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor</a> (or just google search for an exploit script, lots of people have written one).<br /><br /><em><strong><h3>### Ranger11Danger&#39;s Script</h3></strong></em><br /><a href="https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor">https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor</a><br /><br />• Modify <code>local_ip</code> and <code>local_port</code><br />• Run it - <code>python3 unrealpwn.py 10.10.10.117 6697 -payload python</code><br />• Used in <em>hackthebox Irked</em><br /><br /></div>
+</body>
+</html>

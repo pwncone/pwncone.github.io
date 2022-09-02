@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Processes</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Processes</h1></strong><br />You might be able to exploit a process running as root or elevated privileges.<br /><br /><code>ps aux | grep -v root</code> - find processes not running as root<br /><code>ps aux | grep root</code> - find processes running as root<br /><code>top</code> - refreshes constantly and shows running tasks<br /><br /><strong><h2>## Tools</h2></strong><br /><strong><h3>### pspy</h3></strong><br /><a href="https://github.com/DominicBreuker/pspy">https://github.com/DominicBreuker/pspy</a><br /><br /><code>./pspy32s</code><br /><br /><code>pspy</code> watches for new processes on the system.<br />It&#39;s good for finding hidden services/binaries that run so fast they don&#39;t appear in <code>ps aux</code>.<br />There&#39;s a potential for pspy to miss a process if it&#39;s too quick, but it usually does a pretty good job.<br /><br /><strong>#### How it Works</strong><br />• One method to watch for new processes on a system is to scan /proc in an infinite loop for new process IDs (PIDs)<br />   ◇ but this would consume a ton of CPU resources<br />• Instead, pspy watches the libraries that processes usually access - /usr, /tmp, /var etc. using the inotify API<br />   ◇ The inotify API gives you a notification whenever these libraries are accessed/modified/deleted etc. <br />   ◇ Whenever inotify creates a notification, pspy uses that as a trigger to scan /proc for a new process<br /><br /><br /><strong><br /></strong></div>
+</body>
+</html>

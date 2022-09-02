@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>User Input</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># User input</h1></strong><br />Any time that you take input from a user, you should verify that it&#39;s what you actually want.<br /><br /><strong><h2>## Get string from user</h2></strong><br /><code>gets()</code> isn&#39;t safe.<br /><code>scanf()</code> isn&#39;t buffer safe.<br /><br />Use <code>fgets()</code>.<br />• fgets() will append a newline to the inputted string<br /><br /><div class="codebox"><div class="codebox">char&nbsp;name[20];<br />printf(&quot;Hey&nbsp;:)&nbsp;What&#39;s&nbsp;your&nbsp;name?&nbsp;&quot;);<br />fgets(name,&nbsp;20,&nbsp;stdin);<br /><br />printf(&quot;Hey&nbsp;%s&nbsp;:)&nbsp;\n&quot;,&nbsp;name);</div></div><br /><br /><strong><h2>## Get int/float etc. from user</h2></strong><br />Use <code>scanf()</code>.<br />• scanf() stops taking input after a space<br /><br /><div class="codebox"><div class="codebox">int&nbsp;age;<br />printf(&quot;Hey&nbsp;:)&nbsp;How&nbsp;old&nbsp;are&nbsp;you?&nbsp;&quot;);<br />scanf(&quot;%d&quot;,&nbsp;&amp;age);<br /><br />printf(&quot;You&#39;re&nbsp;%d&nbsp;years&nbsp;old&nbsp;\n&quot;,&nbsp;age);</div></div><br /><br /></div>
+</body>
+</html>

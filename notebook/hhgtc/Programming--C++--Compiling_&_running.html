@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Compiling & running</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Compiling</h1></strong><br />To execute a C++ program, you first have to compile it.<br />A compiler reads the source code of your program and translates it into machine code.<br /><br /><strong><h2>Linux</h2></strong><br />On linux, you can use the GNU C++ compiler - <code>g++</code><br />Install it if you don&#39;t have it (you should) - <code>apt install g++<br /></code><br />Compile:<br /><code>g++ file.cpp -o file</code><br /><br />Run your program:<br /><code>./file</code><br /><br /><strong><h2>Windows</h2></strong><br />The GNU project was launched in 1984 to develop a free (as in freedom) Unix-like OS<br />Part of GNU is <em>Minimalist GNU for Windows</em> (MinGW)<br />MinGW includes the GNU C++ compiiler that can be used on Windows to compile executables<br /><br />1) Install MinGW using the gui setup:<br /><a href="http://www.mingw.org/wiki/Getting_Started">http://www.mingw.org/wiki/Getting_Started</a><br />Choose the base bin and the g++ compiler<br /><br />2) Add MinGW \bin directory to your PATH variable<br />start &gt; search ‘variable’ &gt; pick ‘edit system variables’ &gt; find Path &gt; edit it to include MinGW \bin folder like this: C:\MinGW\bin; (the semicolon is important)<br /><br />3) Check install<br />Check if it&#39;s installed by opening cmd and typing g++ -v (you should get a version number printed out)<br /><br />Compile:<br /><code>g++ file.cpp -o file.exe</code><br /><br />Run your program:<br /><code>file.exe</code></div>
+</body>
+</html>

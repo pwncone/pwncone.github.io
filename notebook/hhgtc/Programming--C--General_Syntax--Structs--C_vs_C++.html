@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>C vs C++</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Structs - C vs C++</h1></strong><br />In C++, you can simply do this:<br /><div class="codebox"><div class="codebox">struct&nbsp;Player&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;unknown1[4];<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;x;<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;y;<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;z;<br />&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;unknown2[0x30];<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;yaw;<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;pitch;<br />};<br /><br />Player&nbsp;player&nbsp;=&nbsp;NULL;</div></div><br /><br />However, in C the <code>Player</code> data type will be &quot;undefined&quot;.<br />Instead, in C you have to typedef the <code>struct</code>.<br />This solution is commonly found in Windows APIs e.g.<br /><a href="https://docs.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb">https://docs.microsoft.com/en-us/windows/win32/api/winternl/ns-winternl-peb</a><br /><div class="codebox"><div class="codebox">typedef&nbsp;struct&nbsp;_Player&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;unknown1[4];<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;x;<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;y;<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;z;<br />&nbsp;&nbsp;&nbsp;&nbsp;char&nbsp;unknown2[0x30];<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;yaw;<br />&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;pitch;<br />}&nbsp;Player;<br /><br />Player&nbsp;player&nbsp;=&nbsp;NULL;<br />Player*&nbsp;p_player&nbsp;=&nbsp;NULL;</div></div></div>
+</body>
+</html>

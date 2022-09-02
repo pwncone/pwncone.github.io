@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>proxychains</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port Forwarding - proxychains</h1></strong><br /><br /><strong><h2>## Use proxychains-ng!</h2></strong><br /><a href="https://github.com/rofl0r/proxychains-ng">https://github.com/rofl0r/proxychains-ng</a><br /><br />• Old proxychains causes seg faults with Nmap<br />   ◇ it also isn&#39;t maintained anymore<br />• Installation instructions are on github<br /><br />• proxychains doesn&#39;t support UDP or ICMP<br /><br /><strong><h2>## Install</h2></strong><br /><code>git clone https://github.com/rofl0r/proxychains-ng.git</code><br /><code>./configure --prefix=/usr --sysconfdir=/etc</code><br /><code>make</code><br /><code>sudo make install</code><br /><code>sudo make install-config</code> (installs proxychains.conf)<br /><br /><strong><h2>## Usage</h2></strong><br /><code>-q</code> for quiet output<br /><br /><code>proxychains4 &lt;command&gt;</code><br /> <br /><strong><h2>## Troubleshooting</h2></strong><br />• Disable DNS through socks<br />   ◇ in /etc/proxychains.conf file, just add a # before the line &quot;proxy_dns&quot;</div>
+</body>
+</html>

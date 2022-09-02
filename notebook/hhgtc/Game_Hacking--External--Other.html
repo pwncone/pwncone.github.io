@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Other</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><h1># Other</h1><br /><br /><h2>## FPS Counter</h2><br />I don&#39;t think either of what&#39;s below is correct.<br /><br />• <a href="https://github.com/coltonon/D2DOverlay/blob/7360e745a621e1ad7d5df1c1b42fb4b519ee8829/Source.cpp#L143">https://github.com/coltonon/D2DOverlay/blob/7360e745a621e1ad7d5df1c1b42fb4b519ee8829/Source.cpp#L143</a><br /><br /><div class="codebox"><div class="codebox">int&nbsp;g_counter&nbsp;=&nbsp;0;<br />int&nbsp;g_fps&nbsp;=&nbsp;0;<br />float&nbsp;g_last_tick&nbsp;=&nbsp;0;<br />float&nbsp;g_curr_tick&nbsp;=&nbsp;0;<br /><br />void&nbsp;CountFPS()<br />{<br />	//&nbsp;Count&nbsp;up<br />	g_counter++;<br />	//&nbsp;If&nbsp;1&nbsp;second&nbsp;has&nbsp;passed,&nbsp;save&nbsp;the&nbsp;FPS&nbsp;value&nbsp;and&nbsp;reset&nbsp;the&nbsp;counter<br />	g_curr_tick&nbsp;=&nbsp;clock()&nbsp;*&nbsp;0.001f;<br />	if&nbsp;((g_curr_tick&nbsp;-&nbsp;g_last_tick)&nbsp;&gt;=&nbsp;1.f)<br />	{<br />		g_last_tick&nbsp;=&nbsp;g_curr_tick;<br />		g_fps&nbsp;=&nbsp;g_counter;<br />		g_counter&nbsp;=&nbsp;0;<br />	}<br />}<br /><br />while&nbsp;(msg.message&nbsp;!=&nbsp;WM_QUIT)<br />	<span style="color:#000000;font-weight:400">{</span><br />		...<br />		CountFPS();<br />		...<br />	<span style="color:#000000;font-weight:400">}</span></div></div><br /><br /><h2>## VSync</h2><br />Emulate vsync so you don&#39;t draw at 500 fps.<br /><br />• <a href="https://github.com/coltonon/D2DOverlay/blob/7360e745a621e1ad7d5df1c1b42fb4b519ee8829/Source.cpp#L155">https://github.com/coltonon/D2DOverlay/blob/7360e745a621e1ad7d5df1c1b42fb4b519ee8829/Source.cpp#L155</a></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>DLLs</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Windows API - DLLs</h1></strong><br />DLL stands for Dynamic Link Library.<br />DLLs are separate files containing functions that can be called by other programs.<br /><br />Static linking is where you link:<br />• object modules - <code>.obj</code><br />• run-time library files - <code>.lib</code><br />• compiled resource files - <code>.res</code><br />together into a <code>.exe</code>.<br />i.e. all the functions the program requires are packed into the .exe<br />Static linking creates huges files.<br /><br />Dynamic linking is where the function is loaded into the program at run-time.<br /><br />Resource-only DLL files contain only data. No code.<br />e.g. Font files<br /><br />DLLs can have any extension (.exe, .fon), but the norm is .dll<br /><code>.dll</code> files are loaded automatically by windows.<br />DLL files with different extensions have to be loaded explicitly via the <code>LoadLibary</code> function<br /><br /><code>DllMain</code> gets called when the library first begins and when it terminates.<br />    <code>fdwReason</code> - indicates why Windows is calling the DllMain function<br />                         DLL_PROCESS_ATTACH indicates the dll is mapped into the process&#39; memory<br />                         DLL_PROCESS_DETACH removes itself and cleans up<br />                         DLL_THREAD_ATTACH means attached process has created a new thread<br /><br /><strong><h2>## Object &amp; Import Libraries</h2></strong><br />Only used during developments.<br />Dynamic link libraries are used during runtime.<br /><br /><strong>Object Libraries</strong><br /><code>.lib</code><br />Object libraries contain code that is statically linked to your program&#39;s .exe<br /><br /><strong>Import Libraries</strong><br /><code>.lib</code><br />Don&#39;t contain code.<br />They give the linker info to set up relocation tables within the .exe for finding dynamically linked functions.<br /></div>
+</body>
+</html>

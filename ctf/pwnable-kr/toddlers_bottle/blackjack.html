@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="blackjack">blackjack</h1>
+<p>4th April 2022</p>
+<p>Challenge Description:  </p>
+<pre><code>Hey!<span class="hljs-built_in"> check </span>out this C implementation of blackjack game!
+I found it online
+* http://cboard.cprogramming.com/c-programming/114023-simple-blackjack-program.html
+
+I like to give my flags to millionares.
+how much money you got?
+</code></pre><p>So judging by the descrption, we need to win a million in cash.</p>
+<p>Play the game a bit and then follow the link to the blackjack source they gave you and read the code.<br><a href="https://cboard.cprogramming.com/c-programming/114023-simple-blackjack-program.html">https://cboard.cprogramming.com/c-programming/114023-simple-blackjack-program.html</a></p>
+<p>The vulnerability is here, when you&#39;re asked how much you&#39;d like to bet.</p>
+<pre><code class="lang-c"><span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">betting</span><span class="hljs-params">()</span> <span class="hljs-comment">//Asks user amount to bet</span>
+</span>{
+ <span class="hljs-built_in">printf</span>(<span class="hljs-string">"\n\nEnter Bet: $"</span>);
+ <span class="hljs-built_in">scanf</span>(<span class="hljs-string">"%d"</span>, &amp;bet);
+
+ <span class="hljs-keyword">if</span> (bet &gt; cash) <span class="hljs-comment">//If player tries to bet more money than player has</span>
+ {
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"\nYou cannot bet more money than you have."</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"\nEnter Bet: "</span>);
+        <span class="hljs-built_in">scanf</span>(<span class="hljs-string">"%d"</span>, &amp;bet);
+        <span class="hljs-keyword">return</span> bet;
+ }
+ <span class="hljs-keyword">else</span> <span class="hljs-keyword">return</span> bet;
+} <span class="hljs-comment">// End Function</span>
+</code></pre>
+<p>It only checks once if your betting amount is within your cash range. At the 2nd prompt, you can enter whatever amount you like (providing it&#39;s a 4 byte int) and it&#39;ll accept it. Try entering a million.</p>
+<pre><code><span class="hljs-section">Cash: $500
+-------</span>
+|S    |
+|  Q  |
+<span class="hljs-section">|    S|
+-------</span>
+
+Your Total is 10
+
+The Dealer Has a Total of 8
+
+Enter Bet: $1000000
+
+You cannot bet more money than you have.
+Enter Bet: 1000000
+
+
+Would You Like to Hit or Stay?
+Please Enter H to Hit or S to Stay.
+</code></pre><p>Win the blackjack round and you&#39;ll rewarded your $1,000,000.</p>
+<pre><code>YaY<span class="hljs-emphasis">_I_</span>AM<span class="hljs-emphasis">_A_</span>MILLIONARE<span class="hljs-emphasis">_LOL
+
+</span>
+<span class="hljs-section">Cash: $1000500
+-------</span>
+|D    |
+|  2  |
+<span class="hljs-section">|    D|
+-------</span>
+
+Your Total is 2
+
+The Dealer Has a Total of 7
+
+Enter Bet: $
+</code></pre>

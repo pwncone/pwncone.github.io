@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Time Skew</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kerberos Time Skew</h1></strong><br /><a href="https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/maximum-tolerance-for-computer-clock-synchronization">https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/maximum-tolerance-for-computer-clock-synchronization</a><br />Kebreros&#39; time skew is a security setting to mitigate replay attacks (an attacker using an day/week/month old Kerberos ticket to gain access to the network at a later time).<br /><br />When Kerberos is checking requests/issuing tickets, it checks the time skew.<br />Because individual computer clocks within a domain will never be in sync, there&#39;s a maximum tolerance setting.<br />The default time skew is 300 seconds, or 5 minutes.<br />This makes time synchronisation between computers within an Active Directory domain vital.</div>
+</body>
+</html>

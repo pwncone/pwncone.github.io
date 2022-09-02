@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>I/O Streams</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - I/O Streams</h1></strong><br />Processes use I/O streams to receive input and return output.<br />I/O redirection allows you to change where programs receive input and where they output to.<br /><br />There 3 I/O streams:<br />• <code>stdout</code> (standard out)<br />• <code>stdin</code> (standard in)<br />• <code>stderr</code> (standard error)<br />   ◇ error outputs<br />   ◇ e.g. <br />      ▪ list a fake directory - <code>ls /fake/directory</code><br />      ▪ stderr - <code>ls: cannot access /fake/directory: No such file or directory</code><br /><br /><strong><h2>## Redirection Operators</h2></strong><br /><strong><h3>### stdout</h3></strong><br />• <code>&gt;</code> directs stdout to where it&#39;s pointing (and overwrites data if it&#39;s already there)<br />• <code>&gt;&gt;</code> <em>appends</em> stdout to where it&#39;s pointing<br /><br /><strong><h3>### stdin</h3></strong><br />• <code>&lt;</code> takes input from files or other processes<br />   ◇ <code>cat &lt; peanuts.txt &gt; banana.txt</code><br />   ◇ <code>ls &lt; peanuts.txt &gt; banana.txt</code><br /><br /><strong><h3>### stderr</h3></strong><br />• To redirect stderr you have to use its file descriptor - 2<br />   ◇ Direct stderr to text file - <code>ls /fake/directory 2&gt; error.txt</code><br />   ◇ Direct stderr and stdout to text file - <code>ls /fake/directory &gt; peanuts.txt 2&gt;&amp;1</code><br />   ◇ Direct stderr to /dev/null to stop seeing errors - <code>ls /fake/directory 2&gt; /dev/null</code><br /><br /><br /><br /></div>
+</body>
+</html>

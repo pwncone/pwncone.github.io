@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>About compilation</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#About compilation</h1></strong><br /><br /><a href=""><img src="images/1478-1.png" alt="images/1478-1.png" /></a><br /><br /><strong><h3>Compiler Directives</h3></strong><h3> - </h3><code><h3>#include</h3></code><h3>, </h3><code><h3>#define</h3></code><h3>, </h3><code><h3>#ifdef</h3></code><h3> etc.</h3><br />When the C++ compiler runs, it first calls on the <em>preprocessor</em> to find any compiler directives that are included in the source code - anything starting with a <code>#</code><br /><br />The changes made by compiler directives (<code>#include</code> etc.) create new temporary files for use during compilation.<br />These temporary files are what&#39;s used to create a binary:<br /><br /><strong>Substitutions</strong><br />&lt;file&gt;<strong>.ii</strong> - Replaces the compiler directives (#include) in the source code with library code that implements those directives<br /><br /><strong>Assembly Code</strong><br />&lt;file&gt;<strong>.s</strong> - Translation of the expanded .ii file into low-level Assembly language instructions<br /><br /><strong>Object Code</strong><br />&lt;file&gt;<strong>.o</strong> - Translation of the Assembly .s file into machine code (1s and 0s)<br /><br />A linker then coverts 1 or more binary objects in an executable <strong>.exe</strong><br /><br /><span style="text-decoration:underline;">Save the temp files</span><br />You can save the temp files when compiling by using <code>-save-temps</code><br /><code>c++ prog.cpp -o prog -save-temps</code><br /><span style="text-decoration:underline;">Object file but no .exe</span><br />Use <code>-c</code> to compile the program&#39;s source files into an object but with no .exe<br /><code>c++ prog.cpp -save-temps -c</code>  <br /></div>
+</body>
+</html>

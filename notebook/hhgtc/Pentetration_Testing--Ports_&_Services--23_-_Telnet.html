@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>23 - Telnet</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 23 - Telnet</h1></strong><br />Telnet is a protocol that allows a user on one computer to log into another computer that is part of the same network. It&#39;s old now.<br />Considered insecure because it doesn&#39;t encrypt traffic.<br />Vulnerabilities available on exploit-db.<br /><br /><strong><h2>## Checklist</h2></strong><br />• Grab banner &amp; connect<br />   ◇ <code>nc 10.11.4.120 23 -v</code><br />• Collect info<br />   ◇ <code>nmap --script &quot;*telnet* and safe&quot; -p 23 &lt;IP&gt;</code><br />• Any default credentials?<br />• Brute-force<br /><br /><strong><h2>## Config files</h2></strong><br /><div class="codebox"><div class="codebox">/etc/inetd.conf<br />/etc/xinetd.d/telnet<br />/etc/xinetd.d/stelnet</div></div><br /><br /><strong><h2>## Bruteforcing</h2></strong><br /><code>hydra -l root -P passwords.txt [-t 32] &lt;IP&gt; telnet</code><br /><code>ncrack -p 23 --user root -P passwords.txt &lt;IP&gt; [-T 5]</code><br /><code>medusa -u root -P 500-worst-passwords.txt -h &lt;IP&gt; -M telne</code><br /><br /><strong><h3>### patator</h3></strong><br /><code>patator telnet_login host=10.0.0.1 inputs=&#39;FILE0\nFILE1&#39; 0=logins.txt 1=passwords.txt persistent=0 prompt_re=&#39;Username:|Password:&#39; -x ignore:egrep=&#39;Login incorrect.+Username:&#39;</code></div>
+</body>
+</html>

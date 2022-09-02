@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>File Descriptors</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - I/O Redirection - File Descriptors</h1></strong><br /><a href="https://www.bottomupcs.com/file_descriptors.xhtml">https://www.bottomupcs.com/file_descriptors.xhtml</a><br />On Linux, everything is a file. Processes are files, network sockets are files, the keyboard input is a file.<br />To make it easy for programmers to access these ‘files’, the linux kernel holds a table of all the open ‘files’ on the system and each of them have an assigned number.<br /><br /><em>For</em> <em>example:</em><br />• 4 = libreoffice document<br />• 5 = indianajones.mp4<br />• 6 = research_notes.txt<br /><br />The kernel will assign a file descriptor to a file whenever one gets opened. <br />However, some ‘files’ are always open and always have a file descriptor - <code>stdin</code>, <code>stdout</code> and <code>stderr</code><br /><br />The first 3 file descriptors on Linux are always:<br />• 0 = stdin<br />• 1 = stdout<br />• 2 = stderr</div>
+</body>
+</html>

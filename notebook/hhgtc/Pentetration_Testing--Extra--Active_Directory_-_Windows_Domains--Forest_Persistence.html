@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Forest Persistence</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Forest Persistence</h1></strong><br />Ultimately, you can establish persistence over an entire Active Directory forest.<br /><br /><strong><h2>## DCShadow</h2></strong><br />DCShadow temporarily registers a new domain controller in the target domain.<br />The temp DC is registered by modifying:<br />• the <em>Configuration </em>container<br />• SPNs of existing computer objects<br />• RPC services<br /><br />This temporary domain controller &quot;pushes&quot; attributes like SID history, SPNs, etc. on specific objects without leaving change notifications in the logs.<br /><br />Requirements:<br />• Domain Admin privileges<br />• Attacker&#39;s machine must be part of the root domain<br />• Need 2 instances of mimikatz<br />   ◇ one to start RPC servers wtih SYSTEM privileges and specify attributes - <code>lsadump::dcshadow /object:root1user /attribute:Description /value=&quot;Hello from DCShadow&quot;</code><br />   ◇ one with Domain Admin privileges to push values - <code>lsadump::dcshadow /push</code><br /><br />&lt;more info soonTM&gt;</div>
+</body>
+</html>

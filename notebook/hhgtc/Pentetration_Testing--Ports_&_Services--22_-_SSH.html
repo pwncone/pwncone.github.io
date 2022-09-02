@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>22 - SSH</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 22 - SSH</h1></strong><br />SSH is always useful to find.<br />And it&#39;s almost always open!<br /><br /><strong><h2>## Checklist</h2></strong><br />• Grab banner/version<br />   ◇ <code>ssh &lt;target ip&gt;</code><br />   ◇ <code>nmap -sC -sV &lt;target ip&gt; -p 22</code><br />   ◇ <code>nc 192.168.1.10 22 -v</code><br />• Check for vulns<br />   ◇ Debian SSH might be vulnerable to OpenSSL PRNG exploit<br />• OpenSSH 7.7 and below? Try username enumeration<br />• Login<br />   ◇ Do you have any SSH keys do get in with? Retrieve one from somewhere?<br />   ◇ Try common passwords<br />      ▪ <div class="codebox"><div class="codebox">root<br />admin<br />toor<br />*username&nbsp;in&nbsp;reverse*<br />*hostname*<br />*ctf&nbsp;name*<br />*empty&nbsp;password*</div></div><br />   ◇ Try every user with every password you&#39;ve found<br />   ◇ If vendor found - Try default credentials<br />• Bruteforce<br />   ◇ usernames you know + top 100<br />   ◇ common usernames + top 100<br /><br /><strong><h2>## Config files</h2></strong><br /><div class="codebox"><div class="codebox">/home/user/.ssh/id_rsa&nbsp;-&nbsp;private&nbsp;key<br />/home/user/.ssh/id_rsa.pub&nbsp;-&nbsp;public&nbsp;key<br />/home/user/.ssh/authorized_keys&nbsp;-&nbsp;public&nbsp;keys&nbsp;that&nbsp;can&nbsp;authenticate&nbsp;without&nbsp;password<br />/home/user/.ssh/known_hosts&nbsp;-&nbsp;hosts&nbsp;that&nbsp;have&nbsp;connected<br />/etc/ssh/ssh_config<br />/etc/ssh/sshd_config</div></div></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>SIPVicious</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1>#Elastix - SIPVicious</h1></strong><br />SIPVicious suite is a set of security tools that can be used to audit SIP based VoIP systems.<br /><a href="https://github.com/EnableSecurity/sipvicious">https://github.com/EnableSecurity/sipvicious</a><br /><br /><strong><h2>WARNING</h2></strong><br />THIS SHIT CAN MAKE PHONES RING.<br />IT&#39;S NOT EXACTLY STEALTHY.<br /><br />Verify a PBX is running on the server with <code>svmap</code><br /><div class="codebox"><div class="codebox">root@gotham:~#&nbsp;svmap&nbsp;10.10.10.7<br />|&nbsp;SIP&nbsp;Device&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;User&nbsp;Agent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Fingerprint&nbsp;|<br />-------------------------------------------------------<br />|&nbsp;10.10.10.7:5060&nbsp;|&nbsp;FPBX-2.8.1(1.8.7.0)&nbsp;|&nbsp;disabled&nbsp;&nbsp;&nbsp;&nbsp;|</div></div><br /><br /><code>svwar</code> is the war dialing part of SIPVicious<br /><code>svwar -e100-1000 10.10.10.7</code><br /><code>svwar --force -e100-1000 10.10.10.7</code><br /><br />Try changing the method you&#39;re using with <code>-m</code><br />This is like Nmap and TCP scans - full scan? connect scan? etc.<br /><code>svwar -m INVITE -e100-1000 10.10.10.7</code> - very likely to cause phones to ring!</div>
+</body>
+</html>

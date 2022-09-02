@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Format a Partition/Create a Filesystem</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Partitions - Format a Partition/Create a Filesystem</h1></strong><br />After partitioning, you format the partition with a filesystem (e.g. ext4, NTFS etc.)<br /><br /><code>sudo mkfs -t ext4 /dev/sdb2</code><br /><br /><code>lsblk -f</code> - list existing file systems<br />   ◇ sda/sdb = physical disks<br />   ◇ sda1/sdb2 = partitions on those disks<br /><br />1. Mounted file systems must be unmounted before creating a new file system on that partition<br />    <code>unmount /dev/sda1</code><br />2. Make a new file system:<br />    <code>sudo mkfs.ext4 /dev/sda1</code><br />3. Mount the file system:<br />	<code>mount /dev/sda1 /</code></div>
+</body>
+</html>

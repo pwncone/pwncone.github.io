@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="fd">fd</h1>
+<p>2nd April 2022</p>
+<p>Have a look at the source.</p>
+<pre><code>fd@pwnable:~$ cat fd.c
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+<span class="hljs-keyword">char</span> buf[<span class="hljs-number">32</span>];
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[], <span class="hljs-keyword">char</span>* envp[])</span></span>{
+        <span class="hljs-keyword">if</span>(argc&lt;<span class="hljs-number">2</span>){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"pass argv[1] a number\n"</span>);
+                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        }
+        <span class="hljs-keyword">int</span> fd = atoi( argv[<span class="hljs-number">1</span>] ) - <span class="hljs-number">0x1234</span>;
+        <span class="hljs-keyword">int</span> len = <span class="hljs-number">0</span>;
+        len = read(fd, buf, <span class="hljs-number">32</span>);
+        <span class="hljs-keyword">if</span>(!<span class="hljs-built_in">strcmp</span>(<span class="hljs-string">"LETMEWIN\n"</span>, buf)){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"good job :)\n"</span>);
+                system(<span class="hljs-string">"/bin/cat flag"</span>);
+                <span class="hljs-built_in">exit</span>(<span class="hljs-number">0</span>);
+        }
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"learn about Linux file IO\n"</span>);
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+
+}
+</code></pre><p>To get the flag we need <code>buf</code> to equal <code>LETMEWIN\n&#39;:</code>if(!strcmp(&quot;LETMEWIN\n&quot;, buf)){`</p>
+<p><code>len = read(fd, buf, 32);</code> will read 32 bytes from a file descriptor into <code>buf</code>.<br>0 is stdin, however the file descriptor is being modified minus 0x1234:<br><code>int fd = atoi( argv[1] ) - 0x1234;</code></p>
+<p>0x1234 is 4660 decimal. So 4660-4660 is file descriptor 0, stdin.<br>Write LETMEWIN into a file so we can read it to stdin and pipe it to the program.</p>
+<pre><code>fd<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>echo <span class="hljs-string">"LETMEWIN"</span> &gt; <span class="hljs-regexp">/tmp/pls</span>
+fd<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>xxd /tmp/pls
+<span class="hljs-number">00000000</span>: <span class="hljs-number">4</span>c45 <span class="hljs-number">544</span>d <span class="hljs-number">4557</span> <span class="hljs-number">494</span>e 0a                   LETMEWIN.
+fd<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>cat /tmp/pls | ./fd <span class="hljs-number">4660</span>
+good job <span class="hljs-symbol">:</span>)
+mommy! I think I know what a file descriptor is!!
+</code></pre>

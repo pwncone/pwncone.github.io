@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>SUID bit</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Permissions - Set User ID</h1></strong><br />Files/binaries with a SUID bit (set user ID) allows a user to run a program with the permissions of the user who owns it.<br />e.g. root owns the <code>ping</code> binary, when a standard user runs the ping binary, it&#39;ll run with root permissions.<br /><br />Add a SUID bit to a file:<br /><code>chmod +s &lt;file&gt;</code><br /><code>chmod 4755 &lt;file&gt;</code> - the numerical representation for SGID is 4<br /><br />The <code>s</code> denotes the SUID bit.<br />The binary/file might also be highlighted <br /><code><span style="color:#000000;">-rwsr-xr--  1 bob bob   18 Feb 24 20:46  </span></code><code><span style="color:#000000;background-color:#ff3b3b;">suid.txt</span></code><br /><br /><strong><h2>## Directories &amp; the SUID bit</h2></strong><br />On directories the SUID bit works differently<br />Files created in <code>+s</code> directories receive the permissions of the directory&#39;s group (not the user that created it)</div>
+</body>
+</html>

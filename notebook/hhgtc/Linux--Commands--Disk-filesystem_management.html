@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Disk/filesystem management</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Commands - Disk/filesystem management</h1></strong><br /><br /><strong><h2>## Disk Usage</h2></strong><br /><strong><h3>### df</h3></strong><br /><code>df</code> shows you the utilization of your currently mounted filesystems.<br />You can see what the device is, and how much capacity is used and available. <br /><br />• <code>-h</code> = human readable format<br /><div class="codebox"><div class="codebox">pete@icebox:~$&nbsp;df&nbsp;-h<br />Filesystem&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1K-blocks&nbsp;&nbsp;&nbsp;&nbsp;Used&nbsp;Available&nbsp;Use%&nbsp;Mounted&nbsp;on<br />/dev/sda1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.2G&nbsp;&nbsp;2.3G&nbsp;&nbsp;3.6G&nbsp;&nbsp;40%&nbsp;/</div></div><br /><br /><strong><h3>### du</h3></strong><br /><code>du</code> shows you the disk usage of the current directory you are in.<br />du is useful if you want to find files to delete to free up disk space on your drive.<br /><br /><code>du -h</code><br /><br /><br /><strong><h2>## Filesystem Repair</h2></strong><br />• <code>fsck</code> (filesystem check) is used to check the consistency of a filesystem<br />• When you boot up a disk, fsck will run before your disk is mounted to make sure everything is ok. <br />• Sometimes your disk will be so bad that you&#39;ll need to manually do this<br />   ◇ HOWEVER, you should do this while your filesystem isn&#39;t mounted<br />   ◇ i.e. from a rescure disk/somewhere where you can access your filesystem without it being mounted<br /><br /><code>sudo fsck /dev/sda</code></div>
+</body>
+</html>

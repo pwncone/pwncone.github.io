@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Generate Website Wordlists</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Website Wordlists</h1></strong><br />You can generate a wordlist from the site to be used elsewhere - bruteforcing usernames, discovering emails, directory discovery, etc.<br /><br /><strong><h2>## Tools</h2></strong><br /><strong><h3>### theHarvester</h3></strong><br /><a href="https://tools.kali.org/information-gathering/theharvester">https://tools.kali.org/information-gathering/theharvester</a><br />Gather emails, subdomains, hosts, employee names, open ports and banners from different public sources like search engines, PGP key servers and SHODAN computer database<br /><br /><strong><h3>### CeWL</h3></strong><br /><a href="https://tools.kali.org/password-attacks/cewl">https://tools.kali.org/password-attacks/cewl</a><br /><br /><code>-d</code> - Scan depth<br /><code>-m</code> - minimum word length<br /><code>-w</code> - save to file<br /><br /><code>cewl -d 2 -m 5 -w out.txt https://example.com</code><br /><br /><strong>#### Tips</strong><br />• You could mangle the outputted wordlist using <code>john</code>&#39;s <code>--rules</code> argument to create variations of the words that CeWL collected<br />   ◇ <code>john --wordlist=out.txt --rule --stdout &gt; out_mangled.txt</code><br />   ◇ <code>cat out_mangled.txt | wc -l</code><br /><br /></div>
+</body>
+</html>

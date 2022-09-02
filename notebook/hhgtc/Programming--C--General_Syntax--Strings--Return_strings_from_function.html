@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Return strings from function</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><a href="https://flaviocopes.com/c-return-string/">https://flaviocopes.com/c-return-string/</a><br /><br /><div class="codebox"><div class="codebox">#include&nbsp;&lt;stdio.h&gt;<br /><br />#define&nbsp;BUFFER_SIZE&nbsp;1024<br /><br />void&nbsp;ReturnString(OUT&nbsp;char*&nbsp;message)<br />{<br />	char*&nbsp;tmp&nbsp;=&nbsp;&quot;yo&nbsp;dawg&quot;;<br />	strcpy_s(message,&nbsp;BUFFER_SIZE,&nbsp;tmp);<br />	<br />	return;<br />}<br /><br />int&nbsp;main(void)<br /><span style="color:#000000;font-weight:400">{</span><br />	char&nbsp;str[BUFFER_SIZE]&nbsp;=&nbsp;{&nbsp;0&nbsp;};<br />	ReturnString(str);<br />	printf(&quot;%s&nbsp;\n&quot;,&nbsp;str);<br /><br />	return&nbsp;0;<br /><span style="color:#000000;font-weight:400">}</span></div></div></div>
+</body>
+</html>

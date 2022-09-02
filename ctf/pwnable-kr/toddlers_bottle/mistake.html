@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="mistake">mistake</h1>
+<p>3rd April 2022</p>
+<p>I didn&#39;t understand this one but noticed the input hangs (regardless of the sleep) until I press enter.</p>
+<pre><code>mistake<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>./mistake
+<span class="hljs-keyword">do</span> <span class="hljs-keyword">not</span> bruteforce...
+                        &lt;-- Have to press enter here
+input password <span class="hljs-symbol">:</span>
+</code></pre><p>So I added some <code>printf</code>s to the source code and learnt that whatever I enter is read as the password. </p>
+<pre><code>┌──(horace<span class="hljs-meta">@kali</span>)-[<span class="hljs-regexp">~/ctf/</span>pwnable.kr/mistake]
+└─$ ./mistake
+hellothere
+<span class="hljs-string">password:</span> hellothere 
+input <span class="hljs-string">password :</span> idmmnuidsd
+<span class="hljs-string">password2:</span> idmmnuidsd 
+<span class="hljs-string">password2:</span> hellothere 
+Password OK
+lulz. here<span class="hljs-string">'s your temp flag</span>
+</code></pre><p>To get the flag we need to sumbit the XOR of whatever we submit. My <code>password</code> was <code>hellothere</code>, which XORd with <code>1</code> is <code>idmmnuidsd</code>.</p>
+<pre><code>mistake@pwnable:~$ ./mistake
+<span class="hljs-keyword">do</span> <span class="hljs-keyword">not</span> bruteforce...
+hellothere
+<span class="hljs-keyword">input</span> <span class="hljs-keyword">password</span> : idmmnuidsd
+<span class="hljs-keyword">Password</span> OK
+Mommy, the <span class="hljs-keyword">operator</span> <span class="hljs-keyword">priority</span> <span class="hljs-keyword">always</span> confuses me :(
+</code></pre><p>Here&#39;s my modified C source.</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;fcntl.h&gt;</span></span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> PW_LEN 10</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> XORKEY 1</span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">xor</span><span class="hljs-params">(<span class="hljs-keyword">char</span>* s, <span class="hljs-keyword">int</span> len)</span></span>{
+        <span class="hljs-keyword">int</span> i;
+        <span class="hljs-keyword">for</span>(i=<span class="hljs-number">0</span>; i&lt;len; i++){
+                s[i] ^= XORKEY;
+        }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[])</span></span>{
+        <span class="hljs-comment">// Open password file</span>
+        <span class="hljs-keyword">int</span> fd;
+        <span class="hljs-keyword">if</span>(fd=open(<span class="hljs-string">"/home/horace/ctf/pwnable.kr/mistake/password"</span>,O_RDONLY,<span class="hljs-number">0400</span>) &lt; <span class="hljs-number">0</span>){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"can't open password %d\n"</span>, fd);
+                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        }
+
+        <span class="hljs-comment">//printf("do not bruteforce...\n");</span>
+        <span class="hljs-comment">//sleep(time(0)%20);</span>
+
+        <span class="hljs-comment">// Read 10 bytes from password file into pw_buf</span>
+        <span class="hljs-keyword">char</span> pw_buf[PW_LEN+<span class="hljs-number">1</span>];
+        <span class="hljs-keyword">int</span> len;
+        <span class="hljs-keyword">if</span>(!(len=read(fd,pw_buf,PW_LEN) &gt; <span class="hljs-number">0</span>)){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"read error\n"</span>);
+                close(fd);
+                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        }
+
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"password: %s \n"</span>, pw_buf);
+
+        <span class="hljs-comment">// Get user input</span>
+        <span class="hljs-keyword">char</span> pw_buf2[PW_LEN+<span class="hljs-number">1</span>];
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"input password : "</span>);
+        <span class="hljs-built_in">scanf</span>(<span class="hljs-string">"%10s"</span>, pw_buf2);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"password2: %s \n"</span>, pw_buf2);
+
+        <span class="hljs-comment">// xor your input</span>
+        xor(pw_buf2, <span class="hljs-number">10</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"password2: %s \n"</span>, pw_buf2);
+
+        <span class="hljs-comment">// String compare 10 bytes of user string + password</span>
+        <span class="hljs-keyword">if</span>(!<span class="hljs-built_in">strncmp</span>(pw_buf, pw_buf2, PW_LEN)){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Password OK\n"</span>);
+                system(<span class="hljs-string">"/bin/cat flag\n"</span>);
+        }
+        <span class="hljs-keyword">else</span>{
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Wrong Password\n"</span>);
+        }
+
+        close(fd);
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<p>EDIT:<br>The challenge hint: <code>operator priority</code> is the entirety of the challenge.  </p>
+<p>The problem is here: 
+<code>if(fd=open(&quot;/home/horace/ctf/pwnable.kr/mistake/password&quot;,O_RDONLY,0400) &lt; 0){</code>  </p>
+<p><code>fd</code> will always be 0 (stdin) because the less than operator is calculated first.<br>i.e. file is opened successfully (which returns a value higher than 0), 1 &lt; 0 = FALSE therfore <code>fd = 0</code> and we can write the password into <code>stdin</code>.</p>

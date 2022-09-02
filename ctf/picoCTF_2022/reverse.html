@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+<h1 id="picoctf-2022-reverse-engineering">picoCTF 2022 - Reverse Engineering</h1>
+<p>March 15th-29th</p>
+<h2 id="file-run1">file-run1</h2>
+<p>Not sure what this one was about. Simple run the file and you&#39;ll get the flag.<br><code>wget</code> the file, <code>chmod +x run</code>, and <code>./run</code>.</p>
+<h2 id="file-run2">file-run2</h2>
+<p>The file wants us to say hello.</p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/<span class="hljs-built_in">file</span>-run2]
+└─$ ./<span class="hljs-built_in">run</span> boo    
+Won't you <span class="hljs-built_in">say</span> 'Hello!' <span class="hljs-keyword">to</span> <span class="hljs-keyword">me</span> <span class="hljs-keyword">first</span>?
+┌──(horace@kali)-[~/ctf/pico22/<span class="hljs-built_in">file</span>-run2]
+└─$ ./<span class="hljs-built_in">run</span> Hello!
+The flag <span class="hljs-keyword">is</span>: picoCTF{F1r57_4rgum3n7_0097836e}
+</code></pre><h2 id="gdb-test-drive">GDB Test Drive</h2>
+<p>Just follow the instructions in the challenge.<br>Looks like there&#39;s a sleep before the flag is printed so jumping over it skips to the flag.  </p>
+<pre><code>pwndbg&gt; jump *(main+<span class="hljs-number">104</span>)
+Continuing at <span class="hljs-number">0x55555555532f</span>.
+picoCTF{d3bugg3r_dr1v3_3eab6731}
+</code></pre><h2 id="patchme-py">patchme.py</h2>
+<p>You could read the python code and understand it, or just comment out the password check and call the decryption function yourself instead.</p>
+<pre><code class="lang-python">### THIS FUNCTION WILL NOT HELP YOU FIND THE FLAG --LT ########################
+def str_xor(secret, key):
+    #extend key to secret length
+    new_key = key
+    i = <span class="hljs-number">0</span>
+    while len(new_key) &lt; len(secret):
+        new_key = new_key + key[i]
+        i = (i + <span class="hljs-number">1</span>) % len(key)        
+    return <span class="hljs-string">""</span>.join([chr(ord(secret_c) ^ ord(new_key_c)) for (secret_c,new_key_c) <span class="hljs-keyword">in</span> zip(secret,new_key)])
+###############################################################################
+
+flag_enc = open(<span class="hljs-string">'flag.txt.enc'</span>, <span class="hljs-string">'rb'</span>).read()
+
+def level_1_pw_check():
+    user_pw = input(<span class="hljs-string">"Please enter correct password for flag: "</span>)
+    <span class="hljs-keyword">if</span>( user_pw == <span class="hljs-string">"ak98"</span> + \
+                   <span class="hljs-string">"-=90"</span> + \
+
+...
+...
+
+# COMMENT OUT PASSWORD CHECK AND DECRYPT
+#level_1_pw_check()
+decryption = str_xor(flag_enc.decode(), <span class="hljs-string">"utilitarian"</span>)
+print(decryption)
+</code></pre>
+<h2 id="safe-opener">Safe Opener</h2>
+<p>In the java source we can see an encoded key which looks base64: <code>String encodedkey = &quot;cGwzYXMzX2wzdF9tM18xbnQwX3RoM19zYWYz&quot;;</code> and it most likely is base64 since there&#39;s references to a base64 encoder: <code>Base64.Encoder encoder = Base64.getEncoder();</code>.</p>
+<p>base64 decode the encodedkey to get the flag.</p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/safe-opener]
+└─$ cat SafeOpener.java
+<span class="hljs-keyword">import</span> java.io.*;
+<span class="hljs-keyword">import</span> java.util.*;  
+<span class="hljs-keyword">public</span> class SafeOpener {
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> main(<span class="hljs-keyword">String</span> args[]) <span class="hljs-keyword">throws</span> IOException {
+        <span class="hljs-keyword">BufferedReader</span> keyboard = <span class="hljs-keyword">new</span> <span class="hljs-keyword">BufferedReader</span>(<span class="hljs-keyword">new</span> InputStreamReader(System.in));
+        Base64.Encoder encoder = Base64.getEncoder();
+        <span class="hljs-keyword">String</span> encodedkey = <span class="hljs-string">""</span>;
+        <span class="hljs-keyword">String</span> <span class="hljs-built_in">key</span> = <span class="hljs-string">""</span>;
+        <span class="hljs-built_in">int</span> i = <span class="hljs-number">0</span>;
+        <span class="hljs-built_in">boolean</span> isOpen;
+
+
+        <span class="hljs-keyword">while</span> (i &lt; <span class="hljs-number">3</span>) {
+            System.out.<span class="hljs-built_in">print</span>(<span class="hljs-string">"Enter password for the safe: "</span>);
+            <span class="hljs-built_in">key</span> = keyboard.readLine();
+
+            encodedkey = encoder.encodeToString(<span class="hljs-built_in">key</span>.getBytes());
+            System.out.<span class="hljs-built_in">println</span>(encodedkey);
+
+            isOpen = openSafe(encodedkey);
+            <span class="hljs-keyword">if</span> (!isOpen) {
+                System.out.<span class="hljs-built_in">println</span>(<span class="hljs-string">"You have  "</span> + (<span class="hljs-number">2</span> - i) + <span class="hljs-string">" attempt(s) left"</span>);
+                i++;
+                <span class="hljs-keyword">continue</span>;
+            }
+            <span class="hljs-keyword">break</span>;
+        }
+    }
+
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-built_in">boolean</span> openSafe(<span class="hljs-keyword">String</span> password) {
+        <span class="hljs-keyword">String</span> encodedkey = <span class="hljs-string">"cGwzYXMzX2wzdF9tM18xbnQwX3RoM19zYWYz"</span>;
+
+        <span class="hljs-keyword">if</span> (password.equals(encodedkey)) {
+            System.out.<span class="hljs-built_in">println</span>(<span class="hljs-string">"Sesame open"</span>);
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">true</span>;
+        }
+        <span class="hljs-keyword">else</span> {
+            System.out.<span class="hljs-built_in">println</span>(<span class="hljs-string">"Password is incorrect\n"</span>);
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">false</span>;
+        }
+    }
+}    
+┌──(horace@kali)-[~/ctf/pico22/safe-opener]
+└─$ echo <span class="hljs-string">"cGwzYXMzX2wzdF9tM18xbnQwX3RoM19zYWYz"</span> | base64 -d 
+pl3as3_l3t_m3_1nt0_th3_saf3
+</code></pre><h2 id="unpackme-py">unpackme.py</h2>
+<p>Not sure if modifying the script is cheating but we can just modify the script to print out the decoded data:</p>
+<pre><code><span class="hljs-built_in">import</span> base64
+from cryptography.fernet <span class="hljs-built_in">import</span> Fernet
+
+<span class="hljs-attr">payload</span> = b'<span class="hljs-attr">gAAAAABiMD1GTI02ggXPJoc7SNUxSfcOTReBamq4D73v-JZC7Q3F78g3CThNcFp7xSBC31lzGmO2hKSKA1_gk7bGmlB70T0sXoSQH7PXFLC5OUiB3EhkBPLEZuSJoX8sJI1p_DjGY37P7OTv8LdbW6sWC74cdCb30I56XJIwOaavPmvJlDayDDwY_F-k6wbO9WCkaN76xjmIdV27IcE88lr38awRa2hvSywO1nmiQozWpC82ZbRCPrhZs5hJlGGlwX_uyFPFQtLyHeoo_SVXnEmZ7wg_sncboA=='</span>
+
+<span class="hljs-attr">key_str</span> = 'correctstaplecorrectstaplecorrec'
+<span class="hljs-attr">key_base64</span> = base64.b64encode(key_str.encode())
+<span class="hljs-attr">f</span> = Fernet(key_base64)
+<span class="hljs-attr">plain</span> = f.decrypt(payload)
+print(plain)    <span class="hljs-comment"># Modification here</span>
+exec(plain.decode())
+</code></pre><pre><code>┌──(horace@kali)-[~/ctf/pico22/unpackme.py]
+└─$ python3 unpackme.flag.py 
+b<span class="hljs-string">"<span class="hljs-subst">\n</span>pw = input('What<span class="hljs-subst">\\</span>'s the password? ')<span class="hljs-subst">\n</span><span class="hljs-subst">\n</span>if pw == 'batteryhorse':<span class="hljs-subst">\n</span>  print('picoCTF{175_chr157m45_45a1a353}')<span class="hljs-subst">\n</span>else:<span class="hljs-subst">\n</span>  print('That password is incorrect.')<span class="hljs-subst">\n</span><span class="hljs-subst">\n</span>"</span>
+What's the password?
+</code></pre><p>Then again I don&#39;t see any other obvious way of how you&#39;d do this.</p>
+<h2 id="bloat-py">bloat.py</h2>
+<p>You could comment out the password check or print the password.
+I&#39;ve commented the solutions.</p>
+<pre><code class="lang-python">import sys
+<span class="hljs-keyword">a</span> = <span class="hljs-string">"!\"#$%&amp;'()*+,-./0123456789:;&lt;=&gt;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ"</span>+ \
+            <span class="hljs-string">"[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ "</span>
+def arg133(arg432):
+  <span class="hljs-comment"># Solution #1: Print out the password</span>
+  password = <span class="hljs-keyword">a</span>[<span class="hljs-number">71</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">79</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">79</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">88</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">71</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">77</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]
+  print(password)
+  <span class="hljs-keyword">if</span> (arg432 == password):
+    <span class="hljs-literal">return</span> True
+  <span class="hljs-keyword">else</span>:
+    print(<span class="hljs-keyword">a</span>[<span class="hljs-number">51</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">71</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">83</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">79</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">86</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">67</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">72</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">72</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">77</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">83</span>])
+    sys.exit(<span class="hljs-number">0</span>)
+    <span class="hljs-literal">return</span> False
+def arg111(arg444):
+  <span class="hljs-literal">return</span> arg122(arg444.decode(), <span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">79</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">75</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">75</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">72</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">77</span>])
+def arg232():
+  <span class="hljs-literal">return</span> input(<span class="hljs-keyword">a</span>[<span class="hljs-number">47</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">75</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">77</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">83</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">83</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">79</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">86</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">67</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">69</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">69</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">75</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">70</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">25</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>])
+def arg132():
+  <span class="hljs-literal">return</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">'flag.txt.enc'</span>, <span class="hljs-string">'rb'</span>).<span class="hljs-built_in">read</span>()
+def arg112():
+  print(<span class="hljs-keyword">a</span>[<span class="hljs-number">54</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">75</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">76</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">65</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">66</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">74</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">13</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">13</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">13</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">88</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">78</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">84</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">69</span>]+\
+<span class="hljs-keyword">a</span>[<span class="hljs-number">75</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">64</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">70</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">11</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">94</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">84</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">82</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">68</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">81</span>]+<span class="hljs-keyword">a</span>[<span class="hljs-number">25</span>])
+def arg122(arg432, arg423):
+    arg433 = arg423
+    i = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">while</span> <span class="hljs-built_in">len</span>(arg433) &lt; <span class="hljs-built_in">len</span>(arg432):
+        arg433 = arg433 + arg423[i]
+        i = (i + <span class="hljs-number">1</span>) % <span class="hljs-built_in">len</span>(arg423)        
+    <span class="hljs-literal">return</span> <span class="hljs-string">""</span>.join([chr(ord(arg422) ^ ord(arg442)) <span class="hljs-keyword">for</span> (arg422,arg442) <span class="hljs-keyword">in</span> zip(arg432,arg433)])
+
+arg444 = arg132() <span class="hljs-comment"># Open flag</span>
+arg432 = arg232() <span class="hljs-comment"># Get input from user</span>
+arg133(arg432) <span class="hljs-comment"># Solution #2: Comment out the password check here</span>
+arg112()
+arg423 = arg111(arg444)
+print(arg423)
+sys.exit(<span class="hljs-number">0</span>)
+</code></pre>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/bloat.<span class="hljs-keyword">py</span>]
+└─$ <span class="hljs-keyword">python</span> bloat.flag.<span class="hljs-keyword">py</span>     
+Please enter correct password <span class="hljs-keyword">for</span> fla<span class="hljs-variable">g:</span> asdf
+happychance
+That password <span class="hljs-keyword">is</span> incorrect
+┌──(horace@kali)-[~/ctf/pico22/bloat.<span class="hljs-keyword">py</span>]
+└─$ <span class="hljs-keyword">python</span> bloat.flag.<span class="hljs-keyword">py</span>
+Please enter correct password <span class="hljs-keyword">for</span> fla<span class="hljs-variable">g:</span> happychance
+happychance
+Welcome back... your flag, user:
+picoCTF{d30bfu5c4710n_f7w_1763a697}
+</code></pre><h2 id="fresh-java">Fresh Java</h2>
+<p>The flag isn&#39;t present in the <code>.class</code>&#39;s strings, so use a java decompiler instead.
+I used jd-gui - <code>sudo apt install jd-gui</code>.</p>
+<p>To extract the flag from the series of char compares I used Notepad++ and recorded a macro to delete all the extra code around the chars.</p>
+<h2 id="bbbbloat">bbbbloat</h2>
+<p><code>strings</code> doesn&#39;t find the favorite number (probably because it&#39;s an <code>int</code> number and therfore won&#39;t show up as a string).<br>Checking the favorite is probably a compare instruction - <code>cmp</code> - so disassemble the binary and have a look.</p>
+<p>At line 0x14cb there&#39;s a compare to a hardcoded value: 0x86187.
+Just before this is a call to <code>scanf</code> so this is presumably just after taking our user input, meaning we can take an educated guess that this is the favorite number we&#39;re looking for.</p>
+<pre><code>    <span class="hljs-number">1446</span>:       <span class="hljs-number">48</span> <span class="hljs-number">8d</span> <span class="hljs-number">45</span> c0             <span class="hljs-keyword">lea</span>    <span class="hljs-built_in">rax</span>,[<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x40</span>]
+    144a:       <span class="hljs-number">48</span> <span class="hljs-number">89</span> c6                <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rsi</span>,<span class="hljs-built_in">rax</span>
+    <span class="hljs-number">144d</span>:       <span class="hljs-number">48</span> <span class="hljs-number">8d</span> <span class="hljs-number">3d</span> cc <span class="hljs-number">0b</span> <span class="hljs-number">00</span> <span class="hljs-number">00</span>    <span class="hljs-keyword">lea</span>    <span class="hljs-built_in">rdi</span>,[<span class="hljs-built_in">rip</span>+<span class="hljs-number">0xbcc</span>]        # <span class="hljs-number">2020</span> &lt;strdup@plt+<span class="hljs-number">0xed0</span>&gt;
+    <span class="hljs-number">1454</span>:       b8 <span class="hljs-number">00</span> <span class="hljs-number">00</span> <span class="hljs-number">00</span> <span class="hljs-number">00</span>          <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-number">0x0</span>
+    <span class="hljs-number">1459</span>:       e8 e2 fc ff ff          <span class="hljs-keyword">call</span>   <span class="hljs-number">1140</span> &lt;__isoc99_scanf@plt&gt;
+    ....
+    14bf:       <span class="hljs-number">89</span> d7                   <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>,<span class="hljs-built_in">edx</span>
+    14c1:       <span class="hljs-number">29</span> c7                   <span class="hljs-keyword">sub</span>    <span class="hljs-built_in">edi</span>,<span class="hljs-built_in">eax</span>
+    14c3:       <span class="hljs-number">89</span> f8                   <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">edi</span>
+    14c5:       <span class="hljs-number">89</span> <span class="hljs-number">45</span> c4                <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x3c</span>],<span class="hljs-built_in">eax</span>
+    14c8:       8b <span class="hljs-number">45</span> c0                <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x40</span>]
+    14cb:       <span class="hljs-number">3d</span> <span class="hljs-number">87</span> <span class="hljs-number">61</span> <span class="hljs-number">08</span> <span class="hljs-number">00</span>          <span class="hljs-keyword">cmp</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-number">0x86187</span>
+    14d0:       0f <span class="hljs-number">85</span> ad <span class="hljs-number">00</span> <span class="hljs-number">00</span> <span class="hljs-number">00</span>       <span class="hljs-keyword">jne</span>    <span class="hljs-number">1583</span> &lt;strdup@plt+<span class="hljs-number">0x433</span>&gt;
+    14d6:       c7 <span class="hljs-number">45</span> c4 <span class="hljs-number">78</span> <span class="hljs-number">30</span> <span class="hljs-number">00</span> <span class="hljs-number">00</span>    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x3c</span>],<span class="hljs-number">0x3078</span>
+</code></pre><p>Turns out it is.</p>
+<pre><code>┌──(horace<span class="hljs-variable">@kali</span>)-[~<span class="hljs-regexp">/ctf/pico</span>22/bbbloat]
+└─<span class="hljs-variable">$ </span>./bbbbloat
+What<span class="hljs-string">'s my favorite number? 549255
+picoCTF{cu7_7h3_bl047_d059b523}</span>
+</code></pre><h2 id="unpack-me">unpack-me</h2>
+<p>The filename <code>unpackme-upx</code> is suggests it&#39;s packed by upx (it is).<br>To check, you could use something <code>trid</code> or PEiD on Windows.<br>You could also examine the sections to see 2 .UPX sections but <code>readelf -S</code> doesn&#39;t seem to like reading ELF UPX binaries.</p>
+<pre><code>upx <span class="hljs-_">-d</span> unpackme-upx -o unpackme
+</code></pre><p>Like the <code>bbbbloat</code> challenge it asks for a favorite number.<br>There&#39;s a lot more junk in this file, so you couldn&#39;t grep for a <code>cmp</code> to find the favorite value.<br>Fortunately enough, if you just inspect main() you&#39;ll find the cmp you need.<br>Easy mode for this would be using a decompiler like Ghidra and reading the decompiled C source.  </p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/unpackme]
+└─$ gdb -q unpackme                                                                                      <span class="hljs-number">127</span> ⨯
+pwndbg&gt; disassemble main
+Dump of assembler code for function main:
+   <span class="hljs-number">0x0000000000401e73</span> &lt;+<span class="hljs-number">0</span>&gt;:     endbr64 
+   <span class="hljs-number">0x0000000000401e77</span> &lt;+<span class="hljs-number">4</span>&gt;:     <span class="hljs-keyword">push</span>   <span class="hljs-built_in">rbp</span>
+   <span class="hljs-number">0x0000000000401e78</span> &lt;+<span class="hljs-number">5</span>&gt;:     <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rbp</span>,<span class="hljs-built_in">rsp</span>
+   <span class="hljs-number">0x0000000000401e7b</span> &lt;+<span class="hljs-number">8</span>&gt;:     <span class="hljs-keyword">sub</span>    <span class="hljs-built_in">rsp</span>,<span class="hljs-number">0x50</span>
+   <span class="hljs-number">0x0000000000401e7f</span> &lt;+<span class="hljs-number">12</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x44</span>],<span class="hljs-built_in">edi</span>
+   <span class="hljs-number">0x0000000000401e82</span> &lt;+<span class="hljs-number">15</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x50</span>],<span class="hljs-built_in">rsi</span>
+   <span class="hljs-number">0x0000000000401e86</span> &lt;+<span class="hljs-number">19</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rax</span>,<span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> <span class="hljs-built_in">fs</span>:<span class="hljs-number">0x28</span>
+   <span class="hljs-number">0x0000000000401e8f</span> &lt;+<span class="hljs-number">28</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x8</span>],<span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x0000000000401e93</span> &lt;+<span class="hljs-number">32</span>&gt;:    <span class="hljs-keyword">xor</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">eax</span>
+   <span class="hljs-number">0x0000000000401e95</span> &lt;+<span class="hljs-number">34</span>&gt;:    movabs <span class="hljs-built_in">rax</span>,<span class="hljs-number">0x4c75257240343a41</span>
+   <span class="hljs-number">0x0000000000401e9f</span> &lt;+<span class="hljs-number">44</span>&gt;:    movabs <span class="hljs-built_in">rdx</span>,<span class="hljs-number">0x30623e306b6d4146</span>
+   <span class="hljs-number">0x0000000000401ea9</span> &lt;+<span class="hljs-number">54</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x30</span>],<span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x0000000000401ead</span> &lt;+<span class="hljs-number">58</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x28</span>],<span class="hljs-built_in">rdx</span>
+   <span class="hljs-number">0x0000000000401eb1</span> &lt;+<span class="hljs-number">62</span>&gt;:    movabs <span class="hljs-built_in">rax</span>,<span class="hljs-number">0x3634376130486637</span>
+   <span class="hljs-number">0x0000000000401ebb</span> &lt;+<span class="hljs-number">72</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x20</span>],<span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x0000000000401ebf</span> &lt;+<span class="hljs-number">76</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x18</span>],<span class="hljs-number">0x67366563</span>
+   <span class="hljs-number">0x0000000000401ec6</span> &lt;+<span class="hljs-number">83</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">WORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x14</span>],<span class="hljs-number">0x4e</span>
+   <span class="hljs-number">0x0000000000401ecc</span> &lt;+<span class="hljs-number">89</span>&gt;:    <span class="hljs-keyword">lea</span>    <span class="hljs-built_in">rdi</span>,[<span class="hljs-built_in">rip</span>+<span class="hljs-number">0xb1131</span>]        # <span class="hljs-number">0x4b3004</span>
+   <span class="hljs-number">0x0000000000401ed3</span> &lt;+<span class="hljs-number">96</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x0000000000401ed8</span> &lt;+<span class="hljs-number">101</span>&gt;:   <span class="hljs-keyword">call</span>   <span class="hljs-number">0x410df0</span> &lt;printf&gt;
+   <span class="hljs-number">0x0000000000401edd</span> &lt;+<span class="hljs-number">106</span>&gt;:   <span class="hljs-keyword">lea</span>    <span class="hljs-built_in">rax</span>,[<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x3c</span>]
+   <span class="hljs-number">0x0000000000401ee1</span> &lt;+<span class="hljs-number">110</span>&gt;:   <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rsi</span>,<span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x0000000000401ee4</span> &lt;+<span class="hljs-number">113</span>&gt;:   <span class="hljs-keyword">lea</span>    <span class="hljs-built_in">rdi</span>,[<span class="hljs-built_in">rip</span>+<span class="hljs-number">0xb1135</span>]        # <span class="hljs-number">0x4b3020</span>
+   <span class="hljs-number">0x0000000000401eeb</span> &lt;+<span class="hljs-number">120</span>&gt;:   <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x0000000000401ef0</span> &lt;+<span class="hljs-number">125</span>&gt;:   <span class="hljs-keyword">call</span>   <span class="hljs-number">0x410f80</span> &lt;__isoc99_scanf&gt;
+   <span class="hljs-number">0x0000000000401ef5</span> &lt;+<span class="hljs-number">130</span>&gt;:   <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">DWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x3c</span>]
+   <span class="hljs-number">0x0000000000401ef8</span> &lt;+<span class="hljs-number">133</span>&gt;:   <span class="hljs-keyword">cmp</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-number">0xb83cb</span>
+   <span class="hljs-number">0x0000000000401efd</span> &lt;+<span class="hljs-number">138</span>&gt;:   <span class="hljs-keyword">jne</span>    <span class="hljs-number">0x401f42</span> &lt;main+<span class="hljs-number">207</span>&gt;
+   <span class="hljs-number">0x0000000000401eff</span> &lt;+<span class="hljs-number">140</span>&gt;:   <span class="hljs-keyword">lea</span>    <span class="hljs-built_in">rax</span>,[<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x30</span>]
+   <span class="hljs-number">0x0000000000401f03</span> &lt;+<span class="hljs-number">144</span>&gt;:   <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rsi</span>,<span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x0000000000401f06</span> &lt;+<span class="hljs-number">147</span>&gt;:   <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>,<span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x0000000000401f0b</span> &lt;+<span class="hljs-number">152</span>&gt;:   <span class="hljs-keyword">call</span>   <span class="hljs-number">0x401db5</span> &lt;rotate_encrypt&gt;
+</code></pre><p>At 0x401ef0 is a call to scanf to take our input,
+and following that at 0x401ef8 is a <code>cmp eax, 0xb83cb</code> after which the progran decrypts.</p>
+<pre><code>┌──(horace<span class="hljs-variable">@kali</span>)-[~<span class="hljs-regexp">/ctf/pico</span>22/unpackme]
+└─<span class="hljs-variable">$ </span>./unpackme
+What<span class="hljs-string">'s my favorite number? 754635
+picoCTF{up&gt;&lt;_m3_f7w_2fce46e8}</span>
+</code></pre>

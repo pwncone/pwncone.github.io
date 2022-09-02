@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="coin1">coin1</h1>
+<p>4th April 2022</p>
+<pre><code>        <span class="hljs-comment">---------------------------------------------------</span>
+        -              Shall we play <span class="hljs-keyword">a</span> game?              -
+        <span class="hljs-comment">---------------------------------------------------</span>
+
+        You have given some gold coins <span class="hljs-keyword">in</span> your hand
+        however, there is <span class="hljs-literal">one</span> counterfeit coin <span class="hljs-keyword">among</span> them
+        counterfeit coin looks exactly same <span class="hljs-keyword">as</span> real coin
+        however, its weight is different <span class="hljs-built_in">from</span> real <span class="hljs-literal">one</span>
+        real coin weighs <span class="hljs-number">10</span>, counterfeit coin weighes <span class="hljs-number">9</span>
+        help me <span class="hljs-built_in">to</span> find <span class="hljs-keyword">the</span> counterfeit coin <span class="hljs-keyword">with</span> <span class="hljs-keyword">a</span> scale
+        <span class="hljs-keyword">if</span> you find <span class="hljs-number">100</span> counterfeit coins, you will <span class="hljs-built_in">get</span> reward :)
+        FYI, you have <span class="hljs-number">60</span> <span class="hljs-built_in">seconds</span>.
+
+        - How <span class="hljs-built_in">to</span> play - 
+        <span class="hljs-number">1.</span> you <span class="hljs-built_in">get</span> <span class="hljs-keyword">a</span> <span class="hljs-built_in">number</span> <span class="hljs-keyword">of</span> coins (N) <span class="hljs-keyword">and</span> <span class="hljs-built_in">number</span> <span class="hljs-keyword">of</span> chances (C)
+        <span class="hljs-number">2.</span> <span class="hljs-keyword">then</span> you specify <span class="hljs-keyword">a</span> <span class="hljs-built_in">set</span> <span class="hljs-keyword">of</span> index numbers <span class="hljs-keyword">of</span> coins <span class="hljs-built_in">to</span> be weighed
+        <span class="hljs-number">3.</span> you <span class="hljs-built_in">get</span> <span class="hljs-keyword">the</span> weight information
+        <span class="hljs-number">4.</span> <span class="hljs-number">2</span>~<span class="hljs-number">3</span> repeats C <span class="hljs-built_in">time</span>, <span class="hljs-keyword">then</span> you give <span class="hljs-keyword">the</span> answer
+
+        - Example -
+        [Server] N=<span class="hljs-number">4</span> C=<span class="hljs-number">2</span>        <span class="hljs-comment"># find counterfeit among 4 coins with 2 trial</span>
+        [Client] <span class="hljs-number">0</span> <span class="hljs-number">1</span>            <span class="hljs-comment"># weigh first and second coin</span>
+        [Server] <span class="hljs-number">20</span>                     <span class="hljs-comment"># scale result : 20</span>
+        [Client] <span class="hljs-number">3</span>                      <span class="hljs-comment"># weigh fourth coin</span>
+        [Server] <span class="hljs-number">10</span>                     <span class="hljs-comment"># scale result : 10</span>
+        [Client] <span class="hljs-number">2</span>                      <span class="hljs-comment"># counterfeit coin is third!</span>
+        [Server] Correct!
+
+        - Ready? starting <span class="hljs-keyword">in</span> <span class="hljs-number">3</span> <span class="hljs-built_in">sec</span>... -
+
+N=<span class="hljs-number">657</span> C=<span class="hljs-number">10</span>
+</code></pre><p>This crap took me an entire day because I had no idea what a binary search was. Only way I could think of solving this with the limited guesses was to guess half of the range -&gt; check if counterfeit is present &gt; if present, half the range and guess again, if not present, guess the higher range. Repeat.</p>
+<p>Network connection is too slow to guess remotely, so have to ssh into a previous challenge, write the script to /tmp folder, and run locally on the pwnable.kr machine.</p>
+<pre><code class="lang-python">#!/usr/bin/env python2
+from pwn import * 
+context.log_level = <span class="hljs-string">'error'</span>
+
+def CalcGuessRange(start, end):
+    mid_point = start + (end - start) // <span class="hljs-number">2</span>
+
+    # Build lower half of guesses
+    guess1 = <span class="hljs-string">""</span>
+    <span class="hljs-keyword">for</span> i in <span class="hljs-built_in">range</span>(start, mid_point):
+        guess1 += str(i) + <span class="hljs-string">" "</span>
+
+    # Build upper half of guesses
+    guess2 = <span class="hljs-string">""</span>
+    <span class="hljs-keyword">for</span> i in <span class="hljs-built_in">range</span>(mid_point, end):
+        guess2 += str(i) + <span class="hljs-string">" "</span>
+
+    <span class="hljs-keyword">return</span> guess1, guess2
+
+io = remote(<span class="hljs-string">"pwnable.kr"</span>, <span class="hljs-number">9007</span>)
+io.recvuntil(<span class="hljs-string">'\t- Ready? starting in 3 sec... -\n'</span>)
+io.recvuntil(<span class="hljs-string">'\t\n'</span>)
+
+# Have <span class="hljs-keyword">to</span> <span class="hljs-keyword">find</span> <span class="hljs-number">100</span> counterfeit coins
+total = <span class="hljs-number">0</span>
+<span class="hljs-keyword">for</span> <span class="hljs-keyword">x</span> in <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>, <span class="hljs-number">100</span>):
+    # Loop through guesses
+    <span class="hljs-string">""</span><span class="hljs-comment">"</span>
+    Number of coins <span class="hljs-keyword">is</span> (<span class="hljs-keyword">for</span> example) <span class="hljs-number">20</span>, <span class="hljs-keyword">so</span> gues<span class="hljs-variable">s:</span>
+    Guess <span class="hljs-number">0</span>-<span class="hljs-number">10</span>? No counterfeit, therefore it must <span class="hljs-keyword">be</span> in <span class="hljs-number">10</span>-<span class="hljs-number">20</span> <span class="hljs-built_in">range</span>
+    Guess <span class="hljs-number">10</span>-<span class="hljs-number">15</span>? Counterfeit found
+    Guess <span class="hljs-number">10</span>-<span class="hljs-number">13</span>? No counterfeit, <span class="hljs-keyword">so</span> it must <span class="hljs-keyword">be</span> in <span class="hljs-number">13</span>-<span class="hljs-number">15</span> <span class="hljs-built_in">range</span>
+    etc.
+    <span class="hljs-string">""</span><span class="hljs-comment">"</span>
+    game = io.recvline()
+    game = game.<span class="hljs-keyword">split</span>()
+    coins = <span class="hljs-keyword">int</span>(game[<span class="hljs-number">0</span>][<span class="hljs-number">2</span>:])
+    chances = <span class="hljs-keyword">int</span>(game[<span class="hljs-number">1</span>][<span class="hljs-number">2</span>:])
+    #print(<span class="hljs-string">"\n---------------------------- Game #"</span> + str(<span class="hljs-keyword">x</span>) + <span class="hljs-string">" (coins: "</span> + str(coins) + <span class="hljs-string">" | chances: "</span> + str(chances) + <span class="hljs-string">")"</span>)
+
+    low = <span class="hljs-number">0</span>
+    high = coins
+    mid = (high + low) // <span class="hljs-number">2</span>
+    prev_guess = <span class="hljs-string">"0 0"</span>
+    guess1 = <span class="hljs-string">"0 0"</span>
+    answer = <span class="hljs-number">0</span>
+    answer_found = False
+    <span class="hljs-keyword">for</span> i in <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>, chances):
+        #print(<span class="hljs-string">"-------------- Chance #"</span> + str(i))
+        <span class="hljs-keyword">if</span> (answer_found == True):  # Skip
+            #print(<span class="hljs-string">"[+] Counterfeit found ("</span> + str(answer) + <span class="hljs-string">") - skipping"</span>)
+            io.sendline(str(answer).encode())
+            io.recvline()
+            <span class="hljs-keyword">continue</span>
+
+        mid = (high + low) // <span class="hljs-number">2</span>
+        #print(<span class="hljs-string">"[*] low: "</span> + str(low) + <span class="hljs-string">" mid: "</span> + str(mid) + <span class="hljs-string">" high: "</span> + str(high))
+
+        # Always guessing lower half
+        guess1, guess2 = CalcGuessRange(low, high)
+        #print(<span class="hljs-string">"[*] Guess1: "</span> + guess1)
+        #print(<span class="hljs-string">"[*] Guess2: "</span> + guess2)
+        io.sendline(guess1.encode())
+
+        weight = <span class="hljs-keyword">int</span>(io.recvline())
+        #print(<span class="hljs-string">"[*] Weight: "</span> + str(weight))
+        <span class="hljs-keyword">if</span> (weight == <span class="hljs-number">9</span>):
+            answer_found = True
+            answer = <span class="hljs-keyword">int</span>(guess1.<span class="hljs-keyword">split</span>()[<span class="hljs-number">0</span>])
+            <span class="hljs-keyword">continue</span>
+
+        # Coins weigh <span class="hljs-number">10</span>. 
+        # Counterfeits weigh <span class="hljs-number">9</span>. 
+        # If counterfeit present, weight will divide by <span class="hljs-number">10</span> <span class="hljs-keyword">to</span> <span class="hljs-keyword">a</span> float <span class="hljs-keyword">e</span>.g. <span class="hljs-number">99</span> / <span class="hljs-number">10</span> <span class="hljs-keyword">vs</span> <span class="hljs-number">100</span> / <span class="hljs-number">10</span>
+        num = weight % <span class="hljs-number">10</span>
+        <span class="hljs-keyword">if</span> (num == <span class="hljs-number">0</span>):
+            #print(<span class="hljs-string">"[-] Counterfeit not present"</span>)
+            low = mid
+
+            # If <span class="hljs-number">2</span> numbers are <span class="hljs-keyword">left</span> <span class="hljs-built_in">and</span> it<span class="hljs-string">'s not the lower number, then it'</span>s the <span class="hljs-number">2</span>nd
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">len</span>(prev_guess.<span class="hljs-keyword">split</span>()) == <span class="hljs-number">2</span> <span class="hljs-built_in">and</span> <span class="hljs-built_in">len</span>(guess1.<span class="hljs-keyword">split</span>()) == <span class="hljs-number">1</span> <span class="hljs-built_in">and</span> <span class="hljs-built_in">len</span>(guess2.<span class="hljs-keyword">split</span>()) &lt; <span class="hljs-number">2</span>):
+                answer_found = True
+                answer = <span class="hljs-keyword">int</span>(guess2)
+
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">len</span>(prev_guess.<span class="hljs-keyword">split</span>()) == <span class="hljs-number">1</span> <span class="hljs-built_in">and</span> <span class="hljs-built_in">len</span>(guess1.<span class="hljs-keyword">split</span>()) == <span class="hljs-number">1</span>):
+                answer_found = True
+                answer = <span class="hljs-keyword">int</span>(guess1.<span class="hljs-keyword">split</span>()[<span class="hljs-number">0</span>]) + <span class="hljs-number">1</span>
+
+        elif (num == <span class="hljs-number">9</span>):
+            #print(<span class="hljs-string">"[+] Counterfeit present"</span>)
+            high = mid
+
+        # Storing <span class="hljs-keyword">previous</span> guess <span class="hljs-keyword">so</span> we can track <span class="hljs-keyword">if</span> we guess <span class="hljs-number">2</span> nums
+        prev_guess = guess1
+
+    <span class="hljs-keyword">if</span> (answer_found == False):
+        #print(<span class="hljs-string">"\n[!] Ran out of guesses"</span>)
+        io.<span class="hljs-keyword">close</span>()
+        <span class="hljs-keyword">exit</span>()
+
+    # Send answer after <span class="hljs-keyword">all</span> guesses used
+    io.sendline(str(answer).encode())
+    result = io.recvline()
+    <span class="hljs-keyword">if</span> (result.<span class="hljs-keyword">find</span>(<span class="hljs-keyword">b</span><span class="hljs-string">"Correct!"</span>) != -<span class="hljs-number">1</span>):
+        total += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">print</span>(<span class="hljs-string">"[+] Found another counterfeit coin! (total = "</span> + str(total) + <span class="hljs-string">")"</span>)
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">print</span>(<span class="hljs-string">"\n[-] Wrong coin"</span>)
+        <span class="hljs-keyword">exit</span>()
+
+io.interactive()
+io.<span class="hljs-keyword">close</span>()
+</code></pre>
+<pre><code>mistake<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>nano /tmp/lulz/exp.py
+mistake<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>python /tmp/lulz/exp.py
+[+] Found another counterfeit coin! (total = <span class="hljs-number">1</span>)
+[+] Found another counterfeit coin! (total = <span class="hljs-number">2</span>)
+[+] Found another counterfeit coin! (total = <span class="hljs-number">3</span>)
+...
+[+] Found another counterfeit coin! (total = <span class="hljs-number">100</span>)
+Congrats! get your flag
+b1NaRy_S34rch1nG_1s_3asy_p3asy
+</code></pre>

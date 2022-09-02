@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>pymysql</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h2>Python&#39;s pymysql Library</h2></strong><br />Python has a library called <code>pymysql</code> which interacts with sql databases nicely.<br /><br />This code is from hackthebox Craft.<br />Put your connection settings in a <code>settings.py</code> file, or just write them into the script directly.<br /><div class="codebox"><div class="codebox">import&nbsp;pymysql<br />import&nbsp;settings<br /><br />#&nbsp;test&nbsp;connection&nbsp;to&nbsp;mysql&nbsp;database<br /><br />connection&nbsp;=&nbsp;pymysql.connect(host=settings.MYSQL_DATABASE_HOST,<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user=settings.MYSQL_DATABASE_USER,<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password=settings.MYSQL_DATABASE_PASSWORD,<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;db=settings.MYSQL_DATABASE_DB,<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursorclass=pymysql.cursors.DictCursor)<br /><br />#&nbsp;run&nbsp;sql&nbsp;statements&nbsp;against&nbsp;database<br /><br />try:&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;connection.cursor()&nbsp;as&nbsp;cursor:<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sql&nbsp;=&nbsp;&quot;SELECT&nbsp;*&nbsp;from&nbsp;user&quot;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;sql&nbsp;=&nbsp;&quot;show&nbsp;tables&quot;<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor.execute(sql)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;result&nbsp;=&nbsp;cursor.fetchall()<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(result)<br /><br />finally:<br />&nbsp;&nbsp;&nbsp;&nbsp;connection.close()&nbsp;</div></div></div>
+</body>
+</html>

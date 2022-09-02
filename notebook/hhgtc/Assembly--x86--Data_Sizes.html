@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Data Sizes</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># x86 Data Sizes</h1></strong><br /><strong><h3>### The Confusion with word Size</h3></strong><br /><a href="https://stackoverflow.com/questions/55430725/whats-the-size-of-a-qword-on-a-64-bit-machine">https://stackoverflow.com/questions/55430725/whats-the-size-of-a-qword-on-a-64-bit-machine</a><br />The sizes of bits and bytes stay consistent throughout instruction sets.<br />However, the point at which data sizes can become confusing is the <code>word</code> size.<br /><br /><code>word</code> typically refers to the size of the instruction set - e.g. 16 bit, 32 bit, etc.<br />However, instruction sets have evolved over time (from 16 bit, to 32 bit, to 64 bit).<br />Therefore, to prevent having to modify instructions, the <code>word</code> size is kept the same as it was originally.<br /><br />In x86, architecture evolved out of the old 16-bit <code>8086</code> architecture.<br />Therefore, a <code>word</code> is 16 bits.<br /><br />For most other instruction sets, they started out as 32 bit ISAs (AArch64, MIPS64, PowerPC64, etc.)<br />Therefore, a <code>word</code> on those architectures is 32 bits.<br /><br /><strong>For x86, a word is 16 bits.</strong><br />The best way to find the word size is to read the architecture&#39;s ISA manual.<br /><br /><strong><h3>### x86 Data Sizes</h3></strong><br /><strong>BIT</strong><br />A <code>bit</code> is the smallest possible piece of data - it&#39;s either a <code>1</code> or a <code>0</code><br />When you put bits together, you get the binary number system<br />• <code>00000001</code> = 1<br />• <code>00000010</code> = 2<br />• <code>00000011</code> = 3<br />• etc.<br /><br /><strong>BYTE</strong><br />A <code>byte</code> is 8 bits put together (like in the example above)<br />8 bits can represent the number range of <code>0 - 255</code><br /><br /><strong>WORD</strong><br />A <code>word</code> is 2 bytes - 16 bits.<br /><br /><strong>DWORD</strong><br />DWORD is short for <code>Double Word</code><br />A <code>dword</code> is 4 bytes - 32 bits<br /><br /><strong>QWORD</strong><br />QWORD is short for <code>Quad Word</code><br />A <code>qword</code> is 8 bytes - 64 bits<br />These only exist on x86-64.<br /></div>
+</body>
+</html>

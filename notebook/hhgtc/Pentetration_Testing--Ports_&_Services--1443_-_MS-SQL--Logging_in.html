@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Logging in</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h2>## Logging in</h2></strong><br />You normally log in to ms-sql via a GUI, so 3rd party tools have to be used.<br />ms-sql can accept multiple types of authentication: normal and windows authentication.<br /><br /><strong><h3>### Impacket&#39;s mssqlclient.py</h3></strong><br />• Impacket&#39;s script struggles to run <code>xp_cmdshell</code> commands with <code>/</code> in it (I have no idea why)<br /><br />Auth with Windows Users Crednetials<br /><code>mssqlclient.py reporting@10.10.10.125 -windows-auth</code><br /><br /><strong><h3>### sqsh</h3></strong><br /><code>sqsh -S 10.10.10.59 -U &lt;username&gt;</code></div>
+</body>
+</html>

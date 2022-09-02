@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Step 1. BIOS and UEFI</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Boot Process - BIOS and UEFI</h1></strong><br /><a href="https://wiki.archlinux.org/index.php/Partitioning#Master_Boot_Record">https://wiki.archlinux.org/index.php/Partitioning#Master_Boot_Record</a><br /><a href="https://www.ibm.com/developerworks/linux/library/l-linuxboot/">https://www.ibm.com/developerworks/linux/library/l-linuxboot/</a><br /><br /><strong><h2>## BIOS</h2></strong><br />• The BIOS loads the bootloader by reading the Partition Table<br />• BIOS is most commonly used with MBR partition table<br />• If you use BIOS with GPT and want to use the GRUB bootloader, you have to make a BIOS boot partition<br /><br /><strong><h3>### BIOS and MBR (Master Boot Record)</h3></strong><br />• The Master Boot Record (MBR) is stored on the first 512 bytes of the disk<br />   ◇ (it&#39;s not located in a partition, it&#39;s in the first sector of the device- physical offset 0, before the 1st partition)<br />• MBR 512 byte breakdown:<br />   ◇ first 440 bytes = the stage 1 bootloader (just bootcode) <br />   ◇ the remaining 72 bytes = the MBR paritition table<br />      ▪ The MBR gets loaded into RAM, at which point the BIOS hands over control to the MBR<br /><br /><strong>Stage 1 Bootloader</strong><br />1. The stage 1 boot loader looks through the partition table for a stage 2 boot loader and loads it<br />   ◇ (the program is only 440 bytes in size, so it has limited functionality due to its size)<br /><br /><strong>Stage 2 Bootloader</strong><br />1. The stage 2 boot loader (e.g. GRUB) loads the kernel into RAM<br />   ◇ (the stage 2 boot loader is stored in a partition)<br /><br /><strong><h2>## UEFI</h2></strong><br />• UEFI performs EFI booting<br />• UEFI was designed to be used with a GPT partition table<br /><br /><strong>### </strong><strong><h3>UEFI and GPT (GUID Partition Table)</h3></strong><br />• The bootlader (GRUB) is stored in the EFI System Partition - called the ESP<br />• The ESP is FAT32 and 550MiB in size</div>
+</body>
+</html>

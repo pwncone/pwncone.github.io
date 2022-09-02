@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>regex</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux- regex (Regular Expressions)</h1></strong><br />Regular expressions are a tool to help you select sections of text based on patterns.<br />You use characters like <code>^</code> and <code>[ ]</code> etc. to pick what you want.<br /><br /><strong>This is our example text:</strong><br /><code>sally sells seashells<br />by the seashore</code><br /><br /><strong><h2>## Regular Expressions</h2></strong><br /><strong><h3>^ </h3></strong><h3>- select beginning of line</h3><br /><code>^by</code> would match the line <code>by the seashore</code><br /><br /><strong><h3>$</h3></strong><h3> - select end of line</h3><br /><code>seashore$</code><br />would match the line <code>by the seashore</code><br /><br /><strong><h3>.</h3></strong><h3> - Matching any single character</h3><br /><code>b.</code><br />would match <code>by</code><br /><code>s.</code><br />would match <code>sally</code>, <code>sells</code>, <code>seashells</code>, <code>seashore</code><br /><br /><strong><h3>[ ]</h3></strong><h3> - allow for multiple options</h3><br />Brackets allow us to specify multiple characters to search for<br /><code>d[iou]g</code><br />would match: <code>dig</code>, <code>dog</code>, <code>dug</code><br /><br />The anchor tag - <strong>^</strong> - when used in a bracket means anything except the characters within the bracket:<br /><code>d[^i]g</code><br />would match: <code>dog</code> and <code>dug</code> <em>but not dig</em><br /><br />Brackets can also use ranges to increase the amount of characters you want to use.<br /><code>d[a-c]g</code><br />will match patterns like <code>dag</code>, <code>dbg</code>, and <code>dcg</code><br /><br />Be careful though because brackets are case sensitive:<br /><code>d[A-C]g</code><br />will match <code>dAg</code>, <code>dBg</code> and <code>dCg</code> <em>but not dag, dbg and dcg</em></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>System Architecture</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Kernel</h1></strong><br />• The kernel is the core of the operating system<br /><br />There are 3 levels of abstraction in the Linux system architecture:<br />• User Space<br />• Kernel Land<br />• Hardware<br /><br /><strong><h2>## User Space</h2></strong><br />• User space is what the user interacts with<br />• The everyday programs/services that you use on a computer will reside in user land<br />• Code that runs in user space processes has access to a restricted subset of memory and safe CPU operations<br />   ◇ If an error occurs and the code crashes, only that program will close and not the whole system<br />   ◇ If a user had unrestricted access to hardware, they could severley break the system<br /><br />• If a user space process wants to interface with hardware<br />   ◇ e.g. write data to disk<br />   ◇ It uses syscalls<br />   ◇ The kernel make certain functions available via the syscall API<br />      ▪ read/write a file<br />      ▪ modify memory usage<br />      ▪ modify the network<br />      ▪ etc.<br />   ◇ You can view syscalls a process makes with strace - <code>strace ls</code><br /><br />• Privilege level = ring 3<br /><br /><strong><h2>## Kernel Land</h2></strong><br />• The kernel is software that resides in memory that tells the CPU what to do<br />• The kernel is the core of the operating system. <br />   ◇ It acts as an interface between hardware and software (user space processes) <br />   ◇ And has complete control over the hardware. <br />      ▪ If a user space process wants to write data to disk - it will call kernel functions which cause the disk to start spinning and write data<br /><br />• Code running in kernel land has unrestricted access to the processor/memory/hardware<br /><br />• Privilege level = ring 0<br /><br /><strong><h2>## Hardware</h2></strong><br />• The physical layer/components of the PC<br />   ◇ CPU<br />   ◇ RAM<br />   ◇ Hard disks<br />   ◇ Network cards<br />   ◇ etc.<br /><br /><a href=""><img src="images/940-1.png" alt="images/940-1.png" /></a><br /><em>Linux system organisation</em><br /><br /></div>
+</body>
+</html>

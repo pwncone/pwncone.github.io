@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>/etc/fstab</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Filesystem - /etc/fstab</h1></strong><br />If you want to automatically mount filesystems at startup, you add them to <code>/etc/fstab</code> - short file <em>filesystem table</em><br /><br /><div class="codebox"><div class="codebox">pete@icebox:~$&nbsp;cat&nbsp;/etc/fstab<br />UUID=130b882f-7d79-436d-a096-1e594c92bb76&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ext4&nbsp;&nbsp;&nbsp;&nbsp;relatime,errors=remount-ro&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1<br />UUID=78d203a0-7c18-49bd-9e07-54f44cdb5726&nbsp;&nbsp;&nbsp;/home&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;xfs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;relatime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2<br />UUID=22c3d34b-467e-467c-b44d-f03803c2c526&nbsp;&nbsp;&nbsp;none&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;swap&nbsp;&nbsp;&nbsp;&nbsp;sw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;</div></div><br /><br />Each line represents one filesystem.<br />The fields are: <br />   ◇ UUID - Device identifier<br />   ◇ Mount point - Directory the filesystem is mounted to<br />   ◇ Filesystem type<br />   ◇ Options - other mount options, see manpage for more details<br />   ◇ Dump - used by the dump utility to decide when to make a backup, you should just default to 0<br />   ◇ Pass - Used by fsck to decide what order filesystems should be checked, if the value is 0, it will not be checked<br /><br />To add an entry, just directly modify the /etc/fstab file using the entry syntax above.</div>
+</body>
+</html>

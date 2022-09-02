@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Connection Errors</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Connection Errors</h1></strong><br />Sometimes connection errors are part of CTFs, and sometimes you just run into them for no reason.<br /><br /><strong><h2>## No matching key exchange method found</h2></strong><br />• The server should response with their own key exchange methods.<br />• If talking to OpenSSH 7 or higher, you can specify the key exchange method on the command line with <code>-okexAlgorithms=+</code><br /><br /><code>ssh -okexAlgorithms=+&lt;offered algorithm&gt; user@10.10.10.14</code><br /><br />• If talking to versions lower than OpenSSH 7, specify the key exchange algorithm in <code>~/.ssh/config</code><br /><code>KexAlgorithms diffie-hellman-group-exchange-sha1</code><br /><code>ssh bob@10.10.10.14</code><br /><br /><strong><h2>## No matching cipher found</h2></strong><br />• The server should respond with their offer of ciphers<br />• Specify the cipher to use in <code>~/.ssh/config</code><br />• Source<br />   ◇ <a href="https://forum.manjaro.org/t/cant-connect-to-ssh-host/33332/2">https://forum.manjaro.org/t/cant-connect-to-ssh-host/33332/2</a><br /><br /><code>Ciphers aes128-cbc</code><br /><code>ssh bob@10.10.10.14</code><br /><br /><strong><h2>## Skipping ssh-dss key &lt;key&gt; - not in PubkeyAcceptedKeyTypes</h2></strong><br />• <a href="https://unix.stackexchange.com/questions/247612/ssh-keeps-skipping-my-pubkey-and-asking-for-a-password/247614">https://unix.stackexchange.com/questions/247612/ssh-keeps-skipping-my-pubkey-and-asking-for-a-password/247614</a><br /><br />Modern SSH clients (what you&#39;re probably running), won&#39;t accept DSA keys anymore. <br />To force SSH to use the DSA key, use <code>-o PubkeyAcceptedKeyTypes=+ssh-dss</code>.<br /><br /><code>ssh -o PubkeyAcceptedKeyTypes=+ssh-dss -i f1fb2162a02f0f7c40c210e6167f05ca-16858 bob@10.11.1.136</code><br /><br /><strong><h2>## Sign_and_send_pubkey: no mutual signature supported</h2></strong><br />Is also probably an issue with using an old key type.<br />Use <code>-o PubkeyAcceptedKeyTypes=+&lt;type&gt;</code> to solve. (not 100% on this one. Google it).</div>
+</body>
+</html>

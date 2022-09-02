@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>1. User Space</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - System Architecture - User Space</h1></strong><br />There are 3 levels to user space processes:<br /><br />• <strong>Top level</strong> <br />   ◇ applications that users interact with (desktop interface, web browser)<br />• <strong>Mid level</strong> <br />   ◇ utility services to top level processes (mail server, printer server)<br />• <strong>Bottom level</strong> <br />   ◇ basic services (network config, diagnostics logging)<br /><br /><a href=""><img src="images/941-1.png" alt="images/941-1.png" /></a><br /><br />• There are actually no rules in user space.<br />• The arrangement above is only an approximation.<br />   ◇ For example, programs and services keep logs <br />   ◇ Most programs use the standard syslog service to write their logs<br />      ▪ but some programs do the logging themselves instead<br /></div>
+</body>
+</html>

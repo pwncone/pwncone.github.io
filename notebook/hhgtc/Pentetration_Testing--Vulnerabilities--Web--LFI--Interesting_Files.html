@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Interesting Files</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># LFI - Interesting Files to Check</h1></strong><br />You could just shove all the files listed here into a wordlist and test them with a script.<br />Or just test them manually.<br /><br /><strong><h2>## Linux</h2></strong><br /><strong><h3>### Passwords</h3></strong><br /><code>/etc/passwd<br />/etc/shadow<br />/var/backup</code><br /><br /><strong><h3>### Root</h3></strong><br /><code>/root/.bash_history</code><br /><br /><strong><h3>### Mail</h3></strong><br /><code>/var/mail/root<br />/var/mail/user</code><br /><br /><strong><h3>### User</h3></strong><br /><code>/home/user/.ssh/id_rsa<br />/home/user/.bash_history</code><br /><br /><strong><h3>### System info</h3></strong><br /><code>/etc/issue<br />/etc/motd <br />/etc/group<br />/var/log/dmessage<br />/var/spool/cron/crontabs/root</code><br /><br /><strong><h3>### Apache config files</h3></strong><br /><a href="https://wiki.apache.org/httpd/DistrosDefaultLayout">https://wiki.apache.org/httpd/DistrosDefaultLayout</a><br /><br /><strong><h3>### SSH</h3></strong><br /><code>authorized_keys<br />id_rsa<br />id_rsa.keystore<br />id_rsa.pub<br />known_hosts</code><br /><br /><strong><h3>### Logs</h3></strong><br /><code>/etc/httpd/logs/acces_log <br />/etc/httpd/logs/error_log <br />/var/www/logs/access_log <br />/var/www/logs/access.log <br />/usr/local/apache/logs/access_log <br />/usr/local/apache/logs/access.log <br />/var/log/apache/access_log <br />/var/log/apache2/access_log <br />/var/log/apache/access.log <br />/var/log/apache2/access.log<br />/var/log/access_log</code><br /><br /><strong><h2>## Windows</h2></strong><br /><code>../../../../../../boot.ini</code> - Will tell you OS version<br /><br /><strong><h3>### Passwords</h3></strong><br /><code>WINDOWS/repair/sam<br />WINDOWS/repair/system<br />%SYSTEMROOT%repairsystem<br />%SYSTEMROOT%repairSAM<br />%SYSTEMROOT%repairSAM</code><br /><br /><strong><h3>### System info</h3></strong><br /><code>%WINDIR%win.ini<br />%SYSTEMDRIVE%boot.ini<br />%WINDIR%Panthersysprep.inf<br />%WINDIR%system32configAppEvent.Evt</code></div>
+</body>
+</html>

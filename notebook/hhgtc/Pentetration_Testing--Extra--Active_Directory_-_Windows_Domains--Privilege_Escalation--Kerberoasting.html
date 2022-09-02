@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Kerberoasting</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kerberoasting</h1></strong><br />• <a href="https://github.com/nidem/kerberoast">https://github.com/nidem/kerberoast</a> - Tim Medin original dude<br />• <a href="https://gist.github.com/TarlogicSecurity/2f221924fef8c14a1d8e29f3cb5c5c4a">https://gist.github.com/TarlogicSecurity/2f221924fef8c14a1d8e29f3cb5c5c4a</a> - cheat sheet<br /><br /><strong><h2>## What is Kerberoasting?</h2></strong><br />There are 2 points in the Kerberos authentication process where NTLM hashes are being sent over the network<br />• in the <code>AS-REP</code> reply when requesting a TGT<br />• in the <code>TGS-REP</code> reply when requesting a ticket for a service <br /><br />Kerberoasting is where you grab the NTLM password hashes from these 2 packets, extract them, and crack them.<br />This is what Kerberoasting is.<br /><br />TGS_REP Kerberoasting was discovered by Tim Medin and debuted at DerbyCon in 2014.<br /><br /><strong><h3>### AS-REP vs TGS-REP</h3></strong><br />• <code>AS-REP</code> = attacking a user<br />• <code>TGS-REP</code> = attacking a service account<br /><br />If you kerberoast an <code>AS-REP</code>, you&#39;re kerberoasting a user.<br />This is because the <code>AS-REP</code> reply hashes the TGS session key it returns with the user&#39;s NTLM hash who requested the ticket.<br /><br />If you kerberoast a <code>TGS-REP</code>, you&#39;re kerberoasting a service account.<br />This is because the <code>TGS-REP</code> reply hashes the TGS ticket it returns with the NTLM password hash of the requested service.<br /><br /><br /><br /><br /></div>
+</body>
+</html>

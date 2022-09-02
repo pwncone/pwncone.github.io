@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="flag">flag</h1>
+<p>2nd April 2022</p>
+<p>Both the challenge description - <code>Papa brought me a packed present! let&#39;s open it.</code> - and <code>checksec</code> hint that the binary is packed.<br>Unpack it with UPX.</p>
+<pre><code>┌──(horace@kali)-[~/ctf/pwnable.kr/toddlers_bottle/flag]
+└─$ pwn checksec flag
+[*] <span class="hljs-string">'/home/horace/ctf/pwnable.kr/toddlers_bottle/flag/flag'</span>
+<span class="hljs-attr">    Arch:</span>     amd64<span class="hljs-bullet">-64</span>-little
+<span class="hljs-attr">    RELRO:</span>    <span class="hljs-literal">No</span> RELRO
+<span class="hljs-attr">    Stack:</span>    <span class="hljs-literal">No</span> canary found
+<span class="hljs-attr">    NX:</span>       NX disabled
+<span class="hljs-attr">    PIE:</span>      <span class="hljs-literal">No</span> PIE (<span class="hljs-number">0x400000</span>)
+<span class="hljs-attr">    RWX:</span>      Has RWX segments
+<span class="hljs-attr">    Packer:</span>   Packed with UPX
+┌──(horace@kali)-[~/ctf/pwnable.kr/toddlers_bottle/flag]
+└─$ upx -d flag -o unpacked
+</code></pre><p>Open the binary in GDB and disassemble main.<br>I&#39;ve commented interesting bits.</p>
+<pre><code>┌──(horace@kali)-[~/ctf/pwnable.kr/toddlers_bottle/flag]
+└─$ gdb -q unpacked
+pwndbg&gt; break main
+Breakpoint <span class="hljs-number">1</span> <span class="hljs-meta">at</span> <span class="hljs-number">0x401168</span>
+pwndbg&gt; run
+Starting program: /home/horace/ctf/pwnable.kr/toddlers_bottle/flag/unpacked 
+Breakpoint <span class="hljs-number">1</span>, <span class="hljs-number">0x0000000000401168</span> <span class="hljs-keyword">in</span> main ()
+[...]
+pwndbg&gt; disass main
+Dump of assembler code for function main:
+   <span class="hljs-number">0x0000000000401164</span> &lt;+<span class="hljs-number">0</span>&gt;:     <span class="hljs-keyword">push</span>   <span class="hljs-built_in">rbp</span>
+   <span class="hljs-number">0x0000000000401165</span> &lt;+<span class="hljs-number">1</span>&gt;:     <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rbp</span>,<span class="hljs-built_in">rsp</span>
+=&gt; <span class="hljs-number">0x0000000000401168</span> &lt;+<span class="hljs-number">4</span>&gt;:     <span class="hljs-keyword">sub</span>    <span class="hljs-built_in">rsp</span>,<span class="hljs-number">0x10</span>
+   <span class="hljs-number">0x000000000040116c</span> &lt;+<span class="hljs-number">8</span>&gt;:     <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>,<span class="hljs-number">0x496658</span>
+   <span class="hljs-number">0x0000000000401171</span> &lt;+<span class="hljs-number">13</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0x402080</span> &lt;puts&gt;                     # Print <span class="hljs-string">"I will malloc()..."</span> string
+   <span class="hljs-number">0x0000000000401176</span> &lt;+<span class="hljs-number">18</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>,<span class="hljs-number">0x64</span>
+   <span class="hljs-number">0x000000000040117b</span> &lt;+<span class="hljs-number">23</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0x4099d0</span> &lt;malloc&gt;                   # malloc() <span class="hljs-number">64</span> bytes of memory
+   <span class="hljs-number">0x0000000000401180</span> &lt;+<span class="hljs-number">28</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x8</span>],<span class="hljs-built_in">rax</span>             # Store pointer to memory @ <span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x8</span>
+   <span class="hljs-number">0x0000000000401184</span> &lt;+<span class="hljs-number">32</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rdx</span>,<span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c0ee5</span>]        # <span class="hljs-number">0x6c2070</span> &lt;flag&gt;
+   <span class="hljs-number">0x000000000040118b</span> &lt;+<span class="hljs-number">39</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rax</span>,<span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rbp</span>-<span class="hljs-number">0x8</span>]             # Move memory pointer <span class="hljs-keyword">into</span> <span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x000000000040118f</span> &lt;+<span class="hljs-number">43</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rsi</span>,<span class="hljs-built_in">rdx</span>
+   <span class="hljs-number">0x0000000000401192</span> &lt;+<span class="hljs-number">46</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rdi</span>,<span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x0000000000401195</span> &lt;+<span class="hljs-number">49</span>&gt;:    <span class="hljs-keyword">call</span>   <span class="hljs-number">0x400320</span>                            # <span class="hljs-keyword">Call</span> mystery function
+   <span class="hljs-number">0x000000000040119a</span> &lt;+<span class="hljs-number">54</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-number">0x0</span>                             # Erase mystery function return value
+   <span class="hljs-number">0x000000000040119f</span> &lt;+<span class="hljs-number">59</span>&gt;:    <span class="hljs-keyword">leave</span>  
+   <span class="hljs-number">0x00000000004011a0</span> &lt;+<span class="hljs-number">60</span>&gt;:    <span class="hljs-keyword">ret</span>    
+End of assembler dump.
+</code></pre><p>We can see a flag value is being messed with at <code>0x401184</code>.<br>However, the flag string at 0x6c2070 seems to be junk or empty.<br>I&#39;m assuming the <code>call   0x400320</code> will modify it.</p>
+<pre><code>pwndbg&gt; x/10s <span class="hljs-number">0x6c2070</span>
+<span class="hljs-number">0x6c2070</span> &lt;flag&gt;:        <span class="hljs-string">"(fI"</span>
+<span class="hljs-number">0x6c2074</span> &lt;flag+<span class="hljs-number">4</span>&gt;:      <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c2075</span> &lt;flag+<span class="hljs-number">5</span>&gt;:      <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c2076</span> &lt;flag+<span class="hljs-number">6</span>&gt;:      <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c2077</span> &lt;flag+<span class="hljs-number">7</span>&gt;:      <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c2078</span>:       <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c2079</span>:       <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c207a</span>:       <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c207b</span>:       <span class="hljs-string">""</span>
+<span class="hljs-number">0x6c207c</span>:       <span class="hljs-string">""</span>
+</code></pre><p><code>0x400320</code> is a bunch of jumps that&#39;s presumably building the flag string.</p>
+<pre><code>pwndbg&gt; x/40i <span class="hljs-number">0x400320</span>
+   <span class="hljs-number">0x400320</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1ce2</span>]        # <span class="hljs-number">0x6c2008</span>
+   <span class="hljs-number">0x400326</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40032b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x400330</span>
+   <span class="hljs-number">0x400330</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1cda</span>]        # <span class="hljs-number">0x6c2010</span>
+   <span class="hljs-number">0x400336</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40033b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x400340</span>
+   <span class="hljs-number">0x400340</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1cd2</span>]        # <span class="hljs-number">0x6c2018</span>
+   <span class="hljs-number">0x400346</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40034b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x400350</span>
+   <span class="hljs-number">0x400350</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1cca</span>]        # <span class="hljs-number">0x6c2020</span>
+   <span class="hljs-number">0x400356</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40035b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x400360</span>
+   <span class="hljs-number">0x400360</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1cc2</span>]        # <span class="hljs-number">0x6c2028</span>
+   <span class="hljs-number">0x400366</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40036b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x400370</span>
+   <span class="hljs-number">0x400370</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1cba</span>]        # <span class="hljs-number">0x6c2030</span>
+   <span class="hljs-number">0x400376</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40037b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x400380</span>
+   <span class="hljs-number">0x400380</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1cb2</span>]        # <span class="hljs-number">0x6c2038</span>
+   <span class="hljs-number">0x400386</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40038b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x400390</span>
+   <span class="hljs-number">0x400390</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1caa</span>]        # <span class="hljs-number">0x6c2040</span>
+   <span class="hljs-number">0x400396</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x40039b</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x4003a0</span>
+   <span class="hljs-number">0x4003a0</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1ca2</span>]        # <span class="hljs-number">0x6c2048</span>
+   <span class="hljs-number">0x4003a6</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x4003ab</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x4003b0</span>
+   <span class="hljs-number">0x4003b0</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1c9a</span>]        # <span class="hljs-number">0x6c2050</span>
+   <span class="hljs-number">0x4003b6</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x4003bb</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x4003c0</span>
+   <span class="hljs-number">0x4003c0</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-built_in">QWORD</span> <span class="hljs-built_in">PTR</span> [<span class="hljs-built_in">rip</span>+<span class="hljs-number">0x2c1c92</span>]        # <span class="hljs-number">0x6c2058</span>
+   <span class="hljs-number">0x4003c6</span>:    <span class="hljs-keyword">push</span>   <span class="hljs-number">0x0</span>
+   <span class="hljs-number">0x4003cb</span>:    <span class="hljs-keyword">jmp</span>    <span class="hljs-number">0x4003d0</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>&gt;
+   <span class="hljs-number">0x4003d0</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>&gt;:      <span class="hljs-keyword">push</span>   <span class="hljs-built_in">rbp</span>
+   <span class="hljs-number">0x4003d1</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>+<span class="hljs-number">1</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-built_in">esi</span>
+   <span class="hljs-number">0x4003d3</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>+<span class="hljs-number">3</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">ebp</span>,<span class="hljs-built_in">edi</span>
+   <span class="hljs-number">0x4003d5</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>+<span class="hljs-number">5</span>&gt;:    <span class="hljs-keyword">and</span>    <span class="hljs-built_in">eax</span>,<span class="hljs-number">0x3</span>
+   <span class="hljs-number">0x4003d8</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>+<span class="hljs-number">8</span>&gt;:    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>,<span class="hljs-number">0x4966d8</span>
+   <span class="hljs-number">0x4003dd</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>+<span class="hljs-number">13</span>&gt;:   <span class="hljs-keyword">push</span>   <span class="hljs-built_in">rbx</span>
+   <span class="hljs-number">0x4003de</span> &lt;check_one_fd.part<span class="hljs-meta">.0</span>+<span class="hljs-number">14</span>&gt;:   <span class="hljs-keyword">xor</span>    <span class="hljs-built_in">ebx</span>,<span class="hljs-built_in">ebx</span>
+</code></pre><p>You could reverse the above, or just set a breakpoint after the function call to see the final returned flag in RAX before the following instruction - <code>mov eax, 0x0</code> - erases it.</p>
+<pre><code>pwndbg&gt; <span class="hljs-built_in">bp</span> <span class="hljs-number">0x000000000040119a</span>
+Breakpoint <span class="hljs-number">2</span> <span class="hljs-meta">at</span> <span class="hljs-number">0x40119a</span>
+pwndbg&gt; c
+Continuing.
+I will malloc() <span class="hljs-keyword">and</span> strcpy the flag there. take it.
+
+Breakpoint <span class="hljs-number">2</span>, <span class="hljs-number">0x000000000040119a</span> <span class="hljs-keyword">in</span> main ()
+<span class="hljs-symbol">LEGEND:</span> STACK | HEAP | CODE | DATA | RWX | RODATA
+──────────────────────────────────────────────────[ REGISTERS ]───────────────────────────────────────────────────
+*<span class="hljs-built_in">RAX</span>  <span class="hljs-number">0x6c96b0</span> ◂— <span class="hljs-string">'UPX...? sounds like a delivery service :)'</span>
+ <span class="hljs-built_in">RBX</span>  <span class="hljs-number">0x401ae0</span> (__libc_csu_fini) ◂— <span class="hljs-keyword">push</span>   <span class="hljs-built_in">rbx</span>
+*<span class="hljs-built_in">RCX</span>  <span class="hljs-number">0x496650</span> ◂— <span class="hljs-keyword">sub</span>    <span class="hljs-built_in">dword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">rax</span>], <span class="hljs-built_in">eax</span> /* <span class="hljs-string">')'</span> */
+*<span class="hljs-built_in">RDX</span>  <span class="hljs-number">0x6c96d8</span> ◂— <span class="hljs-number">0x29</span> /* <span class="hljs-string">')'</span> */
+*<span class="hljs-built_in">RDI</span>  <span class="hljs-number">0x6c96b0</span> ◂— <span class="hljs-string">'UPX...? sounds like a delivery service :)'</span>
+*<span class="hljs-built_in">RSI</span>  <span class="hljs-number">0x8</span>
+*<span class="hljs-built_in">R8</span>   <span class="hljs-number">0x1</span>
+*<span class="hljs-built_in">R9</span>   <span class="hljs-number">0x3a20656369767265</span> (<span class="hljs-string">'ervice :'</span>)
+*<span class="hljs-built_in">R10</span>  <span class="hljs-number">0x22</span>
+*<span class="hljs-built_in">R11</span>  <span class="hljs-number">0x0</span>
+ <span class="hljs-built_in">R12</span>  <span class="hljs-number">0x401a50</span> (__libc_csu_init) ◂— <span class="hljs-keyword">push</span>   <span class="hljs-built_in">r14</span>
+ <span class="hljs-built_in">R13</span>  <span class="hljs-number">0x0</span>
+ <span class="hljs-built_in">R14</span>  <span class="hljs-number">0x0</span>
+ <span class="hljs-built_in">R15</span>  <span class="hljs-number">0x0</span>
+ <span class="hljs-built_in">RBP</span>  <span class="hljs-number">0x7fffffffde60</span> ◂— <span class="hljs-number">0x0</span>
+*<span class="hljs-built_in">RSP</span>  <span class="hljs-number">0x7fffffffde50</span> —▸ <span class="hljs-number">0x401a50</span> (__libc_csu_init) ◂— <span class="hljs-keyword">push</span>   <span class="hljs-built_in">r14</span>
+*<span class="hljs-built_in">RIP</span>  <span class="hljs-number">0x40119a</span> (main+<span class="hljs-number">54</span>) ◂— <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>, <span class="hljs-number">0</span>
+────────────────────────────────────────────────────[ DISASM ]────────────────────────────────────────────────────
+   <span class="hljs-number">0x401184</span> &lt;main+<span class="hljs-number">32</span>&gt;                  <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rdx</span>, <span class="hljs-built_in">qword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">rip</span> + <span class="hljs-number">0x2c0ee5</span>] &lt;<span class="hljs-number">0x6c2070</span>&gt;
+   <span class="hljs-number">0x40118b</span> &lt;main+<span class="hljs-number">39</span>&gt;                  <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rax</span>, <span class="hljs-built_in">qword</span> <span class="hljs-built_in">ptr</span> [<span class="hljs-built_in">rbp</span> - <span class="hljs-number">8</span>]
+   <span class="hljs-number">0x40118f</span> &lt;main+<span class="hljs-number">43</span>&gt;                  <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rsi</span>, <span class="hljs-built_in">rdx</span>
+   <span class="hljs-number">0x401192</span> &lt;main+<span class="hljs-number">46</span>&gt;                  <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">rdi</span>, <span class="hljs-built_in">rax</span>
+   <span class="hljs-number">0x401195</span> &lt;main+<span class="hljs-number">49</span>&gt;                  <span class="hljs-keyword">call</span>   <span class="hljs-number">0x400320</span>                      &lt;<span class="hljs-number">0x400320</span>&gt;
+
+ ► <span class="hljs-number">0x40119a</span> &lt;main+<span class="hljs-number">54</span>&gt;                  <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">eax</span>, <span class="hljs-number">0</span>
+   <span class="hljs-number">0x40119f</span> &lt;main+<span class="hljs-number">59</span>&gt;                  <span class="hljs-keyword">leave</span>  
+   <span class="hljs-number">0x4011a0</span> &lt;main+<span class="hljs-number">60</span>&gt;                  <span class="hljs-keyword">ret</span>    
+    ↓
+   <span class="hljs-number">0x401344</span> &lt;__libc_start_main+<span class="hljs-number">404</span>&gt;    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>, <span class="hljs-built_in">eax</span>
+   <span class="hljs-number">0x401346</span> &lt;__libc_start_main+<span class="hljs-number">406</span>&gt;    <span class="hljs-keyword">call</span>   exit                      &lt;exit&gt;
+
+   <span class="hljs-number">0x40134b</span> &lt;__libc_start_main+<span class="hljs-number">411</span>&gt;    <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>, <span class="hljs-number">0x49668c</span>
+────────────────────────────────────────────────────[ STACK ]─────────────────────────────────────────────────────
+<span class="hljs-number">00</span>:<span class="hljs-number">0000</span>│ <span class="hljs-built_in">rsp</span> <span class="hljs-number">0x7fffffffde50</span> —▸ <span class="hljs-number">0x401a50</span> (__libc_csu_init) ◂— <span class="hljs-keyword">push</span>   <span class="hljs-built_in">r14</span>
+<span class="hljs-number">01</span>:<span class="hljs-number">0008</span>│     <span class="hljs-number">0x7fffffffde58</span> —▸ <span class="hljs-number">0x6c96b0</span> ◂— <span class="hljs-string">'UPX...? sounds like a delivery service :)'</span>
+<span class="hljs-number">02</span>:<span class="hljs-number">0010</span>│ <span class="hljs-built_in">rbp</span> <span class="hljs-number">0x7fffffffde60</span> ◂— <span class="hljs-number">0x0</span>
+<span class="hljs-number">03</span>:<span class="hljs-number">0018</span>│     <span class="hljs-number">0x7fffffffde68</span> —▸ <span class="hljs-number">0x401344</span> (__libc_start_main+<span class="hljs-number">404</span>) ◂— <span class="hljs-keyword">mov</span>    <span class="hljs-built_in">edi</span>, <span class="hljs-built_in">eax</span>
+<span class="hljs-number">04</span>:<span class="hljs-number">0020</span>│     <span class="hljs-number">0x7fffffffde70</span> ◂— <span class="hljs-number">0x0</span>
+<span class="hljs-number">05</span>:<span class="hljs-number">0028</span>│     <span class="hljs-number">0x7fffffffde78</span> ◂— <span class="hljs-number">0x100000000</span>
+<span class="hljs-number">06</span>:<span class="hljs-number">0030</span>│     <span class="hljs-number">0x7fffffffde80</span> —▸ <span class="hljs-number">0x7fffffffdf58</span> —▸ <span class="hljs-number">0x7fffffffe2bd</span> ◂— <span class="hljs-string">'/home/horace/ctf/pwnable.kr/toddlers_bottle/flag/unpacked'</span>
+<span class="hljs-number">07</span>:<span class="hljs-number">0038</span>│     <span class="hljs-number">0x7fffffffde88</span> —▸ <span class="hljs-number">0x401164</span> (main) ◂— <span class="hljs-keyword">push</span>   <span class="hljs-built_in">rbp</span>
+──────────────────────────────────────────────────[ BACKTRACE ]───────────────────────────────────────────────────
+ ► f <span class="hljs-number">0</span>         <span class="hljs-number">0x40119a</span> main+<span class="hljs-number">54</span>
+   f <span class="hljs-number">1</span>         <span class="hljs-number">0x401344</span> __libc_start_main+<span class="hljs-number">404</span>
+   f <span class="hljs-number">2</span>         <span class="hljs-number">0x401081</span> _start+<span class="hljs-number">41</span>
+</code></pre>

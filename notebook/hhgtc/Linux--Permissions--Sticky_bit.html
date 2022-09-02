@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Sticky bit</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Permissions - Sticky bit</h1></strong><br />• A sticky bit means that only the owner of the file (or root) can delete or modify the file.<br />• The sticky bit is very useful for shared directories or files<br />   ◇ where multiple users have write access but you don&#39;t want them to be able to delete it<br /><br /><code>chmod +t &lt;file&gt;</code><br /><code>chmod 1755 &lt;file&gt;</code><br /><br />The <code>T</code> denotes the sticky bit<br /><code>-rw-r--r-T  1 jane jane   18 Feb 24 20:46  sticky.txt</code><br /></div>
+</body>
+</html>

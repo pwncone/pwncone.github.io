@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Uploading files</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Uploading Files</h1></strong><br />FOR YOUR BOUNDARIES TO BE READ CORRECTLY, (i.e. for the file to not be merged):<br />the boundary used in the form data around the uploaded file must be 2 <code>-</code> longer than the boundary specified in the <code>Content-Type</code> header:<br />Explained in first paragraph of first answer here: <a href="https://stackoverflow.com/questions/47878566/wininet-upload-file">https://stackoverflow.com/questions/47878566/wininet-upload-file</a><br /><br />e.g:<br />• <code>Content-Type: multipart/form-data; boundary=----9132\r\n</code> &lt;- HAS 4 <code>-</code><br /><br />• <code>------9132\r\n</code>    &lt;- HAS 6 <code>-</code><br />  <code>Content-Disposition: form-data; name=&quot;upload&quot;\r\n</code><br />  <code>------9132--\r\n</code>   &lt;- HAS 6 <code>-</code><br /><br /><strong><h2>## Raw Sockets</h2></strong><br />Examples:<br />• <a href="https://stackoverflow.com/questions/1985345/dev-c-wininet-upload-file-using-http">https://stackoverflow.com/questions/1985345/dev-c-wininet-upload-file-using-http</a><br /><br /><strong><h2>## WinInet</h2></strong><br />Examples:<br />• <a href="https://stackoverflow.com/questions/47878566/wininet-upload-file">https://stackoverflow.com/questions/47878566/wininet-upload-file</a><br />• <a href="https://social.msdn.microsoft.com/Forums/en-US/8aad9fc2-d983-42ff-ae2a-7baeb5086e86/upload-file-via-post-request?forum=vssmartdevicesnative">https://social.msdn.microsoft.com/Forums/en-US/8aad9fc2-d983-42ff-ae2a-7baeb5086e86/upload-file-via-post-request?forum=vssmartdevicesnative</a><br />• <a href="https://stackoverflow.com/questions/6407755/how-to-send-a-zip-file-using-wininet-in-my-vc-application">https://stackoverflow.com/questions/6407755/how-to-send-a-zip-file-using-wininet-in-my-vc-application</a><br /><br /><strong><h2>## WinHTTP</h2></strong><br />Examples:<br />• <a href="https://stackoverflow.com/questions/53748147/winhttprequest-upload-file">https://stackoverflow.com/questions/53748147/winhttprequest-upload-file</a><br />• <a href="https://stackoverflow.com/questions/21023548/winhttp-issue-when-uploading-files">https://stackoverflow.com/questions/21023548/winhttp-issue-when-uploading-files</a><br /><br /></div>
+</body>
+</html>

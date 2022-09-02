@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Mounting Filesystems</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Filesystem - Mounting Filesystems</h1></strong><br />• Before you can view the contents of your filesystem, you will have to mount it<br />• To do this you&#39;ll need a mount point<br />   ◇ A mount point is a directory on the system where the filesystem is going to be attached<br /><br />1. Create a mount point (a directory)<br />   <code>mkdir /storageDrive</code><br />2. Mount the filesystem to the mount point/directory<br />   <code>sudo mount -t ext4 /dev/sdb2 /storageDrive</code><br /><br /><strong><h3>Unmount a Device</h3></strong><br /><code>sudo umount /storageDrive</code><br />or <br /><code>sudo umount /dev/sdb2</code><br /><br /><strong><h2>## Device UUIDs</h2></strong><br />Sometimes you&#39;ll need to be more specific than <code>/dev/sda1</code> or <code>/storageDrive</code>.<br />In those cases, we can use the device&#39;s UUID (universally unique ID) that the kernel assigns it.<br /><br /><code>sudo blkid</code> - view device UUIDs on your system<br /><div class="codebox"><div class="codebox">pete@icebox:~$&nbsp;sudo&nbsp;blkid<br />/dev/sda1:&nbsp;UUID=&quot;130b882f-7d79-436d-a096-1e594c92bb76&quot;&nbsp;TYPE=&quot;ext4&quot;&nbsp;<br />/dev/sda5:&nbsp;UUID=&quot;22c3d34b-467e-467c-b44d-f03803c2c526&quot;&nbsp;TYPE=&quot;swap&quot;&nbsp;<br />/dev/sda6:&nbsp;UUID=&quot;78d203a0-7c18-49bd-9e07-54f44cdb5726&quot;&nbsp;TYPE=&quot;xfs&quot;&nbsp;</div></div><br /><br />Mount using device UUID:<br /><code>sudo mount UUID=130b882f-7d79-436d-a096-1e594c92bb76 /storageDrive</code></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Pointers</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Pointers</h1></strong><br />Pointers store memory addresses.<br />Accessing the value that the pointer points to (not the memory address) is called <code>dereferencing</code>.<br /><br /><code>&amp;var</code> - refer to memory address of variable<br /><code>*var_pointer</code> - refer to data at memory address &lt;-- this is DEREFERENCING<br /><br /><div class="codebox"><div class="codebox">int&nbsp;var&nbsp;=&nbsp;1;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;initialise&nbsp;variable&nbsp;called&nbsp;&#39;var&#39;<br />int&nbsp;*var_address&nbsp;=&nbsp;&amp;var;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;intialise&nbsp;pointer&nbsp;to&nbsp;&#39;var&#39;<br /><br />//&nbsp;Use&nbsp;&#39;var_addrsess&#39;&nbsp;to&nbsp;accesses&nbsp;the&nbsp;memory&nbsp;address&nbsp;-&nbsp;prints&nbsp;0x7cffe...<br />printf(&quot;var_address&nbsp;=&nbsp;%p&nbsp;\n&quot;,&nbsp;var_address);<br /><br />//&nbsp;Use&nbsp;&#39;*var_address&#39;&nbsp;to&nbsp;accesses&nbsp;the&nbsp;data&nbsp;at&nbsp;memory&nbsp;address&nbsp;-&nbsp;prints&nbsp;1<br />printf(&quot;var_address&nbsp;value&nbsp;=&nbsp;%d&nbsp;\n&quot;,&nbsp;*var_address);</div></div><br /><br /><strong><h2>## Pointers and Strings</h2></strong><br /><code>char *hey = &quot;Hello&quot;;</code> will store the memory address of the first character of the string - <code>H</code>.<br />Memory is sequential, so C will continue to read the string until it reaches a NULL - <code>\0</code> - byte</div>
+</body>
+</html>

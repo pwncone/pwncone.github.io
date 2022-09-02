@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+
+<h1 id="call-of-duty-black-ops-2-anti-cheat-analysis">Call of Duty: Black Ops 2 Anti-Cheat Analysis</h1>
+<p>31st August 2022</p>
+<p>This is a reversal of Call of Duty Black Ops 2&#39;s anticheat. This analysis is done against FitGirl&#39;s repack of the game which offers offline multiplayer. Done to improve my reverse engineering.</p>
+<p>To dump the game I suspended the process via Process Hacker, attached x32dbg, and dumped the game using Scylla.</p>
+<p>Summary:  </p>
+<ul>
+<li>Grabs exports via a hash  </li>
+<li>Takes StretchBlt screenshot if windowed, DirectX screenshot if fullscreen  </li>
+<li>Loads a map asset <code>mp/store_header.img</code> and executes it (shellcode that searches for external overlays)  </li>
+<li>Hooks BaseThreadInitThunk to monitor new threads (flags thread if start address is LoadLibraryA, LoadLibraryW, DbgUiRemoteBreakin, or SetUnhandledExcpetionFilter. If none match, calls VirtualQuery against start address)</li>
+</ul>
+<h2 id="grab-exports-via-hash">Grab Exports via Hash</h2>
+<p>Find by searching for references to the DOS header: <code>4D 5A</code>. (Search &gt; Sequence of bytes...)<br><img src="./img/find_exportsviahash.png" alt="img"></p>
+<p>They get some function addresses by using a hash and walking the module&#39;s export table. This function is used repeatedly in anticheat functions meaning you can xref it to find more anticheat functionality.</p>
+<p><img src="./img/GetExportedFunction.png" alt="img"></p>
+<p>The hash routine for a module name and function name are different.</p>
+<p>I took their hash technique from IDA and wrote a function so I could find what exports they&#39;re grabbing.</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;Windows.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">HashFunctionName</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* <span class="hljs-built_in">string</span>)</span>
+</span>{
+    <span class="hljs-keyword">int</span> hash = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* str = <span class="hljs-built_in">string</span>; *str != <span class="hljs-string">'\0'</span>; str++)
+    {
+        <span class="hljs-keyword">char</span> letter = *str;
+        hash = letter + <span class="hljs-number">0x1003F</span> * hash;
+    }
+    <span class="hljs-keyword">return</span> hash;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">FindHash</span><span class="hljs-params">(<span class="hljs-keyword">int</span> hash)</span>
+</span>{
+    <span class="hljs-keyword">char</span> modules[<span class="hljs-number">10</span>][<span class="hljs-number">256</span>] = 
+    { 
+        <span class="hljs-string">"ntdll.dll"</span>, 
+        <span class="hljs-string">"kernel32.dll"</span>,
+        <span class="hljs-string">"kernelbase.dll"</span>,
+        <span class="hljs-string">"user32.dll"</span>, 
+        <span class="hljs-string">"advapi32.dll"</span>, 
+        <span class="hljs-string">"crypt32.dll"</span>, 
+        <span class="hljs-string">"gdi32.dll"</span>, 
+        <span class="hljs-string">"gdi32full.dll"</span>, 
+        <span class="hljs-string">"shell32.dll"</span>,
+        <span class="hljs-string">"shlwapi.dll"</span>
+    };
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> j = <span class="hljs-number">0</span>; j &lt; ARRAYSIZE(modules); j++)
+    {
+        <span class="hljs-keyword">void</span>* dll = (<span class="hljs-keyword">void</span>*)LoadLibraryA(modules[j]);
+        <span class="hljs-keyword">if</span> (dll == <span class="hljs-literal">NULL</span>) {
+            <span class="hljs-built_in">printf</span>(<span class="hljs-string">"- LoadLibraryA(%s) failed: %d \n"</span>, modules[j], GetLastError());
+            <span class="hljs-keyword">continue</span>;
+        }
+
+        PIMAGE_DOS_HEADER dos_header = (PIMAGE_DOS_HEADER)dll;
+        PIMAGE_NT_HEADERS nt_header = (PIMAGE_NT_HEADERS)((<span class="hljs-keyword">size_t</span>)dll + dos_header-&gt;e_lfanew);
+        PIMAGE_EXPORT_DIRECTORY export_dir = (PIMAGE_EXPORT_DIRECTORY)((<span class="hljs-keyword">size_t</span>)dll + nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+
+        DWORD* name_table = (DWORD*)((<span class="hljs-keyword">size_t</span>)dll + export_dir-&gt;AddressOfNames);
+        DWORD* address_table = (DWORD*)((<span class="hljs-keyword">size_t</span>)dll + export_dir-&gt;AddressOfFunctions);
+        WORD* ordinal_table = (WORD*)((<span class="hljs-keyword">size_t</span>)dll + export_dir-&gt;AddressOfNameOrdinals);
+        <span class="hljs-keyword">for</span> (DWORD i = <span class="hljs-number">0</span>; i &lt; export_dir-&gt;NumberOfNames; i++)
+        {
+            <span class="hljs-keyword">char</span>* function_name = (<span class="hljs-keyword">char</span>*)((<span class="hljs-keyword">size_t</span>)dll + name_table[i]);
+            <span class="hljs-keyword">size_t</span> function_addr = (<span class="hljs-keyword">size_t</span>)((<span class="hljs-keyword">size_t</span>)dll + address_table[ordinal_table[i]]);
+
+            <span class="hljs-keyword">int</span> function_hash = HashFunctionName(function_name);
+            <span class="hljs-keyword">if</span> (function_hash == hash) {
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"0x%x : %s:%s \n"</span>, hash, modules[j], function_name);
+                <span class="hljs-keyword">break</span>;
+            }
+        }
+    }
+
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span>
+</span>{
+    FindHash(<span class="hljs-number">0x24CE57E5</span>);    
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<h2 id="screenshots">Screenshots</h2>
+<p>Found by xref&#39;ing the BitBlt and StretchBlt imports.<br>To find the DirectX screenshot look at the function that calls StretchBlt, the DirectX screenshot is called there.<br><img src="./img/find_screenshots.png" alt="img"></p>
+<p>If the game is in windowed mode it will take a screenshot with StretchBlt.<br>If in fullscreen, it takes a screenshot via DirectX screenshot (with CreateTexture2D and CopyResource).</p>
+<p><img src="./img/TakeScreenshot.png" alt="img"></p>
+<p>StretchBlt screenshot:<br><img src="./img/stretchblt_screenshot.png" alt="img">  </p>
+<p>DirectX screenshot:<br><img src="./img/directx_screenshot.png" alt="img"></p>
+<p>This function is actually started as a new thread and there seems to a global variable determining whether to take a screenshot or not.</p>
+<p><img src="./img/CreateScreenshotThread.png" alt="img"></p>
+<p>There&#39;s also a BitBlt call but I don&#39;t think it&#39;s related to anticheat. The functions around it seem to monitor performance.</p>
+<h2 id="executemapasset-analyse-external-overlays">ExecuteMapAsset - Analyse External Overlays</h2>
+<p>This function was found by xref&#39;ing <code>GetExportedFunction</code>.</p>
+<p>It loads the map asset <code>mp/store_header.img</code>, searches the currently loaded modules for <code>kernel32.dll</code>, and allocates 0x2000 bytes of <code>PAGE_EXECUTE_READWRITE</code> memory. </p>
+<p><img src="./img/ExecuteMapAsset1.png" alt="img"></p>
+<p><code>LoadMapAsset</code> is used in many locations but this function (which loads a map asset and executes it) is only used once. This map asset must be special (or not a map asset at all).</p>
+<p><img src="./img/xrefs_LoadMapAsset.png" alt="img"></p>
+<p><img src="./img/xrefs_ExecuteMapAsset.png" alt="img"></p>
+<p>After allocating executable memory it decompresses the asset, does a few things I can&#39;t tell (they look like sprintf style functions to me) and then executes a function within the allocated RWX region  at +8.</p>
+<p><img src="./img/ExecuteMapAsset2.png" alt="img"></p>
+<p>I made an educated guess about the <code>zlib_decompress</code> function being zlib because the function is full of strings which, when googled, refer to zlib.</p>
+<p><img src="./img/zlib_decompress.png" alt="img"></p>
+<p><img src="./img/zlib_decompress_google.png" alt="img"></p>
+<p>I can&#39;t find any reference to <code>mp/store_header.img</code> in the game&#39;s install directory so it must be embedded somewhere. There&#39;s no ASLR enabled for the game&#39;s binary, so to dump the shellcode I attached x32dbg and set a breakpoint where the shellcode gets called: <code>0x00504195 : call ecx;</code>.</p>
+<p><img src="./img/shellcode1.png" alt="img"><br><img src="./img/shellcode2.png" alt="img">
+<img src="./img/shellcode3.png" alt="img"></p>
+<h3 id="shellcode-analysis-enumwindows-">Shellcode Analysis (EnumWindows)</h3>
+<p>The shellcode starts executing at +8. When the dump is loaded into IDA create a function at +8 by <code>right click &gt; Create function</code> or press P (?). Here&#39;s mine:<br><img src="./img/shellcode_a_1.png" alt="img"></p>
+<p>There&#39;s 2 functions in this shellcode: the 1st finds all the functions it needs (via the same <code>GetExportedFunction</code> method above), calculates the game&#39;s window size, and calls EnumWindows, and the 2nd function is the EnumWindowsCallback.</p>
+<h4 id="resolvefunctions-1st-function">ResolveFunctions() - 1st Function</h4>
+<p>The functions it resolves are:  </p>
+<ul>
+<li>user32.dll: GetWindowTextA  </li>
+<li>user32.dll: GetWindowsLongA</li>
+<li>user32.dll: GetWindowRect (here it calls GetWindowRect to grab the game&#39;s window size)</li>
+<li>user32.dll: EnumWindows</li>
+</ul>
+<p>Here&#39;s it resolving user32.dll.<br><img src="./img/shellcode_a_2.png" alt="img"></p>
+<p>And here resolves and calls EnumWindows.<br><img src="./img/shellcode_a_3.png" alt="img"></p>
+<h4 id="enumwindows-2nd-function">EnumWindows - 2nd Function</h4>
+<p>You&#39;ll have a to create another function at this callback (mines at 0x308).</p>
+<p><img src="./img/shellcode_a_10.png" alt="img"></p>
+<p>This function is fairly large and checks for external overlays. It&#39;s only interested in WS_EX_TOPMOST and WS_VISIBLE windows, and windows that are larger than or equal to the size of the game. If it finds a suitable window, the shellcode will: grab its window name, grab its window class name, <code>GetWindowThreadProcessId</code> and <code>OpenProcess</code> to open a handle to the associated process, grab the EXE name with <code>QueryFullProcessImageNameA</code>, and enumerate all modules in the suspicious process and grab the module names. It seems to store all this information in a struct that persists after the shellcode has been freed. It loops over all of the names it gathers but doesn&#39;t seem to do anything with them.</p>
+<p>Only interested in WS_EX_TOPMOST and WS_VISIBLE windows, and windows that are larger than or equal to the size of the game:<br><img src="./img/shellcode_a_4.png" alt="img"></p>
+<p>It grabs the window text and seems to check for specific window names.<br><img src="./img/shellcode_a_5.png" alt="img"></p>
+<p>I can&#39;t really tell what this is doing. My best guess is that it&#39;s concatenating window class names stored in the persistent struct together with <code>-</code> and <code>,</code>.<br><img src="./img/shellcode_a_6.png" alt="img"></p>
+<p>Here it&#39;s inspecting the window styles (don&#39;t really know what).<br><img src="./img/shellcode_a_7.png" alt="img"></p>
+<p>Lastly it opens the process and enumerates its modules.<br><img src="./img/shellcode_a_8.png" alt="img"></p>
+<p>Here it grabs the process name too.<br><img src="./img/shellcode_a_9.png" alt="img"></p>
+<p>My best guess at the info struct where it stores all its results is this:  </p>
+<pre><code>struct _INFO_ENUMWINDOWS  
+{  
+  LPRECT game_window_pos<span class="hljs-comment">;  </span>
+  HWND hWnd<span class="hljs-comment">;  </span>
+  DWORD <span class="hljs-built_in">a3</span><span class="hljs-comment">;  </span>
+  DWORD <span class="hljs-built_in">a4</span><span class="hljs-comment">;  </span>
+  DWORD a5_game_hwnd<span class="hljs-comment">;  </span>
+  DWORD ResolutionWidthTimesHeight<span class="hljs-comment">;  </span>
+  DWORD GetWindowsRect<span class="hljs-comment">;  </span>
+  DWORD GetWindowsLongA<span class="hljs-comment">;  </span>
+  DWORD GetWindowsTextA<span class="hljs-comment">;  </span>
+  DWORD GetClassNameA<span class="hljs-comment">;  </span>
+  DWORD GetWindowThreadProcessId<span class="hljs-comment">;  </span>
+  DWORD OpenProcess<span class="hljs-comment">;  </span>
+  DWORD EnumProcessModules<span class="hljs-comment">;  </span>
+  DWORD GetModuleFileNameExA<span class="hljs-comment">;  </span>
+  DWORD QueryFullProcessImageNameA<span class="hljs-comment">;  </span>
+  DWORD <span class="hljs-keyword">CloseHandle; </span> 
+  char *window_text<span class="hljs-comment">;  </span>
+  char *class_name_text<span class="hljs-comment">;  </span>
+}<span class="hljs-comment">;</span>
+</code></pre><p>But I actually think that <code>class_name_text</code> at the end is another structure which stores window_text, class_name_text, the process name, module names, window resolution and style, etc.</p>
+<h2 id="basethreadinitthunk-hook-to-monitor-new-threads">BaseThreadInitThunk Hook to Monitor New Threads</h2>
+<p>Found by xref&#39;ing <code>GetExportedFunction</code>.</p>
+<p>Within WinMain, mixed together will all the other initialisation functions, there&#39;s a hook for BaseThreadInitThunk that gets installed.</p>
+<p><img src="./img/WinMain.png" alt="img"></p>
+<p>It grabs BaseThreadInitThunk from kernel32, verifies the bytes at the function, grabs VirtualProtect and FlushInstructionCache, and installs a hook.</p>
+<p><img src="./img/HookBaseThreadInitThunk.png" alt="img"></p>
+<p>On Windows 10 I&#39;m fairly sure this hook won&#39;t get installed because the function bytes for BaseThreadInitThunk in the 32bit kernel32.dll are different from ones they&#39;re verifying. The first 5 bytes are a match - <code>8B FF 55 8B EC</code> - but from there it differs.</p>
+<p><img src="./img/BaseThreadInitThunk_differences.png" alt="img"></p>
+<p>The detour function inspects the start address and parameter of the new thread.<br><img src="./img/hooked_BaseThreadInitThunk.png" alt="img">  </p>
+<p>It checks if the start address of the thread is LoadLibraryA or LoadLibraryW.<br><img src="./img/check_LoadLibrary.png" alt="img"></p>
+<p>If the start address is DbgUiRemoteBreakin (check if you&#39;re attaching a debugger).<br><img src="./img/check_DbgUiRemoteBreakin.png" alt="img"></p>
+<p>If the start address is SetUnhandledExceptionFilter.<br><img src="./img/check_SetUnhandledExceptionFilter.png" alt="img"></p>
+<p>If none of those match, it calls VirtualQuery against the thread&#39;s start address and copies the memory to a global region. I can&#39;t tell what it does after that or how it analyses it etc.<br><img src="./img/check_StartAddressWithVirtualQuery.png" alt="img"><br><img src="./img/check_StartAddressWithVirtualQuery2.png" alt="img"></p>
+<h2 id="bonus-unknowns">Bonus Unknowns</h2>
+<p>This is all bonus unknown stuff that I found that looks potentially interesting but that I can&#39;t figure out.</p>
+<h3 id="find-region-add-veh-and-inspect-dr3">Find Region, Add VEH, and Inspect DR3</h3>
+<p>When searching for VirtualQuery uses I found this:<br><img src="./img/memory_region_veh.png" alt="img"></p>
+<p>It searches for the memory region in which this function resides, saves the region&#39;s start and end address to a global, and then installs a Vectored Exception Handler (VEH). This VEH is only interested in the exception if it&#39;s:  </p>
+<ul>
+<li>within the previously saved region  </li>
+<li>is not a SINGLE_STEP  </li>
+<li>a hardware breakpoint isn&#39;t enabled (for DR3 I&#39;m guessing, haven&#39;t tested ANDing 0x40)</li>
+</ul>
+<p><img src="./img/veh1.png" alt="img"></p>
+<p>The subroutine saves the current thread ID and the DR registers and other stuff I can&#39;t figure out statically.</p>
+<h3 id="decompress-and-execute-memory">Decompress and Execute Memory</h3>
+<p>This function is very similar to <code>ExecuteMapAsset</code> except it executes a specific region of memory instead of loading an asset.</p>
+<p><img src="./img/DecompressAndExecuteMemory.png" alt="img"></p>
+<p>It grabs kernel32.dll from the InMemoryOrderModuleList, grabs VirtualAlloc, and allocates 0x2000 bytes of PAGE_EXECUTE_READWRITE memory. It then decompresses the memory and executes it at +4. I attached a debugger and sat in a bot match for a couple of hours waiting for this to execute but it never did, so not sure what to do here :shrug:.<br><img src="./img/DecompressAndExecuteMemory2.png" alt="img"></p>
+<h3 id="createthread-raiseexception">CreateThread RaiseException</h3>
+<p>There&#39;s a bunch of calls to CreateThread followed by a raise exception which executes &quot;Worker&quot; functions. Here&#39;s 1 example.</p>
+<p><img src="./img/CreateThreadRaiseException.png" alt="img"></p>
+<p>The thread start address raises an exception at an address in a table determined by the <code>lpThreadParameter</code>, from <code>Main</code> to <code>WebM http work thread</code>, which then raises another exception.<br><img src="./img/StartAddressParameterTable.png" alt="img"></p>
+<p>I haven&#39;t found the exception handler that manages what this code does but I don&#39;t think it&#39;s anticheat related. Looks to be performance measuring or error checking stuff. I have no idea though.</p>
+
+</html>

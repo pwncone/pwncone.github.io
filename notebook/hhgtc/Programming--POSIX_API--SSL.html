@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>SSL</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># POSIX API - SSL</h1></strong><br /><br /><strong><h2>## Send HTTPS GET request</h2></strong><br />Source is from <code>c-buster</code>.<br /><div class="codebox"><div class="codebox">//&nbsp;create&nbsp;socket&nbsp;and&nbsp;connect<br />int&nbsp;sockfd&nbsp;=&nbsp;socket(AF_INET,&nbsp;SOCK_STREAM,&nbsp;0);<br />if&nbsp;(connect(sockfd,&nbsp;(struct&nbsp;sockaddr&nbsp;*)&amp;remoteHost,&nbsp;sizeof(remoteHost))&nbsp;==&nbsp;-1)<br />{<br />&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;[error]&nbsp;connect()&nbsp;failed&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);<br />}<br /><br />//&nbsp;initialize&nbsp;OpenSSL<br />SSL_load_error_strings();<br />SSL_library_init();<br />SSL_CTX&nbsp;*ssl_ctx&nbsp;=&nbsp;SSL_CTX_new(SSLv23_client_method());<br /><br />//&nbsp;create&nbsp;a&nbsp;new&nbsp;SSL&nbsp;connection&nbsp;and&nbsp;attach&nbsp;it&nbsp;to&nbsp;the&nbsp;socket<br />SSL&nbsp;*conn&nbsp;=&nbsp;SSL_new(ssl_ctx);<br />SSL_set_fd(conn,&nbsp;sockfd);<br /><br />//&nbsp;perform&nbsp;SSL/TLS&nbsp;handshake&nbsp;with&nbsp;the&nbsp;server&nbsp;-&nbsp;takes&nbsp;~1&nbsp;minute&nbsp;to&nbsp;fail&nbsp;:/<br />if&nbsp;(SSL_connect(conn)&nbsp;!=&nbsp;1)<br />{<br />&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;[error]&nbsp;failed&nbsp;to&nbsp;connect&nbsp;to&nbsp;HTTPS&nbsp;\n&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);<br />}<br /><br />char&nbsp;get_request[300];<br /><br />//&nbsp;send&nbsp;GET&nbsp;request<br />if&nbsp;(SSL_write(conn,&nbsp;get_request,&nbsp;strlen(get_request))&nbsp;&lt;=&nbsp;0)<br />{<br />&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;[error]&nbsp;failed&nbsp;to&nbsp;ssl_write()&nbsp;data&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);<br />}<br /><br />//&nbsp;receive&nbsp;response<br />char&nbsp;get_response[13];&nbsp;&nbsp;//&nbsp;short&nbsp;array&nbsp;because&nbsp;we&nbsp;only&nbsp;want&nbsp;the&nbsp;status&nbsp;code<br />if&nbsp;(SSL_read(conn,&nbsp;get_response,&nbsp;sizeof(get_response))&nbsp;&lt;=&nbsp;0)<br />{<br />&nbsp;&nbsp;&nbsp;&nbsp;perror(&quot;[error]&nbsp;failed&nbsp;to&nbsp;ssl_read()&nbsp;response&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;exit(EXIT_FAILURE);<br />}<br /><br />SSL_shutdown(conn);<br />SSL_free(conn);<br />close(sockfd);</div></div></div>
+</body>
+</html>

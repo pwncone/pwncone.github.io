@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Offsets</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Offsets</h1></strong><br />Finding and calculating the addresses of what you need.<br /><br /><strong><h2>## Grab offsets at runtime</h2></strong><br />If you try to initialise and define all the offsets as global <br />the compiler will complain the <code>game_base + entity_list</code> isn&#39;t valid because <code>game_base</code> isn&#39;t a constant.<br /><br />Instead, you can just shove everything in a function <br />and call it at the start of your program.<br /><div class="codebox"><div class="codebox">//&nbsp;Offsets<br />uintptr_t&nbsp;game_base&nbsp;=&nbsp;0;<br />uintptr_t&nbsp;client_dll_base&nbsp;=&nbsp;0;<br />uintptr_t&nbsp;engine_dll_base&nbsp;=&nbsp;0;<br />uintptr_t*&nbsp;local_player_ptr&nbsp;=&nbsp;0;&nbsp;<br />uintptr_t&nbsp;entity_list&nbsp;=&nbsp;0;<br />float*&nbsp;view_matrix&nbsp;=&nbsp;NULL;<br /><br />//&nbsp;Call&nbsp;this&nbsp;function&nbsp;at&nbsp;the&nbsp;start&nbsp;of&nbsp;your&nbsp;program&nbsp;(e.g.&nbsp;in&nbsp;DllMain&nbsp;or&nbsp;your&nbsp;main&nbsp;thread)<br />void&nbsp;CalculateAddresses()<br /><span style="color:#000000;font-weight:400">{</span><br />	game_base&nbsp;=&nbsp;(uintptr_t)GetModuleHandleA(&quot;csgo.exe&quot;);<br />	client_dll_base&nbsp;=&nbsp;(uintptr_t)GetModuleHandleA(&quot;client.dll&quot;);<br />	engine_dll_base&nbsp;=&nbsp;(uintptr_t)GetModuleHandleA(&quot;engine.dll&quot;);<br /><br />	local_player_ptr&nbsp;=&nbsp;(uintptr_t*)(client_dll_base&nbsp;+&nbsp;0xd8d2cc);<br />	entity_list&nbsp;=&nbsp;client_dll_base&nbsp;+&nbsp;0x4da521c;<br />	view_matrix&nbsp;=&nbsp;(float*)(client_dll_base&nbsp;+&nbsp;0x4d96b34);<br /><br />	printf(&quot;[*]&nbsp;Game&nbsp;base:&nbsp;0x%x&nbsp;\n[*]&nbsp;client.dll&nbsp;base:&nbsp;0x%x&nbsp;\n[*]&nbsp;engine.dll&nbsp;base:&nbsp;0x%x&nbsp;\n&quot;,&nbsp;game_base,&nbsp;client_dll_base,&nbsp;engine_dll_base);<br />	<br />	return;<br /><span style="color:#000000;font-weight:400">}</span></div></div></div>
+</body>
+</html>

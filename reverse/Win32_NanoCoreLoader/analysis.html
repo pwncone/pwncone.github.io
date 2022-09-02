@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+<h1 id="win32-nanocoreloader">Win32.NanoCoreLoader</h1>
+<p>17th March 2022</p>
+<p>Sample:<br><a href="https://bazaar.abuse.ch/sample/faa265a4262f8913da3fea01c9def0a666c0fd7630c35a63463af4a51b5de6e1/">https://bazaar.abuse.ch/sample/faa265a4262f8913da3fea01c9def0a666c0fd7630c35a63463af4a51b5de6e1/</a></p>
+<table>
+<thead>
+<tr>
+<th>PE</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MD5</td>
+<td>2d4e3779b7e781b1ef65963c1a2feb88</td>
+</tr>
+<tr>
+<td>SHA-1</td>
+<td>fdfcb81127550ab50f75d4f7801c2d0ca22488f7</td>
+</tr>
+<tr>
+<td>SHA-256</td>
+<td>faa265a4262f8913da3fea01c9def0a666c0fd7630c35a63463af4a51b5de6e1</td>
+</tr>
+<tr>
+<td>File type</td>
+<td>Win32 EXE</td>
+</tr>
+<tr>
+<td>Magic</td>
+<td>PE32 executable for MS Windows (GUI) Intel 80386 32-bit Mono/.Net assembly</td>
+</tr>
+<tr>
+<td>TrID</td>
+<td>Generic CIL Executable (.NET, Mono, etc.) (72.5%)</td>
+</tr>
+<tr>
+<td>File size</td>
+<td>32.00 KB (32768 bytes)</td>
+</tr>
+<tr>
+<td>PEiD packer</td>
+<td>.NET executable</td>
+</tr>
+<tr>
+<td>Creation Time</td>
+<td>2085-10-05 03:44:52 UTC</td>
+</tr>
+<tr>
+<td>Copyright</td>
+<td>Copyright 2020 The Hidden Reflex Authors. All rights reserved.</td>
+</tr>
+<tr>
+<td>Product</td>
+<td>Epic Privacy Browser</td>
+</tr>
+<tr>
+<td>Description</td>
+<td>Epic Privacy Browser</td>
+</tr>
+<tr>
+<td>Internal Name</td>
+<td>br.exe</td>
+</tr>
+<tr>
+<td>Compilation Timestamp</td>
+<td>2085-10-05 03:44:52 UTC</td>
+</tr>
+</tbody>
+</table>
+<h2 id="summary">Summary</h2>
+<p>This sample is a loader for <code>NanoCore Client.exe</code>.<br>This initial file, <code>br.exe</code>, downloads a DLL served via Discord (<code>br_Exdkgugq.jpg</code>) and executes it in memory by invoking the DLL&#39;s <code>Igfnwmkv()</code> method. The DLL, whose original filename is <code>Ocntnqupmvkphctap.dll</code>, is a .NET binary again and is obfuscated. It extracts an embedded PE, <code>NanoCore Client.exe</code>, and executes it via RegAsm.exe. </p>
+<p>The only file to touch disk is this sample, the initial <code>br.exe</code>. Neither the loader DLL or the NanoCore Client are ever dropped to the system.</p>
+<p><img src="media/diagram.png" alt="image"> </p>
+<h3 id="network-indicators">Network Indicators</h3>
+<p>Network indicators specific to this sample are connections to Discord as CDN, specifically this URL:<br><code>https://cdn.discordapp.com/attachments/946756884856197203/953563269824671784/br_Exdkgugq.jpg</code></p>
+<p>For futher indicators, you can use the executed NanoCore&#39;s which maintains a persistent TCP connection to 194.5.97.17 - erickeith62.ddns.net.</p>
+<h3 id="host-indicators">Host Indicators</h3>
+<p>I never managed to find this (potentially NanoCore does it), but according to VirusTotal it creates a &quot;WAN Manager&quot; service which could be used as a host indicator.</p>
+<h2 id="br-exe-initial-downloader">br.exe - Initial Downloader</h2>
+<p><code>br.exe</code> is a simple downloader for a DLL containing an embedded copy of <code>NanoCore Client.exe</code>.</p>
+<p>Analysis of the strings reveals a reference to a <code>br_Exdkgugq.jpg</code> served by Discord:<br><a href="https://cdn.discordapp.com/attachments/946756884856197203/953563269824671784/br_Exdkgugq.jpg">https://cdn.discordapp.com/attachments/946756884856197203/953563269824671784/br_Exdkgugq.jpg</a></p>
+<p>Because this binary is .NET we can read the decompiled code in dnSpy.<br>It first waits for 20 seconds and then calls Drama(), which downloads the resource at the URL
+<code>https://cdn.discordapp.com/attachments/946756884856197203/953563269824671784/br_Exdkgugq.jpg</code> and reverses the returned bytes.</p>
+<p>Main()<br><img src="media/dnspy_main.png" alt="image"> </p>
+<p>Drama()<br><img src="media/dnspy_drama.png" alt="image"></p>
+<p>Buffers<br><img src="media/dnspy_buffers.png" alt="image"></p>
+<p>I downloaded the file with wget<br><code>wget https://cdn.discordapp.com/attachments/946756884856197203/953563269824671784/br_Exdkgugq.jpg</code></p>
+<p>We know the file is reversed already because of the decompilation, but you could open this .jpg in HxD and scroll to the bottom and see that&#39;s a PE without the help of dnSpy.<br><img src="media/hxd_reversed.png" alt="image"></p>
+<p>I wrote a small C program to reverse the file (in appendix).<br><code>.\reverse_file.exe br_Exdkgugq.jpg</code>  </p>
+<p>Dropping it into PE studio shows that it&#39;s a .NET DLL with the original filename <code>Ocntnqupmvkphctap.dll</code>.<br><img src="media/pestudio_dll.png" alt="image"></p>
+<p>Back in the Drama() function, we can see <code>br.exe</code> executes the downloaded, in-memory DLL with an <code>Invoke</code> on the <code>Igfnwmkv</code> method.</p>
+<p>The rest of the code in <code>br.exe</code> (the queue.Enqueue) is all junk as far as I can tell.</p>
+<h2 id="ocntnqupmvkphctap-dll-nanocore-client-loader">Ocntnqupmvkphctap.dll - NanoCore Client Loader</h2>
+<table>
+<thead>
+<tr>
+<th>DLL</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MD5</td>
+<td>d2ea93c02bc10796606b64d65fc5a141</td>
+</tr>
+<tr>
+<td>SHA-1</td>
+<td>81e881916a1acbc79d8795cd1a7c673ac5e20724</td>
+</tr>
+<tr>
+<td>SHA-256</td>
+<td>162827165702e34553feefe33e0d6c9f7c0de686c28f462fcbbfebe1ba3640a0</td>
+</tr>
+<tr>
+<td>File type</td>
+<td>Win32 DLL</td>
+</tr>
+<tr>
+<td>Magic</td>
+<td>PE32 executable for MS Windows (DLL) (console) Intel 80386 32-bit Mono/.Net assembly</td>
+</tr>
+<tr>
+<td>TrID</td>
+<td>Generic .NET DLL/Assembly (87.8%)</td>
+</tr>
+<tr>
+<td>File size</td>
+<td>572.50 KB (586240 bytes)</td>
+</tr>
+<tr>
+<td>Compilation Timestamp</td>
+<td>2022-03-16 07:59:36 UTC</td>
+</tr>
+</tbody>
+</table>
+<p>The date I&#39;m analysing this is 17th March 2022, so interestingly we can this was compiled only recently (and the timestamped wasn&#39;t faked to 2085 like the previous executable).</p>
+<p>This DLL is obfuscated unlike the previous executable.<br>Here&#39;s the Igfnwmkv method:<br><img src="media/dll_obfuscated.png" alt="image"></p>
+<p>If you analyse the original <code>br.exe</code> file dynamically you&#39;ll see it ends up spawing a <code>RegAsm.exe</code> process which maintains a persistent connection to <code>194.5.97.17</code> which resolves to <code>erickeith62.ddns.net</code>.
+<img src="media/br_dynamic.png" alt="image"></p>
+<pre><code><span class="hljs-selector-tag">PS</span> <span class="hljs-selector-tag">C</span>:\<span class="hljs-selector-tag">Users</span>\<span class="hljs-selector-tag">Bob</span>&gt; <span class="hljs-selector-tag">nslookup</span> <span class="hljs-selector-tag">erickeith62</span><span class="hljs-selector-class">.ddns</span><span class="hljs-selector-class">.net</span>
+<span class="hljs-selector-tag">Server</span>:  <span class="hljs-selector-tag">one</span><span class="hljs-selector-class">.one</span><span class="hljs-selector-class">.one</span><span class="hljs-selector-class">.one</span>
+<span class="hljs-selector-tag">Address</span>:  1<span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.1</span>
+
+<span class="hljs-selector-tag">Non-authoritative</span> <span class="hljs-selector-tag">answer</span>:
+<span class="hljs-selector-tag">Name</span>:    <span class="hljs-selector-tag">erickeith62</span><span class="hljs-selector-class">.ddns</span><span class="hljs-selector-class">.net</span>
+<span class="hljs-selector-tag">Address</span>:  194<span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.97</span><span class="hljs-selector-class">.17</span>
+</code></pre><p><code>RegAsm.exe</code> is a Microsoft signed binary, but at base <code>0x40000000</code> is a RWX section of memory which contains a PE file. This makes me think RegAsm.exe has been injected into. You could dump this file (which is <code>NanoCore Client.exe</code>) but it won&#39;t be a complete, valid PE to analyse.</p>
+<p>I couldn&#39;t deobfuscate the DLL so decided to single-step through the code using SharpDLLLoader:<br><a href="https://github.com/hexfati/SharpDllLoader">https://github.com/hexfati/SharpDllLoader</a></p>
+<p>Load both SharpDLLLoader and Ocntnqupmvkphctap.dll into dnSpy.</p>
+<p>Set a breakpoint on the <code>Igfnwmkv</code> method so we can catch its execution
+<img src="media/bp_dllentry.png" alt="image"></p>
+<p>And then set the arguments for SharpDLLLoader to load the suspiscious DLL and invoke its Igfnwmkv method and start debugging.</p>
+<pre><code>-d "C:<span class="hljs-symbol">\U</span>sers<span class="hljs-symbol">\B</span>ob<span class="hljs-symbol">\D</span>esktop<span class="hljs-symbol">\s</span>ample<span class="hljs-symbol">\d</span>ownloaded<span class="hljs-symbol">\O</span>cntnqupmvkphctap.dll" -n Ocntnqupmvkphctap -c Fikyplfa -m Igfnwmkv -a "null null"
+</code></pre><p><img src="media/sharpdllloader.png" alt="image"></p>
+<p>At this point I just single stepped until I saw something interesting happen.</p>
+<p>In method <code>Igfnwmkv</code> case 7 line 49 it decodes the <code>cmd.exe /c timeout 20</code> shell command that it executes before resuming. (I only know this because the program pauses and you can see cmd.exe timeout in Process Hacker after this code resolves). 
+<img src="media/bp_cmdtimeout.png" alt="image"><br><img src="media/bp_cmdtimeout_ph.png" alt="image"></p>
+<p>Inside <code>\uE092</code> there&#39;s a ton of references to <code>DynamicMethodCreate</code> which gets called over and over again.
+Presumably this is is building C# code and invoking it.
+<img src="media/bp_dynamicmethodcreate.png" alt="image"></p>
+<p>With a breakpoint at <code>\uF7EF 0x020000FD line 15</code> you will see the code resolve a bunch of functions for code injection via Base64 (just F5 Continue through each one).<br><img src="media/bp_base64.png" alt="image"></p>
+<pre><code>UmV<span class="hljs-symbol">@zdW1l</span><span class="hljs-symbol">@VGhyZWFk</span>
+V293NjRT<span class="hljs-symbol">@ZXRUaHJlYWRDb250ZXh0</span>
+U2V0<span class="hljs-symbol">@VGhyZ</span><span class="hljs-symbol">@WFkQ29udGV4dA</span>==
+R2<span class="hljs-symbol">@V0VGhyZWFkQ</span><span class="hljs-symbol">@29udGV4dA</span>==
+VmlydHVh<span class="hljs-symbol">@bEFsbG9</span><span class="hljs-symbol">@jRXg</span>=
+V3JpdGVQcm9j<span class="hljs-symbol">@ZXNzT</span><span class="hljs-symbol">@WVtb3J5</span>
+WndVbm1h<span class="hljs-symbol">@cFZpZXd</span><span class="hljs-symbol">@PZlNlY3Rpb24</span>=
+Q3JlY<span class="hljs-symbol">@XRlU</span><span class="hljs-symbol">@HJvY2Vzc0E</span>=
+Q2xv<span class="hljs-symbol">@c2VI</span><span class="hljs-symbol">@YW5kbGU</span>=
+Um<span class="hljs-symbol">@VhZFByb2N</span><span class="hljs-symbol">@lc3NNZW1vcnk</span>=
+
+ResumeThread
+Wow64SetThreadContext
+SetThreadContext
+GetThreadContext
+VirtualAllocEx
+WriteProcessMemory
+ZwUnmapViewOfSection
+CreateProcessA
+CloseHandle
+ReadProcessMemory
+</code></pre><p>In <code>\uF7FF</code> it&#39;s accessing resources, specifically one named <code>Efprmpabbuobmiurxnz</code>. I have no idea what this is doing.<br><img src="media/bp_resource.png" alt="image"></p>
+<p>In <code>\uE046</code> line 756 here returns a large byte array.
+If you right click the array &gt; show in Memory Window &gt; Window 1 and navigate to Window 1 we can see that it&#39;s a PE file. You can dump this selection to get a raw copy of <code>NanoCore Client.exe</code> to analyse. Based on the fact that I can&#39;t find a clean copy of this embedded PE inside the <code>Ocntnqupmvkphctap.dll</code> on disk and there&#39;s no network connectivity whilst the DLL runs, I&#39;m assuming the embedded NanoCore executable is encrypted and/or compressed inside of the DLL (also evident by the fact that the DLL is 573kb in size - pretty large).</p>
+<p>Within this function too (as seen in the screenshot) there&#39;s references to <code>RegAsm.exe</code> - presumably to spawn it with CreateProcess.</p>
+<p><img src="media/bp_array.png" alt="image">
+<img src="media/bp_embedded_pe.png" alt="image"></p>
+<p>Finally, here&#39;s the dumped <code>NanoCore Client.exe</code> file:<br><img src="media/dumped_nanocore.png" alt="image"></p>
+<p>MD5: <code>3C6CC7110C41E1EDDEBFE45300614663</code><br>SHA-1: <code>ECA5B7B4D533F7C8E6007E4073B95D1B06EF906B</code><br>SHA-256: <code>3D81B49CD45C143A9835A1137B8D3F9996F4152E9C7D6DD54D35013C323E98FA</code></p>
+<h2 id="conclusion">Conclusion</h2>
+<p>That&#39;s as far as my analysis goes for this loader. <code>br.exe</code> is a rather obvious, low effort downloader for a more sophisticated DLL loader which process hollows its payload, <code>NanoCore Client.exe</code>, into RegAsm.exe. Analysing <code>NanoCore Client.exe</code> would be a further task and I&#39;ve also reached the extent of my reversing abilities to figure out in more detail what the DLL loader is doing. I would have to experiment with it dynamically to get further I think. No way am I capable of deobfuscating its code.</p>
+<h2 id="appendix">Appendix</h2>
+<h3 id="item-a-reverse_file-exe-c-program-to-reverse-bytes">Item A - reverse_file.exe - C Program to Reverse Bytes</h3>
+<pre><code class="lang-c"><span class="hljs-comment">// Reverse the bytes in a file</span>
+<span class="hljs-comment">// Written in Visual Studio. Only tested on windows. Has bugs (just quick code).</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> _CRT_SECURE_NO_WARNINGS</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;errno.h&gt;</span></span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> Fail(...) { printf(__VA_ARGS__); exit(-1); }</span>
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[])</span>
+</span>{
+    <span class="hljs-keyword">if</span> (argc != <span class="hljs-number">2</span>)
+    {
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"- Need filename \n"</span>);
+        <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
+    }
+
+    <span class="hljs-keyword">char</span>* infile = argv[<span class="hljs-number">1</span>];
+    <span class="hljs-keyword">long</span> filesize = <span class="hljs-number">0</span>;
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">"* Infile: %s \n"</span>, infile);
+
+    FILE* fp = fopen(infile, <span class="hljs-string">"rb"</span>);
+    <span class="hljs-keyword">if</span> (fp == <span class="hljs-literal">NULL</span>) Fail(<span class="hljs-string">"Failed to open file: %d \n"</span>, errno);
+    fseek(fp, <span class="hljs-number">0</span>, SEEK_END);
+    filesize = ftell(fp);
+    rewind(fp);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">"* File size: %d \n"</span>, filesize);
+
+    <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span>* filebuf = <span class="hljs-built_in">malloc</span>(<span class="hljs-keyword">sizeof</span>(<span class="hljs-keyword">char</span>) * filesize);
+    <span class="hljs-keyword">if</span> (filebuf == <span class="hljs-literal">NULL</span>) Fail(<span class="hljs-string">"Failed to malloc for filebuf \n"</span>);
+    <span class="hljs-built_in">memset</span>(filebuf, <span class="hljs-number">0</span>, filesize);
+    fread(filebuf, <span class="hljs-number">1</span>, filesize, fp); <span class="hljs-comment">// Reads extra bytes??</span>
+    fclose(fp);
+
+    <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span>* reversedbuf = <span class="hljs-built_in">malloc</span>(<span class="hljs-keyword">sizeof</span>(<span class="hljs-keyword">char</span>) * filesize);
+    <span class="hljs-keyword">if</span> (reversedbuf == <span class="hljs-literal">NULL</span>) Fail(<span class="hljs-string">"Failed to malloc for reversedbuf \n"</span>);
+    <span class="hljs-built_in">memset</span>(reversedbuf, <span class="hljs-number">0</span>, filesize);
+    <span class="hljs-keyword">long</span> arraysize = filesize - <span class="hljs-number">1</span>; <span class="hljs-comment">// Because array starts at 0</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">long</span> i = <span class="hljs-number">0</span>; i &lt; filesize; i++)
+    {
+        reversedbuf[i] = filebuf[arraysize - i];
+    }
+
+    <span class="hljs-keyword">char</span> outfile[<span class="hljs-number">256</span>] = { <span class="hljs-number">0</span> };
+    sprintf_s(outfile, <span class="hljs-number">256</span>, <span class="hljs-string">"%s.out"</span>, infile);
+    FILE* fp_out = fopen(outfile, <span class="hljs-string">"wb"</span>);
+    fwrite(reversedbuf, filesize, <span class="hljs-number">1</span>, fp_out);
+    fclose(fp_out);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">"* Outfile: %s \n"</span>, outfile);
+
+    <span class="hljs-built_in">free</span>(filebuf);
+    <span class="hljs-built_in">free</span>(reversedbuf);
+
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>

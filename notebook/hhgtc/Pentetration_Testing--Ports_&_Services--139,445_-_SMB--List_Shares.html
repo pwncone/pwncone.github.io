@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>List Shares</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># List Shares</h1></strong><br />• List shares for every user you find (including standard accounts/database accounts etc.)<br />• If Microsft SQL is running on the system, try accessing shares as <code>sa</code> or <code>mssql</code><br /><br /><strong><h3>## smbclient</h3></strong><br /><code>smbclient -L 192.168.1.102</code> - List all available shares on the server<br /><code>smbclient -L 192.168.1.102 -U &lt;user&gt;</code> - List all shares available to a user<br /><br /><strong><h3>## smbmap</h3></strong><br />A samba share enumerator written by Shawn Evans.<br />VERY GOOD FOR LISTING/BROWSING SHARES THAT REQUIRE CREDENTIALS<br /><br /><code>smbmap -H 10.10.10.100</code> - Query all shares<br /><code>smbmap -R [Folder] -H 10.11.0.4</code> - Recursive list<br /><code>smbmap -r [Folder] -H 10.11.0.4</code> - Non recursive list<br /><br /><code>smbmap -u Finance -p Acc0unting -H 10.10.10.59</code> - Query with user/password<br /><code>smbclient //10.10.10.59/ACCT -U Finance -s ‘ACCT’ -R</code> - Recursively list files in the share. -s to specify the share<br /><br />IF ATTACKING WINDOWS, try authenticating as <code>Guest</code><br /><code>smbmap -H 10.11.1.128 -u Guest</code></div>
+</body>
+</html>

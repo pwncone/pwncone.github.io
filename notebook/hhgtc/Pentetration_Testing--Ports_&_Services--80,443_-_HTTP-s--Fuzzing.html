@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Fuzzing</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Fuzzing</h1></strong><br />The goal of fuzzing within wider hacking is to find vulnerabilities.<br />In the context of website, fuzzing gives you more fine-grained control over what data you send to the web server.<br />e.g. instead of just bruteforcing for directories, you can apply a mutation to a specific bruteforce<br />e.g. bruteforce for <code>directoryN</code> where <code>N</code> is a number increasing from 0 - 100<br /><br /><strong><h2>## patator</h2></strong><br />• Might return <code>UnicodeDecodeError</code> if trying to decode an image<br />   ◇ redirect <code>stderr</code> to /dev/null to ignore?<br /><br />Ignore results based on character length<br /><code>patator http_fuzz url=</code><a href="http://10.0.0.1/FILE0">http://10.0.0.1/FILE0</a><code> 0=/usr/share/seclists/Discovery/Web-Content/big.txt -x ignore:sclen=&lt;char length&gt;</code><br /><br /><strong><h2>## wfuzz</h2></strong><br /><code>-c</code> colours<br /><br />Hide content of specified character length - <code>--hh</code><br /><code>wfuzz -c -z file,/usr/share/seclists/Discovery/Web-Content/big.txt --hh &lt;no. of chars&gt; </code><a href="http://bart.htb/FUZZ">http://bart.htb/FUZZ</a><br /><br /></div>
+</body>
+</html>

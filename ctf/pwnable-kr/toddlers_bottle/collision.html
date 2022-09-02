@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="collision">collision</h1>
+<p>2nd April 2022</p>
+<p>Read the <code>col.c</code> source:</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">long</span> hashcode = <span class="hljs-number">0x21DD09EC</span>;
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">long</span> <span class="hljs-title">check_password</span><span class="hljs-params">(<span class="hljs-keyword">const</span> <span class="hljs-keyword">char</span>* p)</span></span>{
+        <span class="hljs-keyword">int</span>* ip = (<span class="hljs-keyword">int</span>*)p;
+        <span class="hljs-keyword">int</span> i;
+        <span class="hljs-keyword">int</span> res=<span class="hljs-number">0</span>;
+        <span class="hljs-keyword">for</span>(i=<span class="hljs-number">0</span>; i&lt;<span class="hljs-number">5</span>; i++){
+                res += ip[i];
+        }
+        <span class="hljs-keyword">return</span> res;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[])</span></span>{
+        <span class="hljs-keyword">if</span>(argc&lt;<span class="hljs-number">2</span>){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"usage : %s [passcode]\n"</span>, argv[<span class="hljs-number">0</span>]);
+                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        }
+        <span class="hljs-keyword">if</span>(<span class="hljs-built_in">strlen</span>(argv[<span class="hljs-number">1</span>]) != <span class="hljs-number">20</span>){
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"passcode length should be 20 bytes\n"</span>);
+                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        }
+
+        <span class="hljs-keyword">if</span>(hashcode == check_password( argv[<span class="hljs-number">1</span>] )){
+                system(<span class="hljs-string">"/bin/cat flag"</span>);
+                <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        }
+        <span class="hljs-keyword">else</span>
+                <span class="hljs-built_in">printf</span>(<span class="hljs-string">"wrong passcode.\n"</span>);
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<p><code>check_password</code> is taking the 20 character string you submit as argv[1] and interpreting it as an <code>int*</code> and iterating over every 4 bytes (because <code>int</code> is 4 bytes long) and adding them together. If you submitted <code>AAAABBBBCCCCDDDDEEE</code> as your string, <code>check_password</code> would do 0x41414141 + 0x42424242 + 0x43434343 + 0x44444444 + 0x45454545. A collision occurs because all of these values added together is significantly higher than a 4 byte value, but the <code>res</code> variable is an int so even if the result is 0x21DD09EC45FECD it doesn&#39;t matter because only the first 4 bytes - <code>0x21DD09EC</code> - will be stored and compared.</p>
+<p>Pretty sure I did this challenge wrong because I didn&#39;t create an MD5 hash collision. Instead I did <code>0x21DD09EC / 5</code> which is <code>0x06C5CEC8</code> and submitted that as the input string in ASCII characters. Need to put in reverse because little endian, and need an extra 0x4 bytes so last value is <code>0x06C5CECC</code>.</p>
+<pre><code>col@pwnable:~$ python2 -c <span class="hljs-string">'import sys; sys.stdout.write("\xC8\xCE\xC5\x06"*4 + "\xCC\xCE\xC5\x06")'</span> &gt; /tmp/<span class="hljs-keyword">in</span>.raw
+col@pwnable:~$ xxd /tmp/<span class="hljs-keyword">in</span>.raw
+<span class="hljs-number">00000000</span>: c8ce c506 c8ce c506 c8ce c506 c8ce c506  ................
+<span class="hljs-number">00000010</span>: ccce c506                                ....
+col@pwnable:~$ ./col $(cat /tmp/<span class="hljs-keyword">in</span>.raw)
+daddy! I just managed to create a hash collision :)
+</code></pre>

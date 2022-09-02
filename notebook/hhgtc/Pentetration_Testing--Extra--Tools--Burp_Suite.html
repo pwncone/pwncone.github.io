@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Burp Suite</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Burp Suite</h1></strong><br />Notes on Burp Suite.<br /><br /><strong><h2>## Shortcuts</h2></strong><br /><code>ctrl+U</code> = URL encode highlighted string (<em>very</em> useful)<br /><code>ctrl+shift+U</code> = URL decode<br /><br /><strong><h2>## Set up a Burp Proxy</h2></strong><br />1. Proxy tab &gt; Options &gt; Proxy Listeners &gt; Add<br />2. Bind to port: 8500 (you can pick any port you want)<br />3. Request handling:<br />    Redirect to host: &lt;host you want to connect&gt; e.g. 10.10.10.14<br />    Redirect to port: &lt;port you want to connect to&gt; e.g. 8080<br /><br />Now whenever you connect to localhost:8500 it will redirect you to 10.10.10.14:8080<br /><br /><strong><h2>## Error code: SSL_ERROR_RX_RECORD_TOO_LONG</h2></strong><br />Downgrade to java version 10<br />root@kali:~/ctf/chaos# <code>sudo update-alternatives --config java</code><br /><br /><strong><h2>## Error: unrecognized_name</h2></strong><br />The &quot;unrecognized_name&quot; error indicates that the server might be misconfigured, Try turning on the &quot;Disable java SNI extension&quot; option and restart burp&quot;.<br /><br />1. Project Options (far right) &gt; SSL &gt; use custom ciphers &gt; select all the protocols<br />2. From same menu (just below), tick all three options in <em>SSL Workarounds</em><br />3. User Options (far right) &gt; Disable java SNI extension</div>
+</body>
+</html>

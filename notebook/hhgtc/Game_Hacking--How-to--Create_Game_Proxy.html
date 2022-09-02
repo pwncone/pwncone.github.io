@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Create Game Proxy</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Create Game Proxy</h1></strong><br /><br /><strong><h2>## Redirecting the game to your proxy</h2></strong><br /><strong><h3>### Add a windows route</h3></strong><br /><div class="codebox"><div class="codebox">route&nbsp;print&nbsp;if			#&nbsp;printf&nbsp;your&nbsp;network&nbsp;interfaces<br />route&nbsp;add&nbsp;[destination]&nbsp;MASK&nbsp;[subnet&nbsp;mask]&nbsp;[proxy&nbsp;to]&nbsp;IF&nbsp;[interface&nbsp;number]<br />route&nbsp;add&nbsp;192.223.31.2&nbsp;MASK&nbsp;255.255.255.255&nbsp;127.0.0.1&nbsp;IF&nbsp;17<br /><br />route&nbsp;print					#&nbsp;check&nbsp;if&nbsp;your&nbsp;route&nbsp;has&nbsp;been&nbsp;added<br />route&nbsp;delete&nbsp;<span style="color:#000000;font-weight:400">[</span>destination<span style="color:#000000;font-weight:400">]</span></div></div><br /><br /><strong><h3>### If game is using hostname, use </h3></strong><strong><code><h3>/etc/hosts</h3></code></strong><br />Add an entry into <code>/etc/hosts</code> to redirect the game to localhost<br /><code>127.0.0.1 videogame.com</code><br /><br />Ping videogame.com to test that it resolves to 127.0.0.1<br /><code>ping videogame.com</code></div>
+</body>
+</html>

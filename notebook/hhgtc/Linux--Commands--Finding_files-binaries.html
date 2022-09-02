@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Finding files/binaries</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Commands - Finding files/binaries</h1></strong><br /><br /><strong><h2>## find</h2></strong><br />Find is slow but thorough. <br />Has lots of features - you can search for files recursively and using regex<code><br /><br />find / -name &lt;filename&gt; 2&gt;/dev/null</code> - search / for files named &lt;filename&gt;, direct all errors to /dev/null<br /><code>find / -user &lt;username&gt; -name basil 2&gt;/dev/null</code> - find all files in / named basil owned by &lt;username&gt;<br /><br /><strong><h2>## locate</h2></strong><br />Locate is fast because it uses an internal database. <br />Update the database with - <code>sudo updatedb</code><br /><br /><code>locate &lt;filename&gt;<br /><br /></code><strong><h2>## which</h2></strong><br />which searches through the directories that are defined in your <code>$PATH</code> variable. Used for finding binaries.<code><br /><br />which &lt;binary&gt;</code><br />    </div>
+</body>
+</html>

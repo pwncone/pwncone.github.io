@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>printf() N chars from string</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><a href="https://stackoverflow.com/questions/2641903/how-do-you-print-a-limited-number-of-characters">https://stackoverflow.com/questions/2641903/how-do-you-print-a-limited-number-of-characters</a><br /><br /><div class="codebox"><div class="codebox">char&nbsp;data[]&nbsp;=&nbsp;&quot;hellohello&quot;;<br />printf(&quot;%.5s&quot;,&nbsp;data);</div></div><br /><br /><div class="codebox"><div class="codebox">char&nbsp;data[]&nbsp;=&nbsp;&quot;hello&nbsp;hi&nbsp;hello&nbsp;hi&quot;;<br />int&nbsp;numRead&nbsp;=&nbsp;8;<br />printf(&quot;%.*s&quot;,&nbsp;numRead,&nbsp;data);</div></div><br /></div>
+</body>
+</html>

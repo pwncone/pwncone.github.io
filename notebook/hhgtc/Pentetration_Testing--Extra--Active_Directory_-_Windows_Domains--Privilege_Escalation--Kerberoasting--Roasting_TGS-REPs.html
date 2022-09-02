@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Roasting TGS-REPs</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kerberoasting the TGS-REP</h1></strong><br />If you&#39;re kerberoasting an TGS-REP, you&#39;re attacking a service account.<br /><br /><strong>Links</strong><br />• <a href="https://github.com/nidem/kerberoast">https://github.com/nidem/kerberoast</a><br /><br /><strong><h2>## About TGS-REP</h2></strong><br />Kerberos authentication can be divided into 3 parts:<br />• Part 1 - Getting a TGT (to request a TGS)<br />• Part 2 - Getting a TGS (to access a service)<br />• Part 3 - Use TGS to Access Service<br /><br />The <code>TGS-REP</code> section of the Kerberos authentication process can be found in <code>Part 2 - Getting a TGS</code><br />For more information refer to <a href="Pentetration_Testing--Extra--Active_Directory_-_Windows_Domains--About--Kerberos--Authentication_Process.html">Kerberos &gt; Authentication Process</a><br /><br /><strong>TDLR:</strong><br />A user requests a TGS (to access a service).<br />The <code>TGS-REP</code> reply provides the user with their requested TGS.<br />To protect the TGS, it&#39;s ecnrypted with the NTLM password hash of the requested service. &lt;-- This is where you extract the NTLM password hash.<br /><br /><strong><h2>## How to Kerberoast TGS-REPs</h2></strong><br />For commands, refer to the sub-nodes.<br /><br /><strong><h3>### Overview</h3></strong><br />1. Find accounts assosciated with running services<br />   - Kerberos uses <code>SPNs</code> - <code>Service Principal Names</code> - to identify the account associated with the running service.<br />2. Request a TGS and extract NTLM hash<br />3. Crack the extracted NTLM hash<br /><br /><strong><h3>### Cracking</h3></strong><br /><code>hashcat -m 18200 -a 0 &lt;AS_REP_responses_file&gt; &lt;passwords_file&gt;</code><br /><code>john --wordlist=&lt;passwords_file&gt; &lt;AS_REP_responses_file&gt;</code><br /><br /></div>
+</body>
+</html>

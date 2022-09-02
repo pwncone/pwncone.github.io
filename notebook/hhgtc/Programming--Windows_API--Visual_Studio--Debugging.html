@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Debugging</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Debugging</h1></strong><br /><br /><strong><h2>## Attach to process</h2></strong><br />If you&#39;re debugging a DLL in another process,<br />you can start the DLL running and use <code>Debug &gt; Attach to process</code> to connect to it.<br />Now you can set breakpoints in your DLL code in Visual Studio and they&#39;ll be hit<br /><br />Example:<br /><a href="https://gamehacking.academy/lesson/28">https://gamehacking.academy/lesson/28</a><br /><br /><strong><h2>## system(&quot;pause&quot;) and Attach to process</h2></strong><br />If you&#39;re debugging an exe that gets modified after compile time,<br />to debug that .exe you could:<br />• insert a <code>system(&quot;pause &gt;  nul&quot;)</code> at the start of the program,<br />• start the program, it should pause<br />• in Visual Studio, go to <code>Debug &gt; Attach to process</code> and attach<br />• press ENTER in your program to continue execution<br /><br />Now you can set breakpoints in your code and debug it<br />as if you pressed F5 in Visual Studio.</div>
+</body>
+</html>

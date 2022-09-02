@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>DoS</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># DoS</h1></strong><br />Included becuase DoS can be fun.<br /><br /><strong><h2>## SYN Flooding Using hping3</h2></strong><br />A SYN flood is where the attacker sends repeated SYN requests to target system, which eventually causes a denial of service because the attacker never replies to the server with the expected ACK response and SYN packets just stack up on the server.<br /><br /><code>hping3</code> is a network tool able to send custom TCP/IP packets and display target replies<br /><code>hping3 -S [target IP] -a [from IP] -p 22 --flood</code><br /></div>
+</body>
+</html>

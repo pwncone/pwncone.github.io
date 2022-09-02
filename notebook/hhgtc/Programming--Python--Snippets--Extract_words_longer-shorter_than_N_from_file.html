@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Extract words longer/shorter than N from file</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><div class="codebox"><div class="codebox">wordlist&nbsp;=&nbsp;&quot;/usr/share/seclists/Passwords/darkweb2017-top1000.txt&quot;<br />newWordlistArray&nbsp;=&nbsp;[]<br />newWordlist&nbsp;=&nbsp;&quot;newWordlist.txt&quot;<br /><br />with&nbsp;open(wordlist)&nbsp;as&nbsp;f_obj:<br />&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;line&nbsp;in&nbsp;f_obj:<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;strip&nbsp;newline&nbsp;char<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password&nbsp;=&nbsp;line.rstrip()<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;passwordLength&nbsp;=&nbsp;len(password)<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;passwordLength&nbsp;&gt;=&nbsp;8:<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#&nbsp;don&#39;t&nbsp;want&nbsp;nested&nbsp;&quot;with&nbsp;open()&quot;&nbsp;-&gt;&nbsp;append&nbsp;pasword&nbsp;to&nbsp;array&nbsp;to&nbsp;solve&nbsp;this&nbsp;problem<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;newWordlistArray.append(password)&nbsp;&nbsp;&nbsp;<br /><br />with&nbsp;open(newWordlist,&nbsp;&#39;a&#39;)&nbsp;as&nbsp;f_obj:<br />&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;password&nbsp;in&nbsp;newWordlistArray:<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;f_obj.write<span style="color:#000000;font-weight:400">(</span>password&nbsp;+&nbsp;&quot;\n&quot;<span style="color:#000000;font-weight:400">)</span></div></div></div>
+</body>
+</html>

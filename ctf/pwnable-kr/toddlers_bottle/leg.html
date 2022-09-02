@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+  </head>
+
+<h1 id="leg">leg</h1>
+<p>3rd April 2022</p>
+<p>Surprised I got this right.<br>Figured it out on a whim with Azeria Labs&#39; ARM introduction. I didn&#39;t read all of it, just what the registers were and a few examples of instructions (should probably read all of it).<br>Credit to Azeria Labs here:<br><a href="https://azeria-labs.com/arm-data-types-and-registers-part-2/">https://azeria-labs.com/arm-data-types-and-registers-part-2/</a></p>
+<p>Explantion below in ARM assembly comments.   </p>
+<p><code>0x00008ce4 + 0x00008d0c + 0x00008d80 = 0x1A770</code><br><code>108400</code>  </p>
+<p>Output in my ssh terminal was dodgy/incomplete but copy/pasted out to here normally.</p>
+<pre><code>/ $ ./leg
+Daddy <span class="hljs-keyword">has</span> very <span class="hljs-keyword">strong</span> arm! : <span class="hljs-number">108400</span>
+Congratz!
+My daddy <span class="hljs-keyword">has</span> a lot <span class="hljs-keyword">of</span> ARMv5te muscle!
+</code></pre><h2 id="key1">key1</h2>
+<p>0x00008ce4<br>PC, program counter, points 2 instructions ahead.</p>
+<pre><code>(gdb) disass key1
+Dump of assembler code for function key1:
+   <span class="hljs-number">0x00008cd4</span> &lt;+<span class="hljs-number">0</span>&gt;:     <span class="hljs-keyword">push</span>    {<span class="hljs-built_in">r11</span>}           <span class="hljs-comment">; (str r11, [sp, #-4]!)</span>
+   <span class="hljs-number">0x00008cd8</span> &lt;+<span class="hljs-number">4</span>&gt;:     <span class="hljs-keyword">add</span>     <span class="hljs-built_in">r11</span>, <span class="hljs-built_in">sp</span>, #<span class="hljs-number">0</span>
+   <span class="hljs-number">0x00008cdc</span> &lt;+<span class="hljs-number">8</span>&gt;:     <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r3</span>, pc          <span class="hljs-comment">; Move 0x00008ce4 into r3</span>
+   <span class="hljs-number">0x00008ce0</span> &lt;+<span class="hljs-number">12</span>&gt;:    <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r0</span>, <span class="hljs-built_in">r3</span>          <span class="hljs-comment">; Return 0x00008ce4</span>
+   <span class="hljs-number">0x00008ce4</span> &lt;+<span class="hljs-number">16</span>&gt;:    <span class="hljs-keyword">sub</span>     <span class="hljs-built_in">sp</span>, <span class="hljs-built_in">r11</span>, #<span class="hljs-number">0</span>
+   <span class="hljs-number">0x00008ce8</span> &lt;+<span class="hljs-number">20</span>&gt;:    <span class="hljs-keyword">pop</span>     {<span class="hljs-built_in">r11</span>}           <span class="hljs-comment">; (ldr r11, [sp], #4)</span>
+   <span class="hljs-number">0x00008cec</span> &lt;+<span class="hljs-number">24</span>&gt;:    <span class="hljs-built_in">bx</span>      lr
+</code></pre><h2 id="key2">key2</h2>
+<p>0x00008d0c</p>
+<pre><code>(gdb) disass key2
+Dump of assembler code for function key2:
+   <span class="hljs-number">0x00008cf0</span> &lt;+<span class="hljs-number">0</span>&gt;:     <span class="hljs-keyword">push</span>    {<span class="hljs-built_in">r11</span>}           <span class="hljs-comment">; (str r11, [sp, #-4]!)</span>
+   <span class="hljs-number">0x00008cf4</span> &lt;+<span class="hljs-number">4</span>&gt;:     <span class="hljs-keyword">add</span>     <span class="hljs-built_in">r11</span>, <span class="hljs-built_in">sp</span>, #<span class="hljs-number">0</span>
+   <span class="hljs-number">0x00008cf8</span> &lt;+<span class="hljs-number">8</span>&gt;:     <span class="hljs-keyword">push</span>    {<span class="hljs-built_in">r6</span>}            <span class="hljs-comment">; Save r6 value to stack</span>
+   <span class="hljs-number">0x00008cfc</span> &lt;+<span class="hljs-number">12</span>&gt;:    <span class="hljs-keyword">add</span>     <span class="hljs-built_in">r6</span>, pc, #<span class="hljs-number">1</span>      <span class="hljs-comment">; Add 1 to program counter and store in r6 (0x00008d04 + 1)</span>
+   <span class="hljs-number">0x00008d00</span> &lt;+<span class="hljs-number">16</span>&gt;:    <span class="hljs-built_in">bx</span>      <span class="hljs-built_in">r6</span>              <span class="hljs-comment">; Branch + exchange to r3 (0x00008d05). Switch to thumb state because LSB = 1 / not 4 byte aligned</span>
+   <span class="hljs-number">0x00008d04</span> &lt;+<span class="hljs-number">20</span>&gt;:    <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r3</span>, pc          <span class="hljs-comment">; Move 0x00008d08 into r3</span>
+   <span class="hljs-number">0x00008d06</span> &lt;+<span class="hljs-number">22</span>&gt;:    adds    <span class="hljs-built_in">r3</span>, #<span class="hljs-number">4</span>          <span class="hljs-comment">; Add 4 to r3 (0x00008d0c)</span>
+   <span class="hljs-number">0x00008d08</span> &lt;+<span class="hljs-number">24</span>&gt;:    <span class="hljs-keyword">push</span>    {<span class="hljs-built_in">r3</span>}            <span class="hljs-comment">; Save r3 value to stack</span>
+   <span class="hljs-number">0x00008d0a</span> &lt;+<span class="hljs-number">26</span>&gt;:    <span class="hljs-keyword">pop</span>     {pc}
+   <span class="hljs-number">0x00008d0c</span> &lt;+<span class="hljs-number">28</span>&gt;:    <span class="hljs-keyword">pop</span>     {<span class="hljs-built_in">r6</span>}            <span class="hljs-comment">; (ldr r6, [sp], #4)</span>
+   <span class="hljs-number">0x00008d10</span> &lt;+<span class="hljs-number">32</span>&gt;:    <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r0</span>, <span class="hljs-built_in">r3</span>          <span class="hljs-comment">; Return r3</span>
+   <span class="hljs-number">0x00008d14</span> &lt;+<span class="hljs-number">36</span>&gt;:    <span class="hljs-keyword">sub</span>     <span class="hljs-built_in">sp</span>, <span class="hljs-built_in">r11</span>, #<span class="hljs-number">0</span>
+   <span class="hljs-number">0x00008d18</span> &lt;+<span class="hljs-number">40</span>&gt;:    <span class="hljs-keyword">pop</span>     {<span class="hljs-built_in">r11</span>}           <span class="hljs-comment">; (ldr r11, [sp], #4)</span>
+   <span class="hljs-number">0x00008d1c</span> &lt;+<span class="hljs-number">44</span>&gt;:    <span class="hljs-built_in">bx</span>      lr
+</code></pre><h2 id="key3">key3</h2>
+<p>0x00008d80
+LR, link register, stores the address to return to.</p>
+<pre><code>(gdb) disass key3
+Dump of assembler code for function key3:
+   <span class="hljs-number">0x00008d20</span> &lt;+<span class="hljs-number">0</span>&gt;:     <span class="hljs-keyword">push</span>    {<span class="hljs-built_in">r11</span>}           <span class="hljs-comment">; (str r11, [sp, #-4]!)</span>
+   <span class="hljs-number">0x00008d24</span> &lt;+<span class="hljs-number">4</span>&gt;:     <span class="hljs-keyword">add</span>     <span class="hljs-built_in">r11</span>, <span class="hljs-built_in">sp</span>, #<span class="hljs-number">0</span>
+   <span class="hljs-number">0x00008d28</span> &lt;+<span class="hljs-number">8</span>&gt;:     <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r3</span>, lr          <span class="hljs-comment">; Move address to return to into r3</span>
+   <span class="hljs-number">0x00008d2c</span> &lt;+<span class="hljs-number">12</span>&gt;:    <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r0</span>, <span class="hljs-built_in">r3</span>
+   <span class="hljs-number">0x00008d30</span> &lt;+<span class="hljs-number">16</span>&gt;:    <span class="hljs-keyword">sub</span>     <span class="hljs-built_in">sp</span>, <span class="hljs-built_in">r11</span>, #<span class="hljs-number">0</span>
+   <span class="hljs-number">0x00008d34</span> &lt;+<span class="hljs-number">20</span>&gt;:    <span class="hljs-keyword">pop</span>     {<span class="hljs-built_in">r11</span>}           <span class="hljs-comment">; (ldr r11, [sp], #4)</span>
+   <span class="hljs-number">0x00008d38</span> &lt;+<span class="hljs-number">24</span>&gt;:    <span class="hljs-built_in">bx</span>      lr
+</code></pre><p>Look at main to find the return address.</p>
+<pre><code>(gdb) disass main
+   [...]
+   <span class="hljs-number">0x00008d64</span> &lt;+<span class="hljs-number">40</span>&gt;:    <span class="hljs-built_in">bl</span>      <span class="hljs-number">0xfbd8</span> &lt;__isoc99_scanf&gt;
+   <span class="hljs-number">0x00008d68</span> &lt;+<span class="hljs-number">44</span>&gt;:    <span class="hljs-built_in">bl</span>      <span class="hljs-number">0x8cd4</span> &lt;key1&gt;
+   <span class="hljs-number">0x00008d6c</span> &lt;+<span class="hljs-number">48</span>&gt;:    <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r4</span>, <span class="hljs-built_in">r0</span>
+   <span class="hljs-number">0x00008d70</span> &lt;+<span class="hljs-number">52</span>&gt;:    <span class="hljs-built_in">bl</span>      <span class="hljs-number">0x8cf0</span> &lt;key2&gt;
+   <span class="hljs-number">0x00008d74</span> &lt;+<span class="hljs-number">56</span>&gt;:    <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r3</span>, <span class="hljs-built_in">r0</span>
+   <span class="hljs-number">0x00008d78</span> &lt;+<span class="hljs-number">60</span>&gt;:    <span class="hljs-keyword">add</span>     <span class="hljs-built_in">r4</span>, <span class="hljs-built_in">r4</span>, <span class="hljs-built_in">r3</span>
+   <span class="hljs-number">0x00008d7c</span> &lt;+<span class="hljs-number">64</span>&gt;:    <span class="hljs-built_in">bl</span>      <span class="hljs-number">0x8d20</span> &lt;key3&gt;
+   <span class="hljs-number">0x00008d80</span> &lt;+<span class="hljs-number">68</span>&gt;:    <span class="hljs-keyword">mov</span>     <span class="hljs-built_in">r3</span>, <span class="hljs-built_in">r0</span>         <span class="hljs-comment">; Return here after key3() call</span>
+   <span class="hljs-number">0x00008d84</span> &lt;+<span class="hljs-number">72</span>&gt;:    <span class="hljs-keyword">add</span>     <span class="hljs-built_in">r2</span>, <span class="hljs-built_in">r4</span>, <span class="hljs-built_in">r3</span>
+   [...]
+</code></pre>

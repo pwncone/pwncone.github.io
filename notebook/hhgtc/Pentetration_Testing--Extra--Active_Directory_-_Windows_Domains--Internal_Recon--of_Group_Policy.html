@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>of Group Policy</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Internal Recon - of Group Policy</h1></strong><br /><br /><code>gpresult /R</code> - get group policy of current machine<br /><br /><strong><h2>## PowerView</h2></strong><br /><code>Get-NetGPO</code> - get list of GPO in current domain<br />    <code>Get-NetGPO | select displayname</code><br />    <code>Get-NetGPO - ComputerName dcorp-student1.dollarcorp.moneycorp.local</code><br /><br /><code>Get-NetGPOGroup</code> - get GPO which use Restricted Groups or groups.xml for interesting users<br />                               - won&#39;t get any info if no Restricted Groups exist<br /><br /><strong><h3>### Find users via Group Policy</h3></strong><br /><code>Find-GPOComputerAdmin -ComputerName dcorp-student1.dollarcorp.moneycorp.local</code> - get users which are in a local group of a machine<br /><br /><code>Find-GPOLocation -UserName student1 -Verbose</code> - get machines where the given user is a member of a specific group<br /><br /><strong><h2>## ActiveDirectory PowerShell Module</h2></strong><br /><code>GetGPO -All</code> - get list of GPO in current domain<br /><code>Get-GPResultantSetOfPolicy -ReportType Html -Path C:\Users\Administrator\report.html</code></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Step 3. Kernel</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Boot Process - Kernel</h1></strong><br />The bootloader has loaded the kernel and transferred control to it with the parameters that it read.<br />The kernel then begins to load itself and the scripts/services required by the OS.<br /><br /><strong><h2>## 1. Loading hardware</h2></strong><br />• The kernel manages system hardware<br />• However, for the kernel to system hardware, it needs other system hardware (like memory)<br />• It&#39;s a chicken and the egg problem<br />• To get around this problem, the kernel loads a temporary file system containing just the essential modules need to load up the rest of the hardware<br />• There are 2 temporary file systems in Linux history<br />   ◇ initrd (initial ram disk)<br />   ◇ initramfs (initial ram filesystem)<br /><br /><strong><h3>### initrd</h3></strong><br />• initrd (intial ram disk) is the old temporary file system<br />• The kernel mounts initrd<br />   ◇ gets the necessary bootup drivers<br />   ◇ loads everything it needs<br />   ◇ and then replaces initrd with the actual root filesystem<br /><br /><strong><h3>### initramfs</h3></strong><br />• initramfs (initial ram file system) is the new temporary file system<br />• intitramfs is a temporary root filesystem built into the kernel itself<br />   ◇ It loads all the necessary drivers for the actual filesystem itself<br />   ◇ This means it doesn&#39;t have to mount the temporary filesystem first (like initrd does)<br /><br /><strong><h2>## 2. Mounting the root filesystem</h2></strong><br />• After the kernel has loaded the hardware, it has everything it needs to create a root device and mount the root partition<br /><br />1. The kernel mounts the root parition in read-only mode first<br />   ◇ this is so that <code>fsck</code> can check system integrity<br />2. The kernel remounts the root filesystem in read-write mode<br />3. The kernel locates <code>init</code> and executes it<br /><br /></div>
+</body>
+</html>

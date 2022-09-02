@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Compress/extract files</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Commands - Compress &amp; extract files</h1></strong><br /><br /><strong><h2>## tar</h2></strong><br />• tar creates archives<br /><br /><code>tar -cvf file.tar &lt;file1&gt; &lt;file2&gt;</code> - create tar archive<br />   ◇ c - create<br />   ◇ v - verbose<br />   ◇ f - the filename of the tar file<br /><code>tar czf myfile.tar.gz</code> - create a compressed tar archive<br />   ◇ z - use gzip to compress<br /><br /><code>tar -xf file.tar</code> - extract tar archive<br /><code>tar xfz file.tar</code> - extract compressed tar archive<br />   ◇ z - use gunzip to decompress<br /><br /><code>tar -tf file.tar</code> - list contents of archive<br /><br /><strong><h2>## gzip</h2></strong><br />• gzip compresses archive/files<br />• gzip can&#39;t add multiple files into one archive<br /><br /><code>gzip &lt;file&gt;</code> - compress provided file and rename it &lt;file&gt;.gz<br /><code>gunzip mycoolfile.gz</code> - decompress/extract gzip archive<br /><code>gzip -d file.gz</code> - decrompress/extract gzip archive<br /><br /><strong><h2>## 7zip</h2></strong><br /><code>7za e backup.7z</code> - extract backup.7z</div>
+</body>
+</html>

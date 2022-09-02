@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Boot Process</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Boot Process</h1></strong><br />The Linux boot process can be broken down in 4 simple stages: <br /><br /><strong><h2>## 1. BIOS/UEFI</h2></strong><br />• BIOS stands for <em>Basic Input/Output System</em><br />• UEFI stands for <em>Unified Extensible Firmware Interface</em><br />• The BIOS/UEFI initializes the hardware<br />   ◇ hard disks<br />   ◇ keyboard<br />   ◇ etc.<br />• And then checks the hardware is ok with a POST - <em>Power-On Self Test</em><br />• The BIOS/UEFI then loads the bootloader<br />• BIOS is older, UEFI is newer. They both load the bootloader a little differently<br /><br /><strong><h2>## 2. Bootloader</h2></strong><br />• The bootloader is responsible for loading the kernel into memory<br />• It then starts the kernel and transfers control to it (for it to run init/systemd/startup scripts)<br />• GRUB is the most common Linux bootloader<br />   ◇ can be used with BIOS and UEFI<br /><br /><strong><h2>## 3. Kernel</h2></strong><br />• The kernel initializes devices and memory<br />• And starts the the init process (startup scripts)<br /><br /><strong><h2>## 4. Init</h2></strong><br />• Init starts and stops essential services on the system <br />• It reads the /etc/inittab file and runs script to set up the system for use<br />• There are 3 major implementations of init in Linux distributions<br />   ◇ System V (sysv)<br />   ◇ Upstart<br />   ◇ Systemd<br /></div>
+</body>
+</html>

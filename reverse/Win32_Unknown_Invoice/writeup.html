@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone</title>
+    <link rel="stylesheet" href="../../css/style.css">
+  </head>
+<h1 id="win32-unknown-invoice">Win32.Unknown.Invoice</h1>
+<p>11th May 2022</p>
+<p>I have no idea what this thing is. Not good enough yet to reverse it fully but writing up my notes anyway. Feel slighly defeated. Called <code>Invoice</code> because that&#39;s the name of file that gets downloaded - <code>Invoice.iso</code>.</p>
+<ul>
+<li><a href="https://app.any.run/tasks/c9902e40-c785-4adc-a70e-2d5d5b0bcc3a/">https://app.any.run/tasks/c9902e40-c785-4adc-a70e-2d5d5b0bcc3a/</a></li>
+<li><a href="https://bazaar.abuse.ch/sample/5e2145c19ef2e5bb5449318202edb49b773282eb34a6abe2732d5e5f6a871759/">https://bazaar.abuse.ch/sample/5e2145c19ef2e5bb5449318202edb49b773282eb34a6abe2732d5e5f6a871759/</a></li>
+</ul>
+<p>EDIT:<br>Joe Sandbox seems to have done a pretty thorough analysis of svchost.dll:  </p>
+<ul>
+<li><a href="https://www.joesandbox.com/analysis/616450/1/html#overview">https://www.joesandbox.com/analysis/616450/1/html#overview</a></li>
+</ul>
+<h2 id="overview">Overview</h2>
+<p>A HTML web page with embedded javascript downloads <code>Invoice.iso</code> to the target user&#39;s system. Inside the ISO is a hidden <code>svchost.dll</code> and a shortcut to a <code>documents</code> folder. Instead of opening any documents, this shortcut executes the beforementioned <code>svchost.dll</code> via <code>rundll32.exe</code>. What <code>svchost.dll</code> does I can&#39;t figure out; it seems to terminate abruptly without doing anything as far as I can tell.</p>
+<h2 id="stage-1-html-invoice-notification">Stage 1 - HTML Invoice Notification</h2>
+<p>An invoice is sent to the target user.</p>
+<p><img src="img/html.png" alt="img"></p>
+<p>JavaScript on the HTML page converts the embedded base64 <code>Invoice.iso</code> from base64 to blob and downloads it to the target user&#39;s system. This entire download can be prevented if JavaScript is stopped from executing automatically via a plugin like NoScript.</p>
+<p><img src="img/javascript.png" alt="img"></p>
+<p>A potential indication that this malware is a recent effort is the payment request of 03/31/22 which has a similar compile time to the <code>svchost.dll</code> embedded in the ISO. </p>
+<h2 id="stage-2-iso">Stage 2 - ISO</h2>
+<p>When mounted, the <code>Invoice.iso</code> is shown to contain a hidden <code>svchost.dll</code> and a shortcut to a <code>documents</code> folder.</p>
+<p><img src="img/mounted.png" alt="img"></p>
+<p><code>documents</code> executes one of svchost.dll&#39;s exported functions - <code>pGUAYVFxbN</code> - via rundll32.exe: <code>C:\Windows\System32\rundll32.exe svchost.dll,pGUAYVFxbN</code>. There&#39;s nothing else on the ISO. I assume the malware authors hope that the user will mount this downloaded ISO themselves and click on the <code>documents</code> shortcut to get the malware to execute.</p>
+<h2 id="stage-3-svchost-dll">Stage 3 - svchost.dll</h2>
+<ul>
+<li><a href="https://www.virustotal.com/gui/file/a54302b0bf056c65deb759122f71e757b11155d82e648f9e206dab91aab44bd4">https://www.virustotal.com/gui/file/a54302b0bf056c65deb759122f71e757b11155d82e648f9e206dab91aab44bd4</a></li>
+</ul>
+<h3 id="basic">Basic</h3>
+<p>MD5: 39fb644929c57fb75aace407f429cb12<br>SHA-1: f449e79493fcf15dc870466e2ea639d2cbcd8e14<br>SHA-256: a54302b0bf056c65deb759122f71e757b11155d82e648f9e206dab91aab44bd4  </p>
+<p>File type: Win32 DLL<br>Magic: PE32+ executable for MS Windows (DLL) (GUI) Mono/.Net assembly<br>File size: 2.65 MB (2775552 bytes)</p>
+<p><code>svchost.dll</code> is a 64bit DLL that, I think, contains further embedded PE files and code. </p>
+<p>Its compile time is pretty recent.<br><img src="img/compiletime.png" alt="img">  </p>
+<p>Its sections and their VirtualSize and RawSize don&#39;t suggest any compressed data.<br><img src="img/sections.png" alt="img"></p>
+<p>However, entropy of the sections suggests that .data potentially contains encrypted data.<br><img src="img/sectionsentropy.png" alt="img"></p>
+<p>It has 1 exported function, which gets executed via rundll32.exe and contains all the code.<br><img src="img/exports.png" alt="img"></p>
+<p>Its imports are pretty minimal. LoadLibraryA and GetProcAddress are present which suggest dynamic imports.<br><img src="img/imports.png" alt="img"></p>
+<p>The only string of note is a long list of words. What this is I don&#39;t know, if anything. Everythingn else is import names and junk.<br><img src="img/strings.png" alt="img"></p>
+<h3 id="x64dbg">x64dbg</h3>
+<p>Dynamic analysis of the DLL didn&#39;t reveal anything extra.<br><code>speakeasy</code> will timeout after trying to allocate heap memory:<br><img src="img/speakeasy.png" alt="img"></p>
+<p>You can debug the DLL in x64dbg by loading rundll32.exe and doing File &gt; Change Command Line to execute <code>svchost.dll</code> and its <code>pGUAYVFxbN</code> exported function.<br><img src="img/x64dbg.png" alt="img"></p>
+<p>If you set a breakpoint on kernel32.GetProcessHeap (the first function the DLL calls) and F9 to continue you&#39;ll get an EXCEPTION_ACCESS_VIOLATION and never reach the loaded svchost DLL. I have no idea why. </p>
+<p>Instead do Options &gt; Preferences and break on DLL Load.<br><img src="img/x64dbg_preferences.png" alt="img">  </p>
+<p><code>pGUAYVFxbN</code> is located 0x1744 bytes from the base address.<br><img src="img/export_rva.png" alt="img">  </p>
+<p>Once svchost.dll has been loaded, grab its loaded bases address from the Memory Map tab and navigate in the disassembler to <code>base address + 0x1744</code> and set a breakpoint at the start of the <code>pGUAYVFxbN</code> function. You should be able to step through the DLL now.<br><img src="img/x64dbg_exportbp.png" alt="img">  </p>
+<p>A call to <code>7FF9C7E42EB0</code> performs recon of the system (pictured are my environment variables) and dumps it into a huge array of memory.<br><img src="img/recon.png" alt="img">  </p>
+<p>You can step through with x64dbg or use API monitor to find what functions it resolves and calls.<br><img src="img/x64dbg_funcresolve.png" alt="img"><br><img src="img/apimonitor.png" alt="img">  </p>
+<p>I can&#39;t make sense of it. It resolves functions for injection: NtOpenFile, NtCreateSection, NtMapViewOfSection, but never calls them. It also allocates only 13 bytes of executable memory at multiple different addresses. </p>
+<p>If you set a breakpoint on kernel32.GetModuleFileNameA and F8 over the jmp and then Ctrl+F9 to execute until return (which should drop you into the svchost.dll which called it) and single step until you reach the <code>ret</code> in r14 you find, what looks to me, a 2nd decrypted in-memory DLL.<br><img src="img/inmemory_dll.png" alt="img">  </p>
+<p>Dump it with <code>savedata :memdump:,0x000001A360BA0000,0x24AFF0</code>.  </p>
+<h2 id="embedded-pe">Embedded PE</h2>
+<p>This must be a further payload.  </p>
+<ul>
+<li><a href="https://www.virustotal.com/gui/file/325442f090b78cf7989d21e33dddc530c2ac8c888cfb0b53d3db9185494724fa/detection">https://www.virustotal.com/gui/file/325442f090b78cf7989d21e33dddc530c2ac8c888cfb0b53d3db9185494724fa/detection</a></li>
+</ul>
+<p>The hash of this PE changes every time I dump it.
+It&#39;s another 64bit DLL, its compile time is a similar date to svchost.dll (21st April 22 rather than 25th April), its import table is scuffed but in its strings are references to OpenSSL, anti-debug and anti-vm detection, and the C++ boost library.</p>
+<p><img src="img/strings_openssl.png" alt="img"><br><img src="img/strings_anti.png" alt="img"><br><img src="img/strings_boost.png" alt="img">  </p>
+<h2 id="conclusion">Conclusion</h2>
+<p>I have no idea what this malware does :)<br>Moving on because I don&#39;t know what to do. It has a ton of capabilities but I&#39;m not convinced that any of it executes because the code just terminates abruptly.</p>
+</html>

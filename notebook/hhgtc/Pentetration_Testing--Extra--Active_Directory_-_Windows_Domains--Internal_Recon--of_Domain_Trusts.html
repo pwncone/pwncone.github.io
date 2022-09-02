@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>of Domain Trusts</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Internal Recon - of Domain Trusts</h1></strong><br /><br /><strong><h2>## PowerView</h2></strong><br />List all domain trusts for current domain<br /><code>Get-NetDomainTrust</code><br /><code>Get-NetDomainTrust -Domain us.dollarcorp.moneycorp.local</code><br /><br /><strong><h3>### Forests</h3></strong><br />Get details about the current forest<br /><code>Get-NetForest</code><br /><code>Get-NetForest -Forest eurocorp.local</code><br /><br />List all domains in current forest<br /><code>Get-NetForestDomain</code><br /><code>Get-NetForestDomain -Forest eurocop.local</code><br /><br />Get all global catalogs for the current forest<br /><code>Get-NetForestCatalog</code><br /><code>Get-NetForestCatalog -Forest eurocorp.local</code><br /><br />Map trusts of a forest<br /><code>Get-NetForestTrust</code><br /><code>Get-NetForestTrust -Forest eurocorp.local</code><br /><br /><strong><h2>## ActiveDirectory PowerShell Module</h2></strong><br />List all domain trusts for current domain <br /><code>Get-ADTrust</code><br /><code>Get-ADTrust -Identity us.dollarcorp.moneycorp.local</code><br /><br /><strong><h3>### Forests</h3></strong><br />Details about current forest<br /><code>Get-ADForest</code><br /><code>Get-ADForest -Identity eurocorp.local</code><br /><br />List all domains in current forest<br /><code>(Get-ADForest).Domains</code><br /><br />Get all global catalogs for the current forest<br /><code>Get-ADForest | select -ExpandProperty GlobalCatalogs</code><br /><br />Map trusts of a forest<br /><code>Get-ADTrust -Filter &#39;msDS-TrustForestTrustInfo -ne &quot;$null&quot;&#39;</code></div>
+</body>
+</html>

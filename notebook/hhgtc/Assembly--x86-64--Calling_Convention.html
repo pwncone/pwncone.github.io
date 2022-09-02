@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Calling Convention</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># x64 Function Calling Convention</h1></strong><br /><a href="https://en.wikipedia.org/wiki/X86_calling_conventions">https://en.wikipedia.org/wiki/X86_calling_conventions</a><br /><a href="https://wiki.osdev.org/Calling_Conventions">https://wiki.osdev.org/Calling_Conventions</a><br /><br />Here is a nice cheat sheet of calling conventions from the OSDEV Wiki.<br /><a href=""><img src="images/574-1.png" alt="images/574-1.png" /></a><br /><br /><strong><h2>## Function Arguments</h2></strong><br />On x64 there are more registers available.<br />In order to use the stack less often, a number of function arguments are stored in registers.<br /><br />This is called <code>fastcall</code> and it differs between compilers.<br /><br /><strong><h3>### MSVC / Microsoft x64</h3></strong><br />On Win64, the first 4 arguments of the function are passed into registers:<br />• <code>RCX</code><br />• <code>RDX</code><br />• <code>R8</code><br />• <code>R9</code><br />in that order.<br /><br />The rest then go on the stack.<br /><br /><strong><h3>### GCC / Linux 64bit</h3></strong><br />GCC passes the first 6 arguments of the function into registers:<br />• <code>RDI</code><br />• <code>RSI</code><br />• <code>RDX</code><br />• <code>RCX</code><br />• <code>R8</code><br />• <code>R9</code><br />in that order.<br /><br />The rest then go on the stack.<br /><br /><strong><h2>## Return Value</h2></strong><br />On x64, return values are stored in <code>RAX</code> (and sometimes RDX).<br /><br /><strong><h2>## Stack Alignment</h2></strong><br />16bit stack alignment<br /><br /></div>
+</body>
+</html>

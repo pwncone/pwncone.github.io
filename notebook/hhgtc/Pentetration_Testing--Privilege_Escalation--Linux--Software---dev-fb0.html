@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>/dev/fb0</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># /dev/fb0</h1></strong><br /><strong>Examples</strong><br />• hackthebox Falafel<br /><br /><code>/dev/fb0</code> is the linux framebuffer, which can be used to capture screenshots.<br /><br />To convert the raw framebuffer data to a file, you need the image resolution.<br /><div class="codebox"><div class="codebox">moshe@falafel:/tmp/groups$&nbsp;cat&nbsp;/sys/class/graphics/fb0/virtual_size<br />1176,885</div></div><br /><br />Open the framebuffer as <code>Raw image data</code> with GIMP.<br />Input the resolution, and change the image type until you have a clear image.</div>
+</body>
+</html>

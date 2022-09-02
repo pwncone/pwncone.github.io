@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Includes</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># C - Includes</h1></strong><br /><code>.c</code> files allocate storage and define executable code.<br /><code>.h</code> files define external storage and function prototypes<br />Source: <a href="https://betterembsw.blogspot.com/2011/08/proper-use-of-h-and-c-files.html">https://betterembsw.blogspot.com/2011/08/proper-use-of-h-and-c-files.html</a><br /><br />So, the convention appears to be:<br /><code>dostuff.h</code> - contains forward declarations of the functions found in <code>dostuff.c</code><br /><code>dostuff.c</code> - the actual functions &amp; their code. include all header files for functions here<br /><br />The <code>.c</code> must include its own <code>.h</code><br /><br /><strong><h3>Example #1</h3></strong><br /><a href="https://stackoverflow.com/questions/32813896/proper-use-of-header-files">https://stackoverflow.com/questions/32813896/proper-use-of-header-files</a><br /><br /><div class="codebox"><div class="codebox">//&nbsp;main.c<br />//&nbsp;-----------------------------------<br />#include&nbsp;&quot;somefile.h&quot;<br /><br />int&nbsp;main()&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;somefunc();<br />&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;0;<br />}<br /><br />//&nbsp;somefile.h<br />//&nbsp;-----------------------------------<br />#ifndef&nbsp;RHURAC_SOMEFILE_H<br />#define&nbsp;RHURAC_SOMEFILE_H<br /><br />void&nbsp;somefunc();<br /><br />#endif<br /><br />//&nbsp;somefile.c<br />//&nbsp;-----------------------------------<br />#include&nbsp;&lt;stdio.h&gt;<br />#include&nbsp;&quot;somefile.h&quot;<br /><br />void&nbsp;somefunc()&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;hello\n&quot;);<br />}<br /><br />//&nbsp;example&nbsp;build&nbsp;(gcc)<br />//&nbsp;-----------------------------------<br />gcc&nbsp;main.c&nbsp;somefile.c&nbsp;-o&nbsp;main</div></div><br /><br /><strong><h2>Principles</h2></strong><br />• Header files should be able to compile by themselves<br />• <code>main.c</code> should just contain your main loop<br /><br /><strong><h2>Links</h2></strong><br />• <a href="https://betterembsw.blogspot.com/2011/08/proper-use-of-h-and-c-files.html">https://betterembsw.blogspot.com/2011/08/proper-use-of-h-and-c-files.html</a></div>
+</body>
+</html>

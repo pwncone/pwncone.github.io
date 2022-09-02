@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>SUID and GUID</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># SUID and GUID</h1></strong><br />• <a href="https://gtfobins.github.io/">https://gtfobins.github.io/</a> - Refer here for creative use of binaries<br /><br />SUID binaries run with the permissions of the user who owns it.<br />GUID binaries run with the permissions of the group who owns it.<br /><br />There&#39;s lots of different ways to find SUID and GUID binaries.<br />Some produce results, some don&#39;t. I have no idea why. It seems like everybody uses a different method.<br />Here&#39;s them all.<br /><br /><code>2000</code> = GUID<br /><code>4000</code> = SUID<br /><br /><strong>Files</strong><br /><code>find / -uid 0 -perm -4000 -type f 2&gt;/dev/null</code><br /><code>find / -perm -4000 -type f -exec ls -la {} 2&gt;/dev/null \;</code><br /><br /><strong>Files &amp; Directories</strong><br /><code>find / -perm -u=s 2&gt;/dev/null</code><br /><code>find / -perm -g=s 2&gt;/dev/null</code><br /><code>find / -perm 4000 2&gt;/dev/null</code><br /><br /><strong>Directories</strong><code><br />find / -perm -u=s -type d 2&gt;/dev/null<br />find / -perm -g=s -type d 2&gt;/dev/null</code><br /></div>
+</body>
+</html>

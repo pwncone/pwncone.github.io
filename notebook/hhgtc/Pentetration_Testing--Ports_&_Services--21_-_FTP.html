@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>21 - FTP</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 21 - FTP</h1></strong><br />• <a href="https://www.computerhope.com/issues/ch001246.htm">https://www.computerhope.com/issues/ch001246.htm</a><br /><br /><strong><h2>## Checklist</h2></strong><br />• Grab the FTP banner for version info<br />   ◇ <code>nc 10.11.0.55 21 -v</code><br />• Check version for vulns<br />   ◇ IIS 5.0 has reliable vuln<br />• Connect and browse FTP directory<br />   ◇ via client - <code>ftp 10.11.0.55</code><br />   ◇ via nc - <code>nc 10.11.0.55 21 -v</code><br />   ◇ via web - <code>ftp://10.11.0.55</code><br />• Try anonymous login<br />• Bruteforce<br />   ◇ usernames you know + top 100 passwords<br />   ◇ common usernames + top 100 passwords<br />   ◇ etc.<br /><br /><strong>With access</strong><br />• Can you upload/download anything?<br />• Windows FTP?<br />   ◇ You might be able to gather info about the OS<br /><br /><strong><h2>## Config files</h2></strong><br /><code>ftpuser</code><br /><code>ftp.conf</code><br /><code>proftpd.conf</code><br /><br /><strong><h2>## Anonymous Login</h2></strong><br />Nmap <code>-sC</code> tell you if the FTP server allows for anonymous login.<br />Enter <code>anonymous</code> as the username, and any/an empty password for PASS<br /><br /><code>LOGIN anonymous<br />PASS blah</code><br /><br /><strong><h2>## Commands</h2></strong><br /><code>get</code> - download a file<br /><code>put</code> - upload a file<br /><code>wget -r ftp://&lt;username&gt;:&lt;password&gt;@10.10.10.59</code> - recursive download<br /><br /><code>binary</code> - swtich to binary mode if you&#39;re uploading a binary<br /><code>ascii</code> - switch to ascii mode if you&#39;re uploading a text file<br /><br /><strong><h2>## Bruteforcing</h2></strong><br /><strong><h3>### patator</h3></strong><br /><code>patator ftp_login host=10.0.0.1 user=FILE0 password=FILE1 0=logins.txt 1=passwords.txt -x ignore:mesg=&#39;Login incorrect.&#39; -x ignore,reset,retry:code=500</code></div>
+</body>
+</html>

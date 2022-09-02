@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Trim string</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'>You trim strings in C by inserting a NULL character - <code>&#39;\0&#39;</code> - at the point you want to trim.<br />It&#39;s as simple as that.<br /><br /><div class="codebox"><div class="codebox">char&nbsp;myString[]&nbsp;=&nbsp;&quot;hello&nbsp;blahblah&quot;;<br /><br />//&nbsp;trim&nbsp;myString&nbsp;down&nbsp;to&nbsp;hello&nbsp;from&nbsp;end&nbsp;of&nbsp;string<br />int&nbsp;myString_len&nbsp;=&nbsp;strlen(myString)<br />myString[myString_len&nbsp;-&nbsp;10]&nbsp;=&nbsp;&#39;\0&#39;<br /></div></div></div>
+</body>
+</html>

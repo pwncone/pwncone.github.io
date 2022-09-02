@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>symlinks</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Filesystem - symlinks &amp; hardlinks</h1></strong><br /><strong><h2>## symlinks</h2></strong><br />• symlinks are the Linux equivalent to Windows shortcuts<br />• symlinks allow you to create a link/&quot;shortcut&quot; to a file<br />• When you modify a symlinked file, the original file also gets modified<br /><br /><code>ln -s bankDetails bankDetailsLINK</code> - create a symlink<br /><br /><div class="codebox"><div class="codebox">pete@icebox:~/Desktop$&nbsp;ls&nbsp;-li<br />total&nbsp;12<br />93402&nbsp;-rw-rw-r--&nbsp;1&nbsp;pete&nbsp;pete&nbsp;8&nbsp;Jan&nbsp;21&nbsp;21:36&nbsp;bankDetails<br />93403&nbsp;lrwxrwxrwx&nbsp;1&nbsp;pete&nbsp;pete&nbsp;6&nbsp;Jan&nbsp;21&nbsp;21:39&nbsp;bankDetailsLINK&nbsp;-&gt;&nbsp;bankDetails</div></div><br /><br /><strong><h2>## hardlinks</h2></strong><br />• hardlinks create another file with a link to the same inode<br />• If you modify the contents of myfile2 or myhardlink, the change would be seen on both, <br />• If you deleted myfile2, the file would still be accessible through myhardlink <br /><br /><code>ln somefile somefileHARDLINK</code> - create a hardlink<br /><br /><div class="codebox"><div class="codebox">pete@icebox:~/Desktop$&nbsp;ln&nbsp;myfile2&nbsp;myhardlink<br />pete@icebox:~/Desktop$&nbsp;ls&nbsp;-li<br />total&nbsp;16<br />&nbsp;&nbsp;151&nbsp;-rw-rw-r--&nbsp;1&nbsp;pete&nbsp;pete&nbsp;7&nbsp;Jan&nbsp;21&nbsp;21:36&nbsp;myfile<br />93401&nbsp;-rw-rw-r--&nbsp;2&nbsp;pete&nbsp;pete&nbsp;8&nbsp;Jan&nbsp;21&nbsp;21:36&nbsp;myfile2<br />93402&nbsp;-rw-rw-r--&nbsp;1&nbsp;pete&nbsp;pete&nbsp;8&nbsp;Jan&nbsp;21&nbsp;21:36&nbsp;myfile3<br />93403&nbsp;lrwxrwxrwx&nbsp;1&nbsp;pete&nbsp;pete&nbsp;6&nbsp;Jan&nbsp;21&nbsp;21:39&nbsp;myfilelink&nbsp;-&gt;&nbsp;myfile<br />93401&nbsp;-rw-rw-r--&nbsp;2&nbsp;pete&nbsp;pete&nbsp;8&nbsp;Jan&nbsp;21&nbsp;21:36&nbsp;myhardlink</div></div></div>
+</body>
+</html>

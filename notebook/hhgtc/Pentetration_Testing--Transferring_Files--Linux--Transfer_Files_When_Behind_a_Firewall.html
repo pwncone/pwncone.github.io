@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Transfer Files When Behind a Firewall</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Transfer Files When Behind a Firewall</h1></strong><br /><strong>Examples</strong><br />• oscp 10.11.1.252 - fw_dev<br /><br /><strong><h2>## Proxychains</h2></strong><br />This is example is from oscp 10.11.1.252 - fw_dev.<br /><br />Target machine:<br /><code>Firewalled IP = 10.11.1.252</code> (what you see publicly)<br /><code>Internal IP   = 10.2.2.218</code><br /><br />1. On your attacking host, create a proxychains proxy<br /><div class="codebox"><div class="codebox">┌─[root@parrot]─[/oscp/10.11.1.252]<br />└──╼&nbsp;#nano&nbsp;/etc/proxychains.conf<br />[...]<br />socks4&nbsp;127.0.0.1&nbsp;22001</div></div><br /><br />2. On your attacking host, use SSH to open a dynamic port forward on the same port as your proxychains config.<br /><div class="codebox"><div class="codebox">┌─[root@parrot]─[/oscp/10.11.1.252]<br />└──╼&nbsp;#ssh&nbsp;-D&nbsp;127.0.0.1:22001&nbsp;j0hn@10.11.1.252&nbsp;-p&nbsp;22000<br />j0hn@10.11.1.252&#39;s&nbsp;password:<br />[j0hn@timeclock&nbsp;~]$&nbsp;</div></div><br /><br />All traffic now sent to <code>127.0.0.1:22001</code> will be proxied to <code>10.11.1.252</code><br /><br />3. Start listener on target host<br /><div class="codebox"><div class="codebox">[j0hn@timeclock&nbsp;shm]$&nbsp;nc&nbsp;-l&nbsp;9001&nbsp;&gt;&nbsp;lse.sh</div></div><br /><br />4. Transfer files to the target host&#39;s internal IP over your dynamic port forward via proxychains<br /><div class="codebox"><div class="codebox">┌─[root@parrot]─[/oscp/10.11.1.252]<br />└──╼&nbsp;#cat&nbsp;lse.sh&nbsp;|&nbsp;proxychains&nbsp;nc&nbsp;10.2.2.218&nbsp;9001<br />ProxyChains-3.1&nbsp;(http://proxychains.sf.net)<br />|S-chain|-&lt;&gt;-127.0.0.1:22001-&lt;&gt;&lt;&gt;-10.2.2.218:9001-&lt;&gt;&lt;&gt;-OK</div></div><br /><br />Use md5sum to verify that the files are the same and transferred correctly.</div>
+</body>
+</html>

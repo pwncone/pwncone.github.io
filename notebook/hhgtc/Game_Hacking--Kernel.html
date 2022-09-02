@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Kernel</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kernel</h1></strong><br />A kernel cheat is effectively an external cheat.<br />The common kernel cheat has 2 components:<br />• A kernel driver to read &amp; write values<br />• A userland component to send requests to the driver and draw cheats<br /><br /><strong>Source</strong><br />• <a href="https://github.com/alxbrn/r6s-external-nuklear-socket">https://github.com/alxbrn/r6s-external-nuklear-socket</a> <br />   ◇ Uses nuklear as a menu &amp; d3d11 to create a window<br />   ◇ Stores username/password in local binary XORed for p2c. Not good<br />   ◇ On startup creates a thread for the GUI<br />   ◇ On login, the GuiRoutine starts the FeaturesRoutine - an infinite loop that reads the game&#39;s memory every 1 second (cheat functions and drawing go here. There&#39;s no separate reading thread to delay drawing)<br />   ◇ For thread creation it creates a suspended thread, modifies RIP to point to the target function, and then resumes<br />      ▪ I have no idea why. Maybe BattlEye monitors thread creation on the system? I have no idea. It&#39;s probably pointless<br />      ▪ Also uses xor strings and dynamic imports throughout. Seems pointless to me. They&#39;re worried about their binary being analysed by anticheat? PIcked up by BattlEye and sent to BattlEye servers? No idea.<br />• <a href="https://github.com/RampageMod/UE4-c-">https://github.com/RampageMod/UE4-c-</a> - Valorant cheat<br /><br /></div>
+</body>
+</html>

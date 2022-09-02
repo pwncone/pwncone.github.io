@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Craft Golden Ticket - TGT</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kerberos Golden Ticket</h1></strong><br />Very Willy Wonka.<br /><br /><strong><h2>## About</h2></strong><br />A golden ticket is a forged <em>Ticket Granting Ticket</em> - a TGT.<br />This TGT can be then be used to forge a TGS to request access for any user to any service within the domain.<br />It&#39;s golden because it can access anything.<br /><br />To forge a TGT/golden ticket, you need:<br />• the <code>krbtgt</code> account hash (extracted from the Domain Controller)<br />• domain name<br />• domain SID<br />• ID: 500 (Administrator SID), 518 (Schema Admins), 519 (Enterprise Admin)<br /><br /><strong><h3>### Persistence length?</h3></strong><br />Persistence lasts as long as the <code>krbtgt</code> hash stays the same - usually multiple years.<br /><br /><strong><h2>## Exploit Process</h2></strong><br />We don&#39;t need any special privileges on current machine to create a golden ticket.<br /><br />1. Grab the <code>krbtgt</code> hash from the domain controller<br />2. Create your own TGT <br />   - specify any user<br />   - any password (because it doesn&#39;t get checked)<br />   - any time (because it doesn&#39;t get checked)<br />3. Encrypt the TGT with the <code>krbtgt</code> hash</div>
+</body>
+</html>

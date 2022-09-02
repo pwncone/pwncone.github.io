@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Info Gathering</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Info Gathering</h1></strong><br /><br /><strong><h2>## nbtscan</h2></strong><br />nbtscan is a tool specialised for identifying NetBIOS information (think this is a windows thing)<br /><code>nbtscan -r 192.168.11.0/24</code><br /><br /><strong><h2>## Nmap SMB scripts</h2></strong><br />Run all SMB scripts <br /><code>nmap -v -p 139,445 --script smb* 192.168.11.236</code><br />List all the smb scripts available:<br /><code>ls -l /usr/share/nmap/scripts/smb*</code><br />OS discovery with SMB:<br /><code>nmap -v -p 139, 445 --script=smb-os-discovery 192.168.11.227</code><br />Check for known SMB vulns:<br /><code>nmap --script smb-vuln* -p 139,445 10.10.10.152</code><br /><br /><strong><h2>## enum4linux</h2></strong><br />Old. Often errors out. Doesnt&#39; support smb2. Can try it anyway.<br /><code>enum4linux -a 192.168.11.227</code></div>
+</body>
+</html>

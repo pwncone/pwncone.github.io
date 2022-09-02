@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>11,211 - Memcached</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 11,211 - Memcached</h1></strong><br /><a href="https://memcached.org/">https://memcached.org/</a><br />Memcached caches share memory on all of your running systems/servers to create a large pool of spare memory for applications to use.<br /><br />The interesting stuff to pentesters is the Key + Value pairs on the memcached server.<br />You might be able to grab names, emails, passwords, etc.<br /><br /><div class="codebox"><div class="codebox">#&nbsp;Info<br />#&nbsp;----------------------------------------<br />#&nbsp;Nmap<br />nmap&nbsp;-p&nbsp;11211&nbsp;-sV&nbsp;-sC&nbsp;192.185.208.3<br />nmap&nbsp;-p&nbsp;11211&nbsp;--script&nbsp;memcached-info&nbsp;192.185.208.3<br /><br />#&nbsp;Netcat&nbsp;-&nbsp;grab&nbsp;version<br />nc&nbsp;192.185.208.3&nbsp;11211<br />version<br />VERSION&nbsp;1.5.12<br /><br />#&nbsp;memcstat&nbsp;-&nbsp;Display&nbsp;the&nbsp;operating&nbsp;status&nbsp;of&nbsp;a&nbsp;single&nbsp;or&nbsp;group&nbsp;of&nbsp;memcached&nbsp;server<br />memcstat&nbsp;--servers&nbsp;192.185.208.3<br />memcstat&nbsp;--servers&nbsp;192.185.208.3&nbsp;--server-version<br /><br />#&nbsp;Keys<br />#&nbsp;----------------------------------------<br />#&nbsp;memcdump&nbsp;-&nbsp;List&nbsp;keys&nbsp;<br />memcdump&nbsp;--servers&nbsp;192.185.208.3<br /><br />#&nbsp;metasploit&nbsp;-&nbsp;Dump&nbsp;memcached&nbsp;key&nbsp;values<br />msf5&nbsp;&gt;&nbsp;use&nbsp;auxiliary/gather/memcached_extractor<br /><br />#&nbsp;memcached-tool&nbsp;-&nbsp;Dump&nbsp;keys&nbsp;+&nbsp;values<br />memcached-tool&nbsp;192.185.208.3&nbsp;dump</div></div></div>
+</body>
+</html>

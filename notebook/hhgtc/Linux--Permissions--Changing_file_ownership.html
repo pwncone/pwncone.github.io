@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Changing file ownership</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Users &amp; Groups - Permissions - Changing file ownership</h1></strong><br />Files by default are owned by the user who creates them + that user&#39;s default group.<br /><br /><strong><h2>## chown</h2></strong><br /><code>chown &lt;user&gt;:&lt;group&gt; &lt;file&gt;</code> - change ownership of file<br /><code>chown bob:marketing plans.txt</code><br /><br /><code>chown &lt;user to own the file&gt; &lt;file&gt;</code> - change the owner of the file without changing the group<code><br />chown jane plans.txt</code><br /><br />To change ownership of directory and files in it, use the recursive option -R<br /><code>chwon -R bob:marketing /var/www/</code></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Debug statements</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># C - Debug statements</h1></strong><br />There&#39;s multiple ways of doing this.<br /><br /><strong><h2>## Version 1</h2></strong><br />Create a <code>__DEBUG</code> macro.<br />If that macro is defined, define the <code>DBUG</code> macro.<br />You can prefix all your debug statments with DBUG now. <br />If <code>__DEBUG</code> is defined, they&#39;ll be printed, if not, they won&#39;t be.<br /><br />Refer here:<br /><a href="https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c">https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c</a><br />1st answer argues you should always let the compiler see debug statements.<br />2nd answer is legit simple, readable, and easy :)<br /><br />If using Visual Studio, the Debug build defines the <code>_DEBUG</code> (1 underscore) macro.<br />You can use that instead of <code>__DEBUG</code> (2 underscores) if you prefer.<br />That way if you compile as Debug, your DBUG statements will print. If you compile as Release, they won&#39;t.<br /><br /><div class="codebox"><div class="codebox">#define&nbsp;__DEBUG					//&nbsp;comment&nbsp;this&nbsp;out&nbsp;to&nbsp;disable&nbsp;debug&nbsp;statements<br />#ifdef&nbsp;__DEBUG<br />	#define&nbsp;DBUG&nbsp;if(1)<br />#else<br />	#define&nbsp;DBUG&nbsp;if(0)<br />#endif<br /><br />//&nbsp;use&nbsp;like&nbsp;so<br />DBUG&nbsp;printf(&quot;ayy&nbsp;%s&quot;,&nbsp;&quot;lmao&quot;);<br />DBUG&nbsp;fprintf(stderr,&nbsp;&quot;yo&quot;);</div></div><br /><br /><strong><h2>## Version 2</h2></strong><br /><div class="codebox"><div class="codebox">#ifdef&nbsp;_DEBUG<br />#define&nbsp;WIN_DEBUG&nbsp;1<br />#else<br />#define&nbsp;WIN_DEBUG&nbsp;0<br />#endif<br /><br />#define&nbsp;debug_print(fmt,&nbsp;...)&nbsp;do&nbsp;{&nbsp;if&nbsp;(WIN_DEBUG)&nbsp;fprintf(stderr,&nbsp;fmt,&nbsp;__VA_ARGS__);&nbsp;}&nbsp;while&nbsp;(0)<br /><br />debug_print(&quot;[-]&nbsp;failed&nbsp;to&nbsp;create&nbsp;file:&nbsp;%d&nbsp;\n&quot;,&nbsp;GetLastError());</div></div></div>
+</body>
+</html>

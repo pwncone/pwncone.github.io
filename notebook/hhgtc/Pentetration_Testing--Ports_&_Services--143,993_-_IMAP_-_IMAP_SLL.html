@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>143,993 - IMAP / IMAP SLL</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Port 143,993 - IMAP &amp; IMAP SSL</h1></strong><br />IMAP - Internet Message Access Protocol - is used for retrieving emails from a mail server.<br /><br /><strong>POP3</strong> - connects to email server at intervals to a download all of a user&#39;s emails without leaving copies on the server<br /><strong>IMAP</strong> - stays continuosly connected to the server and mirrors the mailboxes on the server to the mailboxes of the client<br /><br />IMAP is a more modern protocol designed for multi-device users (get all emails on all your devices because your mailbox is just a mirror of what&#39;s on the server. POP3 downloads the emails to the device that requested them, so you get different emails on different devices)<br /><br />IMAP can run on 2 ports:<br />• Port 143 - unencrypted IMAP<br />• Port 993 - IMAPS (encrypted IMAP)<br /><br /><strong><h2>## Connect &amp; Grab banner</h2></strong><br /><code>nc 10.11.0.4 143 -v</code><br /><code>openssl s_client -connect 10.10.10.120:993</code><br /><br /><strong><h2>## IMAP Commands</h2></strong><br /><a href="https://busylog.net/telnet-imap-commands-note/#41">https://busylog.net/telnet-imap-commands-note/#41</a> ← absolutely brilliant<br />IMAP commands require a tag before the actual command - that&#39;s what the <code>a</code> is<br />    <br /><strong>Log in</strong><br /><code>a LOGIN &lt;user&gt; &lt;pass&gt;</code><br /><strong>List all folders in the mailbox</strong><br /><code>a LIST &quot;&quot; &quot;*&quot;</code><br /><strong>Select a mailbox folder to look at</strong><br /><code>a SELECT Inbox</code><br /><strong>Show the ID of the emails in the mailbox folder so that we can read them</strong><br /><code>a FETCH 1:* FLAGS</code><br /><strong>Read the contnet of the email</strong><br /><code>a FETCH 1 (BODY.PEEK[])</code><br /><br /><strong>To download attachments</strong><br />You have to copy/paste the data it gives you. <br />Check the content encoding header for what the data is, it&#39;s usually base64 so just decode it.</div>
+</body>
+</html>

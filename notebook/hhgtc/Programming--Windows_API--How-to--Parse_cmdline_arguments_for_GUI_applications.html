@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Parse cmdline arguments for GUI applications</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Parse cmdline arguments for GUI applications</h1></strong><br />Source example from MSDN:<br /><a href="https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw">https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw</a><br /><br />NOTE: You won&#39;t be able to print out usage etc. to the console because it&#39;s a GUI application. GUI applications don&#39;t print output to the console.<br /><br /><div class="codebox"><div class="codebox">int&nbsp;WINAPI&nbsp;wWinMain(HINSTANCE&nbsp;hInstance,&nbsp;HINSTANCE&nbsp;hPrevInstance,&nbsp;PWSTR&nbsp;pCmdline,&nbsp;int&nbsp;nCmdShow)<br /><span style="color:#000000;font-weight:400">{</span><br />&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;get&nbsp;command&nbsp;line&nbsp;arguments<br />&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;argc;<br />&nbsp;&nbsp;&nbsp;&nbsp;LPWSTR*&nbsp;argv;<br />&nbsp;&nbsp;&nbsp;&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;argv&nbsp;=&nbsp;CommandLineToArgvW(GetCommandLineW(),&nbsp;&amp;argc);<br />&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argv&nbsp;==&nbsp;NULL)<br />&nbsp;&nbsp;&nbsp;&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fprintf(stderr,&nbsp;&quot;[!]&nbsp;failed&nbsp;to&nbsp;grab&nbsp;command-line&nbsp;arguments&nbsp;\n&quot;);<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;1;<br />&nbsp;&nbsp;&nbsp;&nbsp;}<br />&nbsp;&nbsp;&nbsp;&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;//&nbsp;now&nbsp;use&nbsp;argc&nbsp;&amp;&nbsp;argv&nbsp;as&nbsp;normal...<br />&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;(argc&nbsp;!=&nbsp;3)<br />&nbsp;&nbsp;&nbsp;&nbsp;{<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...<br />&nbsp;&nbsp;&nbsp;&nbsp;}<br />&nbsp;&nbsp;&nbsp;&nbsp;<br />&nbsp;&nbsp;&nbsp;&nbsp;wchar_t*&nbsp;arg_choice&nbsp;=&nbsp;argv[1];<br />&nbsp;&nbsp;&nbsp;&nbsp;wchar_t*&nbsp;arg_targetFile&nbsp;=&nbsp;argv[2];<br /><br />&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;0;<br /><span style="color:#000000;font-weight:400">}</span></div></div></div>
+</body>
+</html>

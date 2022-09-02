@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Bitmask</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><h1># Bitmask</h1><br />Grab a bit or bits from a value.<br />• <a href="https://stackoverflow.com/questions/31575691/what-is-a-bitmask-and-a-mask">https://stackoverflow.com/questions/31575691/what-is-a-bitmask-and-a-mask</a> - Explanation<br /><br /><strong>Examples with EFLAGS register:</strong><br /><a href="https://en.wikipedia.org/wiki/FLAGS_register">https://en.wikipedia.org/wiki/FLAGS_register</a><br /><code>bitIndex</code> is the bit you want to target.<br />e.g. target bit number 6 in the value<br /><br /><code>(1 &lt;&lt; bitIndex)</code> is the mask.<br /><br />• To set a bit to 1: <code>uint32_t zero_flag = mask | (1 &lt;&lt; bitIndex)</code><br />• To set a bit to 0: <code>uint32_t zero_flag = mask &amp; ~(1 &lt;&lt; bitIndex)</code><br />• To get a bit (to be able to check it): <code>uint32_t zero_flag = eflag &amp; (1 &lt;&lt; bitIndex))</code><br />   ◇ if result != 0, the bit is set<br /><br />To get a bit, you can also do <br /><code>!!(value &amp; bit));</code><br /><code>!!(eflags &amp; 0x40));</code>  - e.g. checks for Zero Flag in ELFAGS register</div>
+</body>
+</html>

